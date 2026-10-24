@@ -1,0 +1,23 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*seed*
+wallet*.json
+
+# data (synthetic fixtures live in fixtures/ only)
+data/
+*.vcf
+*.bam
+*.fastq*
+*.dcm
+
+# build
+node_modules/
+dist/
+build/
+.venv/
+__pycache__/
+.DS_Store
