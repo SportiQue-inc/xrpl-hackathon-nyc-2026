@@ -303,3 +303,30 @@ def test_unpaid_weeks_are_paid_after_the_contract_closes(c, rail):
     assert len(paid) == 1                             # the scheduler pays it after the close
     r = c.post(f"/api/contracts/{cid}/payments/retry", headers=rh).json()
     assert r["paid"] == 0 and r["payments"]["unpaid_count"] == 0 and len(paid) == 1
+
+
+def test_posting_and_joining_do_not_wait_behind_a_round_that_is_paying(c, rail, monkeypatch):
+    import threading
+    import sys
+    paid, _ = rail
+    cid, code, researcher = post(c, AP4M_TERMS)
+    join(c, cid, code, "auto_all", "a")
+    rh = token(c, researcher)
+    started, release = threading.Event(), threading.Event()
+    fake = sys.modules["agentrail.ap4m_rail"]
+    real = fake.pay
+
+    def slow_pay(*a, **k):
+        started.set()
+        release.wait(10)
+        return real(*a, **k)
+
+    monkeypatch.setattr(fake, "pay", slow_pay)
+    t = threading.Thread(target=lambda: c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=rh))
+    t.start()
+    assert started.wait(10)                       # the round is now inside an AP4M payment
+    other, code2, _ = post(c, {**AP4M_TERMS, "title": "Another study"})
+    join(c, other, code2, "auto_all", "b")        # neither waits for that payment
+    release.set()
+    t.join(10)
+    assert len(paid) == 1
