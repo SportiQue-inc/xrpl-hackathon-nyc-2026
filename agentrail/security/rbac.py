@@ -42,7 +42,9 @@ POLICY: dict[tuple[str, str], Rule] = {
     # participant app
     ("GET", "/api/p/{pid}"): SELF,
     ("GET", "/api/p/{pid}/preview"): SELF,
+    ("GET", "/api/p/{pid}/data"): SELF,
     ("POST", "/api/p/{pid}/requests/{rid}/approve"): SELF,
+    ("POST", "/api/p/{pid}/data/upload"): SELF,
     ("POST", "/api/p/{pid}/requests/{rid}/decline"): SELF,
     ("POST", "/api/p/{pid}/pause"): SELF,
     ("POST", "/api/p/{pid}/resume"): SELF,

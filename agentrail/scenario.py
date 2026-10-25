@@ -358,6 +358,9 @@ def build_cohort(w: World, n: int = 50):
         pa.set_consent("org_sleeplab", "sleep_research", items, automation=auto, quiet=True)
         w.cohort_people[pid] = pa
     w.coverage = synthetic_coverage(list(w.cohort_people))
+    if os.environ.get("UNIQDATA_PERSON") and HERO in w.cohort_people:   # the followed person's own UniQdata
+        from . import uniqdata_live
+        uniqdata_live.attach(w.cohort_people[HERO], uniqdata_live.load_person(os.environ["UNIQDATA_PERSON"]))
     e.set_mandate(BuyerMandate("org_sleeplab", 80 * XRP, 3 * XRP, ["sleep_research"]))
     if getattr(w, "security", None):
         w.security.enrol_participants(list(w.cohort_people))
