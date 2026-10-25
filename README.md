@@ -1,15 +1,38 @@
-# AgentRail - a shared agent transaction rail for institutions, with a sensitive-data layer proven on health research
+# AgentRail - agents that buy and sell data between companies on XRPL, and the same rail with a sensitive-data layer for health research
 
 XRPL AI & Fintech Hackathon NYC 2026 (Oct 24-25) - SportiQue team.
 Track: **Agentic Finance**. Everything in this repository was built during the hackathon
 (reused material is listed in [docs/REUSE_LOG.md](docs/REUSE_LOG.md)).
 
-## 1. What AgentRail is: three stacked layers
+## 0. In order: the problem, Act 1 (B2B), SportiQue, Act 2 (healthcare)
 
-**The problem.** Agents are starting to transact for institutions and for people. Today's rails
-cannot enforce who an agent acts for, how far it may go, or on what terms, and the more sensitive the
-data, the more every deal stalls. A sleep study that loses three weeks of surveys still waits months
-for contracts to fill the gap.
+**The problem.** To buy or sell data, a company has to match it against what it needs, check that it
+is what was promised, agree who may use it, and settle the payment. A data access agreement takes a
+median of 80 days. Agents can do this work, but today's rails cannot enforce who an agent acts for,
+how far it may go, or on what terms.
+
+**Act 1: an agent network between companies (B2B).** Every account has an agent
+([docs/AGENT_MARKET.md](docs/AGENT_MARKET.md)). A buyer's agent forms a need from the gap in its own
+store and its owner's budget. It queries one shared offer book whose Merkle root is anchored on the
+ledger, fans out to every candidate, opens a hashed sample of each against its certificate, scores
+them, negotiates with the best, and pays on XRPL with a key-reveal escrow: the payment itself
+publishes the key that opens the data. What it buys accumulates in its own store and can be sold on.
+In the synthetic run, 74 needs became 176 trades and 130 fit deliveries settled (mock ledger, seed
+11). `python scripts/export_network.py` replays it as a node network.
+
+**SportiQue.** We run both sides of health data: UniQdata for people's own health data and UniQLab
+for researchers. In health the same headache is far bigger: consent for every item, studies that fit
+are hard to find, and genes cannot be taken back once they leak.
+
+**Act 2: the same rail with a sensitive-data layer (healthcare).** The person's agent reads every
+study posting and shows the person only the ones that fit; until the person says yes, no lab knows
+the person exists. Consent is per item and per institution, signed once with a passkey; genomic data
+needs the passkey every time. A tampered week fails before payment and gets nothing; a week that fits
+pays on XRPL and hands over the key; withdrawal pulls the licence back on the ledger. In the
+synthetic run, owner actions drop from 11,600 column approvals to 233 passkey approvals
+([docs/CATALOG.md](docs/CATALOG.md)).
+
+## 1. What AgentRail is: three stacked layers
 
 **The structure.** AgentRail stacks three layers on XRPL. We prove the hardest one, sensitive data,
 on health research (sections 2-4); layers 1 and 2 run unchanged in any industry (section 8,
@@ -192,7 +215,7 @@ on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 |---|---|---|
 | Agentic Finance: escrow, multi-signing, on-chain credentials | all three are in the main flow, not side demos | section 4 tx links |
 | Idea | research on one person's whole record, contributed by that person's agent; the counterpart is a person, not a dataset | sections 1-2 |
-| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, intake provenance stamps checked before payment, continuity-curve pay with a review holdback, idempotent payments and recovery, device-signed sign-in with role tokens and per-route policy, hash-chained audit log, 128 tests incl. 25 attack tests | `tests/`, sections 4 and 6 |
+| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, intake provenance stamps checked before payment, continuity-curve pay with a review holdback, idempotent payments and recovery, device-signed sign-in with role tokens and per-route policy, hash-chained audit log, a full test suite incl. 25 attack tests | `tests/`, sections 4 and 6 |
 | Demo | phone request -> contribution -> researcher heatmap fills -> revoke -> clawback and refund, all with explorer links | section 9 |
 | Potential | small, frequent contributions that cards and 80-day agreements cannot carry | section 8 |
 | Bonus: QuickNode, x402 | QuickNode: every standalone check submitted and confirmed through a QuickNode Testnet endpoint (table in section 4). x402: every clinic export is a real HTTP 402 -> 200 exchange (`export_fees[].http`), settled by T54 on Testnet; the study view counts fees per settler (`settlement.export_fee_rails`) | section 4 |
@@ -323,7 +346,7 @@ bundle with the key from the ledger.
 ```bash
 pip install -r requirements.txt
 cp .env.example .env                     # optional: OPENAI_API_KEY=... (never committed)
-python -m pytest -q                      # 256 tests on the mock ledger (25 attack tests)
+python -m pytest -q                      # full suite on the mock ledger (incl. 25 attack tests)
 python scripts/export_network.py          # Act 1 as a node network, replayed offline: docs/demo/act1-network.html
 python scripts/run_health_demo.py        # whole health study, mock ledger, JSON summary
 LEDGER=testnet python scripts/run_health_demo.py   # same on XRPL Testnet (faucet wallets)
