@@ -6,7 +6,7 @@
 import { engine, watch } from "./api.js";
 import {
   h, render, tag, icon, xrp, short, sum, ago, day, ledgerDay, weeksLabel, txLink, openReceipt, banner, busy, WEEK_STATE,
-  holdbackState, SIGNAL,
+  holdbackState, SIGNAL, codeGate,
 } from "./ui.js";
 
 const LIVE_STUDY = "Sleep and fatigue study (synthetic)";
@@ -211,7 +211,9 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
   // ---------- pages ----------
   function draw() {
     let page;
-    if (st.error && !st.s) {
+    if (st.error && !st.s && st.error.status === 403) {
+      page = h("div", { class: "col" }, codeGate("the study"));
+    } else if (st.error && !st.s) {
       page = h("div", { class: "col" }, banner("red", "Could not reach the engine. ", h("button", { class: "ar-link", onclick: load }, "Retry")),
         h("span", { class: "tiny muted" }, String(st.error.message || st.error)));
     } else if (!st.s) {

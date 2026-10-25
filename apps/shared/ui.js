@@ -192,6 +192,21 @@ export function banner(tone, ...kids) {
   return h("div", { class: `ar-banner ${tone}` }, ...kids);
 }
 
+// A public demo deploy answers only visitors with the access code; ask for it in place of an error.
+export function codeGate(what = "your agent") {
+  const input = h("input", { type: "password", placeholder: "Access code", class: "ar-input",
+    style: { flex: "1", font: "inherit", border: "1px solid #d0d5dd", borderRadius: "10px", padding: "10px 12px" } });
+  const submit = (e) => {
+    e.preventDefault();
+    const u = new URL(location.href);
+    u.searchParams.set("code", input.value.trim());
+    location.href = u.toString();
+  };
+  return h("form", { class: "col", style: { gap: "10px" }, onsubmit: submit },
+    banner("blue", `Enter the demo access code to reach ${what}.`),
+    h("div", { class: "row", style: { gap: "8px" } }, input, h("button", { class: "ar-btn primary", type: "submit" }, "Continue")));
+}
+
 // Run an engine call with a busy state on a button; returns the result or null on error.
 export async function busy(btn, label, fn, onError) {
   const old = btn ? [...btn.childNodes] : null;
