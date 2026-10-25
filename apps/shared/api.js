@@ -82,6 +82,11 @@ export function engine(base = "", { token } = {}) {
     consentChallenge: (pid, entries) => post(`${P(pid)}/consents/challenge`, { entries }, pid),
     consentApprove: (pid, entries, assertion) => post(`${P(pid)}/consents/approve`, { entries, assertion }, pid),
     revokeChallenge: (pid) => post(`${P(pid)}/revoke/challenge`, {}, pid),
+    // Push delivery sealed in this page (docs/API.md): prepare -> seal here -> sealed -> reveal K.
+    pushPrepare: (pid, body) => post(`${P(pid)}/push/prepare`, body, pid),
+    pushSealed: (pid, record, condition) => post(`${P(pid)}/push/sealed`, { record, condition }, pid),
+    pushReveal: (pid, orderId, keyB64u) => post(`${P(pid)}/push/reveal`, { order_id: orderId, key_b64u: keyB64u }, pid),
+    pushRevoke: (pid, institution) => post(`${P(pid)}/push/revoke`, { institution }, pid),
     respond: (pid, caseId, text) => post(`${P(pid)}/cases/${caseId}/respond`, { text }, pid),
     resumeRequests: (pid) => post(`${P(pid)}/resume-requests`, {}, pid),
     uniqdata: (pid, project) => get(`${P(pid)}/uniqdata${project ? `?project=${encodeURIComponent(project)}` : ""}`, pid),

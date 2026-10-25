@@ -52,19 +52,27 @@ async function deviceRoot(pid) {
 // Whether this page holds the person's root key, and whether it came from the passkey.
 export const rootKey = (pid) => roots.get(pid) || null;
 
-export async function tradeKey(pid, orderId, bundleHash) {
+// K for one trade: HKDF(root, "trade|<order id>|<bundle hash>"), 32 raw bytes. Raw, because the page
+// publishes K in EscrowFinish once the person releases it (docs/API.md, push delivery).
+async function tradeKeyBytes(pid, orderId, bundleHash) {
   const r = roots.get(pid) || { key: await deviceRoot(pid), from: "device" };
   roots.set(pid, r);
-  return crypto.subtle.deriveKey({ name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0),
-    info: enc.encode(`trade|${orderId}|${bundleHash}`) }, r.key, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0),
+    info: enc.encode(`trade|${orderId}|${bundleHash}`) }, r.key, 256));
 }
 
+const hex = (u8) => [...u8].map((b) => b.toString(16).padStart(2, "0")).join("");
+// PREIMAGE-SHA-256 crypto-condition for K, as the escrow expects it.
+export const escrowCondition = async (k) => `A0258020${hex(await sha256(k))}810120`.toUpperCase();
+
 // Seal a bundle with its trade key, then encrypt it to the institution (ECDH P-256 + HKDF + AES-GCM).
-// The bundle bytes and the institution's key format follow the build thread's bundle spec.
+// Returns the record for the engine, the escrow condition, and K, which stays in this page until reveal.
 export async function sealBundle(pid, orderId, bundle, institutionJwk) {
-  const bundleHash = [...await sha256(bundle)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const bundleHash = hex(await sha256(bundle));
+  const k = await tradeKeyBytes(pid, orderId, bundleHash);
+  const kk = await crypto.subtle.importKey("raw", k, "AES-GCM", false, ["encrypt"]);
   const iv1 = crypto.getRandomValues(new Uint8Array(12));
-  const inner = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, await tradeKey(pid, orderId, bundleHash), bundle));
+  const inner = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, kk, bundle));
   const them = await crypto.subtle.importKey("jwk", institutionJwk, { name: "ECDH", namedCurve: "P-256" }, false, []);
   const eph = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
   const shared = await crypto.subtle.deriveBits({ name: "ECDH", public: them }, eph.privateKey, 256);
@@ -74,8 +82,10 @@ export async function sealBundle(pid, orderId, bundle, institutionJwk) {
   const iv2 = crypto.getRandomValues(new Uint8Array(12));
   const body = new Uint8Array(iv1.length + inner.length); body.set(iv1); body.set(inner, iv1.length);
   const outer = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv2 }, wrap, body);
-  return { order_id: orderId, bundle_hash: bundleHash, epk: await crypto.subtle.exportKey("jwk", eph.publicKey),
-           iv: toB64u(iv2), sealed: toB64u(outer), root: roots.get(pid).from };
+  const pub = await crypto.subtle.exportKey("jwk", eph.publicKey);
+  return { record: { order_id: orderId, bundle_hash: bundleHash, epk: { kty: pub.kty, crv: pub.crv, x: pub.x, y: pub.y },
+                     iv: toB64u(iv2), sealed: toB64u(outer), root: roots.get(pid).from },
+           condition: await escrowCondition(k), key_b64u: toB64u(k) };
 }
 
 export async function signWithPasskey(publicKey, pid) {

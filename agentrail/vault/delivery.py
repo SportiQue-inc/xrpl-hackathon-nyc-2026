@@ -159,7 +159,11 @@ class PushDelivery:
             self.engine.store.log(p["iid"], "refused", f"order {p['oid']}: the revealed key does not open the sealed "
                                   "bundle to its committed hash; not finished, the escrow returns after its deadline")
             return {"ok": False, "reason": "key does not open the sealed bundle"}
-        self.engine.key_holders[pid].keys[p["order_key"]] = k
+        holder = self.engine.key_holders[pid]
+        if hasattr(holder, "keys"):
+            holder.keys[p["order_key"]] = k
+        else:                                         # a study participant's keyring (security/devices.py)
+            holder.ks.get_or_create(f"escrow.{p['order_key']}", lambda: k)
         status = self.engine.process(p["oid"])
         pm = self.engine.store.one("SELECT finish_tx FROM payments WHERE order_id=?", p["oid"])
         return {"ok": status == "delivered", "status": status, "escrow_finish": pm["finish_tx"]}
