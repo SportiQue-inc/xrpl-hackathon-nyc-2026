@@ -20,7 +20,8 @@ publishes the key that opens the data. What it buys accumulates in its own store
 A buyer never pays twice for data it already holds: an offer with a root it bought before is
 refused, and copied rows are priced at the new part only. In our simulated market of 50 synthetic
 accounts (mock ledger, seed 11), agents completed 109 paid trades, 80 of them without an owner
-decision, at prices the market set inside the owners' floors and budgets; 6 offers whose delivery did
+decision, at prices the market set inside the owners' floors and budgets
+([who sets the price](docs/AGENT_MARKET.md#who-sets-the-price-agentrailmarketpricingpy)); 6 offers whose delivery did
 not match the certified rows were refused before payment, and 4 deliveries failed the buyer's check
 after opening and were recorded as refund claims. `python scripts/export_network.py` replays it as a node network.
 
@@ -67,11 +68,9 @@ on health research (sections 2-4); layers 1 and 2 run unchanged in any industry 
 - **Layer 3, sensitive data:** for health records, consent is per use, payment happens only on
   delivery, and withdrawal claws the licence back.
 
-  Person-level health records are the hardest case: consent, re-identification and withdrawal all
-  apply at once. **We solved that boundary first.** An engine that passes it handles organization
-  data, AI training and evaluation data or robot sensor data by making the consent layer lighter.
-- **Why health first:** it is the hardest case. If layer 3 holds there, layers 1 and 2 hold in every
-  industry.
+  Layer 3 is proven on health research, the hardest case: consent, re-identification and withdrawal
+  all apply at once to person-level records. Organization data, AI training and evaluation data or
+  robot sensor data use the same engine with a lighter consent layer.
 
 The LLM proposes, code verifies, the ledger enforces.
 
@@ -96,6 +95,8 @@ Only what exists in this repository. Testnet links are from the runs listed in s
 | ③ | Per-round salt inside the sealed bundle: the hash on the ledger cannot be matched by guessing values | `engine.place_order` | off ledger by design (`test_ledger_hash_is_salted_per_round`) |
 | ③ | Ethics-review credential with expiry, withdrawn with `CredentialDelete` | `ledger/xrpl_extras.py`, `scenario.py` | [CredentialCreate](https://testnet.xrpl.org/transactions/58656AB4E6ABEC47BAA92F90C3F304B8959D1FDAE03AE6ED193FA2D98CBD1A37), [CredentialAccept](https://testnet.xrpl.org/transactions/FC7710C97C3783157778952291A28B2322E2FD65DBBDB5B52F4662DF9D514218) |
 | ③ | Pay on the continuity curve: 50% of a verified week at key reveal, rising with each consecutive week; the rest in its own escrow, released after review | `payout.py` | [holdback EscrowCreate](https://testnet.xrpl.org/transactions/E77702780035D4AB75770C11EAECE6A6273DF3EEE58E659A941F62C814CBA166) |
+| ③ | Sub-projects under one institution: one relationship with a lab covers many sub-projects; each sub-project's scope and the relationship's consents are read again on every access, so a narrower scope or a paused consent applies at once; in-scope requests run automatically, anything outside scope or T3 goes to the person; no new contract per sub-project | `subprojects.py`, `web.py` (`/api/institution/subprojects`, `/api/p/{pid}/relationship`) | same escrow path, memo carries `sub:<id>` (`tests/test_subprojects.py`) |
+| ③ | T3 (genomic variants, CT, MRI) starts from UniQdata intake: each record goes in through UniQdata's DataQ write path; with UniQdata connected, a T3 dataset is offered only when the person's intake holds a matching record, and it carries that record hash and DataQ result as provenance; only a synthetic summary is stored, never an image or a genome | `scripts/uniqdata_intake_t3.py`, `uniqdata_live.feed_market`, `scripts/t3_testnet_check.py` | `LEDGER=testnet python scripts/t3_testnet_check.py` prints explorer links per type |
 
 ## 2. Proof: layer 3 on health research. How we solved the hard boundaries
 
