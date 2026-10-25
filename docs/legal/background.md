@@ -1,0 +1,21 @@
+# Background: prior regulatory consultations
+
+> Not legal advice. Summary in our words; the design's legal basis is the statutes and public
+> guidance listed in [README.md](README.md).
+
+## KISA personal information protection support center (answer received 2026-10-23)
+
+| Topic | What the answer said (summary) | Where it shows in the design |
+|---|---|---|
+| Sensitive data | Health data is sensitive information; get consent for it separately from other information | Separate consents for sensitive data, third-party provision and international transfer (PIPA Arts. 22, 23) |
+| Identity separation | Keep identifying information apart from study participation identifiers; keep the mapping separately with separate access; give researchers only the participant number and consented items | Per-study participant number; the link stays with the person's agent (PIPA Arts. 28-2 to 28-5) |
+| Withdrawal | Manage consent status in one place, check it on every access, and invalidate sessions and tokens on withdrawal or expiry. On withdrawal, destroy the personal information held without delay; for data already provided to an institution, the provision contract should require destruction and a confirmation. Aggregate statistics are not subject to destruction; person-level outputs are | Consent checked on every round and again before key release; licence clawback; deletion request and the institution's confirmation recorded; only aggregate statistics remain (PIPA Art. 37) |
+| Records | Keep access logs for at least 2 years and records of granting, changing or removing permissions for 3 years; these operating records are not subject to destruction | Retention shown on the request card and in the consent document |
+| Provision contract | Prohibit re-identification; require destruction and confirmation on withdrawal | Provision terms in the consent document |
+| AI training | Using the data to train models needs separate notice and consent | Participants' data is not used to train models; the LLM never sees record values |
+
+## Not covered by any consultation
+
+No consultation addressed settlement in virtual assets on XRPL. The demo runs on Testnet, the
+platform is non-custodial (the institution signs its own payments), and confirming the payment
+model with financial regulators is listed as work before a live service.
