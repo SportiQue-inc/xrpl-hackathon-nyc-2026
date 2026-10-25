@@ -174,7 +174,7 @@ def _chat_today(aid: str) -> int:
 def meta():
     return {"ledger": M.rail.name, "model": llm.model_name(), "llm": llm.USAGE, "kinds": KINDS, "k_min": config.K_MIN,
             "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": M.rail.asset == "USD", "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
-            "rpm_cap": config.LLM_RPM, "daily_cap": config.LLM_DAILY_CALLS}
+            "rpm_cap": config.LLM_RPM, "daily_cap": config.LLM_DAILY_CALLS, "engine_url": config.ENGINE_URL}
 
 
 @app.get("/api/accounts")

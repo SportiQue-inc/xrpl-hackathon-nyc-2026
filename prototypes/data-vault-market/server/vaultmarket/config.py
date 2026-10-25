@@ -52,3 +52,6 @@ LLM_DAILY_CALLS = int(os.environ.get("VM_LLM_DAILY_CALLS", "320"))   # spread ev
 PUBLIC = os.environ.get("VM_PUBLIC", "0") == "1"
 CHAT_DAILY = int(os.environ.get("VM_CHAT_DAILY", "30"))         # agent chat messages per member per day
 SIGNUPS_PER_HOUR = int(os.environ.get("VM_SIGNUPS_PER_HOUR", "5"))  # per IP address
+
+# the agentrail engine's read-only try-it view, linked from the top bar (empty to hide)
+ENGINE_URL = os.environ.get("VM_ENGINE_URL", "https://agentrail-try-production.up.railway.app/try")

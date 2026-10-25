@@ -24,6 +24,10 @@ async function topbar(page) {
   $("acct").hidden = true;
   $("acct").previousElementSibling.textContent = USER.user ? `Signed in as ${who?.name || USER.user.username}` : `Demo view: ${who?.name || ME}'s vault. Sign in to trade your own.`;
   memberBar();
+  if (META.engine_url && !document.getElementById("engineLink")) {
+    const a = document.createElement("a"); a.id = "engineLink"; a.href = META.engine_url; a.target = "_blank"; a.rel = "noopener"; a.textContent = "Engine ↗";
+    a.title = "The agentrail engine underneath: try it, read-only"; document.querySelector("nav").append(a);
+  }
   $("ledgerTag").textContent = ({ testnet: "XRPL Testnet", devnet: "XRPL Devnet" })[META.ledger] || "TEST LEDGER (not real)";
   $("ledgerTag").className = "tag " + (META.ledger === "mock" ? "red" : "blue");
   $("ledgerTag").title = META.asset_note || "";
