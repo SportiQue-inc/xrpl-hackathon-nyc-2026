@@ -52,16 +52,39 @@ This reimplements the interfaces of the people's store (research ref HMAC, per-s
 
 Each purpose has its own secret, with no default and no reuse of another key. Every image carries its pseudonymization record. This lowers the risk that an image is linked to a person; it does not remove it.
 
+## How a buyer's agent finds a seller (`agentrail/market/discovery.py`)
+
+1. **Need formed.** The agent compares its own store with what its owner wants, takes one gap
+   column, and asks the LLM for columns, weeks, quality floor, price ceiling and a reason. Code keeps
+   only columns from the gap, a ceiling inside the owner's budget per item, weeks 1–8 and grades A–C;
+   anything else falls back to the rule. Without an LLM key the rule runs and is labelled as such.
+2. **Offer book.** Every seller's agent lists its certified datasets. The list's Merkle root goes on
+   the ledger in a 1-drop Payment (`InvoiceID` = root, memo `agentrail:offerbook:<n>:<root>`); the
+   agent reads the root back from the ledger and ignores any listing whose proof does not reach it.
+3. **Fan-out.** Filter by columns, weeks, seller attributes and grade, then open 12 hashed sample rows
+   of every survivor against its certificate.
+4. **Compare.** Score = 0.45 quality grade + 0.35 price under the ceiling + 0.20 the seller's record
+   of fit deliveries. Ranked list kept in the need log.
+5. **Negotiate** with the best in order: the buyer opens at 80% of the ask, the seller's agent concedes
+   toward its floor (90% of the ask, 95% with a shaky record), a deal is the first bid at or above the
+   counter; no meeting point means the next candidate. The agreed price goes into the contract hash.
+6. The LLM may explain the choice in words; an explanation that names a seller who was not a
+   candidate is dropped. It never changes the ranking or the price.
+
+`python scripts/export_network.py` replays these logs: the offer book in the middle, the fan-out to
+every candidate, the comparison table, the negotiation, then the one trade with escrow and key.
+
 ## Act 1: open market (mock ledger, seed 11, 3 rounds)
 
 | | |
 |---|---|
-| needs posted by the 36 accounts with a budget | 71 |
-| trades | 175: 130 settled, 11 settled but unfit (holdback withheld), 23 blocked, 8 declined by the owner, 3 waiting for the owner |
-| sold by the agent on its own | 112 of 141 settled |
-| volume | 2.68 XRP paid, 0.043 XRP withheld |
+| needs formed by the accounts with a budget | 74 |
+| offer book | 477 listings, root anchored on the ledger before trading (re-anchored when agents collect new data) |
+| candidates per need | median 37 sampled and scored |
+| trades | 176: 130 settled, 10 settled but unfit (refund claim recorded), 23 blocked, 10 declined by the owner, 3 waiting for the owner |
+| volume | 2.56 XRP paid at negotiated prices (about 9% under the asks) |
 | hours from need to fill | median 0 (agent), p90 11.3 (owner answered) |
-| unfit deliveries caught | 11 not as committed (bait), 4 incomplete, 4 impossible values |
+| unfit deliveries caught | 10 after delivery (not as committed, incomplete or impossible values), each with a refund claim |
 
 Health columns, robot logs (lidar, joint torque, gripper events), fleet battery logs and smart-home meters trade side by side. **Reverse direction:** a person buys a wellness trait report (caffeine metabolism, lactose tolerance) from a provider credentialed for wellness reports. The person's agent sends only the variants at the loci the report needs (3 of about 30). The person's payment is escrowed and released by the provider's key reveal. The report says "wellness information, not a diagnosis". The provider signs a deletion confirmation. A request outside the credential ("disease_risk") is refused.
 

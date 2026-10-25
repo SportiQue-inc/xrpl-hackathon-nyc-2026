@@ -56,7 +56,7 @@
 - **허용되는 형태:** 각 회차 대가의 일부를 그 회차의 품질 검수와 부정 확인이 끝날 때까지 잠가 두는 것은 세 나라 모두 조건부로 가능하다.
 - **조건 1. 유보분은 참여자의 돈이다.** 검수를 통과하거나 정해진 기간이 지나면 반드시 참여자에게 지급한다. **철회해도 지급한다.**
 - **조건 2. 해제 조건은 그 회차에 대해서만 건다.** "연구 완료"나 "철회하지 않음"을 조건으로 걸면 완료 조건부 지급이자 철회에 대한 불이익이 되어 불가하다(46.116(b)(8), FDA 2018, 생명윤리법 제16조) [미검증].
-- **법정 비율이나 기간은 세 나라 모두 없다.** IRB가 부당한 영향인지를 본다. 데모 가정은 유보 20%, 검수 기간 7일, 부정 의심 시 최대 14일 연장으로 둔다. 동의서와 모집 화면에 금액·비율·기간·해제 조건을 함께 표시한다.
+- **법정 비율이나 기간은 세 나라 모두 없다.** IRB가 부당한 영향인지를 본다. 데모 가정은 전향적 연구의 첫 주 유보 50%(연속 주마다 10%p씩 줄어 최소 10%), 검수 기간 7일, 부정 의심 시 최대 14일 연장으로 둔다. 후향적 연구는 전달 시 전액이라 유보가 없다. 동의서와 모집 화면에 금액·비율·기간·해제 조건을 함께 표시한다.
 
 ### 완료 보너스와의 구분
 | | 즉시분 | 유보분 | 완료 보너스 |
@@ -75,8 +75,9 @@
 | 철회로 자료가 먼저 파기된 경우 | 검수를 못 했으면 통과로 보고 지급(파기 의무 때문에 지급을 막으면 철회 불이익) | 같음 | 같음 |
 
 ### 엔진 규칙 (Escrow 2단, 해제는 코드 판정)
-1. 회차 제공이 확인되면 **즉시분**(예: 80%)은 기관 계정에서 Payment로 바로 지급한다.
-2. **유보분**(예: 20%)은 Condition(crypto-condition)을 건 EscrowCreate로 잠근다. FinishAfter는 제공 시각 + 7일, CancelAfter는 제공 시각 + 7일 + 14일 + 여유 7일로 둔다. Condition의 fulfillment는 검수 서비스가 보관한다.
+0. 지급 방식은 연구 유형으로 정한다(`agentrail/payout_schedule.py`). **전향적**: 검증된 주의 즉시분은 첫 주 50%이고 연속 검증 주마다 10%p씩 올라 최대 90%다. 2/4/8주 연속이면 주당 단가가 ×1.1/×1.2/×1.3으로 오른다. 빠진 주나 실패한 주가 있으면 곡선이 처음으로 돌아가고, 이미 지급한 돈은 되찾지 않는다. **후향적**: 인증서·해시 샘플·출처 봉인을 확인한 뒤 전달 시 전액 지급한다(유보 없음). **하이브리드**: 후향적 기준 데이터 1회 + 전향적 추적 주. 출처 봉인이 맞지 않는 기여는 결제 전에 거절되어 0이다.
+1. 회차 제공이 확인되면 **즉시분**(전향적 곡선의 비율)은 키 공개 EscrowFinish로 바로 지급한다.
+2. **유보분**(나머지)은 Condition(crypto-condition)을 건 EscrowCreate로 잠근다. FinishAfter는 제공 시각 + 7일, CancelAfter는 제공 시각 + 7일 + 14일 + 여유 7일로 둔다. Condition의 fulfillment는 검수 서비스가 보관한다.
 3. 7일 안에 `quality_check == pass` AND `fraud_suspected == false`이면 검수 서비스가 fulfillment로 EscrowFinish를 제출한다. **판정 결과가 없거나 시간이 지나면 기본값은 지급이다.**
 4. `fraud_suspected`이면 최대 14일 보류하고 사유를 통지한다. 사람 확인(`reviewer_id`)으로 `fraud_confirmed`가 되었을 때만 Finish를 제출하지 않는다. 그러면 CancelAfter 후 기관에 반환된다. 14일 안에 확정되지 않으면 지급한다.
 5. 철회 이벤트는 유보분 해제 판정의 입력이 아니다. 철회 ③으로 자료가 파기돼 검수할 수 없으면 `quality_check = pass`로 처리한다.
@@ -84,6 +85,6 @@
 7. 완료 보너스 Escrow는 별도 객체로 둔다. 철회하면 기관에 반환되고, 유보분과 섞지 않는다.
 
 ### 동의서·모집 화면 문구
-> 회차당 대가 ○원 중 80%(○원)는 자료를 제공하면 바로 지급됩니다. 나머지 20%(○원)는 자료 확인을 위해 최대 7일 보관한 뒤 지급됩니다. 부정행위가 의심되면 사유를 알려드리고 최대 14일 더 보관할 수 있으며, 부정행위가 확인된 경우에만 지급되지 않습니다. **중간에 참여를 그만두더라도 확인이 끝난 금액은 모두 지급됩니다.** 모든 회차를 마치면 완료 보너스 ○원이 추가로 지급됩니다.
+> 주당 대가 ○원 중 첫 주에는 50%(○원)가 자료를 제공하면 바로 지급되고, 빠짐없이 이어서 참여하는 주마다 바로 받는 비율이 10%p씩 올라 최대 90%가 됩니다. 2·4·8주 연속이면 주당 대가도 10·20·30% 오릅니다. 나머지는 자료 확인을 위해 최대 7일 보관한 뒤 지급됩니다. 부정행위가 의심되면 사유를 알려드리고 최대 14일 더 보관할 수 있으며, 부정행위가 확인된 경우에만 지급되지 않습니다. **중간에 참여를 그만두더라도 확인이 끝난 금액은 모두 지급됩니다.** 모든 회차를 마치면 완료 보너스 ○원이 추가로 지급됩니다.
 >
-> Of the ○ per round, 80% (○) is paid as soon as you contribute. The remaining 20% (○) is held for up to 7 days while the data is checked, then paid. If fraud is suspected, we will tell you why and may hold it up to 14 more days; it is withheld only if fraud is confirmed. **If you stop partway, every checked amount is still paid.** Completing all rounds adds a completion bonus of ○.
+> Of the ○ per week, 50% (○) is paid as soon as you contribute in your first week, and the share paid at once rises by 10 points for each consecutive week you take part, up to 90%. After 2, 4 and 8 consecutive weeks the weekly amount rises by 10, 20 and 30%. The rest is held for up to 7 days while the data is checked, then paid. If fraud is suspected, we will tell you why and may hold it up to 14 more days; it is withheld only if fraud is confirmed. **If you stop partway, every checked amount is still paid.** Completing all rounds adds a completion bonus of ○.
