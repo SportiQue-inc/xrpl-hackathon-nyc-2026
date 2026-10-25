@@ -91,6 +91,10 @@ def _guard(request: Request, aid: str, write: bool = True):
     return me
 
 
+from .vaultfiles import register as register_vaultfiles
+register_vaultfiles(app,M,_guard)
+
+
 def _session(resp: Response, username: str):
     tok = secrets.token_urlsafe(32)
     M.s.insert("sessions", token=tok, username=username)
@@ -592,12 +596,13 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
     text = body["text"].strip()[:500]
     M.chat(aid, "me", text)
     a = M.acct(aid)
-    ref = re.search(r"#(\d+)", text)
+    discovery = body.get("intent")=="discover" or bool(re.search(r"^(?:what|which|how|where)\b|\bcan i\b|뭘|무엇|어떤|뭐|팔\s*수\s*있",text,re.I))
+    ref = re.search(r"#(\d+)", text) if not discovery else None
     w = M.s.one("SELECT * FROM postings WHERE id = ? AND status = 'open'", (int(ref.group(1)),)) if ref else None
     if w and w["buyer"] != aid:
         M.enqueue_sale(aid, w["kind"], w["id"])
         return {"ok": True}
-    p = agents.parse_chat(text)
+    p = {"kind":None,"intent":"other","price":None} if discovery else agents.parse_chat(text)
     if not p["kind"]:
         offers=_sell_now(aid)[:3]
         if offers:
