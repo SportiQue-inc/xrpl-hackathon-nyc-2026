@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { STUDY } from './lib/catalog.mjs';
 import { DRY_AGENT, DRY_PAYOUT, dryChannelId, fakeSignVoucher, fakeTxHash } from './lib/dry.mjs';
 import { payoutAddress, resolveEnv, setting } from './lib/env.mjs';
+import { voucherRedeemedEvents } from './lib/ledger-events.mjs';
 import { verifySealed } from './lib/pkg.mjs';
 import { buildConsent, buildPolicy, decide } from './lib/policy.mjs';
 import { fromWei } from './lib/units.mjs';
@@ -171,6 +172,12 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
       sealed = purchase.resource;
       redeemTx = purchase.transactionHash;
       call.claim_id = purchase.claimId;
+      const receipt = await live.provider.getTransactionReceipt(redeemTx);
+      const [event] = voucherRedeemedEvents(receipt, live.context.participantRequest.ledger)
+        .filter((entry) => entry.claimId === purchase.claimId.toLowerCase());
+      call.voucher_redeemed_event = event
+        ? { ...event, amount_rlusd: fromWei(event.amount), cumulative_rlusd: fromWei(event.cumulativeAmount), previousCumulativeAmount: undefined, cumulativeAmount: undefined, amount: undefined }
+        : null;
       const reported = await fetch(`${live.apiUrl}/public/participant/record-redemption`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${live.token}` },
