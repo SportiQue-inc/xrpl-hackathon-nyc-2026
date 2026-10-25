@@ -23,7 +23,9 @@ LICENCE_FLAGS = F.TF_MPT_REQUIRE_AUTH | F.TF_MPT_CAN_CLAWBACK
 
 
 def licence_metadata(study: str, duo: list[str], consent_hash: str) -> str:
-    return json.dumps({"t": "agentrail.licence/v1", "study": study, "duo": duo,
+    import hashlib
+    # The study is referenced by hash only: no study names or conditions on the ledger.
+    return json.dumps({"t": "agentrail.licence/v1", "study": hashlib.sha256(study.encode()).hexdigest()[:16], "duo": duo,
                        "consent": consent_hash[:32]}, separators=(",", ":"), sort_keys=True)
 
 

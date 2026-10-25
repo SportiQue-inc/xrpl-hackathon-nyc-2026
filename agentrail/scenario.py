@@ -22,7 +22,7 @@ from .policy import BuyerMandate, ComplianceRules, SellerPolicy
 
 XRP = 1_000_000
 CELL_PRICE = XRP // 5          # 0.2 XRP per participant-week item
-ETHICS_CREDENTIAL = "ETHICS_REVIEW_SLEEP"
+ETHICS_CREDENTIAL = "ETHICS_REVIEW"   # no study topic or condition on the ledger
 
 # What the buyer's owner types, and what the company already holds and has measured.
 GOAL_TEXT = "Close the gaps our latest evaluation found before commercial deployment. Spend up to 40 XRP."

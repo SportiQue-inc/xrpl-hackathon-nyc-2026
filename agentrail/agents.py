@@ -418,7 +418,10 @@ def consent_document(person_id, buyer_id, purpose, items, weeks, automation, min
         "payment": "direct to data holder on XRPL, per delivered round",
         "withdrawal": "pause stops new orders; revoke also withholds undelivered bundles; "
                       "completed payments are kept",
-        "onward_transfer": "not allowed", "synthetic_demo": True,
+        "onward_transfer": "not allowed",
+        "cross_border_transfer": "not allowed without a separate consent (viewing from abroad counts)",
+        "already_used_data": "handled as this consent form and the approved study protocol state",
+        "synthetic_demo": True,
     }
 
 
