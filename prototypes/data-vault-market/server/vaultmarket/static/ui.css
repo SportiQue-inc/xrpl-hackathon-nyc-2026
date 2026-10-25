@@ -90,3 +90,43 @@ dialog label input { display: block; width: 100%; margin-top: 3px; }
 .pop { border: 1px solid var(--accent); border-radius: 10px; padding: 10px; margin-bottom: 12px; background: var(--panel); }
 .chip { display: inline-block; font-size: 12.5px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
 .statline { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); padding: 2px 0 6px; } .statline b { color: var(--ink); }
+
+/* Keep the task, receipts and conversation readable without stretching across the screen. */
+:root { --success:#47cf9a; }
+.success,.tag.green { color:var(--success); }
+.tag.green { background:color-mix(in srgb,var(--success) 12%,transparent); }
+.market-app { width:min(100%,1600px); margin:0 auto; grid-template-columns:minmax(260px,310px) minmax(340px,1fr) minmax(310px,370px); }
+.market-app .scroll { gap:14px; padding:18px; }
+.offer { padding:16px; gap:10px; border-radius:14px; }
+.offer h3 { font-size:14px; }
+.offer-facts { display:grid; gap:4px; font-size:12px; color:var(--muted); }
+.offer-facts b { color:var(--ink); font-weight:500; }
+.offer button { justify-self:start; }
+.empty { padding:20px 10px; display:grid; gap:12px; color:var(--muted); font-size:13px; line-height:1.65; }
+.empty h2,.empty h3 { color:var(--ink); }
+.empty button { justify-self:start; }
+.queue-title { display:flex; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.queue-item { border:1px solid var(--line); padding:12px; border-radius:10px; display:grid; gap:6px; margin-bottom:9px; }
+.queue-item b { font-size:13px; }.queue-item time { color:var(--muted); }
+.queue-item .row { align-items:center; flex-wrap:wrap; }.queue-item button { padding:2px 0; border:0; font-size:12px; }
+.queue-item.done { border-color:color-mix(in srgb,var(--success) 35%,var(--line)); }
+.history { margin-top:8px; }.history>summary { font-size:12px; color:var(--muted); cursor:pointer; margin-bottom:10px; }
+.tx>button { padding:15px 4px; grid-template-columns:4.8em minmax(0,1fr) auto; align-items:start; }
+.tx .amt { font-size:13px; }.tx .what { margin-top:3px; line-height:1.6; }
+.right .tx>button { grid-template-columns:minmax(0,1fr) auto; }.right .tx time { display:none; }
+#dlg { width:min(720px,calc(100vw - 32px)); margin:auto; outline:none; box-shadow:0 24px 100px #0006; }
+#dlg .dlg { padding:24px; gap:22px; }
+.contract-head { display:flex; align-items:start; justify-content:space-between; gap:18px; }
+.contract-head h1 { font-size:19px; margin:6px 0; }.eyebrow { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+.settlement-summary { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; padding-bottom:18px; border-bottom:1px solid var(--line); }
+.settlement-summary strong { font-size:21px; }.settlement-summary .small { flex-basis:100%; }
+.conversation { max-width:62ch; width:100%; margin:0 auto; }.conversation h2 { margin-bottom:18px; }
+.talk { gap:20px; }.say,.say.seller { padding:0; width:100%; }.say .bubble { line-height:1.7; padding:12px 14px; border-radius:12px; }
+.say.buyer .bubble { border-color:var(--line); background:var(--accent-soft); }.say .who { margin-bottom:4px; font-size:11px; }
+.say details { margin-top:5px; }.say details p { padding:8px; line-height:1.7; }.say summary { cursor:pointer; }
+.audit { border-top:1px solid var(--line); padding-top:15px; display:grid; gap:12px; }.audit>summary { cursor:pointer; font-size:13px; font-weight:600; }.audit p { line-height:1.7; }.audit ol { font-size:12px; color:var(--muted); line-height:1.8; padding-left:20px; }
+.receipt { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px 12px; padding:12px 0; border-bottom:1px solid var(--line); font-size:12px; }.receipt>a { grid-column:1/-1; }
+.notice { background:var(--panel); border-radius:10px; padding:12px; font-size:13px; line-height:1.65; }
+.banner { background:var(--accent-soft); color:var(--muted); }.banner.error { background:var(--bad-soft);color:var(--bad); }
+@media(max-width:1100px) { .market-app { grid-template-columns:minmax(0,1fr); }.market-app .right { order:0; }.market-app .left { order:1; }.market-app .activity { order:2; }.market-app .scroll { overflow:visible; }.market-app .col { border-bottom:1px solid var(--line); } }
+@media(max-width:600px) { .top { gap:8px; padding:10px 12px; }.brand { font-size:13px; }.tx>button { grid-template-columns:minmax(0,1fr) auto; }.tx time { grid-column:1/-1; }.tx .amt { max-width:9em; white-space:normal; }#dlg .dlg { padding:18px; }.contract-head h1 { font-size:17px; } }

@@ -32,7 +32,7 @@ USD_PER_UNIT = float(os.environ.get("VM_USD_PER_UNIT", "1"))         # 1 price u
 XRP_DROPS_PER_UNIT = int(os.environ.get("VM_DROPS_PER_UNIT", "10000"))  # fallback: 1 price unit = 0.01 XRP
 MICRO_PER_UNIT = int(USD_PER_UNIT * 1_000_000) if ASSET == "USD" else XRP_DROPS_PER_UNIT
 DROPS_PER_XRP_UNIT = MICRO_PER_UNIT    # older name, same meaning: millionths of the asset per price unit
-K_MIN = 5
+K_MIN = 1
 
 LLM_PROVIDER = os.environ.get("VM_LLM_PROVIDER") or os.environ.get("LLM_PROVIDER") or (
     "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "openai" if os.environ.get("OPENAI_API_KEY") else "none")
