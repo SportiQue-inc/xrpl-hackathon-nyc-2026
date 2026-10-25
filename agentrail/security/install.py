@@ -63,9 +63,10 @@ class SecurityContext:
                 self._enrol(d.sub, "approver", org, d, signer=n)
 
     def enrol_participants(self, pids):
+        from .devices import ParticipantWalletDevice
         for pid in pids:
             if pid not in self.authority.identities:
-                self._enrol(pid, "participant", pid)
+                self._enrol(pid, "participant", pid, ParticipantWalletDevice(pid))
 
 
 def install(w) -> SecurityContext:

@@ -244,6 +244,22 @@ def participant_preview(pid: str, request: int):
     return _call(study.preview, pid, request)
 
 
+class UploadBody(Strict):
+    weeks: list[int] = Field(default_factory=lambda: list(range(1, 9)), max_length=8)
+    items: list[str] = Field(default_factory=lambda: ["sleep.daily", "activity.daily", "heart_rate.daily",
+                                                      "fatigue.survey", "blood_pressure.daily"], max_length=20)
+
+
+@app.get("/api/p/{pid}/data")
+def participant_data(pid: str):
+    return _call(study.my_data, pid)
+
+
+@app.post("/api/p/{pid}/data/upload")
+def participant_upload(pid: str, body: UploadBody = UploadBody()):
+    return _call(study.upload_data, pid, body.weeks, ItemsBody(items=body.items).clean())
+
+
 @app.post("/api/p/{pid}/requests/{rid}/approve")
 def participant_approve(pid: str, rid: int, body: ItemsBody = ItemsBody()):
     return _call(study.participant_approve, pid, rid, body.clean())
