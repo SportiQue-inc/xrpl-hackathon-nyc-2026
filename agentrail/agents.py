@@ -8,14 +8,31 @@ import time
 from dataclasses import dataclass, field
 
 from .connectors import PersonalVaultConnector, RoboticsConnector
+from .llm import voice
 from .engine import BudgetExceeded, Engine, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
 from .policy import (ALLOW, AUTOMATION_LEVELS, DENY, HOLD, PARTIAL, SENSITIVITY, ComplianceRules,
-                     Decision, PersonalConsentPolicy, SellerPolicy)
+                     Decision, PersonalConsentPolicy, SENSITIVE_FIELDS, SellerPolicy)
+
+
+# ---------------- conversation log ----------------
+
+def talk(store, speaker: str, to: str | None, kind: str, facts: dict, fallback: str, extra: dict | None = None):
+    """Log one line of agent dialogue. The decision is in `facts` (set by code);
+    the LLM, if configured, only rewrites `fallback` as a sentence."""
+    text, by = voice().say(speaker, to, facts, fallback)
+    store.log(speaker, kind, text, {"to": to, "by": by, "facts": facts, **(extra or {})})
+
+
+def xrp(drops: int) -> str:
+    return f"{drops / 1e6:g} XRP"
 
 
 # ---------------- organization seller agent ----------------
 
 class SellerAgent:
+    """Answers quotes and price offers within its organization's policy:
+    allowed purposes, excluded fields, licence and the lowest price it may accept."""
+
     def __init__(self, party_id: str, connector: RoboticsConnector, policy: SellerPolicy, engine: Engine):
         self.id = party_id
         self.connector = connector
@@ -34,22 +51,44 @@ class SellerAgent:
         d = self.policy.evaluate(buyer_id, purpose, [f for f in fields if f in p.fields], p.price_drops)
         if p.licence.get(purpose) is False:
             d = Decision(DENY, reason=f"licence does not allow {purpose}", policy_version=d.policy_version)
-        msg = {ALLOW: "offer: all requested fields", PARTIAL: d.reason, DENY: f"declined: {d.reason}"}[d.status]
-        self.engine.store.log(self.id, "quote", f"{product_id}: {msg} at {p.price_drops / 1e6:g} XRP")
+        msg = {ALLOW: f"I can provide {', '.join(d.granted)}", PARTIAL: f"counter-offer: {d.reason}",
+               DENY: f"declined: {d.reason}"}[d.status]
+        talk(self.engine.store, self.id, buyer_id, "quote",
+             {"product": product_id, "status": d.status, "granted": d.granted, "refused": d.refused,
+              "list_price_xrp": p.price_drops / 1e6, "reason": d.reason},
+             f"{product_id}: {msg}, list price {xrp(p.price_drops)}.")
         return d, p.price_drops
+
+    def respond_to_offer(self, buyer_id: str, product_id: str, offer_drops: int) -> tuple[str, int]:
+        """Deterministic: accept at or above the floor, otherwise counter at the floor."""
+        p = self.connector.products[product_id]
+        if offer_drops >= p.floor:
+            status, price = "accept", offer_drops
+            fb = f"{product_id}: {xrp(offer_drops)} accepted."
+        else:
+            status, price = "counter", p.floor
+            fb = f"{product_id}: {xrp(offer_drops)} is below what my policy allows; I can do {xrp(p.floor)}."
+        talk(self.engine.store, self.id, buyer_id, "negotiate",
+             {"product": product_id, "offer_xrp": offer_drops / 1e6, "answer": status, "price_xrp": price / 1e6}, fb)
+        return status, price
 
 
 # ---------------- buyer agent (organization procurement) ----------------
 
 @dataclass
 class Goal:
+    """What the buyer organization tells its agent. Budget and per-order limit live in
+    the mandate (enforced by the engine); the rest is enforced here, in code."""
     text: str
     purpose: str
     required_fields: list[str]
     optional_fields: list[str]
     required_scenarios: list[str]
-    max_missing_rate: float = 0.05
+    max_missing_rate: float = 0.05          # minimum quality, measured on samples
     max_duplicate_rate: float = 0.05
+    allow_sensitive_fields: bool = False    # e.g. raw video that may show people
+    auto_approve_limit_drops: int | None = None  # above this total, a human approves first
+    opening_offer: float = 0.85             # first offer as a share of list price
 
 
 @dataclass
@@ -73,13 +112,32 @@ def check_quality(sample: list[dict], fields: list[str]) -> dict:
 
 
 class BuyerAgent:
+    """Discovery -> quality check -> quote -> negotiation -> selection -> purchase -> report.
+    Every step is logged with its reason. Money moves only through the engine."""
+
     def __init__(self, party_id: str, engine: Engine):
         self.id = party_id
         self.engine = engine
-        self.log = lambda kind, msg, data=None: engine.store.log(party_id, kind, msg, data)
+
+    def say(self, kind, facts, fallback, to=None, extra=None):
+        talk(self.engine.store, self.id, to, kind, facts, fallback, extra)
 
     def procure(self, goal: Goal, sellers: list[SellerAgent]) -> dict:
-        self.log("goal", f"goal: {goal.text} (mandate: {self.engine.available_drops(self.id) / 1e6:g} XRP available)")
+        available = self.engine.available_drops(self.id)
+        self.say("goal", {"goal": goal.text, "available_xrp": available / 1e6,
+                          "max_missing_rate": goal.max_missing_rate,
+                          "sensitive_fields_allowed": goal.allow_sensitive_fields},
+                 f"Goal: {goal.text}. Mandate has {xrp(available)} available; sample missing rate must stay "
+                 f"under {goal.max_missing_rate:.0%}; sensitive fields "
+                 f"{'allowed' if goal.allow_sensitive_fields else 'not requested'}.")
+        wanted = goal.required_fields + goal.optional_fields
+        skipped = [f for f in wanted if f in SENSITIVE_FIELDS and not goal.allow_sensitive_fields]
+        if skipped:
+            wanted = [f for f in wanted if f not in skipped]
+            self.say("settings", {"not_requested": skipped},
+                     f"Not requesting {', '.join(skipped)}: it may show people and my settings do not "
+                     f"allow sensitive fields.")
+
         cands: list[Candidate] = []
         for s in sellers:
             for prod in s.catalog():
@@ -97,23 +155,36 @@ class BuyerAgent:
                     elif c.quality["duplicate_rate"] > goal.max_duplicate_rate:
                         c.excluded = f"sample duplicate rate {c.quality['duplicate_rate']:.0%} above limit"
                 if c.excluded:
-                    self.log("evaluate", f"{prod['seller']}/{prod['id']}: excluded - {c.excluded}")
+                    self.say("evaluate", {"product": prod["id"], "excluded": c.excluded, "quality": c.quality},
+                             f"{prod['seller']}/{prod['id']}: excluded - {c.excluded}.", to=s.id)
                     continue
-                d, price = s.quote(self.id, prod["id"], goal.required_fields + goal.optional_fields, goal.purpose)
+                d, price = s.quote(self.id, prod["id"], wanted, goal.purpose)
                 lost_required = [f for f in d.refused if f in goal.required_fields]
                 if d.status == DENY or lost_required:
                     c.excluded = d.reason or "seller refused required fields"
-                    self.log("evaluate", f"{prod['seller']}/{prod['id']}: excluded - {c.excluded}")
+                    self.say("evaluate", {"product": prod["id"], "excluded": c.excluded},
+                             f"{prod['seller']}/{prod['id']}: excluded - {c.excluded}.", to=s.id)
                     continue
                 c.decision, c.price_drops = d, price
-                note = f"; accepts counter-offer without {', '.join(d.refused)} (optional)" if d.refused else ""
-                self.log("evaluate", f"{prod['seller']}/{prod['id']}: qualifies, covers "
-                         f"{', '.join(k for k in prod['scenarios'] if k in goal.required_scenarios)}, "
-                         f"missing {c.quality['missing_rate']:.1%} (sample-verified){note}")
+                covers = [k for k in prod["scenarios"] if k in goal.required_scenarios]
+                note = f"; accepting counter-offer without {', '.join(d.refused)} (optional)" if d.refused else ""
+                self.say("evaluate", {"product": prod["id"], "covers": covers, "quality": c.quality,
+                                      "refused_optional": d.refused},
+                         f"{prod['seller']}/{prod['id']}: qualifies, covers {', '.join(covers)}, missing "
+                         f"{c.quality['missing_rate']:.1%} (sample-verified){note}.", to=s.id)
 
         ok = [c for c in cands if not c.excluded]
+        # Negotiation: one opening offer, seller accepts or counters at its floor.
+        for c in ok:
+            offer = int(c.price_drops * goal.opening_offer)
+            self.say("negotiate", {"product": c.product["id"], "list_price_xrp": c.price_drops / 1e6,
+                                   "offer_xrp": offer / 1e6},
+                     f"{c.product['id']}: would you take {xrp(offer)} instead of {xrp(c.price_drops)}?",
+                     to=c.seller.id)
+            _, agreed = c.seller.respond_to_offer(self.id, c.product["id"], offer)
+            c.price_drops = min(agreed, c.price_drops)   # never pay above list
+
         need = set(goal.required_scenarios)
-        available = self.engine.available_drops(self.id)
         best, best_any = None, None
         for r in range(1, len(ok) + 1):
             for combo in itertools.combinations(ok, r):
@@ -127,21 +198,34 @@ class BuyerAgent:
                     best = (cost, combo)
         report = {"goal": goal.text, "candidates": [
             {"seller": c.product["seller"], "product": c.product["id"], "price_xrp": c.product["price_xrp"],
+             "agreed_xrp": c.price_drops / 1e6 if c.decision else None,
              "excluded": c.excluded, "quality": c.quality,
              "refused_fields": c.decision.refused if c.decision else []} for c in cands]}
         if best is None:
             if best_any:
                 gap = best_any[0] - available
-                msg = (f"no combination fits the available {available / 1e6:g} XRP; cheapest full coverage "
-                       f"costs {best_any[0] / 1e6:g} XRP. Asking a human to approve +{gap / 1e6:g} XRP. Nothing bought.")
+                msg = (f"no combination fits the available {xrp(available)}; cheapest full coverage "
+                       f"costs {xrp(best_any[0])}. Asking a human to approve +{xrp(gap)}. Nothing bought.")
+                report["gap_xrp"] = gap / 1e6
             else:
                 msg = "no qualifying data covers all required scenarios. Nothing bought."
-            self.log("report", msg)
+            self.say("report", {"status": "not_purchased", "reason": msg}, msg)
             return {**report, "status": "not_purchased", "reason": msg, "orders": []}
 
         cost, combo = best
-        self.log("select", f"selected {' + '.join(c.product['id'] for c in combo)} for {cost / 1e6:g} XRP "
-                 f"(covers all of {', '.join(goal.required_scenarios)}; budget {available / 1e6:g} XRP)")
+        ids = [c.product["id"] for c in combo]
+        if goal.auto_approve_limit_drops is not None and cost > goal.auto_approve_limit_drops:
+            msg = (f"{' + '.join(ids)} costs {xrp(cost)}, above my auto-approval limit of "
+                   f"{xrp(goal.auto_approve_limit_drops)}. Waiting for a human. Nothing bought.")
+            self.say("ask_human", {"selected": ids, "cost_xrp": cost / 1e6,
+                                   "auto_approve_limit_xrp": goal.auto_approve_limit_drops / 1e6}, msg)
+            return {**report, "status": "needs_approval", "reason": msg, "orders": []}
+
+        listed = sum(c.product["price_xrp"] for c in combo)
+        self.say("select", {"selected": ids, "cost_xrp": cost / 1e6, "list_total_xrp": listed,
+                            "covers": goal.required_scenarios, "available_xrp": available / 1e6},
+                 f"Selected {' + '.join(ids)} for {xrp(cost)} (list {listed:g} XRP): together they cover "
+                 f"{', '.join(goal.required_scenarios)} within the {xrp(available)} available.")
         orders = []
         for c in combo:
             rows = c.seller.connector.extract(c.product["id"], c.decision.granted)
@@ -150,12 +234,13 @@ class BuyerAgent:
             oid = self.engine.place_order(req)
             status = self.engine.process(oid)
             orders.append({"order_id": oid, "product": c.product["id"], "status": status})
-        spent = sum(c.price_drops for c in combo)
-        self.log("report", f"acquired {len(combo)} datasets, spent {spent / 1e6:g} XRP, "
-                 f"remaining {self.engine.available_drops(self.id) / 1e6:g} XRP")
-        return {**report, "status": "purchased", "selected": [c.product["id"] for c in combo],
-                "spent_xrp": spent / 1e6, "remaining_xrp": self.engine.available_drops(self.id) / 1e6,
-                "orders": orders}
+        remaining = self.engine.available_drops(self.id)
+        self.say("report", {"acquired": ids, "spent_xrp": cost / 1e6, "remaining_xrp": remaining / 1e6,
+                            "orders": orders},
+                 f"Acquired {len(combo)} datasets, spent {xrp(cost)}, remaining {xrp(remaining)}. "
+                 f"Receipts: payment on a validated ledger, sealed bundle delivered.")
+        return {**report, "status": "purchased", "selected": ids,
+                "spent_xrp": cost / 1e6, "remaining_xrp": remaining / 1e6, "orders": orders}
 
 
 # ---------------- personal agent (person as data holder) ----------------
@@ -239,8 +324,10 @@ class PersonalAgent:
             c.execute("UPDATE approval_requests SET status='decided', decided_items=? WHERE id=?",
                       (json.dumps(items), request_id))
         what = "consent scope" if r["kind"] == "scope" else f"week {r['week']} only"
-        st.log(self.id, "approve", f"{self.person.label} approved {', '.join(items) or 'nothing'} ({what})"
-               + (f"; declined {', '.join(declined)}" if declined else ""))
+        talk(st, f"person {self.person.label}", self.id, "approve",
+             {"approved": items, "declined": declined, "applies_to": what},
+             f"Approve {', '.join(items) or 'nothing'} ({what})"
+             + (f"; decline {', '.join(declined)}." if declined else "."))
 
     def _ask(self, buyer_id, kind, items, week, price):
         st = self.engine.store
@@ -254,11 +341,14 @@ class PersonalAgent:
                       (self.id, buyer_id, kind, week, key, price, "open", time.time()))
         sens = [i for i in items if SENSITIVITY.get(i) == "sensitive"]
         if kind == "scope":
-            msg = (f"{self.person.label}: {buyer_id} asks for {', '.join(items)} at {price / 1e6:g} XRP/item - "
-                   f"outside consent, nothing sent; asking the person")
+            msg = (f"{buyer_id} asks for {', '.join(items)} at {price / 1e6:g} XRP/item. That is outside "
+                   f"your consent, so nothing was sent. Allow it?")
         else:
-            msg = f"{self.person.label}: week {week} {', '.join(items)} needs the person's confirmation"
-        st.log(self.id, "ask_person", msg + (f" ({', '.join(sens)} is sensitive: ticked by name only)" if sens else ""))
+            msg = f"Week {week}: {', '.join(items)} needs your confirmation before it is sent."
+        msg += f" ({', '.join(sens)} is sensitive: only if you tick it by name.)" if sens else ""
+        talk(st, self.id, f"person {self.person.label}", "ask_person",
+             {"buyer": buyer_id, "kind": kind, "items": items, "week": week, "price_per_item_xrp": price / 1e6,
+              "sensitive": sens, "sent": False}, msg)
 
     def handle_request(self, buyer_id: str, purpose: str, items: list[str], week: int,
                        price_per_item_drops: int, extra_price_drops: int | None = None) -> Decision:
@@ -268,10 +358,17 @@ class PersonalAgent:
             self._ask(buyer_id, "scope", scope_items, None, extra_price_drops or price_per_item_drops)
         if d.round_confirm:
             self._ask(buyer_id, "round", d.round_confirm, week, price_per_item_drops)
+        st = self.engine.store
         if d.refused:
-            self.engine.store.log(self.id, "filter", f"{self.person.label}: {d.reason}")
+            talk(st, self.id, buyer_id, "filter", {"refused": d.refused, "reason": d.reason},
+                 f"{self.person.label}: not providing {', '.join(d.refused)} - {d.reason}.")
         if d.status in (DENY, HOLD):
-            self.engine.store.log(self.id, d.status, f"{self.person.label}: refused {buyer_id} week {week} - {d.reason}")
+            talk(st, self.id, buyer_id, d.status, {"status": d.status, "week": week, "reason": d.reason},
+                 f"{self.person.label}: request for week {week} refused - {d.reason}.")
+        elif d.ok and not d.pending:
+            talk(st, self.id, buyer_id, "provide", {"granted": d.granted, "week": week},
+                 f"{self.person.label}: week {week} {', '.join(d.granted)} is within consent; providing it "
+                 f"after payment is validated.")
         return d
 
     def open_requests(self) -> list:
@@ -309,7 +406,10 @@ class InstitutionAgent:
                   extra_price_drops: int | None = None) -> list[dict]:
         st = self.engine.store
         ask = items + (extra_items or [])
-        st.log(self.id, "round", f"week {week}: requesting {', '.join(ask)} from {len(people)} people")
+        talk(st, self.id, "personal agents", "round",
+             {"week": week, "items": ask, "people": len(people), "price_per_item_xrp": price_per_item_drops / 1e6,
+              "extra_price_xrp": (extra_price_drops or 0) / 1e6},
+             f"Week {week}: requesting {', '.join(ask)} from {len(people)} people for {self.purpose}.")
         out = []
         for pa in people:
             d = pa.handle_request(self.id, self.purpose, ask, week, price_per_item_drops, extra_price_drops)

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 
@@ -58,11 +59,13 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
         ("org_beta", "Beta Logistics", [Product("B1", "org_beta", "Night warehouse navigation", "robotics",
                                                 ["lidar", "imu", "wheel_odometry", "raw_video"],
                                                 {"night": 40, "narrow_aisle": 30},
-                                                20 * XRP, {"commercial_training": True, "resale": False})],
+                                                20 * XRP, {"commercial_training": True, "resale": False},
+                                                floor_drops=18 * XRP)],
          ["raw_video"]),
         ("org_gamma", "Gamma Robotics", [
             Product("C1", "org_gamma", "Dynamic obstacle encounters", "robotics", ["lidar", "imu"],
-                    {"dynamic_obstacle": 25, "night": 10}, 15 * XRP, {"commercial_training": True}),
+                    {"dynamic_obstacle": 25, "night": 10}, 15 * XRP, {"commercial_training": True},
+                    floor_drops=13 * XRP),
             Product("C2", "org_gamma", "Obstacle set (evaluation only)", "robotics", ["lidar", "imu"],
                     {"dynamic_obstacle": 40}, 8 * XRP, {"commercial_training": False})], []),
         ("org_delta", "Delta Fleet", [Product("D1", "org_delta", "Mixed fleet logs", "robotics", ["lidar", "imu"],
@@ -80,7 +83,8 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
         text="indoor warehouse navigation data at night with LiDAR + IMU, covering dynamic obstacles "
              "and narrow aisles, commercial training allowed",
         purpose="commercial_training", required_fields=["lidar", "imu"], optional_fields=["raw_video"],
-        required_scenarios=["night", "narrow_aisle", "dynamic_obstacle"])
+        required_scenarios=["night", "narrow_aisle", "dynamic_obstacle"],
+        max_missing_rate=0.05, allow_sensitive_fields=False, auto_approve_limit_drops=40 * XRP)
 
     # Buyer treasury controlled by multi-signing (owner + compliance officer, master key off).
     # The agent spends only from its own account, capped by the mandate.
@@ -122,7 +126,10 @@ def top_up(w: World, buyer_id: str, amount_xrp: float, signers: list[str]) -> st
         h = w.ledger.multisig_payment(w.treasury, w.engine.party(buyer_id)["address"],
                                       int(amount_xrp * XRP), signers)
     except Exception as e:
-        w.store.log(buyer_id, "refused", f"top-up of {amount_xrp:g} XRP rejected by the ledger: {e}")
+        # submit_and_wait wraps the engine result in a timeout message; show just the code.
+        m = re.search(r"\b(te[cfmlr][A-Z_]+)\b", str(e))
+        w.store.log(buyer_id, "refused", f"top-up of {amount_xrp:g} XRP rejected by the ledger: "
+                    f"{m.group(1) if m else e} (agent key is not on the treasury SignerList)")
         return None
     m = w.store.one("SELECT * FROM mandates WHERE buyer_id=?", buyer_id)
     w.engine.set_mandate(BuyerMandate(buyer_id, m["total_drops"] + int(amount_xrp * XRP),
@@ -136,11 +143,11 @@ def top_up(w: World, buyer_id: str, amount_xrp: float, signers: list[str]) -> st
 def scene_a_guarded(w: World) -> dict:
     """Budget too small -> agent buys nothing and asks; agent alone cannot raise it;
     owner + compliance co-sign a top-up; agent completes the purchase."""
-    first = scene_a(w, budget_xrp=30)
-    if first["status"] == "purchased":
+    first = scene_a(w, budget_xrp=28)
+    if first["status"] == "purchased" or "gap_xrp" not in first:
         return first
-    gap = 5
-    w.store.log("org_robodev", "ask_human", f"agent requests +{gap} XRP; tries to sign the top-up alone")
+    gap = first["gap_xrp"]
+    w.store.log("org_robodev", "ask_human", f"agent requests +{gap:g} XRP; tries to sign the top-up alone")
     top_up(w, "org_robodev", gap, [w.engine.party("org_robodev")["address"]])   # agent key: not on the list
     top_up(w, "org_robodev", gap, w.treasury_signers)                             # human approval
     return w.robot_buyer.procure(w.goal, w.sellers)
@@ -264,12 +271,21 @@ def summary(w: World) -> dict:
     out["payments"] = [dict(r) | {"url": w.ledger.explorer_url(r["tx_hash"]) if r["tx_hash"] else None}
                        for r in s.q("SELECT p.order_id, o.payee_id, p.amount_drops, p.tx_hash, p.status, "
                                     "p.ledger_index FROM payments p JOIN orders o ON o.id=p.order_id")]
+    # Credential, SignerListSet, master-key disable and co-signed top-up transactions.
+    out["ledger_setup"] = []
+    for r in s.q("SELECT actor, kind, data FROM events WHERE kind IN ('credential','multisig','top_up') ORDER BY id"):
+        d = json.loads(r["data"])
+        txs = d.get("tx") or ([d["tx_hash"]] if d.get("tx_hash") else [])
+        out["ledger_setup"] += [{"actor": r["actor"], "kind": r["kind"], "tx_hash": h,
+                                 "url": w.ledger.explorer_url(h)} for h in txs if h]
     return out
 
 
 def main():
     kind = os.environ.get("LEDGER", "mock")
     w = build_world(kind, os.environ.get("AGENTRAIL_DB", ":memory:"))
+    from .llm import voice
+    print(f"agent voice: {voice().label()}", file=sys.stderr)
     results = {"A": scene_a_guarded(w), "B": scene_b(w), "C": scene_c(w)}
     if os.environ.get("COHORT", "1") != "0":
         results["D"] = scene_d(w, int(os.environ.get("COHORT_SIZE", "50")))

@@ -80,6 +80,10 @@ SENSITIVITY = {
     "blood_pressure.daily": "sensitive",
 }
 
+# Organization data fields that may identify people (faces, plates, voices).
+# A buyer agent requests them only if its owner allowed sensitive fields.
+SENSITIVE_FIELDS = {"raw_video"}
+
 
 # Automation level chosen by the person (their preference, not the agent's):
 #   confirm_each   - every round waits for the person

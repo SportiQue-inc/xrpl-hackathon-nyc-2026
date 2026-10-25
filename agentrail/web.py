@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
 from . import scenario
+from .llm import voice
 
 app = FastAPI(title="AgentRail")
 _lock = threading.Lock()
@@ -76,6 +77,7 @@ def state():
             accounts[pid] = {"address": p["address"], "error": str(e)}
     return {
         "ledger": w.ledger.name,
+        "voice": voice().label(),
         "mandates": rows("SELECT * FROM mandates"),
         "orders": orders,
         "events": rows("SELECT id, scene, actor, kind, message, data FROM events ORDER BY id"),
