@@ -196,7 +196,7 @@ def _payment_evidence(w, s):
         "(withdrawal is not an input)", result=inp)
     # Release what is due, return what must go back (Testnet: wait for the short windows). On a live
     # ledger some held parts were already released along the way, so the evidence reads the table.
-    deadline = _t.time() + (0 if w.ledger.name == "mock" else 660)
+    deadline = _t.time() + (0 if w.ledger.name == "mock" else 720)
     while True:
         r = payout.release_due(w)
         open_ = [h for h in r["waiting"] if h["kind"] == "bonus" or h["person"] in (HERO, (fx or {}).get("person"))]
