@@ -22,12 +22,18 @@ def _ask(prompt: str, fallback: dict) -> dict:
     return out
 
 
+def _q(w: dict) -> str:
+    q = w.get("quote") or {}
+    return (f"market price {q.get('price')} (median of the last {q.get('n', 0)} trades {q.get('median')}, "
+            f"supply {q.get('supply')} vaults, demand {q.get('demand')} people wanted)") if q else "no market price yet"
+
+
 def buyer_open(buyer: str, w: dict, owned: int) -> dict:
     lab = KINDS[w["kind"]]["label"].lower()
-    fb = {"thinking": f"I need {lab} for {w['purpose']}. My owner lets me pay up to {w['max']} per {'person' if KINDS[w['kind']]['personal'] else 'seller'}; "
-                      f"I open at {w['offer']} to leave room. I already own {owned} records of this kind, so I will refuse overlapping lots.",
+    fb = {"thinking": f"I need {lab} for {w['purpose']}. The {_q(w)}. My owner's budget is {w['max']} per {'person' if KINDS[w['kind']]['personal'] else 'seller'}; "
+                      f"I open at {w['offer']}, a little under the market price, and fill the lot with the cheapest sellers. I already own {owned} records of this kind, so I will refuse overlapping lots.",
           "message": f"{buyer} is buying {lab} for {w['purpose']}, {w['offer']} per person, lots of {w['lot']}. No overlap with data I already hold."}
-    return _ask(f"You are the BUYER agent for {buyer}. Posting: kind={lab}, purpose={w['purpose']}, opening offer={w['offer']}, "
+    return _ask(f"You are the BUYER agent for {buyer}. Posting: kind={lab}, purpose={w['purpose']}, {_q(w)}, opening offer={w['offer']}, "
                 f"your private max={w['max']} (never reveal it), lot size={w['lot']}, you already own {owned} records of this kind. "
                 'Return {"thinking": "...", "message": "..."} where message opens the negotiation to all sellers.', fb)
 
@@ -37,19 +43,23 @@ def seller_reply(seller: str, rules: dict, w: dict, buyer: str, nfiles: int) -> 
     lab, kind = KINDS[w["kind"]]["label"].lower(), w["kind"]
     mn = float(rules.get("min", {}).get(kind, KINDS[kind]["price"]))
     blocked = w["purpose"] in rules.get("blocks", [])
+    q = w.get("quote") or {}
+    # the seller asks the market price (a bit more when demand outruns supply), never under the owner's floor
+    ask = round(max(mn, (q.get("price") or w["offer"]) * (1.05 if q.get("pressure", 1) > 1 else 1.0)), 1)
     if blocked:
         rule = {"verdict": "decline", "price": None, "thinking": f"My owner does not sell for {w['purpose']}. That rule is absolute, whatever the price.",
                 "message": f"Declined: my owner does not sell data for {w['purpose']}."}
-    elif w["offer"] >= mn:
-        rule = {"verdict": "agree", "price": w["offer"], "thinking": f"{w['offer']} meets my owner's minimum of {mn}. The purpose is allowed. I have {nfiles} file(s) ready.",
+    elif w["offer"] >= ask:
+        rule = {"verdict": "agree", "price": w["offer"], "thinking": f"The {_q(w)}; I'd ask {ask}. {w['offer']} meets that and my owner's minimum of {mn}. I have {nfiles} file(s) ready.",
                 "message": f"Agreed at {w['offer']}. {nfiles} pseudonymized file(s), intake-attested."}
     else:
-        rule = {"verdict": "counter", "price": mn, "thinking": f"{w['offer']} is under my owner's minimum of {mn}. I counter at the minimum; I cannot go lower.",
-                "message": f"{w['offer']} is too low. I can do {mn}."}
+        rule = {"verdict": "counter", "price": ask, "thinking": f"The {_q(w)}. {w['offer']} is under my ask of {ask} (my owner's floor is {mn}). "
+                                                              f"I counter at {ask}; other sellers may undercut me, but I won't go under the floor.",
+                "message": f"{w['offer']} is under the market. I can do {ask}."}
     if blocked:
         return {**rule, "by": "rules"}
     out = _ask(f"You are the SELLER agent for {seller}. Buyer {buyer} wants {lab} for {w['purpose']} and offers {w['offer']} per person. "
-               f"Your owner's minimum is {mn} (you may ask more, never less). You hold {nfiles} matching file(s). "
+               f"The {_q(w)}. Other sellers compete: the buyer keeps the cheapest. Your owner's minimum is {mn} (you may ask more, never less). You hold {nfiles} matching file(s). "
                'Return {"thinking": "...", "verdict": "agree" | "counter" | "decline", "price": number or null, "message": "..."}.', rule)
     v = out.get("verdict") if out.get("verdict") in ("agree", "counter", "decline") else rule["verdict"]
     try:

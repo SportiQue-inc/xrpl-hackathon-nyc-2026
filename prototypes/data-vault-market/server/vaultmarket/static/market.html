@@ -19,7 +19,7 @@
     <header><h1 id="h-m">Live trades</h1><span class="muted small" id="llmUse"></span></header>
     <div class="scroll">
       <div class="statline" id="kpis"></div>
-      <h2>For sale now</h2><div class="acts" id="listings"></div>
+      <h2>For sale now · market prices set by the agents' own trades</h2><div class="acts" id="listings"></div>
       <h2 style="margin-top:8px">Trade history</h2><p class="muted small">Newest first. Open one for the protocol steps, the ledger transactions and both agents' negotiation.</p>
       <div id="ledger"></div>
     </div>
@@ -47,11 +47,11 @@ async function refresh() {
   $("domTabs").querySelectorAll("button").forEach((b) => b.onclick = () => { DOMAIN = b.dataset.k || null; refresh(); });
   const o = DATA.overview;
   $("kpis").innerHTML = `<span><b>${o.online}</b>/${o.accounts} agents online</span><span><b>${o.settled}</b> trades settled</span><span><b>${o.rejected}</b> rejected</span><span><b>${o.xrp.toFixed(2)} XRP</b> paid out</span><span><b>${o.txs}</b> ledger tx</span>`;
-  $("listings").innerHTML = DATA.listings.map((l) => `<span class="chip"><b>${esc(l.label)}</b> ${l.files} files · ${l.vaults} vaults${l.ask_min != null ? ` · asking ${xrp(l.ask_min)}–${xrp(l.ask_max)}` : ""}${l.bundles ? ` · ${l.bundles} resale bundle${l.bundles > 1 ? "s" : ""}` : ""}</span>`).join("") || '<p class="muted small">Nothing listed yet.</p>';
+  $("listings").innerHTML = DATA.listings.map((l) => `<span class="chip"><b>${esc(l.label)}</b> market ${xrp(DATA.prices[l.kind].price)}${DATA.prices[l.kind].n ? ` (${DATA.prices[l.kind].n} trades)` : ""} · ${l.files} files · ${l.vaults} vaults${l.ask_min != null ? ` · asking ${xrp(l.ask_min)}–${xrp(l.ask_max)}` : ""}${l.bundles ? ` · ${l.bundles} resale bundle${l.bundles > 1 ? "s" : ""}` : ""}</span>`).join("") || '<p class="muted small">Nothing listed yet.</p>';
   $("sellnow").innerHTML = DATA.sell_now.map((p) => `<div class="card ${p.interested ? "hot" : ""}"><div class="row"><b>${esc(META.kinds[p.kind].label)}</b><span class="price">+${xrp(p.expected)}</span></div>
     <span class="muted small">${esc(p.buyer_name)} ${p.verified ? '<span class="tag blue">verified</span>' : ""} · ${esc(p.purpose)}</span>
     <span class="small">You have ${p.listed + p.private} file${p.listed + p.private > 1 ? "s" : ""}${p.private ? ` (${p.private} private)` : ""} · offer ${xrp(p.offer)}, up to ${xrp(p.max)} · your minimum ${xrp(p.floor)}</span>
-    <span class="muted small">${META.kinds[p.kind].personal ? `sells in a lot of at least ${META.k_min} people; ${p.others} other vaults list this now` : `${p.others} other sellers`}</span>
+    <span class="muted small">market price ${xrp(DATA.prices[p.kind].price)} · ${META.kinds[p.kind].personal ? `sells in a lot of at least ${META.k_min} people; ${p.others} other vaults list this now` : `${p.others} other sellers`}</span>
     <div class="acts">${p.interested ? '<span class="tag blue">You are first in line ✓</span>' : `<button type="button" class="primary" data-sell="${p.id}" data-msg="${esc(`Sell my ${META.kinds[p.kind].label.toLowerCase()} to ${p.buyer_name} (request #${p.id}) if it fits my terms.`)}">Tell my agent to sell</button>`}</div></div>`).join("") || '<p class="muted small">None of your data matches an open request yet. Upload in My DB and your agent will tell you when it does.</p>';
   $("sellnow").querySelectorAll("[data-sell]").forEach((b) => b.onclick = () => tellAgent(b.dataset.msg));
   $("ledger").innerHTML = DATA.contracts.map((c) => `<div class="tx ${c.mine ? "mine" : ""} ${c.status === "settled" ? "" : "rej"}"><button type="button" data-c="${c.id}"><time>${hhmm(c.created)}</time>

@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT PRIMARY KEY, pw TEXT, salt TEXT, account TEXT,
   wallet TEXT, wallet_tag INT, wallet_tx TEXT,   -- personal XRPL wallet; verified when wallet_tx is set
   created REAL);
+CREATE TABLE IF NOT EXISTS prices (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, price REAL, contract INT, created REAL);
 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT, created REAL);
 """
 

@@ -221,7 +221,7 @@ def market(account: str = "dana", domain: str | None = None):
                          "volume": round(s.stat("volume"), 1), "xrp": round(s.stat("drops") / 1e6, 4), "uploads": s.stat("uploads"),
                          "blocked": s.stat("blocked"), "cleaned": s.stat("cleaned"), "fees": round(s.stat("fees"), 1),
                          "txs": s.one("SELECT COUNT(*) n FROM txs")["n"]},
-            "domains": sorted(doms, key=lambda d: -(d["listed"] + 5 * d["settled"])), "postings": postings, "contracts": contracts, "listings": listings, "sell_now": _sell_now(account), "events": M.events}
+            "domains": sorted(doms, key=lambda d: -(d["listed"] + 5 * d["settled"])), "postings": postings, "contracts": contracts, "listings": listings, "sell_now": _sell_now(account), "prices": {k: M.quote(k) for k in KINDS}, "events": M.events}
 
 
 def _sell_now(aid: str) -> list[dict]:

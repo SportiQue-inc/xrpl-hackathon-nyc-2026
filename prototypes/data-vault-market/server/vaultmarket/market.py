@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import math
 import random
+import statistics
 import threading
 import time
 import traceback
@@ -205,12 +207,28 @@ class Market:
         finally:
             llm.budget(None)
 
+    def quote(self, kind: str) -> dict:
+        """The market price, formed by the agents themselves: the median of recent clearing prices on the
+        shared ledger, nudged by supply (vaults listing it) against demand (people wanted in open requests)."""
+        rows = [r["price"] for r in self.s.q("SELECT price FROM prices WHERE kind = ? ORDER BY id DESC LIMIT 30", (kind,))]
+        base = statistics.median(rows) if rows else KINDS[kind]["price"]
+        supply = self.s.one("SELECT COUNT(DISTINCT account) n FROM files WHERE kind = ? AND status = 'listed'", (kind,))["n"]
+        demand = self.s.one("SELECT COALESCE(SUM(lot), 0) n FROM postings WHERE kind = ? AND status = 'open'", (kind,))["n"]
+        pressure = demand / max(1, supply)
+        price = base * min(1.25, max(0.8, 1 + 0.12 * math.log(max(pressure, 0.05))))
+        return {"price": round(price, 1), "median": round(base, 1), "n": len(rows), "lo": round(min(rows), 1) if rows else None,
+                "hi": round(max(rows), 1) if rows else None, "supply": supply, "demand": demand, "pressure": round(pressure, 2)}
+
     def _negotiate(self, w: dict) -> int | None:
         buyer = self.acct(w["buyer"])
         if not buyer or w["buyer"] not in self.addr:
             return None
         personal = KINDS[w["kind"]]["personal"]
         owned = self.owned_fps(w["buyer"], w["kind"])
+        # price discovery: the buyer opens under the market price, never above its owner's budget
+        q = self.quote(w["kind"])
+        opening = round(min(w["max"], max(0.5, q["price"] * 0.92)), 1)
+        w = {**w, "offer": opening, "quote": q}
         cid = self.s.insert("contracts", posting=w["id"], buyer=w["buyer"], kind=w["kind"], status="negotiating")
         say = lambda who, side, text, thinking="", by="": self.s.insert("messages", contract=cid, speaker=who, side=side, text=text, thinking=json.dumps({"t": thinking, "by": by}))
         op = agents.buyer_open(buyer["name"], w, len(owned))
@@ -218,6 +236,9 @@ class Market:
         trace = {"buyer_trace": [op["thinking"]], "seller_trace": [], "verdicts": {"sellers": {}}, "tx": [], "protocol": [], "model": llm.model_name()}
         def step(protocol, detail, ok=True, who=None, tx=None):
             trace["protocol"].append({"protocol": protocol, "detail": detail, "ok": ok, "who": who, "tx": tx})
+        step("Price discovery (shared ledger)", f"market price {q['price']}: median {q['median']} of the last {q['n']} clearing prices"
+             + (f" (range {q['lo']}–{q['hi']})" if q["n"] else " (no trades yet: list price)")
+             + f", supply {q['supply']} vaults vs demand {q['demand']} people wanted (pressure {q['pressure']}). Buyer opens at {opening}, budget {w['max']}.")
 
         files = self.s.q("SELECT f.*, a.trust FROM files f JOIN accounts a ON a.id = f.account WHERE f.kind = ? AND f.status = 'listed' AND f.account != ?", (w["kind"], w["buyer"]))
         by_acct: dict[str, list] = {}
@@ -263,10 +284,19 @@ class Market:
                     say(w["buyer"], "buyer", f"{r['price']} is more than I can pay. Pass.", f"Counter {r['price']} exceeds my max.", "rules"); final = "decline"
             trace["seller_trace"].append({"seller": a, "thinking": r["thinking"], "verdict": final, "price": r["price"], "by": r["by"]})
             trace["verdicts"]["sellers"][a] = final
-            if final == "agree" and len(agreed) < w["lot"]:
+            if final == "agree":
                 agreed.append((a, fs, r["price"]))
-            elif final != "agree":
+            else:
                 declined += 1
+        # the buyer fills the lot at the lowest prices on offer
+        agreed.sort(key=lambda x: x[2])
+        if len(agreed) > w["lot"]:
+            dropped = agreed[w["lot"]:]
+            agreed = agreed[: w["lot"]]
+            trace["buyer_trace"].append(f"{len(agreed) + len(dropped)} sellers agreed; I keep the {len(agreed)} cheapest "
+                                        f"({agreed[0][2]}–{agreed[-1][2]}) and pass on {len(dropped)} asking up to {dropped[-1][2]}.")
+            for a, _, pr in dropped:
+                trace["verdicts"]["sellers"][a] = "outbid"
 
         # buyer agent: verify each seller's attestation and a sampled record against its Merkle root
         verified = []
@@ -376,6 +406,7 @@ class Market:
         self.s.bump("drops", sum(l["drops"] for l in paid))
         for l in paid:
             self.s.bump(f"earned:{l['seller']}:{w['kind']}", l["price"])
+            self.s.insert("prices", kind=w["kind"], price=l["price"], contract=cid)
             if self.acct(l["seller"])["type"] == "person" and self.acct(l["seller"])["sell_agent"].get("mode") == "ask":
                 self.chat(l["seller"], "agent", f"Sold to {self.acct(buyer_id)['name']} in a lot of {people} people: +{l['price']} ({l['drops'] / 1e6} XRP on Testnet). Contract #{cid}.")
         for a in {l["seller"] for l in paid}:
