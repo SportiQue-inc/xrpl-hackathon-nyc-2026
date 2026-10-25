@@ -394,6 +394,28 @@ def study_dispute(tx_hash: str):
     return _call(study.dispute, tx_hash)
 
 
+@app.post("/api/contract/round")
+def contract_round(providers: int = Query(default=14, ge=2, le=40), target: int = Query(default=8, ge=1, le=100)):
+    """The study's agent buys per-column data under negotiated contracts, checked as it arrives."""
+    from .contract import onledger
+    with _lock:
+        return onledger.run(world(), providers, target, model=_forecast_model())
+
+
+@app.get("/api/contract/projection")
+def contract_projection():
+    """Live projection of the round (usable so far, expected final with a 90% band, power, risks)."""
+    from .contract import onledger
+    return onledger.view(world())
+
+
+def _forecast_model():
+    if "forecast" not in _state:
+        from .contract import measure
+        _state["forecast"] = measure.train()[0]
+    return _state["forecast"]
+
+
 @app.get("/api/engine/check")
 def engine_check():
     """One row per flow of the health trade, each with the ledger transaction that proves it."""

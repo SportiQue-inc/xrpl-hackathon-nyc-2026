@@ -81,10 +81,18 @@ class OrderRequest:
     decision: Decision
     settle: str = "payment"         # "payment" or "escrow" (paid only when the data key is published)
     escrow_window_s: int = 600      # CancelAfter = ledger time + window
+    extra: dict | None = None       # more sealed content under the same bundle hash (e.g. a data-contract manifest)
 
     def content(self, bundle_hash: str) -> dict:
         return {"payee": self.payee_id, "granted": sorted(self.granted),
                 "price": self.price_drops, "bundle": bundle_hash}
+
+
+def _memo(oid, o, pv, mh) -> str:
+    """Ledger memo of one order. Under a data contract, the contract hash rides along with the bundle hash."""
+    c = o["product_id"][len("contract:"):] if o["product_id"].startswith("contract:") else ""
+    return (f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}" + (f"|contract:{c[:16]}" if c else "")
+            + (f"|mandate:{mh}" if mh else ""))
 
 
 class Engine:
@@ -142,7 +150,7 @@ class Engine:
             raise ValueError(f"policy did not grant anything: {req.decision.reason}")
         # Each round gets its own salt inside the sealed payload: the hash on the ledger cannot be matched
         # by guessing health values, and once the bundle is destroyed nothing links the hash to the data.
-        rows_json = canonical({"rows": req.rows, "salt": os.urandom(16).hex()})
+        rows_json = canonical({**(req.extra or {}), "rows": req.rows, "salt": os.urandom(16).hex()})
         bundle_hash = sha256_hex(rows_json)
         order_key = sha256_hex(f"{req.buyer_id}|{req.seller_id}|{req.product_id}|{req.slot}|{req.purpose}")
         content_hash = sha256_hex(canonical(req.content(sha256_hex(canonical(req.rows)))))   # off ledger: idempotency
@@ -313,7 +321,7 @@ class Engine:
                 return False
             buyer_addr = self.party(o["buyer_id"])["address"]
             pv = json.loads(o["policy_snapshot"]).get("version", "")
-            memo = f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}" + (f"|mandate:{mh}" if mh else "")
+            memo = _memo(oid, o, pv, mh)
             prep = self.ledger.prepare_payment(buyer_addr, p["payee_address"], p["amount_drops"],
                                                p["invoice_id"], memo)
             # Persist the signed tx BEFORE submitting: a lost response is then recoverable by hash.
@@ -464,7 +472,7 @@ class Engine:
             return False
         buyer_addr = self.party(o["buyer_id"])["address"]
         pv = json.loads(o["policy_snapshot"]).get("version", "")
-        memo = f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}" + (f"|mandate:{mh}" if mh else "")
+        memo = _memo(oid, o, pv, mh)
         h, st = self._send(oid, "create", lambda: self.ledger.prepare_escrow_create(
             buyer_addr, p["payee_address"], p["amount_drops"], p["condition"], p["cancel_after"], memo))
         if not st.validated:
@@ -513,7 +521,7 @@ class Engine:
             pv = json.loads(o["policy_snapshot"]).get("version", "")
             legs.append({"destination": p["payee_address"], "amount_drops": p["amount_drops"],
                          "condition": p["condition"], "cancel_after": p["cancel_after"],
-                         "memo": f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}" + (f"|mandate:{mh}" if mh else "")})
+                         "memo": _memo(oid, o, pv, mh)})
         try:
             outer, hashes, seqs = prep_batch(self.party(buyer)["address"], legs)
             self.ledger.submit(outer)
@@ -610,6 +618,9 @@ class Engine:
     # ---------- buyer side ----------
 
     def open_bundle(self, buyer_id: str, order_id: int) -> list[dict]:
+        return self.open_payload(buyer_id, order_id)["rows"]
+
+    def open_payload(self, buyer_id: str, order_id: int) -> dict:
         bundle_hash, sealed = self.inbox.received[order_id]
         p = self.store.one("SELECT kind, finish_tx FROM payments WHERE order_id=?", order_id)
         opener = self.openers.get(buyer_id)
@@ -618,11 +629,11 @@ class Engine:
             f = self.ledger.lookup(p["finish_tx"]).fulfillment if p["kind"] == "escrow" else None
             payload = opener.open(sealed, f)
             assert sha256_hex(canonical(payload)) == bundle_hash
-            return payload["rows"]
+            return payload
         if p["kind"] == "escrow":
             # The key is read from the ledger, not from the contributor.
             st = self.ledger.lookup(p["finish_tx"])
             sealed = SecretBox(key_from_fulfillment(st.fulfillment)).decrypt(sealed)
         payload = json.loads(SealedBox(self.box_keys[buyer_id]).decrypt(sealed))
         assert sha256_hex(canonical(payload)) == bundle_hash
-        return payload["rows"]
+        return payload

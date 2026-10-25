@@ -18,6 +18,7 @@ def test_one_trade_over_the_api_passes_every_flow_with_a_ledger_tx():
     assert c.post(f"/api/study/approvals/{a['id']}/signatures", json=sig, headers=tok(sub)).json()["status"] == "executed"
     c.post("/api/study/send", headers=tok(R))
     c.post("/api/run/boundaries", headers=tok(O))
+    c.post("/api/contract/round", headers=tok(R))
     flows = c.get("/api/engine/check", headers=tok(R)).json()["flows"]
     assert [f["flow"] for f in flows] == list(engine_check.FLOWS)
     assert all(f["ok"] for f in flows), [f for f in flows if not f["ok"]]
@@ -27,7 +28,8 @@ def test_one_trade_over_the_api_passes_every_flow_with_a_ledger_tx():
 def test_a_world_with_no_trade_fails_every_ledger_flow():
     w = scenario.build_world("mock", ":memory:")
     rows = {f["flow"]: f for f in engine_check.flows(w)}
-    for name in ("escrow", "key_reveal", "holdback", "withdrawal_clawback", "batch", "amm", "x402"):
+    for name in ("escrow", "key_reveal", "holdback", "withdrawal_clawback", "batch", "amm", "x402", "data_contract",
+                 "contribution_holdback"):
         assert not rows[name]["ok"], name
 
 
