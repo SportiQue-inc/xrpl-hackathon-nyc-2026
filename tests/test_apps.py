@@ -59,6 +59,12 @@ def test_before_after_demo_is_served_and_frames_only_itself():
         assert c.get(f"/apps/{f}").status_code == 200
 
 
+def test_try_link_preserves_the_judges_access_code():
+    c = TestClient(web.app)
+    r = c.get("/try?code=judges-2026", follow_redirects=False)
+    assert r.headers["location"] == "/apps/try/index.html?code=judges-2026"
+
+
 @pytest.fixture
 def c():
     reset_rate_limits()

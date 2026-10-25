@@ -858,9 +858,9 @@ def public_live(after: int = 0):
 
 
 @app.get("/try")
-def try_it():
+def try_it(request: Request):
     """Entry for visitors: pick researcher (UniQLab live view), participant (UniQdata) or the before/after story."""
-    return RedirectResponse("/apps/try/index.html")
+    return RedirectResponse(f"/apps/try/index.html{'?' + request.url.query if request.url.query else ''}")
 
 
 @app.get("/demo")
