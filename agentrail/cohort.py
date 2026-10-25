@@ -8,6 +8,8 @@ answers for its person: provide automatically, ask the person, or block.
 """
 from __future__ import annotations
 
+from . import units
+
 import json
 import math
 import random
@@ -69,7 +71,7 @@ def synthetic_coverage(people: list[str], seed: int = 7) -> Coverage:
     heart rate missing for a subgroup in weeks 4-5; blood pressure never collected."""
     rng = random.Random(seed)
     cov = Coverage(people, {p: {w: set() for w in WEEKS} for p in people})
-    hr_gap = set(rng.sample(people, 12))
+    hr_gap = set(rng.sample(people, min(12, max(1, len(people) // 4))))   # 12 of 50; fewer in a smaller cohort
     for p in people:
         for w in WEEKS:
             have = {"sleep.daily", "activity.daily"} if rng.random() > 0.02 else {"activity.daily"}
@@ -228,7 +230,7 @@ def infer_needs(store, agent: str, cov: Coverage, allowed_purposes: list[str], b
     except (TypeError, ValueError):
         budget = budget_cap_drops
     if not 0 < budget <= budget_cap_drops:
-        notes.append(f"budget capped at {budget_cap_drops / 1e6:g} XRP")
+        notes.append(f"budget capped at {budget_cap_drops / 1e6:g} {units.UNIT}")
         budget = budget_cap_drops
     cells: dict = {}
     for item, weeks in gaps.items():

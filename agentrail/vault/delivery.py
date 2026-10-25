@@ -46,6 +46,15 @@ class _Opener:
         rec = json.loads(sealed)
         return json.loads(self.key.open(rec, key_from_fulfillment(fulfillment)))
 
+    def opens(self, record: dict, k: bytes) -> bool:
+        """The institution's agent answers before payment: does K open what it holds, to the
+        committed bundle hash? It learns K a moment before the ledger does; the escrow is already locked."""
+        try:
+            self.key.open(record, k)
+            return True
+        except Exception:
+            return False
+
 
 class _ScopePolicy:
     """Re-checked by the engine before money moves and before the key is published."""
@@ -127,6 +136,7 @@ class PushDelivery:
                               f"escrow {status}", {"tx_hash": pm["tx_hash"], "bundle": p["bundle_hash"][:16]})
         p["order_key"] = self.engine.store.one("SELECT order_key FROM orders WHERE id=?", oid)["order_key"]
         p["oid"] = oid
+        p["record"] = record
         return {"ok": True, **push}
 
     def reveal(self, pid: str, trade_id: str, k: bytes) -> dict:
@@ -138,7 +148,22 @@ class PushDelivery:
         pm = self.engine.store.one("SELECT condition FROM payments WHERE order_id=?", p["oid"])
         if condition_hex(k) != pm["condition"]:
             return {"ok": False, "reason": "key does not match the escrow condition"}
-        self.engine.key_holders[pid].keys[p["order_key"]] = k
+        opener = self.engine.openers.get(p["iid"])
+        if opener is not None and "record" in p and not opener.opens(p["record"], k):
+            # The condition matches K, but K does not open the sealed bundle: never pay for that.
+            with self.engine.store.tx() as c:
+                c.execute("UPDATE orders SET status='withheld', note=? WHERE id=?", ("key does not open the bundle", p["oid"]))
+                c.execute("UPDATE outbox SET status='done', last_error=? WHERE order_id=? AND kind='finish'",
+                          ("key does not open the bundle", p["oid"]))
+                c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (p["oid"], "cancel", "pending"))
+            self.engine.store.log(p["iid"], "refused", f"order {p['oid']}: the revealed key does not open the sealed "
+                                  "bundle to its committed hash; not finished, the escrow returns after its deadline")
+            return {"ok": False, "reason": "key does not open the sealed bundle"}
+        holder = self.engine.key_holders[pid]
+        if hasattr(holder, "keys"):
+            holder.keys[p["order_key"]] = k
+        else:                                         # a study participant's keyring (security/devices.py)
+            holder.ks.get_or_create(f"escrow.{p['order_key']}", lambda: k)
         status = self.engine.process(p["oid"])
         pm = self.engine.store.one("SELECT finish_tx FROM payments WHERE order_id=?", p["oid"])
         return {"ok": status == "delivered", "status": status, "escrow_finish": pm["finish_tx"]}

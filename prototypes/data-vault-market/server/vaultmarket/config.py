@@ -24,11 +24,17 @@ DB_PATH = os.environ.get("VM_DB", os.path.join(DATA_DIR, "vaultmarket.db"))
 LEDGER = os.environ.get("VM_LEDGER", "testnet")            # testnet | devnet | mock (tests only; the UI says so)
 WALLETS = os.environ.get("VM_WALLETS", os.path.join(DATA_DIR, "wallets.local.json"))
 AGENTS = int(os.environ.get("VM_AGENTS", "50"))
+EXTRA_PEOPLE = int(os.environ.get("VM_EXTRA_PEOPLE", "0"))     # extra simulated members added on start, up to 40, kept once added
 TICK_SECONDS = float(os.environ.get("VM_TICK_SECONDS", "30"))   # one negotiation round per tick
 # Settlement asset. USD: a test USD token (IOU) on the ledger, issued by this application, settled by token
 # escrow; XRP: the fallback. Amounts are kept in millionths of the asset (drops for XRP).
 ASSET = os.environ.get("VM_ASSET", "USD").upper()
-USD_PER_UNIT = float(os.environ.get("VM_USD_PER_UNIT", "1"))         # 1 price unit = 1 test USD, all display values use the actual test asset
+# AP4M (Mastercard) rail: deals pay in RLUSD on XRPL EVM Testnet through ap4m/rail-server.mjs (AP4M_RAIL_URL).
+# Its budget is 20 RLUSD in total and 0.10 per payment, so prices default to 1 unit = 0.005 RLUSD in this mode:
+# the data types' list prices (5-12 units) become 0.025-0.06 RLUSD and a seller's price is capped at 20 units.
+AP4M = os.environ.get("VM_AP4M", "0") == "1"
+AP4M_BOT_PER_HOUR = int(os.environ.get("VM_AP4M_BOT_PER_HOUR", "6"))   # simulated-agent deals on AP4M per hour; members always
+USD_PER_UNIT = float(os.environ.get("VM_USD_PER_UNIT", "0.005" if AP4M else "1"))         # 1 price unit = 1 test USD, all display values use the actual test asset
 # How the token is shown to people. The ledger key stays "test USD"; swap the name and footnote here
 # (or in env) when the market's own registered token replaces the stand-in.
 ASSET_LABEL = os.environ.get("VM_ASSET_LABEL", "test USD")

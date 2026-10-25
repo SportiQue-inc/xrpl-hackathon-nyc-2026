@@ -14,6 +14,7 @@ from .data import KINDS
 import hashlib
 
 from .rail import Rail, condition_hex, merkle_proof, merkle_verify
+from agentrail import ap4m_rail  # noqa: E402  (repo root is on sys.path via .rail)
 from .store import Store
 
 PEOPLE = ["Dana Park", "Minho Lee", "Sora Kim", "Jae Choi", "Lina Haddad", "Omar Farouk", "Priya Nair", "Ken Watanabe", "Ana Souza", "Tomas Novak",
@@ -21,6 +22,12 @@ PEOPLE = ["Dana Park", "Minho Lee", "Sora Kim", "Jae Choi", "Lina Haddad", "Omar
           "Zoe Carter", "Kofi Mensah", "Elif Demir", "Mateo Ruiz", "Aisha Bello", "Noah Fischer", "Jin Park", "Lucia Gomez", "Sam Taylor", "Amara Obi",
           "Theo Martin", "Rin Takahashi", "Diego Alvarez", "Maya Cohen", "Ola Nordmann", "Ethan Brooks", "Seo-yeon Han", "Farah Aziz", "Jonas Berg", "Bo Zhang",
           "Tara Singh", "Wen Chen"]
+# more market personas, added to a running vault by VM_EXTRA_PEOPLE (seed() tops up; existing vaults are kept)
+EXTRA_PEOPLE = ["Ines Duarte", "Kwame Asante", "Hye-jin Yoon", "Marco Bianchi", "Leila Rahimi", "Arjun Mehta", "Clara Weber", "Tunde Bakare",
+                "Saki Mori", "Pablo Ortega", "Greta Lund", "Yusuf Kaya", "Nina Kowalski", "Dae-ho Kang", "Lea Dubois", "Kai Nakamura",
+                "Rosa Silva", "Emre Aydin", "Ivy Tran", "Felix Huber", "Zara Malik", "Joon Seo", "Alma Torres", "Viktor Lindqvist",
+                "Chloe Nguyen", "Hamza Idris", "Mina Choi", "Oskar Nilsson", "Freya Holm", "Rami Saleh", "Lily Evans", "Ji-ho Shin",
+                "Paula Mendes", "Sven Aalto", "Nour Haddad", "Ryo Fujita", "Esme Clarke", "Adil Rahman", "Yara Costa", "Hugo Laurent"]
 ORGS = [
     {"id": "atlas-maps", "name": "Atlas Maps", "buys": [("gps_track", 11, 14, "route-safety model", 6, 0)]},
     {"id": "restwell", "name": "Restwell App", "buys": [("sleep_log", 7, 9, "sleep coaching feature", 6, 0)]},
@@ -44,6 +51,7 @@ class Market:
         self._bal: dict[str, tuple[float, float]] = {}
         self.events = 0
         self.lock = threading.Lock()
+        self.wake = threading.Event()   # set when someone asks their agent to sell, so it runs now, not on the next tick
         if not self.s.stat("record_fingerprints_v2"):
             with self.s.transaction():
                 for f in self.s.q("SELECT id,kind,raw,clean,fps FROM files"):
@@ -110,6 +118,14 @@ class Market:
                         body = data.make_record(k, rng2, acc["name"], j, home)
                         self.add_file(acc["id"], k, data.file_name(k, body, j), body, listed=acc["id"] == "demo-vault" or rng2.random() < 0.7, source="phone")
             self.s.bump("kinds_v2")
+        if not self.s.stat("ap4m_tx_src_v1"):   # AP4M rows written before this used src = buyer; EscrowFinish rows use src = the seller paid
+            self.s.x("UPDATE txs SET src = dst, dst = src WHERE type = 'AP4M VoucherRedeemed' AND src = (SELECT buyer FROM contracts WHERE contracts.id = txs.contract)")
+            self.s.bump("ap4m_tx_src_v1")
+        rng3 = random.Random(404)
+        for name in EXTRA_PEOPLE[: max(0, config.EXTRA_PEOPLE)]:
+            aid = name.split()[0].lower().replace("-", "")
+            if not self.s.one("SELECT id FROM accounts WHERE id = ?", (aid,)):
+                self._add_persona(aid, name, rng3)
         if not self.s.stat("demo_vault_auto_v1") and self.s.one("SELECT id FROM accounts WHERE id='demo-vault'"):
             # The demo vault's agent sells on its own within its minimums, like the market personas, with enough records to trade.
             rules=self.acct("demo-vault")["sell_agent"];rules["mode"]="auto"
@@ -167,6 +183,20 @@ class Market:
         self.rail.setup_token(holders, funder=self.addr.get("coop-broker") or self.platform)
         self.asset_ready = True
         self._bal.clear(); self.events += 1
+
+    def _add_persona(self, aid: str, name: str, rng: random.Random):
+        """One simulated member whose agent sells on its own within its minimums, with records of every kind."""
+        mins = {k: round(KINDS[k]["price"] * rng.uniform(0.6, 1.25), 1) for k in KINDS}
+        blocks = (["insurance pricing"] if rng.random() < 0.55 else []) + (["speech model training"] if rng.random() < 0.2 else [])
+        self.s.insert("accounts", id=aid, name=name, type="person", trust=round(rng.uniform(0.72, 0.97), 2), verified=0,
+                      sell_agent={"mode": "auto", "min": mins, "blocks": blocks}, buy_agent={"auto_limit": 60, "min_trust": 0.7, "max_overlap": 0.3})
+        home = (round(40.66 + rng.random() * 0.14, 5), round(-74.01 + rng.random() * 0.1, 5))
+        counts = {"gps_track": rng.randint(1, 6), "sleep_log": rng.randint(0, 3), "purchase_receipts": rng.randint(0, 2), "audio": rng.randint(0, 1),
+                  **{k: rng.randint(1, 3) for k in data.NEW_KINDS}}
+        for k, c in counts.items():
+            for j in range(c):
+                body = data.make_record(k, rng, name, j, home)
+                self.add_file(aid, k, data.file_name(k, body, j), body, listed=rng.random() < 0.7, source=body.get("device_serial", "phone"))
 
     def add_user_account(self, aid: str, name: str):
         """A signed-up member: an empty vault, an agent that asks before every sale, and its own XRPL wallet."""
@@ -234,11 +264,18 @@ class Market:
         tx = self._fee(account, fee_drops, f"cleaning {name}")
         fid = self.add_file(account, sc["kind"], name, intake.clean(sc["kind"], body), listed=listed, source=body.get("device_serial", "upload"),
                             cleaned=True, checks=["schema", "value ranges", "duplicates", "identifiers removed"] + sc["issues"])
-        self.s.x("UPDATE uploads SET file = ?, verdict = 'cleaned' WHERE id = ?", (fid, uid))
+        self.s.x("UPDATE uploads SET file = ?, verdict = 'cleaned', fee_tx = ?, fee_micro = ? WHERE id = ?", (fid, tx, fee_drops, uid))
         self.s.bump("cleaned"); self.s.bump("fees", sc["fee"])
         return {"upload": uid, "file": fid, "verdict": "cleaned", "fee": sc["fee"], "tx": tx}
 
     def _fee(self, account: str, drops: int, memo: str) -> str | None:
+        if config.AP4M and 0 < drops <= ap4m_rail.PER_PAYMENT_CAP_MICRO:
+            r = ap4m_rail.pay(f"vm-fee-{account}-{int(time.time() * 1000)}", drops, pool="vault", memo={"account": account, "fee": memo})
+            if r.get("ok"):
+                self.s.insert("txs", contract=None, type="AP4M VoucherRedeemed (cleaning fee)", hash=r["voucher_redeemed_tx"], src=account, dst="platform",
+                              drops=drops, result="verified" if r.get("verified") else "redeemed", asset="RLUSD (AP4M)")
+                return r["voucher_redeemed_tx"]
+            return None
         src, dst = self.addr.get(account), getattr(self, "platform", None)
         if not (src and dst):
             return None
@@ -325,12 +362,20 @@ class Market:
                 self.s.x("UPDATE files SET status='listed' WHERE account=? AND kind=? AND status='private'", (aid, kind))
                 if posting:
                     self.s.x("INSERT OR IGNORE INTO interests(account,posting,created) VALUES(?,?,?)", (aid, posting, time.time()))
-            self.chat(aid, "agent", reason or f"Sale request #{qid} queued. I will negotiate one-to-one, within your minimum and allowed purposes.")
+            self.chat(aid, "agent", reason or f"Sale request #{qid} received. My agent is starting the negotiation now.")
         self.events += 1
+        if not reason:
+            self.wake.set()
         return self.s.one("SELECT * FROM sale_queue WHERE id=?", (qid,))
 
+    def expire_sale_queue(self):
+        """A sale instruction that found no buyer for 20 minutes is closed with that reason, so the list shows only live work."""
+        self.s.x("UPDATE sale_queue SET status='rejected',reason='No buyer matched your terms within 20 minutes. Ask again any time, or lower your minimum.',updated=? "
+                 "WHERE status='waiting' AND created<?", (time.time(), time.time() - 1200))
+
     def process_sale_queue(self) -> bool:
-        q = self.s.one("SELECT * FROM sale_queue WHERE status IN ('queued','waiting') AND updated<? ORDER BY id LIMIT 1", (time.time()-15,))
+        # newest instruction first: on the shared demo vault a visitor's click shouldn't wait behind everyone else's
+        q = self.s.one("SELECT * FROM sale_queue WHERE status IN ('queued','waiting') AND updated<? ORDER BY (status='queued') DESC, id DESC LIMIT 1", (time.time()-15,))
         if not q:
             return False
         a = self.acct(q["account"])
@@ -385,6 +430,9 @@ class Market:
         owned = self.owned_fps(w["buyer"], w["kind"])
         # price discovery: the buyer opens under the market price, never above its owner's budget
         q = self.quote(w["kind"])
+        if config.AP4M:   # one AP4M payment per seller, never above 0.10 RLUSD: the buyer's budget per seller is capped there
+            cap_units = math.floor(ap4m_rail.PER_PAYMENT_CAP_MICRO / config.MICRO_PER_UNIT * 10) / 10
+            w = {**w, "max": min(w["max"], cap_units), "offer": min(w["offer"], cap_units)}
         opening = round(min(w["max"], max(0.5, q["price"] * 0.92)), 1)
         w = {**w, "offer": opening, "quote": q}
         cid = self.s.insert("contracts", posting=w["id"], buyer=w["buyer"], kind=w["kind"], seller=seller_id, status="negotiating", reason="Buyer agent is preparing an offer", asset=self.rail.symbol(), unit_micro=config.MICRO_PER_UNIT)
@@ -405,10 +453,14 @@ class Market:
 
         files = self.s.q("SELECT f.*, a.trust FROM files f JOIN accounts a ON a.id = f.account WHERE f.kind = ? AND f.status = 'listed' AND f.account != ?", (w["kind"], w["buyer"]))
         by_acct: dict[str, list] = {}
+        skipped_owned = 0
         for f in files:
             if (w["buyer"]=="demo-vault" and f["account"].startswith("u-")) or (w["buyer"].startswith("u-") and f["account"]=="demo-vault"):
                 continue  # The public demo never trades a real member's records.
             if f["account"] not in self.addr:      # wallet not funded yet: not in the market this round
+                continue
+            if not seller_id and owned and owned & set(json.loads(f["fps"] or "[]")):
+                skipped_owned += 1                 # the buyer agent only asks for records it does not own yet
                 continue
             by_acct.setdefault(f["account"], []).append(f)
         interested = {r["account"] for r in self.s.q("SELECT account FROM interests WHERE posting = ?", (w["id"],))}
@@ -419,7 +471,9 @@ class Market:
         if "demo-vault" in cands and self.rng.random() < 0.5:
             cands.remove("demo-vault");cands.insert(0,"demo-vault")  # the demo vault trades often so its history fills in
         cands = [seller_id] if seller_id in cands else [] if seller_id else cands[:1]
-        trace["buyer_trace"].append(f"{len(by_acct)} vaults list this kind; {len(low_trust)} below trust {w['min_trust']} skipped; asking {len(cands)}"
+        trace["buyer_trace"].append(f"{len(by_acct)} vaults list this kind; {len(low_trust)} below trust {w['min_trust']} skipped; "
+                                    + (f"{skipped_owned} listed files left out because the buyer already owns those records; " if skipped_owned else "")
+                                    + f"asking {len(cands)}"
                                     + (f", {len(interested & set(cands))} marked interest so they go first." if interested & set(cands) else "."))
         if cands:
             self.s.x("UPDATE contracts SET seller=?,overview=? WHERE id=?", (cands[0],json.dumps(self.describe_files(by_acct[cands[0]])),cid))
@@ -458,7 +512,7 @@ class Market:
             step("Requirements match", f"buyer needs ≥{need['min_records']} {need['unit']} with {', '.join(need['fields'])}; seller has {len(recs)}"
                  + (f", missing {', '.join(missing)}" if missing else "") + f" → fit {fit:.0%}" + ("" if fit >= 1 else ", priced as a partial bundle" if fit else ", no trade"), fit > 0, a)
             if not fit:
-                trace["seller_trace"].append({"seller": a, "verdict": "conditions not met", "price": None, "fit": fit}, buyer_model=buyer["buy_agent"].get("model", "auto"), seller_model=sa["sell_agent"].get("model", "auto"))
+                trace["seller_trace"].append({"seller": a, "verdict": "conditions not met", "price": None, "fit": fit})
                 trace["verdicts"]["sellers"][a] = "conditions not met"
                 declined += 1
                 continue
@@ -591,13 +645,15 @@ class Market:
             legs.append({"seller": a, "seller_addr": self.addr[a], "dst_addr": self.acct(a).get("payout") if self.rail.has_line(self.acct(a).get("payout") or "") else None, "drops": round(price * config.MICRO_PER_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
             plain[a] = clear
         self.s.x("UPDATE contracts SET trace=?,sellers=? WHERE id=?", (json.dumps(trace),json.dumps([l["seller"] for l in legs]),cid))
+        use_ap4m = w['kind'] != data.PACKAGE_KIND and self._use_ap4m(buyer_id, [l["seller"] for l in legs])
         eids = {}
         def record(i, seq, create_hash, cancel_after, create_blob):
             l = legs[i]
             eids[i] = self.s.insert("escrows", contract=cid, buyer=buyer_id, seller=l["seller"], owner=self.addr[buyer_id], seq=seq,
                                     create_hash=create_hash, k=l["K"].hex(), cancel_after=cancel_after, drops=l["drops"], price=l["price"],
                                     files=[f["id"] for f in l["fs"]], sealed=l["sealed"], create_blob=create_blob, state="open")
-        res = self.rail.escrow_lot(self.addr[buyer_id], legs, f"vaultmarket/contract/{cid}", record=record)
+        res = ([self._ap4m_leg(cid, buyer_id, l) for l in legs] if use_ap4m
+               else self.rail.escrow_lot(self.addr[buyer_id], legs, f"vaultmarket/contract/{cid}", record=record))
         for i, r in enumerate(res):
             if i in eids:
                 self.s.x("UPDATE escrows SET state = ?, finish_hash = ? WHERE id = ?",
@@ -605,6 +661,19 @@ class Market:
         with self.s.transaction():
             paid, items, fps, merged = [], 0, set(), []
             for leg, r in zip(legs, res):
+                if use_ap4m:
+                    if not self._record_ap4m(cid, buyer_id, leg, r, trace):
+                        continue
+                    K = r["K"]
+                    raw_open = self.rail.open(buyer_id, leg["sealed"], K)
+                    opened = json.loads(raw_open)
+                    same = hashlib.sha256(raw_open).digest() == hashlib.sha256(plain[leg["seller"]]).digest()
+                    trace["protocol"].append({"protocol": "Buyer opens the bundle", "who": leg["seller"], "ok": same, "tx": None,
+                                              "detail": f"buyer agent got K back from the AP4M merchant for its redeemed Voucher, unwrapped and decrypted {len(opened['records'])} records; bundle SHA-256 {hashlib.sha256(raw_open).hexdigest()[:16]}… {'matches' if same else 'DOES NOT match'} the sealed bundle"})
+                    merged.extend(opened["records"]); items += len(leg["fs"]); paid.append(leg)
+                    for f in leg["fs"]:
+                        self.s.x("UPDATE files SET sold = sold + 1 WHERE id = ?", (f["id"],)); fps.update(json.loads(f["fps"] or "[]"))
+                    continue
                 self.s.insert("txs", contract=cid, type="EscrowCreate", hash=r["create"]["hash"], src=buyer_id, dst=leg["seller"], drops=leg["drops"], result=r["create"]["result"], asset=self.rail.symbol())
                 if r["finish"]["hash"]:
                     self.s.insert("txs", contract=cid, type="EscrowFinish (key released)", hash=r["finish"]["hash"], src=leg["seller"], dst=buyer_id, drops=leg["drops"], result=r["finish"]["result"], asset=self.rail.symbol())
@@ -627,6 +696,11 @@ class Market:
                 merged.extend(opened["records"]); items += len(leg["fs"]); paid.append(leg)
                 for f in leg["fs"]:
                     self.s.x("UPDATE files SET sold = sold + 1 WHERE id = ?", (f["id"],)); fps.update(json.loads(f["fps"] or "[]"))
+            if not paid and use_ap4m:
+                why = "; ".join(sorted({r.get("reason") or "AP4M payment failed" for r in res}))
+                self.s.x("UPDATE contracts SET status='rejected',reason=?,trace=? WHERE id=?", (f"AP4M payment not made: {why}", json.dumps(trace), cid))
+                self.s.bump("rejected")
+                return
             if not paid:
                 pending = bool(self.s.one("SELECT id FROM escrows WHERE contract=? AND state='open'", (cid,)))
                 self.s.x("UPDATE contracts SET status=?,reason=?,trace=? WHERE id=?", ("settling" if pending else "rejected", "Waiting for validated ledger settlement; recovery will reconcile the saved escrow" if pending else "No escrow payment validated", json.dumps(trace),cid))
@@ -649,11 +723,85 @@ class Market:
                 self.s.bump(f"earned:{l['seller']}:{w['kind']}", l["price"])
                 self.s.insert("prices", kind=w["kind"], price=l["price"], contract=cid)
                 if self.acct(l["seller"])["type"] == "person" and self.acct(l["seller"])["sell_agent"].get("mode") == "ask":
-                    self.chat(l["seller"], "agent", f"Sale completed: {data.kind_info(w['kind'])['label']} to {self.acct(buyer_id)['name']}: +{l['drops'] / 1e6:.6f} {self.rail.symbol()} on the ledger. Contract #{cid}.")
+                    self.chat(l["seller"], "agent", f"Sale completed: {data.kind_info(w['kind'])['label']} to {self.acct(buyer_id)['name']}: +{l['drops'] / 1e6:.6f} {'RLUSD on AP4M' if use_ap4m else self.rail.symbol() + ' on the ledger'}. Contract #{cid}.")
 
             for a in {l["seller"] for l in paid}:
                 self._bal.pop(a, None)
             self._bal.pop(buyer_id, None)
+
+    # ---------------- AP4M (Mastercard) settlement ----------------
+    def _use_ap4m(self, buyer_id: str, sellers: list[str]) -> bool:
+        """Deals with a member or the demo vault on either side always pay on AP4M; deals between simulated
+        agents only up to VM_AP4M_BOT_PER_HOUR, so the background market does not spend the shared budget."""
+        if not config.AP4M:
+            return False
+        if any(a.startswith("u-") or a == "demo-vault" for a in [buyer_id, *sellers]):
+            return True
+        hour = f"ap4m_bot:{int(time.time() // 3600)}"
+        if self.s.stat(hour) >= config.AP4M_BOT_PER_HOUR:
+            return False
+        self.s.bump(hour)
+        return True
+
+    def _ap4m_leg(self, cid: int, buyer_id: str, leg: dict) -> dict:
+        """Pay one seller with one AP4M Voucher; its merchant response carries K. Negotiation caps every seller's
+        price at 0.10 RLUSD, and a leg above it is refused here rather than split. A seller with an EVM wallet set
+        (sell_agent.evm) gets the amount forwarded on-chain from the merchant payout wallet."""
+        if leg["drops"] > ap4m_rail.PER_PAYMENT_CAP_MICRO:
+            return {"ok": False, "receipts": [], "K": None, "reason": f"price {leg['drops'] / 1e6} RLUSD is above the AP4M per-payment cap 0.10"}
+        evm = (self.acct(leg["seller"]).get("sell_agent") or {}).get("evm")
+        evm = evm if isinstance(evm, str) and len(evm) == 42 and evm.startswith("0x") else None
+        r = ap4m_rail.pay(f"vm-c{cid}-{leg['seller']}", leg["drops"], pool="vault",
+                          memo={"contract": cid, "buyer": buyer_id, "seller": leg["seller"]},
+                          content={"k": leg["K"].hex()}, forward_to=evm)
+        if not r.get("ok"):
+            return {"ok": False, "receipts": [r], "reason": r.get("reason"), "K": None}
+        k_hex = (r.get("content") or {}).get("k")
+        K = bytes.fromhex(k_hex) if k_hex else None
+        ok = K is not None and K == leg["K"]
+        return {"ok": ok, "receipts": [r], "K": K, "reason": None if ok else "the merchant did not return the data key"}
+
+    def _record_ap4m(self, cid: int, buyer_id: str, leg: dict, r: dict, trace: dict) -> bool:
+        paid = [x for x in r["receipts"] if x.get("ok")]
+        for x in paid:
+            self.s.insert("txs", contract=cid, type="AP4M VoucherRedeemed", hash=x["voucher_redeemed_tx"], src=leg["seller"], dst=buyer_id,   # like EscrowFinish: src is who is paid
+                          drops=round(float(x["amount_rlusd"]) * 1e6), result="verified" if x.get("verified") else "redeemed", asset="RLUSD (AP4M)")
+            if x.get("forward_tx"):
+                self.s.insert("txs", contract=cid, type="RLUSD forward to seller", hash=x["forward_tx"], src="platform", dst=leg["seller"],
+                              drops=round(float(x["amount_rlusd"]) * 1e6), result="ok" if x.get("forward_ok") else "failed", asset="RLUSD (AP4M)")
+        trace["tx"].append({"seller": leg["seller"], "ap4m": [{k: x.get(k) for k in ("claim_id", "voucher_redeemed_tx", "voucher_url", "receipt_url",
+                            "payout_tx", "payout_url", "forward_tx", "forward_url", "amount_rlusd", "verified")} for x in paid], "ok": r["ok"]})
+        for x in paid:
+            trace["protocol"].append({"protocol": "AP4M Voucher redeemed (Mastercard AP4M, XRPL EVM Testnet)", "who": leg["seller"], "ok": bool(x.get("verified")),
+                                      "tx": x["voucher_redeemed_tx"], "url": x.get("voucher_url"), "receipt_url": x.get("receipt_url"),
+                                      "detail": f"the market's AP4M agent paid {x['amount_rlusd']} RLUSD for {self.acct(buyer_id)['name']} with an EIP-712 Voucher on Channel {str(x.get('channel_id'))[:10]}…; "
+                                                f"claim {str(x.get('claim_id'))[:10]}…; the AP4M service settled it to the market's Merchant payout wallet"
+                                                + ((f", then {x['amount_rlusd']} RLUSD was forwarded on-chain to the seller's wallet {x['forward_to'][:8]}…" if x.get("forward_ok") else ", then the recorded transfer to the seller's wallet failed") if x.get("forward_tx") else ", where it is held for the seller")})
+        if not r["ok"]:
+            trace["protocol"].append({"protocol": "AP4M payment", "who": leg["seller"], "ok": False, "tx": None, "detail": r.get("reason") or "not paid"})
+        return r["ok"]
+
+    def backfill_ap4m_receipts(self, limit: int = 40) -> int:
+        """AP4M settles in the background: fill receipt_url and the payout tx into recent deals paid without one."""
+        if not config.AP4M:
+            return 0
+        n = 0
+        for c in self.s.q("SELECT id, trace FROM contracts WHERE status = 'settled' AND trace LIKE '%\"ap4m\"%' AND trace LIKE '%\"receipt_url\": null%' ORDER BY id DESC LIMIT ?", (limit,)):
+            trace = json.loads(c["trace"] or "{}"); changed = False
+            for t in trace.get("tx", []):
+                for x in t.get("ap4m") or []:
+                    if x.get("receipt_url"):
+                        continue
+                    got = ap4m_rail.lookup(f"vm-c{c['id']}-{t['seller']}") or {}
+                    if got.get("receipt_url"):
+                        x.update({k: got.get(k) for k in ("receipt_url", "payout_tx", "payout_url")}); changed = True
+                        for p in trace.get("protocol", []):
+                            if p.get("tx") == x.get("voucher_redeemed_tx"):
+                                p["receipt_url"] = got["receipt_url"]
+                        self.s.x("UPDATE txs SET receipt = ? WHERE contract = ? AND hash = ?", (got["receipt_url"], c["id"], x.get("voucher_redeemed_tx")))
+            if changed:
+                self.s.x("UPDATE contracts SET trace = ? WHERE id = ?", (json.dumps(trace), c["id"])); n += 1; self.events += 1
+        return n
 
     # ---------------- restart recovery ----------------
     def recover(self):
@@ -824,6 +972,7 @@ class Market:
         if rng.random() < 0.35:
             self.new_request(rng)
         self.s.x("UPDATE postings SET status = 'expired' WHERE status = 'open' AND once = 1 AND created < ?", (time.time() - 1800,))
+        self.expire_sale_queue()
         # one negotiation: postings someone marked interest in first, then the rest
         open_ = self.s.q("SELECT p.*, (SELECT COUNT(*) FROM interests i WHERE i.posting = p.id) AS hot FROM postings p WHERE status = 'open' ORDER BY hot DESC, RANDOM()")
         if not self.process_sale_queue() and open_:
@@ -874,6 +1023,17 @@ class Market:
                         last_recover = t
                         self.recover()
                     self.tick()
+                if t - getattr(self, "_last_backfill", 0.0) > 90:   # outside the lock: it only calls the rail and fills links
+                    self._last_backfill = t
+                    self.backfill_ap4m_receipts()
             except Exception:
                 traceback.print_exc()
-            time.sleep(max(1.0, config.TICK_SECONDS - (time.time() - t)))
+            # sleep until the next tick, but wake at once for a visitor's sale and negotiate only that
+            while self.wake.wait(max(0.0, config.TICK_SECONDS - (time.time() - t))):
+                self.wake.clear()
+                try:
+                    with self.lock:
+                        self.process_sale_queue()
+                except Exception:
+                    traceback.print_exc()
+            time.sleep(0.5)

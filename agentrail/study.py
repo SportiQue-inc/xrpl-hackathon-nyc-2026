@@ -15,12 +15,14 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from . import payout
+from .security import passkey
 from .agents import talk
 from .cohort import (HERO, PRIMARY, WEEKS, apply_deliveries, heatmap, infer_needs, person_gaps, power)
 from .connectors import HospitalExportSource
 from . import uniqdata_live
-from .engine import BudgetExceeded, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
+from .engine import BudgetExceeded, NeedsHumanApproval, OrderConflict, OrderRequest, canonical, sha256_hex
 from .ledger.licence import licence_metadata
+from . import units
 from .ledger.amm_terms import SLIPPAGE, STABLE_CODE, STABLE_ISSUER, STABLE_LABEL
 from .policy import DUO, PURPOSE_DUO, SENSITIVITY, BuyerMandate
 
@@ -33,7 +35,7 @@ LABELS = {"sleep.daily": "Sleep (wearable)", "activity.daily": "Activity (wearab
           "blood_pressure.daily": "Blood pressure (clinic visit)", "birth_date": "Exact birth date",
           "zip5": "5-digit postal code", "diagnosis.rare": "Rare diagnosis"}
 IRB_NUMBER = "IRB-SYN-2026-014"   # synthetic ethics approval number shown in the console
-HOLD_WINDOW_S = 120     # escrow deadline for a round the participant's agent has not released yet
+HOLD_WINDOW_S = 240     # escrow deadline for a round the participant's agent has not released yet
 BONUS_DROPS = CELL_PRICE   # completion bonus offered on the followed participant's request
 
 
@@ -148,6 +150,7 @@ def direct_payment_attempt(w, payer: str, pid: str, amount_drops: int = XRP) -> 
 
 def set_goal(w, goal: str, propose=None) -> dict:
     s = ensure(w)
+    previous_needs = s.needs
     from .scenario import ETHICS_CREDENTIAL
     w.store.scene = "H"
     s.goal = goal or "Bring the primary analysis back to 80% power before the interim report."
@@ -164,7 +167,12 @@ def set_goal(w, goal: str, propose=None) -> dict:
             if c["item"] not in wk:
                 wk.append(c["item"])
     _plant_integrity_case(w, s)
-    s.status = "draft"
+    same_spec = (previous_needs is not None
+                 and s.needs.proposal_hash == previous_needs.proposal_hash
+                 and s.needs.budget_drops == previous_needs.budget_drops)
+    if not same_spec or s.status not in ("approved", "sent"):
+        s.status = "draft"
+        s.approval = {}                  # A changed spec needs its own budget approval.
     n = s.needs
     w.store.log(LAB, "spec", f"gap reading ({'LLM' if n.source == 'llm' else 'rule baseline'}, checked by code): "
                 + ("; ".join(f"{i} weeks {ws}" for i, ws in n.gaps.items()) or "no gaps")
@@ -234,6 +242,8 @@ def _classify(d, items):
 
 def send(w, workers: int = 8) -> dict:
     s = ensure(w)
+    if s.status == "sent":
+        return study_view(w)
     if s.status not in ("approved", "sent"):
         return {"ok": False, "message": "spec not approved"}
     if not s.irb_approval.strip():
@@ -257,13 +267,28 @@ def send(w, workers: int = 8) -> dict:
             w.store.log(LAB, "progress", f"requests answered: {len(s.requests)} of {len(s.needs.cells)}")
     with ThreadPoolExecutor(workers) as ex:
         list(ex.map(w.engine.process, oids))
-    for req in s.requests.values():
+
+    def after(req):
         _after_contribution(w, req)
         if req["person"] == HERO:
             payout.offer_bonus(w, LAB, req, BONUS_DROPS)
         _settle(w, req)
+    # Licence, held part and its release are several ledger round trips per person. On a live ledger
+    # they run for several people at once (each account's own txs stay in order, see submit_and_wait).
+    n = settle_workers(w)
+    if n > 1:
+        with ThreadPoolExecutor(n) as ex:
+            list(ex.map(after, list(s.requests.values())))
+    else:
+        for req in s.requests.values():
+            after(req)
     s.status = "sent"
     return study_view(w)
+
+
+def settle_workers(w) -> int:
+    """People settled at once after the payouts: 1 on the mock ledger (deterministic), 8 on a live one."""
+    return max(1, int(os.environ.get("SETTLE_WORKERS") or (1 if w.ledger.name == "mock" else 8)))
 
 
 def _answer(w, req, hold_last=False) -> list[int]:
@@ -304,11 +329,15 @@ def _answer(w, req, hold_last=False) -> list[int]:
         last = hold_last and i == len(granted) - 1
         r = OrderRequest(LAB, pa.id, pa.id, "cohort.fill", f"{pa.id}|w{wk}:{'+'.join(its)}", req["purpose"],
                          sorted(its), payout.immediate(len(its) * CELL_PRICE, i), rows, decisions[wk], settle="escrow",
-                         escrow_window_s=HOLD_WINDOW_S if last else 600)
+                         escrow_window_s=HOLD_WINDOW_S if last else (600 if w.ledger.name == "mock" else 1800))
         try:
             oid = w.engine.place_order(r)
         except (BudgetExceeded, NeedsHumanApproval) as e:
             w.store.log(LAB, "stop", f"{pa.id}: {e}")
+            continue
+        except OrderConflict as e:
+            # an earlier round already holds an order for this person, week and items: it stands, nothing new
+            w.store.log(LAB, "already_ordered", f"{pa.id} week {wk}: {e}; kept the earlier order")
             continue
         req["orders"].append({"order_id": oid, "week": wk, "items": its, "hold": last, "full": len(its) * CELL_PRICE})
         oids.append(oid)
@@ -364,8 +393,9 @@ def set_payout_currency(w, pid: str, currency: str) -> dict:
 def _swap_paid(w, pid: str, delivered: list):
     """After escrows pay out in XRP, the participant's agent converts exactly that amount."""
     s = w.study
-    if s.payout_currency.get(pid) != "stable" or not hasattr(w.ledger, "swap_to_stable"):
-        return
+    if s.payout_currency.get(pid) != "stable" or not hasattr(w.ledger, "swap_to_stable") or (
+            units.TOKEN and w.ledger.name == "testnet"):
+        return                     # paid in the USD token already: nothing to swap
     addr = w.engine.party(pid)["address"]
     done = {o for x in s.swaps for o in x["orders"]}
     todo = [o["order_id"] for o in delivered if o["order_id"] not in done]
@@ -599,9 +629,11 @@ def participant_view(w, pid: str) -> dict:
     s = ensure(w)
     pa = w.cohort_people[pid]
     reqs = _requests_for(w, pid)
-    orders = w.store.q("SELECT o.id, o.scope, o.status, o.price_drops, o.policy_snapshot, p.tx_hash, p.finish_tx, "
-                       "p.cancel_tx FROM orders o JOIN payments p ON p.order_id=o.id WHERE o.seller_id=? "
-                       "AND o.buyer_id=? ORDER BY o.id", pid, LAB)
+    from .binding import consent_in_force
+    now = w.ledger.now()
+    orders = w.store.q("SELECT o.id, o.scope, o.status, o.price_drops, o.policy_snapshot, o.bundle_hash, o.created_at, "
+                       "p.tx_hash, p.finish_tx, p.cancel_tx, p.cancel_after FROM orders o JOIN payments p ON p.order_id=o.id WHERE o.seller_id=? "
+                       "AND o.buyer_id=? AND o.product_id NOT LIKE 'subproject:%' ORDER BY o.id", pid, LAB)
     contributions, cell_state = [], {}
     for o in orders:
         slot = json.loads(o["scope"])["slot"].split("|", 1)[1]
@@ -611,7 +643,11 @@ def participant_view(w, pid: str) -> dict:
             status = "refunded"
         contributions.append({"order_id": o["id"], "weeks": [wk], "items": its, "amount_xrp": o["price_drops"] / XRP,
                               "status": status, "escrow": _tx(w, o["tx_hash"]), "finish": _tx(w, o["finish_tx"]),
-                              "cancel": _tx(w, o["cancel_tx"])})
+                              "cancel": _tx(w, o["cancel_tx"]), "bundle_hash": o["bundle_hash"],
+                              "consent_hash": (consent_in_force(w.store, pid, LAB, o["created_at"]) or {}).get("doc_hash"),
+                              # an escrow nobody finished goes back to the study at this time (CancelAfter)
+                              "refund_at": time.time() + max(0, o["cancel_after"] - now)
+                              if o["cancel_after"] and not o["finish_tx"] and not o["cancel_tx"] else None})
         for i in its:
             cell_state[(wk, i)] = ("contributed" if status == "delivered" else
                                    "escrowed" if status == "escrowed" else status, o["finish_tx"] or o["tx_hash"])
@@ -636,6 +672,8 @@ def participant_view(w, pid: str) -> dict:
         lic = {**lic, "held_by_study": w.ledger.licence_held(w.engine.party(LAB)["address"], lic["mpt_id"])}
     return {
         "person": {"id": pid, "address": w.engine.party(pid)["address"], "study_pseudonym": pa.vault.pseudonym(LAB)},
+        "asset": units.UNIT,
+        "ledger": w.ledger.name,
         "requests": [request_card(w, r) for r in reqs],
         "timeline": {"weeks": WEEKS, "rows": rows},
         "gaps": s.person_claims.get(pid, []),
@@ -647,7 +685,97 @@ def participant_view(w, pid: str) -> dict:
         "withdrawals": [x for x in s.withdrawals if x["person"] == pid],
         "export_fees": [x for x in s.export_fees if x["person"] == pid],
         "payout": payout.view(w, LAB, pid),
+        "passkey": {"registered": passkey.has_passkey(w, pid), "held_by": passkey.backend(w, pid).name}
+                   if _has_passkeys(w) else None,
+        "approvals": passkey.approvals(w.store, pid) if _has_passkeys(w) else [],
+        "audit": audit_trail(w, pid),
     }
+
+
+def _has_passkeys(w) -> bool:
+    return getattr(w, "security", None) is not None
+
+
+def audit_trail(w, pid: str, limit: int = 200) -> list[dict]:
+    """The participant's own rows of the hash-chained event log, with each row's hash and its link."""
+    rows = w.store.q("SELECT id, ts, actor, kind, data, prev_hash, hash FROM events WHERE kind != 'access' AND "
+                     "(actor=? OR actor=? OR message LIKE ?) ORDER BY id DESC LIMIT ?",
+                     pid, f"person {pid}", f"%{pid}%", limit)
+    out = []
+    for r in reversed(rows):
+        d = json.loads(r["data"] or "{}")
+        d = d if isinstance(d, dict) else {}
+        tx = d.get("tx") or d.get("tx_hash")
+        if isinstance(tx, str) and "," in tx:
+            tx = tx.split(",")
+        if isinstance(tx, list):
+            tx = tx[-1] if tx else None
+        out.append({"id": r["id"], "ts": r["ts"], "kind": r["kind"], "prev_hash": r["prev_hash"], "hash": r["hash"],
+                    "tx": _tx(w, tx) if isinstance(tx, str) and tx else None,
+                    "statement_hash": d.get("statement_hash")})
+    return out
+
+
+def approval_challenge(w, pid: str, rid: int, items: list[str]) -> dict:
+    """The statement the participant signs with their passkey, and the WebAuthn options for it."""
+    req = _own_request(w, pid, rid)
+    pa = w.cohort_people[pid]
+    cells = sum(len([i for i in its if i in items]) for its in req["weeks"].values())
+    stmt = passkey.statement(w, pid, req, items, cells * CELL_PRICE, pa.vault.pseudonym(LAB), LAB,
+                             w.engine.party(pid)["address"])
+    if not stmt["items"]:
+        raise ValueError("pick at least one item this request asks for")
+    return passkey.begin_approval(w, pid, rid, stmt)
+
+
+SEPARATE_CONSENTS = ("research", "third_party", "sensitive")      # always asked; "international" when planned
+
+
+def batch_challenge(w, pid: str, entries: list[dict]) -> dict:
+    """One passkey prompt for several requests. Each entry is {request, items, consents: [{kind, text_hash}]};
+    each request still gets its own statement, with each separate consent named and hashed on its own."""
+    if not entries:
+        raise ValueError("pick at least one request")
+    pa = w.cohort_people[pid]
+    out = []
+    for e in entries:
+        req = _own_request(w, pid, e["request"])
+        kinds = {c["kind"] for c in e.get("consents", [])}
+        missing = [k for k in SEPARATE_CONSENTS if k not in kinds]
+        if missing:
+            raise ValueError(f"request {req['id']}: separate consent missing: {', '.join(missing)}")
+        cells = sum(len([i for i in its if i in e["items"]]) for its in req["weeks"].values())
+        stmt = passkey.statement(w, pid, req, e["items"], cells * CELL_PRICE, pa.vault.pseudonym(LAB), LAB,
+                                 w.engine.party(pid)["address"])
+        if not stmt["items"]:
+            raise ValueError(f"request {req['id']}: pick at least one item it asks for")
+        stmt["consents"] = sorted(({"kind": c["kind"], "text_hash": c["text_hash"]} for c in e["consents"]),
+                                  key=lambda c: c["kind"])
+        out.append((req["id"], stmt))
+    return passkey.begin_batch(w, pid, out)
+
+
+def participant_approve_batch(w, pid: str, entries: list[dict], assertion: dict, hold_last: bool = True) -> dict:
+    """Apply a batch signed with one passkey prompt; each request is bound to its own statement."""
+    signed = passkey.verify_batch(w, pid, {e["request"]: e["items"] for e in entries}, assertion)
+    pa = w.cohort_people[pid]
+    results = []
+    for e in entries:
+        req = _own_request(w, pid, e["request"])
+        sig = signed[req["id"]]
+        passkey.mark_verified(w.store, pid, sig["statement_hash"])
+        before = {o["order_id"] for o in req.get("orders", [])}
+        try:
+            out = _apply_approval(w, pid, req, pa, e["items"], hold_last)
+        except Exception:
+            passkey.bind(w.store, pid, sig["statement_hash"], [], failed=True)
+            raise
+        passkey.bind(w.store, pid, sig["statement_hash"],
+                     [{"order_id": c["order_id"], "weeks": c["weeks"], "items": c["items"],
+                       "escrow_tx": (c["escrow"] or {}).get("tx"), "escrow": c["escrow"]} for c in out["contributions"]
+                      if c["order_id"] in {o["order_id"] for o in req.get("orders", [])} - before])
+        results.append({"request": req["id"], **sig})
+    return {**participant_view(w, pid), "signed_batch": results}
 
 
 def _own_request(w, pid: str, rid: int) -> dict:
@@ -698,9 +826,33 @@ def upload_data(w, pid: str, weeks: list[int], items: list[str]) -> dict:
     return {**out, **my_data(w, pid)}
 
 
-def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool = True) -> dict:
+def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool = True,
+                        assertion: dict | None = None) -> dict:
     req = _own_request(w, pid, rid)
     pa = w.cohort_people[pid]
+    signed = None
+    if _has_passkeys(w) and passkey.has_passkey(w, pid):
+        # A person with a passkey approves only by signing the statement for exactly these items.
+        if not assertion:
+            raise PermissionError("this participant approves with their passkey; ask for a challenge first")
+        signed = passkey.verify_approval(w, pid, rid, items, assertion)
+    before = {o["order_id"] for o in req.get("orders", [])}
+    try:
+        out = _apply_approval(w, pid, req, pa, items, hold_last)
+    except Exception:
+        if signed:
+            passkey.bind(w.store, pid, signed["statement_hash"], [], failed=True)
+        raise
+    if signed:
+        passkey.bind(w.store, pid, signed["statement_hash"],
+                     [{"order_id": c["order_id"], "weeks": c["weeks"], "items": c["items"],
+                       "escrow_tx": (c["escrow"] or {}).get("tx"), "escrow": c["escrow"]} for c in out["contributions"]
+                      if c["order_id"] in {o["order_id"] for o in req.get("orders", [])} - before])
+        out = {**participant_view(w, pid), "signed": signed}
+    return out
+
+
+def _apply_approval(w, pid, req, pa, items, hold_last):
     asked = {wk: [i for i in its if i in items] for wk, its in req["weeks"].items()}
     req["weeks_approved"] = {wk: its for wk, its in asked.items() if its}
     # Ticking an item by name approves the scope and, for sensitive items, this round as well.
@@ -747,11 +899,27 @@ def participant_pause(w, pid: str, resume: bool = False) -> dict:
     return participant_view(w, pid)
 
 
-def participant_revoke(w, pid: str) -> dict:
+def withdrawal_challenge(w, pid: str) -> dict:
+    """The withdrawal statement the participant signs with their passkey, and the WebAuthn options for it."""
+    s = ensure(w)
+    pa = w.cohort_people[pid]
+    lic = s.licences.get(pid)
+    held = [{"order_id": o["order_id"], "weeks": o.get("weeks")} for req in _requests_for(w, pid)
+            for o in req["orders"] if o.get("hold")]
+    stmt = passkey.withdrawal_statement(w, pid, pa.vault.pseudonym(LAB), LAB,
+                                        lic["mpt_id"] if lic and not lic["clawback"] else None, held)
+    return passkey.begin_withdrawal(w, pid, stmt)
+
+
+def participant_revoke(w, pid: str, assertion: dict | None = None) -> dict:
     """Withdrawal 3: revoke data access consent. Licence clawed back, held rounds withheld and
     refunded to the study after the deadline, consent history kept. Delivered rounds cannot be recalled."""
     s = ensure(w)
     pa = w.cohort_people[pid]
+    if _has_passkeys(w) and passkey.has_passkey(w, pid):
+        if not assertion:
+            raise PermissionError("this participant withdraws with their passkey; ask for a challenge first")
+        passkey.verify_withdrawal(w, pid, assertion)
     out = {"clawback": None, "withheld": [], "refunds": []}
     lic = s.licences.get(pid)
     if lic and not lic["clawback"]:
@@ -769,6 +937,17 @@ def participant_revoke(w, pid: str) -> dict:
                 out["withheld"].append(o["order_id"])
     out["refunds"] = [{"order_id": oid, **_tx(w, w.store.one("SELECT cancel_tx FROM payments WHERE order_id=?",
                                                                 oid)["cancel_tx"])} for oid in sweep(w)["refunded"]]
+    # Each round still held: its key stays with the person's agent, and the escrow goes back to the study.
+    now = w.ledger.now()
+    for oid in out["withheld"]:
+        r = w.store.one("SELECT o.scope, p.finish_tx, p.cancel_tx, p.cancel_after FROM orders o JOIN payments p "
+                        "ON p.order_id=o.id WHERE o.id=?", oid)
+        wk = int(json.loads(r["scope"])["slot"].split("|", 1)[1].split(":")[0][1:])
+        out.setdefault("held_rounds", []).append({
+            "order_id": oid, "week": wk, "key_released": bool(r["finish_tx"]), **_tx(w, r["cancel_tx"]),
+            "refund_at": time.time() + max(0, (r["cancel_after"] or now) - now) if not r["cancel_tx"] else None})
+    out["further_access"] = "refused: every open re-reads the licence on the ledger" if lic else \
+        "refused: consent revoked, the person's agent releases no further keys"
     payout.on_withdrawal(w, LAB, pid)          # completion bonus goes back; reviewed held shares stay theirs
     out["deletion"] = _destroy_person_level(w, pid)
     for req in _requests_for(w, pid):
@@ -866,6 +1045,7 @@ def study_view(w) -> dict:
     from .scenario import ETHICS_CREDENTIAL  # noqa: F401
     return {
         "study": {"id": LAB, "name": w.engine.party(LAB)["name"], "ledger": w.ledger.name,
+                  "asset": units.UNIT,
                   "protocol": __import__("agentrail.cohort", fromlist=["PROTOCOL"]).PROTOCOL,
                   "irb": IRB_NUMBER,
                   "purpose": "sleep_research",

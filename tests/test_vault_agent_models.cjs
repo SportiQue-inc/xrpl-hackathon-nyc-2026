@@ -99,3 +99,27 @@ test('a removed saved model is visible and requires an allowed replacement',()=>
  const options=vm.runInContext("modelOptions('retired-model')",context);
  assert.match(options,/disabled selected[^>]*>[^<]*Unavailable: retired-model/);assert.match(options,/value="auto"/);
 });
+
+test('deal receipt counts the actual payment once and labels a failed seller forward honestly',async()=>{
+ const nodes=new Map();
+ const node=id=>{if(!nodes.has(id))nodes.set(id,{innerHTML:'',dataset:{},scrollTop:0,open:false,querySelectorAll:()=>[],showModal(){this.open=true;},close(){this.open=false;}});return nodes.get(id);};
+ const payment={type:'AP4M VoucherRedeemed',drops:50000,result:'verified',asset:'RLUSD (AP4M)',hash:'0xredeemed',url:'https://example.test/redeemed'};
+ const data={contract:{id:5,kind:'data_package',overview:{name:'Sleep + running',files:2,records:12},status:'settled',asset:'RLUSD (AP4M)',unit_micro:1000000,total:.05,sellers:['s'],buyer_name:'Buyer',seller_name:'Seller',trace:{protocol:[]}},posting:{purpose:'research',offer:.05,max:.1},messages:[{name:'Buyer',side:'buyer',by:'allowed-model',text:'Accepted',thinking:'Recorded reason'}],txs:[payment,{...payment,type:'RLUSD forward to seller',result:'failed',hash:'0xforward'},{...payment,type:'AP4M VoucherRedeemed (cleaning fee)',drops:10000},{...payment,result:'failed',drops:900000},{...payment,type:'EscrowFinish',result:'tesSUCCESS',asset:'test USD',drops:8000000}]};
+ const context=vm.createContext({document:{getElementById:node},window:{addEventListener(){}},console,fetch:async()=>({ok:true,json:async()=>data})});
+ vm.runInContext(fs.readFileSync(path.join(base,'common.js'),'utf8'),context);
+ vm.runInContext("let detailBusy=false,currentContract=null;META={asset:'test USD',kinds:{data_package:{label:'Data package'}}};",context);
+ const market=fs.readFileSync(path.join(base,'market.html'),'utf8'),start=market.indexOf('async function openContract('),end=market.indexOf('\nsetInterval(',start);
+ vm.runInContext(market.slice(market.indexOf('const stateLabel'),market.indexOf('function tradeRow')),context);
+ vm.runInContext(market.slice(start,end),context);await vm.runInContext('openContract(5)',context);
+ const rendered=node('dlgBody').innerHTML,summary=/class="settlement-summary"([\s\S]*?)<\/div>/.exec(rendered)[1];
+ assert.match(rendered,/<h1>Sleep \+ running<\/h1>/);
+ assert.match(summary,/0\.05 RLUSD \(AP4M\)/);assert.doesNotMatch(summary,/8\.0|0\.1|0\.9/);
+ assert.match(rendered,/Seller transfer failed/);assert.match(rendered,/AP4M redemption not completed/);
+ assert.match(rendered,/Buyer · Buyer · allowed-model/);assert.match(rendered,/<details open><summary>Reason/);
+ assert.equal(node('dlgBody').dataset.paymentRail,'ap4m');assert.equal(node('dlgBody').dataset.asset,'RLUSD (AP4M)');
+ data.contract.asset='test USD';await vm.runInContext('openContract(5)',context);
+ assert.equal(node('dlgBody').dataset.paymentRail,'xrpl');assert.equal(node('dlgBody').dataset.contractKind,'data_package');
+ const nativeReceipt=node('dlgBody').innerHTML, nativeSummary=/class="settlement-summary"([\s\S]*?)<\/div>/.exec(nativeReceipt)[1];
+ assert.match(nativeSummary,/8\.00 test USD/);assert.doesNotMatch(nativeSummary,/RLUSD/);
+ assert.match(nativeReceipt,/proven on XRPL/);
+});

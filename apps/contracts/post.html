@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Post a research contract</title>
+<link rel="stylesheet" href="../shared/ui.css"><link rel="stylesheet" href="contracts.css">
+</head>
+<body class="ar contracts">
+<main class="wrap">
+  <header><h1>Post a research contract</h1>
+    <p class="sub">UniQLab researcher side. The terms you post are the contract: people see them, sign them with their own key, and their agents answer each week from their own choice.</p></header>
+  <section class="ar-card" id="form-card">
+    <form id="form" class="items">
+      <label>Title <input class="ar-input" name="title" required maxlength="120" value="Sleep and fatigue, 4 weeks (test)"></label>
+      <div class="grid2">
+        <label>Institution <input class="ar-input" name="institution" required maxlength="120" value="SportiQue test lab"></label>
+        <label>IRB approval number <input class="ar-input" name="irb_approval" required maxlength="60" value="IRB-TEST-2026-001"></label>
+      </div>
+      <fieldset class="items" id="items"><legend class="note">Items (genomic, CT and MRI are not offered here: each needs a fresh approval on its own lane)</legend></fieldset>
+      <div class="grid2">
+        <label>Weeks from <input class="ar-input" name="w0" type="number" min="1" max="52" value="1"></label>
+        <label>Weeks to <input class="ar-input" name="w1" type="number" min="1" max="52" value="4"></label>
+        <label>Per item per week (<span class="unit"></span>) <input class="ar-input" name="price" type="number" step="0.01" min="0.01" value="0.2"></label>
+        <label>Budget (<span class="unit"></span>) <input class="ar-input" name="budget" type="number" step="1" min="1" value="200"></label>
+        <label>Capacity (people) <input class="ar-input" name="capacity" type="number" min="1" max="500" value="60"></label>
+        <label>Posting code <input class="ar-input" name="code" type="password" autocomplete="off" placeholder="from the operator"></label>
+      </div>
+      <label>Summary <textarea class="ar-textarea" name="summary" maxlength="600">Test accounts only. No real health data.</textarea></label>
+      <button class="ar-btn primary block" type="submit">Post contract</button>
+      <p class="err" id="form-err"></p>
+    </form>
+  </section>
+  <section class="ar-card" id="posted" hidden></section>
+  <section class="ar-card" id="console" hidden></section>
+  <p class="note" id="foot"></p>
+</main>
+<script type="module" src="post.js"></script>
+</body>
+</html>

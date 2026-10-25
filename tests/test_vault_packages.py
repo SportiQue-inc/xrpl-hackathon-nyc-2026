@@ -200,3 +200,17 @@ def test_unrelated_shared_category_does_not_block_fresh_sale_queue(commerce):
     m.enqueue_sale('a', 'sleep_log', p)
     assert m.process_sale_queue()
     assert m.s.one('SELECT status FROM contracts WHERE posting=?', (p,))['status'] == 'settled'
+
+
+def test_packages_use_recoverable_native_escrow_without_spending_ap4m_pool(commerce, monkeypatch):
+    from agentrail import ap4m_rail
+    m, client = commerce
+    monkeypatch.setattr(config, 'AP4M', True)
+    def forbidden(*args, **kwargs):
+        raise AssertionError('Package purchases must not spend the separate AP4M pool')
+    monkeypatch.setattr(ap4m_rail, 'pay', forbidden)
+    listing = publish(client, 'a', [original(m, 'a', 'gps_track'), original(m, 'a', 'sleep_log')]).json()
+    result = buy(client, 'b', listing).json()
+    assert result['status'] == 'settled'
+    assert m.s.one('SELECT COUNT(*) n FROM escrows WHERE contract=?', (result['contract'],))['n'] == 1
+    assert not m.s.q("SELECT * FROM txs WHERE type LIKE 'AP4M%'")

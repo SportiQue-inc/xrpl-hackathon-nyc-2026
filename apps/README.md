@@ -45,3 +45,43 @@ number. That change is described, not made.
 `tests/test_apps.py` fails if any page text uses a word the project does not show (for example
 reward, RLU, sell, anonymous, fraud, penalty, 리워드, 데이터 판매, 토큰 보상, 재식별 불가, 질병 예측,
 의료 AI 진단). Engine field names the client reads are not page text and are skipped.
+
+## Before/after demo (`/demo`)
+
+A clickable stage for the before/after video: UniQLab (researcher, desktop) next to UniQdata (participant,
+phone), linked live. A click on one side shows up on the other (same browser, via `BroadcastChannel`, so it
+also works with the two pages in separate windows). Static pages with synthetic data in `apps/demo/`, no
+engine calls, so a recording never depends on ledger timing. Amounts are RLUSD.
+
+| Mode | UniQLab | UniQdata |
+|---|---|---|
+| `?mode=before` (today) | Three projects at one lab, each with its own contract, IRB and recruiting · lifecycle stuck on "Waiting for participants" with a day counter · applicant queue · linking code sent by text · data table with a missing week and no way to ask for it · monthly settlement batch | Browse all 41 studies · type the linking code · two full-screen consent forms per project · 18 approvals (every item, every week) |
+| `?mode=after` (with agents) | One institution relationship per person with several sub-projects under it, and what that saves · study agent finds the exact gaps across sub-projects and asks only those people's agents · weekly delivery paid per delivered week · add a sub-project with no new contract | My agent: rules set once, only matched studies · one bottom sheet (top of the screen stays visible) with the amount pinned and one passkey for the batch · late week and new purpose asked in a small sheet · weekly sends and RLUSD paid |
+
+Open `/demo?mode=before` or `/demo?mode=after`; `&show=lab` or `&show=phone` shows one side only.
+"Start over" resets both pages. Each page also opens alone: `/apps/demo/lab.html?mode=after&view=agent`,
+`/apps/demo/phone.html?mode=after`.
+
+## Try it on the real engine (`/try`, `/live`)
+
+`/try` lets a visitor pick a role. **Researcher** opens `/apps/live/`: the person → institution → sub-projects
+structure, the 50-person cohort week by week, buttons that run the study (agent finds gaps, budget co-signed
+by 2 with demo keys, send requests, close the week, create a sub-project under the scope, run a round), and a
+live transaction log with tx hashes. **Participant** opens `/apps/live/me.html?pid=…` (one of the 50, assigned
+per browser): one relationship with the institution, each sub-project's payouts under it, and only
+outside-scope or T3 items asked. The page seeds four sub-projects on first load.
+
+Access: on localhost everything works. On a public deploy, set `AGENTRAIL_SANDBOX_CODE` (8+ characters).
+Visitors who enter it (or open `/try?code=…`) act through the demo devices; everyone else gets the read-only
+`/api/public/live` view. The operator (reset, scene runner) stays localhost-only either way.
+
+Sandbox limit: the code is one shared demo key. Anyone holding it can sign in as any participant or
+institution role except the operator, including both budget co-signers, so one visitor can play both
+signers of the 2-of-2 approval. So the engine accepts the code only on the mock ledger (on
+Testnet only with `AGENTRAIL_SANDBOX_ALLOW_TESTNET=1`, since a code holder could co-sign repeated top-ups) and
+never with `AGENTRAIL_ENV=prod`. Use 16+ random characters, rotate it after the event, and never set
+`FORWARDED_ALLOW_IPS=*` (it would let anyone pose as localhost). Never set `AGENTRAIL_SANDBOX_CODE` on a deployment that holds real people, real keys or real money.
+
+Deploy as a second Railway service from this repo: config file `railway.engine.json`
+(builds `docker/engine.Dockerfile`), variables `AGENTRAIL_SANDBOX_CODE`, `LEDGER` (`mock` or `testnet`) and,
+for the token unit, the build thread's settlement variables.

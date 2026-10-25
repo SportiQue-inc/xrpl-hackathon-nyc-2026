@@ -15,6 +15,8 @@ Where the two models differ, the mapping is explicit and fails closed:
 """
 from __future__ import annotations
 
+from . import units
+
 from .engine import sha256_hex
 from .study import XRP
 
@@ -118,7 +120,7 @@ def payout_receipts(contributions: list[dict], ledger: str, holdbacks: list[dict
         if h["status"] != "released" or not tx:
             continue
         out.append({"payout_intent_ref": f"agentrail:holdback:{h['id']}", "receipt_ref_hash": sha256_hex(tx),
-                    "amount_minor": round(h["amount_xrp"] * XRP), "currency": "XRP", "status": "ingested",
+                    "amount_minor": round(h["amount_xrp"] * XRP), "currency": units.UNIT, "status": "ingested",
                     "executed_by_ref": f"xrpl:{ledger}:EscrowFinish",
                     "metadata": {"part": f"{h['kind']}_held", "explorer_url": h["release"].get("url")}})
     for c in contributions:
@@ -127,7 +129,7 @@ def payout_receipts(contributions: list[dict], ledger: str, holdbacks: list[dict
             continue
         out.append({"payout_intent_ref": f"agentrail:order:{c['order_id']}",
                     "receipt_ref_hash": sha256_hex(tx),
-                    "amount_minor": round(c["amount_xrp"] * XRP), "currency": "XRP",
+                    "amount_minor": round(c["amount_xrp"] * XRP), "currency": units.UNIT,
                     "status": "ingested", "executed_by_ref": f"xrpl:{ledger}:EscrowFinish",
                     "metadata": {"weeks": c["weeks"], "explorer_url": c["finish"].get("url")}})
     return out

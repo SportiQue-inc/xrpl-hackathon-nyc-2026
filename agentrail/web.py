@@ -2,23 +2,26 @@
 docs/SECURITY.md for roles, login and the demo harness."""
 from __future__ import annotations
 
+from . import units
+
+import hmac
 import json
 import os
 import re
 import threading
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import payout, scenario, study
 from . import uniqdata_port as port
 from .llm import voice
-from .security import audit, consent as signed_consent, cosign, rbac
+from .security import audit, consent as signed_consent, cosign, passkey, rbac
 from .security.auth import AuthError
 from .security.http import AccessAudit, RateLimit, SecurityHeaders, cors_origins
 from .security.masking import install_logging_filter
@@ -73,6 +76,24 @@ class TokenBody(Strict):
     sub: str = Field(pattern=ID)
     nonce: str = Field(min_length=16, max_length=64)
     signature: str = Field(pattern=r"^[0-9a-f]{128}$")
+
+
+class PasskeyRegistration(Strict):
+    credentialId: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    rawId: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    attestationObject: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    clientDataJson: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    transports: list[str] | str | None = None
+
+
+class PasskeyAssertion(Strict):
+    challengeId: str | None = Field(None, max_length=128)
+    credentialId: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    rawId: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    authenticatorData: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    clientDataJson: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    signature: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    userHandle: str | None = Field(None, max_length=1024, pattern=r"^[A-Za-z0-9_-]*$")
 
 
 class ItemsBody(Strict):
@@ -137,6 +158,8 @@ def reset(ledger: Literal["mock", "testnet"] | None = None):
         kind = ledger or default
         _state["w"] = scenario.build_world(kind, os.environ.get("AGENTRAIL_DB", ":memory:"))
         _state["results"] = {}
+        if "lane" in _state:      # research contracts outlive the demo world; their keys move to the new authority
+            _state["lane"].enrol_all(_state["w"].security.authority)
     return {"ok": True, "ledger": kind}
 
 
@@ -191,6 +214,7 @@ def state():
             accounts[pid] = {"address": p["address"], "error": str(e)}
     return {
         "ledger": w.ledger.name,
+        "unit": units.UNIT, "unit_label": units.LABEL,
         "voice": voice().label(),
         "mandates": rows("SELECT * FROM mandates"),
         "orders": orders,
@@ -260,9 +284,72 @@ def participant_upload(pid: str, body: UploadBody = UploadBody()):
     return _call(study.upload_data, pid, body.weeks, ItemsBody(items=body.items).clean())
 
 
+class ApproveBody(ItemsBody):
+    assertion: PasskeyAssertion | None = None
+
+
 @app.post("/api/p/{pid}/requests/{rid}/approve")
-def participant_approve(pid: str, rid: int, body: ItemsBody = ItemsBody()):
-    return _call(study.participant_approve, pid, rid, body.clean())
+def participant_approve(pid: str, rid: int, body: ApproveBody = ApproveBody()):
+    """With a registered passkey, the body must carry the assertion over this request's statement."""
+    a = body.assertion.model_dump() if body.assertion else None
+    return _call(study.participant_approve, pid, rid, body.clean(), assertion=a)
+
+
+@app.post("/api/p/{pid}/requests/{rid}/challenge")
+def participant_challenge(pid: str, rid: int, body: ItemsBody = ItemsBody()):
+    """The approval statement for these items and the WebAuthn options to sign it with."""
+    return _call(study.approval_challenge, pid, rid, body.clean())
+
+
+class ConsentMark(Strict):
+    kind: str = Field(pattern=r"^(research|third_party|sensitive|international)$")
+    text_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class BatchEntry(Strict):
+    request: int
+    items: list[str] = Field(max_length=20)
+    consents: list[ConsentMark] = Field(default_factory=list, max_length=8)
+
+    def clean(self):
+        if [i for i in self.items if not re.match(ITEM, i)]:
+            raise HTTPException(422, "unknown item names")
+        return {"request": self.request, "items": list(self.items), "consents": [c.model_dump() for c in self.consents]}
+
+
+class BatchBody(Strict):
+    entries: list[BatchEntry] = Field(min_length=1, max_length=10)
+    assertion: PasskeyAssertion | None = None
+
+
+@app.post("/api/p/{pid}/consents/challenge")
+def participant_batch_challenge(pid: str, body: BatchBody):
+    """Statements for several requests with their separate consents, and one WebAuthn challenge over all."""
+    return _call(study.batch_challenge, pid, [e.clean() for e in body.entries])
+
+
+@app.post("/api/p/{pid}/consents/approve")
+def participant_batch_approve(pid: str, body: BatchBody):
+    """One passkey assertion applies every request of the batch, each bound to its own statement."""
+    if not body.assertion:
+        raise HTTPException(403, "a passkey signature is required")
+    return _call(study.participant_approve_batch, pid, [e.clean() for e in body.entries], body.assertion.model_dump())
+
+
+@app.get("/api/p/{pid}/passkey")
+def participant_passkey(pid: str):
+    return _call(lambda w: {"registered": passkey.has_passkey(w, pid), "held_by": passkey.backend(w, pid).name,
+                            "rp_id": passkey.rp_id()})
+
+
+@app.post("/api/p/{pid}/passkey/register/options")
+def participant_passkey_options(pid: str):
+    return _call(lambda w: passkey.register_options(w, pid, w.cohort_people[pid].vault.pseudonym(study.LAB)))
+
+
+@app.post("/api/p/{pid}/passkey/register/complete")
+def participant_passkey_complete(pid: str, body: PasskeyRegistration):
+    return _call(passkey.register_complete, pid, body.model_dump())
 
 
 @app.post("/api/p/{pid}/requests/{rid}/decline")
@@ -280,9 +367,20 @@ def participant_resume(pid: str):
     return _call(study.participant_pause, pid, True)
 
 
+class RevokeBody(Strict):
+    assertion: PasskeyAssertion | None = None
+
+
+@app.post("/api/p/{pid}/revoke/challenge")
+def participant_revoke_challenge(pid: str):
+    """The withdrawal statement and the WebAuthn options to sign it with."""
+    return _call(study.withdrawal_challenge, pid)
+
+
 @app.post("/api/p/{pid}/revoke")
-def participant_revoke(pid: str):
-    return _call(study.participant_revoke, pid)
+def participant_revoke(pid: str, body: RevokeBody = RevokeBody()):
+    """With a registered passkey, the body must carry the assertion over the withdrawal statement."""
+    return _call(study.participant_revoke, pid, assertion=body.assertion.model_dump() if body.assertion else None)
 
 
 class PushPrepareBody(Strict):
@@ -593,6 +691,91 @@ def market_network():
         return HTMLResponse(network_view.render(network_view.build(_state["market1"]["exchange"])))
 
 
+@app.get("/api/market/contracts")
+def market_contracts(act: int = Query(default=1, ge=1, le=2), i: int | None = Query(default=None, ge=0)):
+    """One record per contract attempt: both agents' conversation (turns with reasoning and checks),
+    verdicts and tx hashes (schema agentrail.contract_trace/1)."""
+    r = _state.get(f"market{act}")
+    if r is None:
+        raise HTTPException(404, "market act not run")
+    cs = r["exchange"].contracts
+    if i is not None:
+        if i >= len(cs):
+            raise HTTPException(404, "no such contract")
+        return json.loads(json.dumps(cs[i], default=str))
+    return [{"i": k, **{x: c[x] for x in ("need", "buyer", "seller", "columns", "status", "price_drops", "verdicts")}}
+            for k, c in enumerate(cs)]
+
+
+class SubProjectBody(Strict):
+    name: str = Field(min_length=1, max_length=80)
+    purpose: str = Field(pattern=r"^[a-z_]{1,40}$")
+    data_types: list[str] = Field(min_length=1, max_length=20)
+    budget: float = Field(gt=0, le=1_000_000)          # in the settlement unit (units.UNIT)
+    weeks: int = Field(ge=1, le=52)
+
+
+class RelationshipConsentBody(Strict):
+    institution: str = Field(default=study.LAB, pattern=ID)
+    items: list[Annotated[str, Field(pattern=r"^[a-z0-9_.]{1,60}$")]] | None = Field(default=None, max_length=40)
+
+
+class SubProjectDecisionBody(Strict):
+    item: str = Field(pattern=r"^[a-z0-9_.]{1,60}$")
+    allow: bool
+
+
+def _rel(fn):
+    from . import subprojects
+    return json.loads(json.dumps(_call(lambda w: fn(subprojects.of(w))), default=str))
+
+
+@app.get("/api/institution")
+def institution_view():
+    """The institution's scope, how many people hold the relationship, and its sub-projects."""
+    return _rel(lambda r: r.institution())
+
+
+@app.post("/api/institution/subprojects")
+def institution_create_subproject(body: SubProjectBody):
+    """A sub-project under the institution's one account and consented scope; returns the routing per
+    person and item (auto inside the scope, ask outside it or for T3, blocked by the person's rules)."""
+    return _rel(lambda r: r.create(body.name, body.purpose, body.data_types, int(body.budget * 1e6), body.weeks))
+
+
+@app.post("/api/institution/subprojects/{sid}/run")
+def institution_run_subproject(sid: str):
+    """One delivery round of a sub-project: one escrow per person, memo tagged sub:<sid>."""
+    return _rel(lambda r: r.run(sid) if sid in r.subprojects else {"ok": False, "reason": "unknown sub-project"})
+
+
+@app.get("/api/p/{pid}/relationship")
+def participant_relationship(pid: str):
+    """The person's one relationship with the institution: scope, consent, each sub-project's payouts."""
+    return _rel(lambda r: r.relationship(pid))
+
+
+@app.post("/api/p/{pid}/relationship/consent")
+def participant_relationship_consent(pid: str, body: RelationshipConsentBody):
+    return _rel(lambda r: {"ok": True, "consented": r.consent(pid, body.items), **r.relationship(pid)})
+
+
+@app.post("/api/p/{pid}/subprojects/{sid}/decision")
+def participant_subproject_decision(pid: str, sid: str, body: SubProjectDecisionBody):
+    """The person's answer for an item outside the scope or T3, for this sub-project only."""
+    return _rel(lambda r: r.decide(pid, sid, body.item, body.allow) if sid in r.subprojects
+                else {"ok": False, "reason": "unknown sub-project"})
+
+
+@app.get("/api/proof")
+def proof_of_one_trade():
+    """One paid contract checked link by link (contract, stamps, escrow memo, K, bundle), one
+    contribution refused before payment, one withdrawal that stopped the next delivery."""
+    from . import binding
+    with _lock:
+        return json.loads(json.dumps(binding.proof(world()), default=str))
+
+
 @app.get("/api/costs")
 def running_costs():
     """What keeping the agents up cost in this run: LLM calls and tokens per side, ledger transactions and
@@ -661,6 +844,175 @@ def audit_anchor():
     return _call(audit.anchor)
 
 
+# ---------- research contracts: posted by a researcher, joined by people (agentrail/research_contracts.py) ----------
+
+def lane():
+    if "lane" not in _state:
+        from .research_contracts import Lane
+        with _lock:
+            if "lane" not in _state:
+                _state["lane"] = Lane()
+                _state["lane"].enrol_all(_authority())
+    return _state["lane"]
+
+
+def _lcall(fn, *a):
+    from .research_contracts import ContractError
+    try:
+        return fn(lane(), *a)
+    except KeyError as e:
+        raise HTTPException(404, f"not found: {e}")
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    except ContractError as e:
+        raise HTTPException(422, str(e))
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+
+
+HEX64 = r"^[0-9a-f]{64}$"
+SIG = r"^[0-9a-f]{128}$"
+
+
+class ContractTerms(Strict):
+    title: str = Field(min_length=1, max_length=120)
+    institution: str = Field(min_length=1, max_length=120)
+    irb_approval: str = Field(min_length=1, max_length=60)
+    purpose: str = Field(pattern=r"^[a-z_]{1,40}$")
+    items: list[str] = Field(min_length=1, max_length=10)
+    weeks: tuple[int, int]
+    price_per_item_drops: int = Field(gt=0, le=1_000_000_000)
+    budget_drops: int = Field(gt=0, le=100_000_000_000)
+    capacity: int = Field(default=60, ge=1, le=500)
+    summary: str = Field(default="", max_length=600)
+
+
+class ContractPost(Strict):
+    terms: ContractTerms
+    researcher_key: str = Field(pattern=HEX64)
+
+
+class JoinStart(Strict):
+    invite_code: str = Field(min_length=8, max_length=64)
+    public_key: str = Field(pattern=HEX64)
+    items: list[str] = Field(default_factory=list, max_length=10)
+    automation: Literal["confirm_each", "auto_standard", "auto_all"] = "confirm_each"
+    uniqdata_account: str | None = Field(default=None, pattern=ID)
+
+
+class JoinComplete(Strict):
+    pid: str = Field(pattern=ID)
+    signature: str = Field(pattern=SIG)
+    # a test account without a UniQdata account: store generated test readings for these weeks (labelled so)
+    generate_test_weeks: list[int] = Field(default_factory=list, max_length=52)
+
+
+class RoundBody(Strict):
+    week: int = Field(ge=1, le=52)
+
+
+class RecordIn(Strict):
+    item: str = Field(pattern=ITEM)
+    day: int = Field(ge=1, le=366)
+    value: dict
+
+
+class RecordsBody(Strict):
+    records: list[RecordIn] = Field(default_factory=list, max_length=2000)
+    generate_test_weeks: list[int] = Field(default_factory=list, max_length=52)
+
+
+class SignedItems(Strict):
+    items: list[str] = Field(default_factory=list, max_length=10)
+    signature: str = Field(pattern=SIG)
+
+
+class Signed(Strict):
+    signature: str = Field(pattern=SIG)
+
+
+def _posting_code(request: Request):
+    """Posting a contract creates ledger accounts and a budget: localhost, or the code in
+    AGENTRAIL_POSTING_CODE (at least 8 characters)."""
+    code = os.environ.get("AGENTRAIL_POSTING_CODE", "")
+    if (request.client.host if request.client else "") in LOCAL:
+        return
+    if len(code) >= 8 and hmac.compare_digest(request.headers.get("x-posting-code", "").encode(), code.encode()):
+        return
+    raise HTTPException(403, "posting code required")
+
+
+@app.get("/api/contracts")
+def contracts_list():
+    return _lcall(lambda L: {"contracts": L.list()})
+
+
+@app.post("/api/contracts")
+def contracts_post(body: ContractPost, request: Request):
+    _posting_code(request)
+    def post(L):
+        out = L.create(body.terms.model_dump(), body.researcher_key)
+        L.enrol_all(_authority())              # the researcher signs in with the key they posted
+        return out
+    return _lcall(post)
+
+
+@app.get("/api/contracts/{cid}")
+def contracts_get(cid: str):
+    return _lcall(lambda L: L.public(cid))
+
+
+@app.post("/api/contracts/{cid}/join/start")
+def contracts_join_start(cid: str, body: JoinStart):
+    return _lcall(lambda L: L.join_start(cid, body.invite_code, body.public_key, body.items, body.automation,
+                                         body.uniqdata_account))
+
+
+@app.post("/api/contracts/{cid}/join/complete")
+def contracts_join_complete(cid: str, body: JoinComplete):
+    def complete(L):
+        out = L.join_complete(cid, body.pid, body.signature, _authority())
+        if body.generate_test_weeks:
+            L.store_records(body.pid, None, body.generate_test_weeks)
+        return out
+    return _lcall(complete)
+
+
+@app.get("/api/contracts/{cid}/console")
+def contracts_console(cid: str):
+    return _lcall(lambda L: L.console(cid))
+
+
+@app.post("/api/contracts/{cid}/rounds")
+def contracts_round(cid: str, body: RoundBody):
+    return _lcall(lambda L: L.run_round(cid, body.week))
+
+
+@app.post("/api/contracts/{cid}/close")
+def contracts_close(cid: str):
+    return _lcall(lambda L: L.close(cid))
+
+
+@app.get("/api/p/{pid}/contracts")
+def member_contracts(pid: str):
+    return _lcall(lambda L: L.member_view(pid))
+
+
+@app.post("/api/p/{pid}/contracts/records")
+def member_records(pid: str, body: RecordsBody):
+    return _lcall(lambda L: L.store_records(pid, [r.model_dump() for r in body.records], body.generate_test_weeks))
+
+
+@app.post("/api/p/{pid}/contracts/{cid}/requests/{rid}/approve")
+def member_approve(pid: str, cid: str, rid: int, body: SignedItems):
+    return _lcall(lambda L: L.approve(pid, cid, rid, body.items, body.signature))
+
+
+@app.post("/api/p/{pid}/contracts/{cid}/withdraw")
+def member_withdraw(pid: str, cid: str, body: Signed):
+    return _lcall(lambda L: L.withdraw(pid, cid, body.signature))
+
+
 # ---------- demo harness (AGENTRAIL_ENV=dev only; rbac returns 404 in prod) ----------
 
 LOCAL = {"127.0.0.1", "::1", "localhost", "testclient"}
@@ -671,10 +1023,25 @@ def _local(request: Request):
         raise HTTPException(403, "the demo harness answers on localhost only")
 
 
+def _local_or_code(request: Request, sub: str):
+    """The demo devices answer on localhost, or to a visitor who sends the access code set in
+    AGENTRAIL_SANDBOX_CODE (at least 8 characters). The operator (reset, scene runner) stays local.
+    One code can act as both co-signers, so it only counts on the mock ledger (unless
+    AGENTRAIL_SANDBOX_ALLOW_TESTNET=1) and never in prod."""
+    code = os.environ.get("AGENTRAIL_SANDBOX_CODE", "")
+    sent = request.headers.get("x-sandbox-code", "")
+    if (request.client.host if request.client else "") in LOCAL:
+        return
+    sandbox = is_dev() and (world().ledger.name == "mock" or os.environ.get("AGENTRAIL_SANDBOX_ALLOW_TESTNET") == "1")
+    if sandbox and len(code) >= 8 and sub != "operator" and hmac.compare_digest(sent.encode(), code.encode()):
+        return
+    raise HTTPException(403, "access code required")
+
+
 @app.post("/api/dev/login/{sub}")
 def dev_login(sub: str, request: Request):
     """The simulated device of `sub` answers a challenge, exactly as a real device would."""
-    _local(request)
+    _local_or_code(request, sub)
     sec = world().security
     d = sec.devices.get(sub)
     if d is None:
@@ -687,7 +1054,7 @@ def dev_login(sub: str, request: Request):
 def dev_sign_approval(sub: str, aid: int, request: Request):
     """What the approver's phone would return after showing the approval; posting it still needs
     that approver's own token at /api/study/approvals/{aid}/signatures."""
-    _local(request)
+    _local_or_code(request, sub)
     sec = world().security
     d = next((x for x in sec.approvers.values() if x.sub == sub), None)
     if d is None:
@@ -741,8 +1108,44 @@ def console_page():
     return _page("apps", "researcher", "index.html")
 
 
+@app.get("/api/public/live")
+def public_live(after: int = 0):
+    """Read-only view for visitors without the access code: structure, cohort and the ledger log
+    (synthetic study, study pseudonyms only where the engine already uses them)."""
+    from . import subprojects
+
+    def view(w):
+        s = study.study_view(w)
+        e = study.events(w, after)
+        ev = [x for x in e["events"] if x["kind"] != "access"]
+        return {"study": {k: s["study"][k] for k in ("id", "name", "ledger", "protocol")},
+                "heatmap": s["heatmap"], "settlement": s["settlement"], "spec_status": s["spec_status"],
+                "institution": subprojects.of(w).institution(), "events": ev, "last": e["last"]}
+    return _call(view)
+
+
+@app.get("/api/public/ap4m")
+def public_ap4m(verify: bool = False):
+    """The agent's RLUSD payments on the AP4M rail (synthetic exports). With verify=1 each VoucherRedeemed
+    transaction is checked on an XRPL EVM Testnet RPC node against the run record."""
+    from . import ap4m_receipts
+    return ap4m_receipts.view(check=verify)
+
+
+@app.get("/try")
+def try_it(request: Request):
+    """Entry for visitors: pick researcher (UniQLab live view), participant (UniQdata) or the before/after story."""
+    return RedirectResponse(f"/apps/try/index.html{'?' + request.url.query if request.url.query else ''}")
+
+
+@app.get("/demo")
+def before_after_demo(request: Request):
+    """Before/after stage: UniQLab and UniQdata side by side, today's flow and the flow with agents."""
+    return RedirectResponse(f"/apps/demo/index.html{'?' + request.url.query if request.url.query else ''}")
+
+
 if (Path(__file__).parent.parent / "apps").is_dir():
-    app.mount("/apps", StaticFiles(directory=Path(__file__).parent.parent / "apps"), name="apps")
+    app.mount("/apps", StaticFiles(directory=Path(__file__).parent.parent / "apps", html=True), name="apps")
 
 
 @app.get("/")

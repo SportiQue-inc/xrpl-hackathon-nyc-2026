@@ -3,7 +3,7 @@
   'use strict';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const number = value => value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
-  const fmt = value => new Intl.NumberFormat('en', {maximumFractionDigits:2}).format(value);
+  const fmt = value => new Intl.NumberFormat('en', {maximumFractionDigits:6}).format(value);
   const agents = D => Array.isArray(D?.agents) ? D.agents : [];
   const period = D => {
     const start = number(D?.start) ?? 0;

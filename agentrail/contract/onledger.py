@@ -13,6 +13,8 @@ sources are registered on the ledger, and every payment is a transaction.
 """
 from __future__ import annotations
 
+from .. import units
+
 import json
 
 from .. import payout
@@ -163,7 +165,7 @@ def run(w, n: int = 14, target: int = 8, model=None, reviewer: str | None = "rev
                              0, 0, 0)
         codes = sorted({x["code"] for x in o["signals"]})
         w.store.log(pid, "contract", f"{pid} window {wnum}: {o['verdict']} at {o['stage'].replace('_', ' ')}"
-                    + (f" ({', '.join(codes)})" if codes else "") + f"; paid {o['paid_drops'] / 1e6:g} XRP"
+                    + (f" ({', '.join(codes)})" if codes else "") + f"; paid {o['paid_drops'] / 1e6:g} {units.UNIT}"
                     + (f", held part {'released after review time' if o['verdict'] == 'pass' else 'to a reviewer'}"
                        if o["stage"] == "after_reveal" else ""),
                     {"tx_hash": (o["txs"] or {}).get("escrow_finish"), "contract": o["contract"][:16]})

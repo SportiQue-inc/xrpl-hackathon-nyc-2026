@@ -6,16 +6,27 @@
 // `token(sub)` returns one; the default asks the engine's demo devices (/api/dev/login/{sub}),
 // which only answers on a local dev engine. A host app passes its own `token` instead.
 
+import { setSettlementAsset } from "./ui.js";
+
 export const STUDY = "org_sleeplab";
 export const RESEARCHER = `researcher@${STUDY}`;
 export const approverSub = (signer) => `approver:${signer}@${STUDY}`;
 
-export function engine(base = "", { token } = {}) {
+// Access code for a public demo deploy (AGENTRAIL_SANDBOX_CODE): taken from ?code= once and kept per browser.
+export function storedSandboxCode() {
+  try {
+    const q = new URLSearchParams(location.search).get("code");
+    if (q) localStorage.setItem("ar-code", q);
+    return q || localStorage.getItem("ar-code") || "";
+  } catch { return ""; }
+}
+
+export function engine(base = "", { token, sandboxCode = storedSandboxCode() } = {}) {
   const root = base.replace(/\/$/, "");
   const tokens = new Map();
 
   async function devToken(sub) {
-    const res = await fetch(`${root}/api/dev/login/${encodeURIComponent(sub)}`, { method: "POST" });
+    const res = await fetch(`${root}/api/dev/login/${encodeURIComponent(sub)}`, { method: "POST", headers: sandboxCode ? { "X-Sandbox-Code": sandboxCode } : {} });
     if (!res.ok) throw Object.assign(new Error(`sign-in for ${sub} -> ${res.status}`), { status: res.status });
     return (await res.json()).access_token;
   }
@@ -28,6 +39,7 @@ export function engine(base = "", { token } = {}) {
   async function call(method, path, body, sub, retried = false) {
     const t = await bearer(sub, retried);
     const headers = {};
+    if (sandboxCode) headers["X-Sandbox-Code"] = sandboxCode;
     if (body) headers["Content-Type"] = "application/json";
     if (t) headers.Authorization = `Bearer ${t}`;
     const res = await fetch(root + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
@@ -39,7 +51,9 @@ export function engine(base = "", { token } = {}) {
       err.detail = text;
       throw err;
     }
-    return res.json();
+    const data = await res.json();
+    setSettlementAsset(data.study?.asset ?? data.asset);
+    return data;
   }
   const get = (p, sub = RESEARCHER) => call("GET", p, null, sub);
   const post = (p, b, sub = RESEARCHER) => call("POST", p, b || {}, sub);
@@ -50,6 +64,13 @@ export function engine(base = "", { token } = {}) {
     reset: (ledger) => { tokens.clear(); return post(`/api/reset${ledger ? `?ledger=${ledger}` : ""}`, {}, "operator"); },
     events: (after = 0) => get(`/api/events?after=${after}`),
     study: () => get("/api/study"),
+    // Person -> institution -> sub-projects (agentrail/subprojects.py)
+    institution: () => get("/api/institution"),
+    proof: () => get("/api/proof"),
+    // AP4M rail (Mastercard): the agent's RLUSD payments; check=true has the engine verify each on XRPL EVM
+    ap4m: (check = false) => call("GET", `/api/public/ap4m${check ? "?verify=1" : ""}`, null, null),
+    createSubproject: (b) => post("/api/institution/subprojects", b),
+    runSubproject: (sid) => post(`/api/institution/subprojects/${encodeURIComponent(sid)}/run`, {}),
     setGoal: (goal) => post("/api/study/goal", { goal }),
     // Budget approval: the researcher opens it, each approver signs on their own device.
     openApproval: () => post("/api/study/approvals"),
@@ -68,11 +89,25 @@ export function engine(base = "", { token } = {}) {
 
     participant: (pid) => get(P(pid), pid),
     preview: (pid, rid) => get(`${P(pid)}/preview?request=${rid}`, pid),
-    approve: (pid, rid, items) => post(`${P(pid)}/requests/${rid}/approve`, { items }, pid),
+    approve: (pid, rid, items, assertion) => post(`${P(pid)}/requests/${rid}/approve`, assertion ? { items, assertion } : { items }, pid),
+    challenge: (pid, rid, items) => post(`${P(pid)}/requests/${rid}/challenge`, { items }, pid),
+    passkey: (pid) => get(`${P(pid)}/passkey`, pid),
+    passkeyOptions: (pid) => post(`${P(pid)}/passkey/register/options`, {}, pid),
+    passkeyComplete: (pid, body) => post(`${P(pid)}/passkey/register/complete`, body, pid),
+    myData: (pid) => get(`${P(pid)}/data`, pid),
+    upload: (pid, body) => post(`${P(pid)}/data/upload`, body || {}, pid),
     decline: (pid, rid) => post(`${P(pid)}/requests/${rid}/decline`, {}, pid),
     pause: (pid) => post(`${P(pid)}/pause`, {}, pid),
     resume: (pid) => post(`${P(pid)}/resume`, {}, pid),
-    revoke: (pid) => post(`${P(pid)}/revoke`, {}, pid),
+    revoke: (pid, assertion) => post(`${P(pid)}/revoke`, assertion ? { assertion } : {}, pid),
+    consentChallenge: (pid, entries) => post(`${P(pid)}/consents/challenge`, { entries }, pid),
+    consentApprove: (pid, entries, assertion) => post(`${P(pid)}/consents/approve`, { entries, assertion }, pid),
+    revokeChallenge: (pid) => post(`${P(pid)}/revoke/challenge`, {}, pid),
+    // Push delivery sealed in this page (docs/API.md): prepare -> seal here -> sealed -> reveal K.
+    pushPrepare: (pid, body) => post(`${P(pid)}/push/prepare`, body, pid),
+    pushSealed: (pid, record, condition) => post(`${P(pid)}/push/sealed`, { record, condition }, pid),
+    pushReveal: (pid, orderId, keyB64u) => post(`${P(pid)}/push/reveal`, { order_id: orderId, key_b64u: keyB64u }, pid),
+    pushRevoke: (pid, institution) => post(`${P(pid)}/push/revoke`, { institution }, pid),
     respond: (pid, caseId, text) => post(`${P(pid)}/cases/${caseId}/respond`, { text }, pid),
     resumeRequests: (pid) => post(`${P(pid)}/resume-requests`, {}, pid),
     uniqdata: (pid, project) => get(`${P(pid)}/uniqdata${project ? `?project=${encodeURIComponent(project)}` : ""}`, pid),

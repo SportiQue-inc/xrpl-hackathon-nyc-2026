@@ -18,6 +18,7 @@ offer, falls) and noted as a refund claim off the ledger; paid money is never pu
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import random
@@ -58,6 +59,8 @@ def spec(col: str) -> dict:
 RATE = {"T0": 10_000, "T1": 15_000, "T2": 40_000, "T3": 120_000, "R": 20_000}      # drops per column-week, grade A
 GRADE_MULT = {"A": 1.0, "B": 0.8, "C": 0.6}
 GRADE_RANK = {"A": 3, "B": 2, "C": 1}
+MIN_MATCHED_ROWS = 3
+DUPLICATE_SHARE = 0.9       # an offer the buyer already holds this much of is refused; below it, only the new part is paid
 DAYS = 7
 SAMPLE_K = 12
 
@@ -136,6 +139,7 @@ class Need:
     why: str = ""
     output: str = "raw"             # raw | aggregate (computed on the provider side)
     loci: list = field(default_factory=list)
+    plan: dict = field(default_factory=dict)        # how the buyer's agent formed the need (gap, budget)
 
 
 @dataclass
@@ -183,6 +187,13 @@ class Exchange:
         self.pending: list[dict] = []           # waiting for an owner (safety gate)
         self.seen_series: dict[str, str] = {}   # series hash -> seller (duplicate check)
         self._grants: dict[tuple, Decision] = {}
+        self.book = None                        # shared offer book, anchored on the ledger (publish_book)
+        self.anchors: list[dict] = []
+        self.contracts: list[dict] = []          # one conversation per contract attempt (contract_trace)
+        self.holdings: dict[str, dict] = {}      # buyer -> {"roots", "rows"}: what each buyer's store already holds
+        self._explained = 0
+        from .pricing import PriceIndex
+        self.pricing = PriceIndex(quote, spec)   # reference prices from settled trades; supply and demand
         for a in accounts:
             a.seller = a.seller or quality.Seller(a.id)
             self.engine.add_party(a.id, a.name, a.kind, self.ledger.new_account(a.id))
@@ -235,55 +246,206 @@ class Exchange:
                 break
         return out
 
+    # ----- the shared offer book -----
+    def publish_book(self) -> dict:
+        """List every certified dataset in the shared offer book and anchor its root on the ledger."""
+        from .discovery import OfferBook
+        if self.book is None:
+            self.book = OfferBook(self.ledger, self.ledger.new_account("market_registry"),
+                                  self.ledger.new_account("market_registry_sink"))
+        offers = self.offers()
+        self.pricing.set_supply(offers)
+        r = self.book.publish(offers)
+        self.events.append({"kind": "offer_book", **r})
+        self.anchors.append(r)
+        return r
+
     # ----- one need, end to end -----
     def fill(self, need: Need, now_h: float | None = None) -> dict:
         t0 = time.time()
         now_h = need.posted_h if now_h is None else now_h
-        buyer = self.accounts[need.buyer]
         cands, rejected, fills, collected = [], [], [], []
-        gated = self._fill_pass(need, now_h, None, cands, rejected, fills)
+        disc = {"listed": 0, "anchored_root": self.book.root if self.book else None,
+                "anchor_tx": self.book.anchor_tx if self.book else None, "dropped": {}, "sampled": [],
+                "ranked": []}
+        gated = self._fill_pass(need, now_h, None, cands, rejected, fills, disc)
+        if not gated and not cands and not fills:
+            # nothing passed the buyer's own bar: when only its grade or length bar emptied the book, the agent
+            # steps back to the rule floor (grade C, the owner's default weeks) once and says so in the plan
+            relaxed = self._relaxed(need, disc["dropped"])
+            if relaxed is not None:
+                disc["relaxed"] = {"from": {"min_grade": need.min_grade, "weeks": need.weeks},
+                                   "to": {"min_grade": relaxed.min_grade, "weeks": relaxed.weeks}}
+                need = relaxed
+                gated = self._fill_pass(need, now_h, None, cands, rejected, fills, disc)
         if not gated and len(fills) < need.quantity:
             # short: the sellers' agents may collect the missing data from sources their people connected
             collected = self.collect(need, need.quantity - len(fills))
             if collected:
-                self._fill_pass(need, now_h, {e["dataset"] for e in collected}, cands, rejected, fills)
+                if self.book is not None:       # newly collected datasets are listed before anyone may buy them
+                    r = self.publish_book()
+                    disc["relisted"] = {"root": r["root"], "tx": r["tx"]}
+                self._fill_pass(need, now_h, {e["dataset"] for e in collected}, cands, rejected, fills, disc)
+        from .discovery import explain, explain_budget
+        chosen = [f["seller"] for f in fills]
+        use_llm = self._explained < explain_budget() and bool(disc["ranked"])
+        self._explained += use_llm
+        disc["explanation"] = explain(need.id, self._ceiling(need), disc["ranked"], chosen, use_llm=use_llm)
         out = {"need": need.id, "buyer": need.buyer, "columns": need.columns, "purpose": need.purpose,
                "wanted": need.quantity, "filled": sum(1 for f in fills if f["status"] == "settled"),
                "unfit": sum(1 for f in fills if f["status"] == "settled_unfit"),
                "offers_seen": len(cands) + len([r for r in rejected if r.get("stage") == "pre_trade"]),
-               "rejected": rejected, "fills": fills, "collected": collected, "wall_s": round(time.time() - t0, 3)}
+               "rejected": rejected, "fills": fills, "collected": collected, "wall_s": round(time.time() - t0, 3),
+               "plan": need.plan, "discovery": disc}
         self.events.append({"kind": "need", **{k: v for k, v in out.items() if k not in ("fills", "rejected")}})
         return out
 
-    def _fill_pass(self, need, now_h, only, cands, rejected, fills) -> bool:
-        """Check the certified offers that cover the need and trade the best ones. Returns True when a
-        gate on the buyer itself refused (every other seller would say the same)."""
+    @staticmethod
+    def _relaxed(need: "Need", dropped: dict):
+        """The need at the rule floor, or None when the floor is no lower or the bar was not what emptied it."""
+        if not (dropped.get("grade below minimum") or dropped.get("too few weeks")):
+            return None
+        floor_weeks = min(need.weeks, (need.plan or {}).get("rule_weeks") or 1)
+        if dropped.get("too few weeks"):
+            floor_weeks = 1
+        if need.min_grade == "C" and floor_weeks == need.weeks:
+            return None
+        return dataclasses.replace(need, min_grade="C", weeks=floor_weeks)
+
+    @staticmethod
+    def _row_key(row: dict, cols: list) -> str:
+        """Content of one row for the overlap check: day and values, without the seller, so a copy listed
+        by someone else still matches."""
+        return hashlib.sha256(json.dumps([row.get("day")] + [row.get(c) for c in sorted(cols)],
+                                         default=str).encode()).hexdigest()
+
+    @staticmethod
+    def _telling(row: dict, cols: list) -> bool:
+        """Only rows with a measured, non-round value say who they came from; yes/no answers and
+        whole-number scores repeat across people by chance, so they never count as overlap."""
+        return any(isinstance(row.get(c), float) and not float(row[c]).is_integer() for c in cols)
+
+    def overlap(self, buyer: str, cert_root: str, sample_rows: list[dict], cols: list) -> tuple[float, str]:
+        """How much of an offer the buyer already holds: 1.0 for a dataset with a certified root it
+        bought before, else the share of the opened sample rows whose content it already holds."""
+        h = self.holdings.get(buyer)
+        if not h:
+            return 0.0, ""
+        if cert_root in h["roots"]:
+            return 1.0, "same certified root as data I already bought"
+        keys = [self._row_key(r, cols) for r in sample_rows if self._telling(r, cols)]
+        same = sum(1 for k in keys if k in h["rows"])
+        if same < MIN_MATCHED_ROWS:          # a few equal readings on the same day happen by chance
+            return 0.0, ""
+        return same / max(1, len(keys)), f"{same} of {len(keys)} sampled rows match rows I already hold"
+
+    def _hold(self, buyer: str, o: dict, cols: list, weeks: int) -> None:
+        h = self.holdings.setdefault(buyer, {"roots": set(), "rows": set()})
+        h["roots"].add(o["cert"]["root"])
+        h["rows"].update(self._row_key(r, cols) for r in o["dataset"].rows[: weeks * DAYS] if self._telling(r, cols))
+
+    def post_needs(self, needs) -> None:
+        """Open needs are the demand side of every ask until they are filled."""
+        for n in needs:
+            self.pricing.post(n.columns, n.posted_h)
+
+    def _ceiling(self, need: Need) -> dict:
+        """The buyer's ceiling follows the market (20% above the grade A reference) but never passes the
+        owner's budget per item; without a plan, the grade A rate card is the ceiling."""
+        if need.plan.get("budget_per_item_drops"):
+            c = self.pricing.ceiling(need.columns, need.weeks, need.plan)
+            return {"columns": need.columns, "weeks": need.weeks, "max_price_drops": c["max_price_drops"],
+                    "reference": c["reference"], "why": c["why"]}
+        return {"columns": need.columns, "weeks": need.weeks,
+                "max_price_drops": need.plan.get("max_price_drops") or quote(need.columns, need.weeks, "A")}
+
+    def _fill_pass(self, need, now_h, only, cands, rejected, fills, disc=None) -> bool:
+        """Query the shared offer book, filter, check a hashed sample of each survivor, score them,
+        negotiate with the best in order and trade. Returns True when a gate on the buyer itself refused
+        (every other seller would say the same)."""
+        from .discovery import score
+        from .pricing import negotiate
+        disc = disc if disc is not None else {"listed": 0, "dropped": {}, "sampled": [], "ranked": []}
+        drop = lambda why: disc["dropped"].__setitem__(why, disc["dropped"].get(why, 0) + 1)
+        ceiling = self._ceiling(need)
+        book = self.offers()
+        disc["listed"] = max(disc["listed"], len(book))
         mine = []
-        for o in self.offers():
+        for o in book:
             ds, seller = o["dataset"], self.accounts[o["seller"]]
             if only is not None and ds.id not in only:
                 continue
-            if seller.id == need.buyer or not set(need.columns) <= set(ds.columns) or ds.weeks < need.weeks:
+            if seller.id == need.buyer:
+                continue
+            if not set(need.columns) <= set(ds.columns):
+                drop("other columns")
+                continue
+            if ds.weeks < need.weeks:
+                drop("too few weeks")
                 continue
             if any(seller.attrs.get(k) != v for k, v in need.match.items()):
+                drop("seller attributes")
                 continue
             if GRADE_RANK[o["grade"]] < GRADE_RANK[need.min_grade]:
+                drop("grade below minimum")
+                continue
+            if self.book is not None and not self.book.anchored(o):
+                drop("not in the anchored offer book")
                 continue
             bad = quality.check_certificate(o["cert"])
             nonce = f"{need.id}|{seller.id}|{self.rng.random()}"
             opened = ds.shown.open(quality.sample_indices(len(ds.rows), SAMPLE_K, nonce))
             ok, why = (False, bad) if bad else quality.check_sample(o["cert"], opened, {c: spec(c) for c in need.columns})
+            disc["sampled"].append({"seller": seller.id, "grade": o["grade"], "ok": ok, **({} if ok else {"why": why})})
             if not ok:
                 rejected.append({"seller": seller.id, "stage": "pre_trade", "why": why})
                 continue
-            price = quote(need.columns, need.weeks, o["grade"])
-            mine.append((GRADE_RANK[o["grade"]] / price, o, price))
-        mine.sort(key=lambda x: -x[0])
+            pq = self.pricing.ask(need.columns, need.weeks, o["grade"], seller.attrs.get("floor_mult"), now_h)
+            ask = pq["ask"]
+            ov, ov_why = self.overlap(need.buyer, o["cert"]["root"], [x["row"] for x in opened], need.columns)
+            if ov >= DUPLICATE_SHARE:
+                # already in the buyer's store: never pay again for the same data
+                drop("already held")
+                disc["sampled"][-1].update(ok=False, why=f"duplicate: {ov_why}")
+                rejected.append({"seller": seller.id, "stage": "overlap", "why": f"duplicate: {ov_why}"})
+                continue
+            sc = score(o, int(ask * (1 - ov)), ceiling, (seller.passed, seller.failed))
+            sc["pricing"] = {**pq, "share": round(1 - ov, 3)}
+            if ov:
+                sc.update(overlap=round(ov, 3), overlap_why=ov_why, full_ask_drops=ask)
+            mine.append((sc, o, int(ask * (1 - ov))))
+        mine.sort(key=lambda x: (-x[0]["score"], x[0]["seller"]))
         cands += mine
-        for _, o, price in mine:
+        first = len(disc["ranked"])
+        disc["ranked"] += [m[0] for m in mine]
+        from . import contract_trace
+        for i, (sc, o, ask) in enumerate(mine):
             if len(fills) >= need.quantity:
                 break
-            r = self._trade(need, o, price, now_h)
+            seller = self.accounts[o["seller"]]
+            track = (seller.passed, seller.failed)          # before this trade, as the agents saw it
+            pq, share = sc["pricing"], sc["pricing"]["share"]
+            neg = negotiate(ask, ceiling["max_price_drops"], track, int(pq["floor"] * share),
+                            int(pq["reference"]["low"] * share))
+            neg.update(reference=pq["reference"], scarcity=pq["scarcity"], ask_why=pq["why"],
+                       owner_floor=int(pq["floor"] * share), ceiling_why=ceiling.get("why", ""))
+            disc["ranked"][first + i]["negotiation"] = neg
+            cand = {**sc, "rank": first + i + 1}
+            if not neg["deal"]:
+                rejected.append({"seller": seller.id, "stage": "negotiation", "why": neg["why"]})
+                self.contracts.append(contract_trace.build(need, need.plan, disc, cand, {**neg, "ceiling": ceiling["max_price_drops"]},
+                                                           None, seller, self.accounts[need.buyer], track))
+                continue
+            r = self._trade(need, o, neg["price_drops"], now_h)
+            disc["ranked"][first + i]["outcome"] = r["status"]
+            r["trace"] = len(self.contracts)
+            if r["status"] in ("settled", "settled_unfit"):
+                self._hold(need.buyer, o, need.columns, need.weeks)
+                # the settled price is public on the ledger; the index learns from it
+                self.pricing.record(need.columns, need.weeks, o["grade"], int(neg["price_drops"] / max(share, 1e-6)),
+                                    (r.get("txs") or {}).get("escrow_create"))
+            self.contracts.append(contract_trace.build(need, need.plan, disc, cand, {**neg, "ceiling": ceiling["max_price_drops"]},
+                                                       r, seller, self.accounts[need.buyer], track))
             if r["status"] == "refused" and r["why"].startswith("blocked: no valid") or \
                     r["status"] == "refused" and "credential has expired" in r["why"]:
                 rejected.append(r)
@@ -352,6 +514,14 @@ class Exchange:
         if trade.get("output") == "aggregate":
             from .genomic import aggregate
             part = aggregate(part, need_cols, trade.get("loci", []))
+        if trade.get("output") != "aggregate" and not quality.delivery_matches(o["cert"], rows, salts):
+            # The gate holds the plain rows here: a seller who opened good samples but sends other rows is
+            # stopped before any escrow exists, instead of being paid and leaving the buyer a refund claim.
+            seller.failed += 1
+            return self._log({**base, "status": "refused", "stage": "binding", "paid_drops": 0,
+                              "why": "delivery does not hash to the certified root; no escrow created",
+                              "signals": [{"code": "not_as_committed",
+                                           "detail": "delivery does not hash to the certified root"}]})
         main = payout_schedule.retrospective(price)["upfront_drops"]
         self._grants[(trade["buyer"], seller.id, trade["contract"])] = Decision(ALLOW, granted=list(need_cols))
         req = OrderRequest(trade["buyer"], seller.id, seller.id, f"contract:{trade['contract']}",
@@ -389,6 +559,11 @@ class Exchange:
         if not quality.delivery_matches(cert, payload["full_rows"], payload["salts"]):
             sig.append({"code": "not_as_committed", "detail": "delivery does not hash to the certified root"})
         rows = payload["rows"]
+        # The rows the buyer uses must be the certified rows, not a second list sent alongside them.
+        from_full = [{"day": r["day"], **{c: r.get(c) for c in cols}} for r in payload["full_rows"][: len(rows)]]
+        if from_full != rows:
+            sig.append({"code": "not_as_committed", "detail": "delivered rows differ from the certified rows"})
+            rows = from_full
         for c in cols:
             s = spec(c)
             xs = [r[c] for r in rows if isinstance(r.get(c), (int, float))]

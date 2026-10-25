@@ -42,7 +42,7 @@ class MockLedger(Ledger):
         self.sequences.setdefault(addr, 1)
         return addr
 
-    def prepare_payment(self, source, destination, amount_drops, invoice_id, memo):
+    def prepare_payment(self, source, destination, amount_drops, invoice_id, memo, xrp: bool = False):
         with self.lock:
             seq = self.sequences[source]
             self.sequences[source] = seq + 1
@@ -207,6 +207,9 @@ class MockLedger(Ledger):
                         amount_drops=int(t["Amount"]) if t.get("Amount") else None, invoice_id=t.get("InvoiceID"),
                         tx_type=t.get("TransactionType"), result=t["result"], condition=t.get("Condition"),
                         fulfillment=t.get("Fulfillment"), sequence=t.get("Sequence"))
+
+    def memo_of(self, tx_hash: str) -> str | None:
+        return (self.txs.get(tx_hash) or {}).get("Memo")
 
     def invoice_field_of(self, blob: str) -> str | None:
         return json.loads(blob).get("InvoiceID")

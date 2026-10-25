@@ -13,7 +13,7 @@
 | T2 | clinical | diagnoses, prescriptions, HbA1c, LDL, creatinine, glucose, TSH, blood pressure, clinic HR, BMI, allergies, procedures | HMB, IRB | 180 d | high |
 | T3 | highly sensitive | genomic variants, pharmacogenomic variants, CT, MRI, mental health diagnoses, PHQ-9, cycle log, pregnancy history | HMB, IRB, TS, NPOA (+ GSO for genomic) | 90 d | identifying by itself |
 
-T0 and T1 live in the person's own store (UniQdata write API). T2 and T3 have no concept there and are an engine-side source. `GET /api/catalog` returns every column card.
+T0 and T1 live in the person's own store (UniQdata write API). T3 genomic variants, CT and MRI go in through UniQdata's DataQ intake (`scripts/uniqdata_intake_t3.py`), and with UniQdata connected a T3 dataset is offered only with that record's hash as provenance. T2 and the other T3 columns are an engine-side source. `GET /api/catalog` returns every column card.
 
 ## Tiered consent (`agentrail/catalog/scope.py`)
 

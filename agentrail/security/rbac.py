@@ -3,7 +3,8 @@ is closed until someone writes down who may use it (a test fails if any route ha
 
 Roles
   participant  their own requests, consent, preview, withdrawals (scope = their participant id)
-  researcher   the study's console: goal, requests, rounds, sealed bundles (scope = study id)
+  researcher   the study's console: goal, requests, rounds, sealed bundles (scope = study id, or one
+               research contract id for the contract routes)
   approver     signs treasury approvals for that study (scope = study id, attrs.signer)
   reviewer     decides integrity cases for that study, under their own name
   operator     runs the service: dashboard state, audit verification and anchoring, demo harness;
@@ -49,6 +50,9 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("POST", "/api/p/{pid}/pause"): SELF,
     ("POST", "/api/p/{pid}/resume"): SELF,
     ("POST", "/api/p/{pid}/revoke"): SELF,
+    ("POST", "/api/p/{pid}/revoke/challenge"): SELF,
+    ("POST", "/api/p/{pid}/consents/challenge"): SELF,
+    ("POST", "/api/p/{pid}/consents/approve"): SELF,
     ("POST", "/api/p/{pid}/push/prepare"): SELF,
     ("POST", "/api/p/{pid}/push/sealed"): SELF,
     ("POST", "/api/p/{pid}/push/reveal"): SELF,
@@ -58,6 +62,16 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("POST", "/api/p/{pid}/resume-requests"): SELF,
     ("POST", "/api/p/{pid}/payout-currency"): SELF,
     ("GET", "/api/p/{pid}/uniqdata"): SELF,
+    ("POST", "/api/p/{pid}/requests/{rid}/challenge"): SELF,
+    ("GET", "/api/p/{pid}/passkey"): SELF,
+    ("POST", "/api/p/{pid}/passkey/register/options"): SELF,
+    ("POST", "/api/p/{pid}/passkey/register/complete"): SELF,
+    ("GET", "/api/p/{pid}/relationship"): SELF,
+    ("POST", "/api/p/{pid}/relationship/consent"): SELF,
+    ("POST", "/api/p/{pid}/subprojects/{sid}/decision"): SELF,
+    ("GET", "/api/institution"): Rule((R, O), "study"),
+    ("POST", "/api/institution/subprojects"): Rule((R, O), "study"),
+    ("POST", "/api/institution/subprojects/{sid}/run"): Rule((R, O), "study"),
     # researcher console
     ("GET", "/api/study"): Rule((R, A, V, O), "study"),
     ("POST", "/api/study/goal"): STUDY_TEAM,
@@ -74,7 +88,9 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/api/catalog"): Rule((R, O), "study"),
     ("GET", "/api/report"): Rule((R, O), "study"),
     ("GET", "/api/costs"): Rule((R, O), "study"),
+    ("GET", "/api/proof"): Rule((R, O), "study"),
     ("GET", "/api/market/network"): Rule((R, O), "study"),
+    ("GET", "/api/market/contracts"): Rule((R, O), "study"),
     ("POST", "/api/market/run"): Rule((R, O), "study"),
     ("GET", "/api/market/activity"): Rule((R, O), "study"),
     ("GET", "/api/market/products"): Rule((R, O), "study"),
@@ -91,6 +107,20 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/api/ops/audit/verify"): Rule((O, R), "study"),
     ("POST", "/api/ops/audit/anchor"): Rule((O,)),
     ("GET", "/api/state"): Rule((O,)),
+    # research contracts (agentrail/research_contracts.py): posting needs the posting code, joining the
+    # invite code and the joiner's own signature; the researcher's token is scoped to one contract
+    ("GET", "/api/contracts"): Rule(public=True),
+    ("POST", "/api/contracts"): Rule(public=True),
+    ("GET", "/api/contracts/{cid}"): Rule(public=True),
+    ("POST", "/api/contracts/{cid}/join/start"): Rule(public=True),
+    ("POST", "/api/contracts/{cid}/join/complete"): Rule(public=True),
+    ("GET", "/api/contracts/{cid}/console"): Rule((R, O), "contract"),
+    ("POST", "/api/contracts/{cid}/rounds"): Rule((R,), "contract"),
+    ("POST", "/api/contracts/{cid}/close"): Rule((R,), "contract"),
+    ("GET", "/api/p/{pid}/contracts"): SELF,
+    ("POST", "/api/p/{pid}/contracts/records"): SELF,
+    ("POST", "/api/p/{pid}/contracts/{cid}/requests/{rid}/approve"): SELF,
+    ("POST", "/api/p/{pid}/contracts/{cid}/withdraw"): SELF,
     # demo harness: runs every party in one process; off when AGENTRAIL_ENV=prod
     ("POST", "/api/reset"): Rule((O,), dev_only=True),
     ("POST", "/api/run/{scene}"): Rule((O,), dev_only=True),
@@ -101,6 +131,10 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/"): Rule(public=True),
     ("GET", "/participant"): Rule(public=True),
     ("GET", "/console"): Rule(public=True),
+    ("GET", "/demo"): Rule(public=True),
+    ("GET", "/try"): Rule(public=True),
+    ("GET", "/api/public/live"): Rule(public=True),
+    ("GET", "/api/public/ap4m"): Rule(public=True),
     ("GET", "/.well-known/agent-card.json"): Rule(public=True),
     ("GET", "/agents/{pid}/.well-known/agent-card.json"): Rule(public=True),
 }
@@ -148,5 +182,7 @@ def check(request: Request, authority) -> dict | None:
         raise HTTPException(403, "participants can act only on their own record")
     if rule.scope == "study" and claims["role"] != "operator" and claims["scope"] != STUDY:
         raise HTTPException(403, "this token is for another study")
+    if rule.scope == "contract" and claims["role"] != "operator" and claims["scope"] != request.path_params.get("cid"):
+        raise HTTPException(403, "this token is for another contract")
     request.state.claims = claims
     return claims

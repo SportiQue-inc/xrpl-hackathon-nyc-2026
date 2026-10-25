@@ -1,0 +1,7 @@
+.env
+.env.*
+state/
+out/
+node_modules/
+receipts/
+test/

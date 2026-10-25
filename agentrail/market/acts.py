@@ -177,7 +177,24 @@ PURPOSE_OF = {"R": "model_training", "T0": "personal_research", "T1": "personal_
               "T2": "personal_research", "T3": "personal_research"}
 
 
-def act1(seed: int = 11, ledger=None, store=None, prof: dict | None = None, rounds: int = 3) -> dict:
+def plan_need(a: Account, wants: list[str], col: str, weeks: int, quantity: int, open_needs: int,
+              cache: dict, propose=None) -> dict:
+    """The buyer's agent forms one need: its own store against the owner's wants, the gap, the budget,
+    then the LLM's reasoning, checked by code (discovery.form_need). One plan per (buyer, column, weeks)."""
+    from .discovery import form_need
+    from .exchange import quote
+    key = (a.id, col, weeks)
+    if key not in cache:
+        holds = sorted({c for d in a.datasets for c in d.columns})
+        cache[key] = form_need(a.id, holds, wants, col, weeks, quantity, int(a.budget_xrp * 1e6), open_needs,
+                               quote, propose)
+    return cache[key]
+
+
+def act1(seed: int = 11, ledger=None, store=None, prof: dict | None = None, rounds: int = 3, propose=None,
+         demand_scale: int = 1, supply_share: float = 1.0) -> dict:
+    """demand_scale posts every need that many times; supply_share keeps that share of each person's
+    datasets listed. Both only for the price measurement (scripts/measure_prices.py)."""
     prof = prof or load()
     accounts = participants(prof, act=1, seed=seed)
     provider = Account("svc_dtc", "Wellness trait report provider (synthetic)", "org",
@@ -186,6 +203,10 @@ def act1(seed: int = 11, ledger=None, store=None, prof: dict | None = None, roun
                        credentials={"DTC_WELLNESS"})
     provider.report_types = {"caffeine_metabolism": ["CYP1A2"], "lactose_tolerance": ["MCM6"]}
     _build_rows(accounts)
+    if supply_share < 1.0:
+        srng = random.Random(seed + 9)
+        for a in accounts:
+            a.datasets = [d for d in a.datasets if srng.random() < supply_share]
     from ..uniqdata_live import feed_market, market_clients
     uq = feed_market(accounts, market_clients(), keep={MANUAL})  # each person's own UniQdata account, when connected;
     # the manual approver keeps generated rows so the demo still shows approvals waiting for a person
@@ -193,18 +214,27 @@ def act1(seed: int = 11, ledger=None, store=None, prof: dict | None = None, roun
     rng = random.Random(seed + 1)
     for a in accounts:
         ex.engine.set_mandate(BuyerMandate(a.id, int(a.budget_xrp * 1e6), int(a.budget_xrp * 1e6), list(set(PURPOSE_OF.values()))))
-    needs = []
+    needs, plans = [], {}
     for rnd in range(rounds):
         for a in accounts:
-            for j, w in enumerate(a.needs_spec):
-                c = catalog.canon(w) if w not in ROBOT else w
+            wants = [catalog.canon(w) if w not in ROBOT else w for w in a.needs_spec]
+            for j, c in enumerate(wants):
                 one = c not in ROBOT and catalog.CATALOG[c].kind in ("image", "variants")
                 if one and rnd:
                     continue
-                needs.append(Need(f"{a.id}-r{rnd + 1}-n{j + 1}", a.id, [c], 1 if one else rng.choice([1, 2]), 3,
-                                  PURPOSE_OF[_kind(c)], posted_h=round(rnd * 24 + rng.uniform(0, 24), 2),
-                                  why=f"{a.id} wants {w}"))
+                weeks = 1 if one else rng.choice([1, 2])
+                plan = plan_need(a, wants, c, weeks, 3, len(wants) * rounds, plans, propose)
+                needs.append(Need(f"{a.id}-r{rnd + 1}-n{j + 1}", a.id, plan["columns"], plan["weeks"], 3,
+                                  PURPOSE_OF[_kind(c)], min_grade=plan["min_grade"],
+                                  posted_h=round(rnd * 24 + rng.uniform(0, 24), 2), why=plan["why"], plan=plan))
+    needs += [Need(f"{n.id}-x{k}", n.buyer, n.columns, n.weeks, n.quantity, n.purpose, min_grade=n.min_grade,
+                   posted_h=n.posted_h, why=n.why, plan=n.plan) for k in range(1, demand_scale) for n in list(needs)]
     needs += manual_needs(accounts)
+    frng = random.Random(seed + 7)
+    for a in accounts:             # each owner's floor under the rate card (their own setting)
+        a.attrs.setdefault("floor_mult", frng.choice([0.6, 0.7, 0.8, 0.9]))
+    ex.post_needs(needs)
+    book = ex.publish_book()
     results = [ex.fill(n) for n in sorted(needs, key=lambda n: n.posted_h)]
     reports = []
     buyers = [a for a in accounts if any(d.columns == ["genome.vcf"] for d in a.datasets)][:3]
@@ -218,6 +248,7 @@ def act1(seed: int = 11, ledger=None, store=None, prof: dict | None = None, roun
                        "sold": r["sold"], "waiting": r["waiting"], "reid_check": r["k_anonymity"][-1],
                        "postings_matched": [x["posting"] for x in r["postings_searched"] if x["matched"]]}
     return {"act": 1, "activity": ex.activity(), "needs": results, "reports": reports, "exchange": ex,
+            "offer_book": book, "anchors": ex.anchors,
             "uniqdata_records_used": uq, "person_agents": agents}
 
 
@@ -342,9 +373,11 @@ def act2(seed: int = 11, ledger=None, store=None, prof: dict | None = None) -> d
     for inst in ("org_neuroimg", "org_genomics"):
         needs.append(Need(f"{inst}-mri", inst, ["imaging.mri"], 1, 8, INSTITUTIONS[inst]["purpose"],
                           posted_h=1.0, why=f"{inst}: pseudonymized MRI"))
+    ex.post_needs(needs)
+    book = ex.publish_book()
     results = [ex.fill(n) for n in sorted(needs, key=lambda n: n.posted_h)]
     grades = {i.id: policies.trust_grade({**i.attrs, "owner_country": "KR"}) for i in insts}
-    return {"act": 2, "uniqdata_records_used": uq, "activity": ex.activity(), "needs": results, "budgets": budgets,
+    return {"act": 2, "offer_book": book, "anchors": ex.anchors, "uniqdata_records_used": uq, "activity": ex.activity(), "needs": results, "budgets": budgets,
             "buyer_grades": {k: {"grade": g, "score": s, "reasons": w} for k, (g, s, w) in grades.items()},
             "pending_for_manual": [{k: v for k, v in p.items() if k not in ("trade", "offer")} for p in ex.pending],
             "exchange": ex}

@@ -662,6 +662,32 @@ def test_buyer_and_seller_match_conditions_before_price(market):
     assert any("I need at least" in t for t in texts) and any(t.startswith("I have") or t.startswith("I only have") for t in texts)
 
 
+
+def test_unmatched_requirements_reject_the_queue_without_payment(market, monkeypatch):
+    from vaultmarket import agents
+    monkeypatch.setattr(config, 'AP4M', False)
+    monkeypatch.setattr(agents, 'requirements', lambda _: {
+        'min_records': 100000, 'fields': ['hrv_ms'], 'unit': 'nights'})
+    def forbidden_settlement(*_, **__):
+        raise AssertionError('Unmatched data must never reach settlement')
+    monkeypatch.setattr(market, 'settle', forbidden_settlement)
+    queued = market.enqueue_sale('seller', 'sleep_log', market.test_post)
+
+    assert market.process_sale_queue() is True
+
+    queue = market.s.one('SELECT * FROM sale_queue WHERE id=?', (queued['id'],))
+    contract = market.s.one('SELECT * FROM contracts WHERE id=?', (queue['contract'],))
+    trace = json.loads(contract['trace'])
+    assert queue['status'] == contract['status'] == 'rejected'
+    assert trace['seller_trace'] == [{'seller': 'seller', 'verdict': 'conditions not met', 'price': None, 'fit': 0}]
+    assert trace['verdicts']['sellers']['seller'] == 'conditions not met'
+    assert not market.s.q("SELECT id FROM contracts WHERE status IN ('negotiating','settling','awaiting buyer')")
+    assert not market.s.q("SELECT id FROM sale_queue WHERE status IN ('negotiating','settling','awaiting buyer')")
+    assert not market.s.q('SELECT * FROM txs')
+    assert not market.s.q('SELECT * FROM escrows')
+    assert not market.s.q("SELECT id FROM files WHERE account='buyer' AND status='bought'")
+
+
 def test_currency_display_cannot_rename_a_stand_in_as_official_rlusd(market, monkeypatch):
     client, web = _demo_client(market, monkeypatch)
     meta = client.get('/api/meta').json()
@@ -677,3 +703,127 @@ def test_currency_display_cannot_rename_a_stand_in_as_official_rlusd(market, mon
     common = (static / "common.js").read_text()
     assert '${assetLabel(asset)}' in common and 'relabel(c.text)' in common and 'asset-foot' in common
     assert 'test USD' not in (static / "demo.html").read_text()
+
+
+def _fake_rail(monkeypatch, fail=False):
+    from agentrail import ap4m_rail
+    calls = []
+
+    def post(path, body, timeout):
+        calls.append(body)
+        if fail:
+            return {"ok": False, "ref": body["ref"], "reason": "budget: pool vault has 0 RLUSD left"}
+        n = len(calls)
+        return {"ok": True, "ref": body["ref"], "amount_rlusd": str(body["amount_micro"] / 1e6), "claim_id": f"0x{n:064x}",
+                "channel_id": "0x" + "c" * 64, "voucher_redeemed_tx": f"0x{n + 100:064x}", "voucher_url": "https://x/tx", "verified": True,
+                "receipt_url": f"https://ap4m/receipt/{n}", "content": body.get("content")}
+    monkeypatch.setenv("AP4M_RAIL_URL", "http://rail.test")
+    monkeypatch.setattr(ap4m_rail, "_post", post)
+    monkeypatch.setattr(config, "AP4M", True)
+    return calls
+
+
+def _trade(market):
+    market.s.x("UPDATE files SET status='listed' WHERE id=?", (market.test_file,))
+    market.s.insert("interests", account="seller", posting=market.test_post)
+    cid = market.negotiate(market.s.one("SELECT * FROM postings WHERE id=?", (market.test_post,)))
+    return market.s.one("SELECT * FROM contracts WHERE id=?", (cid,)), cid
+
+
+def test_ap4m_deal_pays_one_voucher_within_the_cap_and_it_releases_the_key(market, monkeypatch):
+    calls = _fake_rail(monkeypatch)
+    monkeypatch.setattr(config, "MICRO_PER_UNIT", 5000)    # the AP4M default: 1 unit = 0.005 RLUSD, cap 20 units
+    c, cid = _trade(market)
+    assert c["status"] == "settled", (c["reason"], c["trace"])
+    paid = market.s.q("SELECT * FROM txs WHERE contract=? AND type='AP4M VoucherRedeemed'", (cid,))
+    assert len(paid) == 1 and not market.s.q("SELECT * FROM txs WHERE contract=? AND type LIKE 'Escrow%'", (cid,))
+    assert len(calls) == 1 and calls[0]["amount_micro"] <= 100_000 and calls[0]["content"]["k"]
+    assert calls[0]["amount_micro"] == round(c["total"] * config.MICRO_PER_UNIT) == paid[0]["drops"]   # shown = paid
+    trace = json.loads(c["trace"])
+    assert any(p["protocol"].startswith("AP4M Voucher redeemed") and p.get("receipt_url") for p in trace["protocol"])
+    assert any(p["protocol"] == "Buyer opens the bundle" and p["ok"] for p in trace["protocol"])
+
+
+
+def test_ap4m_failed_forward_keeps_redemption_without_claiming_seller_payment(market, monkeypatch):
+    from agentrail import ap4m_rail
+    calls = _fake_rail(monkeypatch)
+    post = ap4m_rail._post
+    monkeypatch.setattr(ap4m_rail, '_post', lambda path, body, timeout: {
+        **post(path, body, timeout), 'forward_tx': '0x' + 'f' * 64,
+        'forward_to': '0x' + 'a' * 40, 'forward_ok': False})
+    monkeypatch.setattr(config, 'MICRO_PER_UNIT', 5000)
+
+    contract, cid = _trade(market)
+
+    assert contract['status'] == 'settled'
+    assert len(calls) == 1
+    assert len(market.s.q("SELECT id FROM txs WHERE contract=? AND type='AP4M VoucherRedeemed'", (cid,))) == 1
+    assert market.s.one("SELECT result FROM txs WHERE contract=? AND type='RLUSD forward to seller'", (cid,))['result'] == 'failed'
+    protocol = json.loads(contract['trace'])['protocol']
+    detail = next(step['detail'] for step in protocol if step['protocol'].startswith('AP4M Voucher redeemed'))
+    assert 'was forwarded' not in detail and 'failed' in detail
+
+
+def test_ap4m_refusal_rejects_the_deal_with_the_reason_and_pays_nothing(market, monkeypatch):
+    _fake_rail(monkeypatch, fail=True)
+    c, cid = _trade(market)
+    assert c["status"] == "rejected" and "budget" in c["reason"]
+    assert not market.s.q("SELECT * FROM txs WHERE contract=?", (cid,))
+
+
+def test_ap4m_caps_the_buyer_budget_per_seller_at_010(market, monkeypatch):
+    calls = _fake_rail(monkeypatch)
+    monkeypatch.setattr(config, "MICRO_PER_UNIT", 20000)   # the seller's minimum of 7 units is 0.14 RLUSD, above the cap
+    c, cid = _trade(market)
+    assert c["status"] == "rejected" and not calls
+
+
+def test_extra_people_join_a_running_vault_once(market, monkeypatch):
+    monkeypatch.setattr(config, "EXTRA_PEOPLE", 5)
+    market.seed()
+    market.seed()
+    from vaultmarket.market import EXTRA_PEOPLE
+    ids = [n.split()[0].lower().replace("-", "") for n in EXTRA_PEOPLE[:5]]
+    rows = market.s.q(f"SELECT id FROM accounts WHERE id IN ({','.join('?' * len(ids))})", ids)
+    assert sorted(r["id"] for r in rows) == sorted(ids)
+    for aid in ids:
+        assert market.acct(aid)["sell_agent"]["mode"] == "auto"
+        assert {f["kind"] for f in market.s.q("SELECT kind FROM files WHERE account = ?", (aid,))} >= set(data.NEW_KINDS)
+
+
+def test_fee_label_shows_the_fee_actually_paid():
+    from vaultmarket.app import _micro
+    assert _micro(5000) == "0.005" and _micro(35500) == "0.0355" and _micro(10000) == "0.01" and _micro(2_000_000) == "2.00"
+
+
+def test_receipt_settled_later_is_filled_into_the_deal(market, monkeypatch):
+    from agentrail import ap4m_rail
+    _fake_rail(monkeypatch)
+    real = ap4m_rail._post
+    monkeypatch.setattr(ap4m_rail, "_post", lambda path, body, timeout: {**real(path, body, timeout), "receipt_url": None, "settlement": "scheduled"})
+    monkeypatch.setattr(config, "MICRO_PER_UNIT", 5000)
+    c, cid = _trade(market)
+    assert c["status"] == "settled", c["reason"]
+    asked = []
+    monkeypatch.setattr(ap4m_rail, "_get", lambda path, timeout: asked.append(path) or {"ok": True, "receipt_url": "https://ap4m/r.json", "payout_tx": "0xp", "payout_url": "https://x/tx/0xp"})
+    assert market.backfill_ap4m_receipts() == 1
+    trace = json.loads(market.s.one("SELECT trace FROM contracts WHERE id=?", (cid,))["trace"])
+    assert asked == [f"/pay/vm-c{cid}-seller"]
+    assert any(p.get("receipt_url") == "https://ap4m/r.json" for p in trace["protocol"])
+    assert market.s.one("SELECT receipt FROM txs WHERE contract=? AND type='AP4M VoucherRedeemed'", (cid,))["receipt"] == "https://ap4m/r.json"
+    assert market.backfill_ap4m_receipts() == 0
+
+
+def test_ap4m_deal_counts_as_paid_in_summaries_and_income(market, monkeypatch):
+    _fake_rail(monkeypatch)
+    monkeypatch.setattr(config, "MICRO_PER_UNIT", 1000)
+    c, cid = _trade(market)
+    assert c["status"] == "settled", c["reason"]
+    monkeypatch.setenv("VM_LEDGER", "mock")
+    from vaultmarket import app
+    monkeypatch.setattr(app, "M", market)
+    s = app._trade_summaries(market.s.q("SELECT * FROM contracts WHERE id=?", (cid,)), "seller")[0]
+    assert s["drops"] == round(c["total"] * 1000) > 0 and s["rail"] == "AP4M" and s["tx_url"].startswith(app.EVM_EXPLORER)
+    income = market.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND (type LIKE 'EscrowFinish%' AND result='tesSUCCESS' OR type='AP4M VoucherRedeemed') GROUP BY asset", ("seller",))
+    assert income and income[0]["amount"] == s["drops"] / 1e6

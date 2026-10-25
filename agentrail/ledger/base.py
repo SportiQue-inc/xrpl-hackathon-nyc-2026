@@ -30,6 +30,7 @@ class TxStatus:
     condition: str | None = None
     fulfillment: str | None = None
     sequence: int | None = None
+    xrp_drops: int | None = None   # delivered XRP, whatever asset the run settles in (x402 fees are XRP)
 
 
 class Ledger:
@@ -41,7 +42,7 @@ class Ledger:
         raise NotImplementedError
 
     def prepare_payment(self, source: str, destination: str, amount_drops: int,
-                        invoice_id: str, memo: str) -> Prepared:
+                        invoice_id: str, memo: str, xrp: bool = False) -> Prepared:
         raise NotImplementedError
 
     def submit(self, prepared: Prepared) -> None:

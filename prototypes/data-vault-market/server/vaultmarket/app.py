@@ -22,6 +22,8 @@ M = Market()
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 
 
+EVM_EXPLORER = "https://explorer.testnet.xrplevm.org"   # AP4M transactions (XRPL EVM Testnet)
+
 @app.on_event("startup")
 def _start():
     M.seed()
@@ -204,7 +206,7 @@ def _chat_today(aid: str) -> int:
 @app.get("/api/meta")
 def meta():
     return {"ledger": M.rail.name, "model": llm.model_name(), "models": llm.models(), "llm": llm.USAGE, "kinds": {**KINDS, data.PACKAGE_KIND: data.PACKAGE_INFO}, "k_min": config.K_MIN,
-            "revision": os.environ.get("APP_REVISION"), "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": False, "asset_label": M.rail.label(), "asset_footnote": config.ASSET_FOOTNOTE if M.rail.asset == "USD" else "", "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
+            "revision": os.environ.get("APP_REVISION"), "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": False, "ap4m": {"on": config.AP4M, "rail": "Mastercard AP4M on XRPL EVM Testnet", "per_payment_cap_rlusd": 0.10, "explorer": EVM_EXPLORER} if config.AP4M else None, "asset_label": M.rail.label(), "asset_footnote": config.ASSET_FOOTNOTE if M.rail.asset == "USD" else "", "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
             "rpm_cap": config.LLM_RPM, "daily_cap": config.LLM_DAILY_CALLS, "engine_url": config.ENGINE_URL}
 
 
@@ -225,23 +227,59 @@ def _trade_summaries(contracts, account):
         c["buyer_name"] = _name(c["buyer"]); c["sellers"] = json.loads(c["sellers"] or "[]")
         c["mine"] = c["buyer"] == account or c.get("seller") == account or account in c["sellers"]
         c["seller_name"] = _name(c.get("seller") or c["sellers"][0]) if c.get("seller") or len(c["sellers"])==1 else None
-        c["drops"] = M.s.one("SELECT COALESCE(SUM(drops),0) n FROM txs WHERE contract=? AND type LIKE 'EscrowFinish%' AND result='tesSUCCESS'", (c["id"],))["n"]
+        c["drops"] = M.s.one("SELECT COALESCE(SUM(drops),0) n FROM txs WHERE contract=? AND (type LIKE 'EscrowFinish%' AND result='tesSUCCESS' OR type='AP4M VoucherRedeemed')", (c["id"],))["n"]
         c["asset"] = c.get("asset") or "XRP"
-        t = s.one("SELECT hash FROM txs WHERE contract = ? AND hash IS NOT NULL ORDER BY id DESC LIMIT 1", (c["id"],))
-        c["tx_url"] = M.rail.explorer(t["hash"]) if t else None
+        t = s.one("SELECT hash, type, receipt FROM txs WHERE contract = ? AND hash IS NOT NULL ORDER BY id DESC LIMIT 1", (c["id"],))
+        c["tx_url"] = (f"{EVM_EXPLORER}/tx/{t['hash']}" if str(t["hash"]).startswith("0x") else M.rail.explorer(t["hash"])) if t else None
+        c["rail"] = "AP4M" if t and str(t["type"]).startswith(("AP4M", "RLUSD forward")) else None
     return contracts
 
 
 def _agent_styles(since=0):
-    receipts=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,COUNT(DISTINCT t.contract) sales,SUM(t.drops) micro FROM txs t JOIN contracts c ON c.id=t.contract WHERE t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' GROUP BY t.src,t.asset", (since,))
-    styles=[]
+    receipts=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,COUNT(DISTINCT t.contract) sales,SUM(t.drops) micro FROM txs t JOIN contracts c ON c.id=t.contract WHERE (t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' OR t.type='AP4M VoucherRedeemed') AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' GROUP BY t.src,t.asset", (since,))
+    styles=[];verdicts=_seller_verdicts(since)
     for row in M.s.q("SELECT id FROM accounts WHERE id NOT LIKE 'u-%' AND id!='demo-vault'"):
         a=M.acct(row['id']);rules=a['sell_agent'];mins=rules.get('min',{})
         ratio=sum(mins.get(k,v['price'])/v['price'] for k,v in KINDS.items())/len(KINDS)
         style='Approval first' if rules.get('mode')=='ask' else 'Price firm' if ratio>=1 else 'Flexible pricing'
         rs=[r for r in receipts if r['src']==a['id']]
-        styles.append({'id':a['id'],'name':a['name'],'style':style,'blocked_purposes':rules.get('blocks',[]),'approval':rules.get('mode'),'minimums':mins,'floor_ratio':round(ratio,3),'budget':a['buy_agent'].get('auto_limit') if a.get('buy_agent') else None,'sales':sum(r['sales'] for r in rs),'income':[{'asset':r['asset'],'amount':r['micro']/1e6} for r in rs]})
+        held=M.s.q("SELECT kind,COUNT(*) n FROM files WHERE account=? AND status='listed' GROUP BY kind",(a['id'],))
+        sales=sum(r['sales'] for r in rs);v=verdicts.get(a['id'],{})
+        styles.append({'id':a['id'],'name':a['name'],'style':style,'blocked_purposes':rules.get('blocks',[]),'approval':rules.get('mode'),'minimums':mins,'floor_ratio':round(ratio,3),'budget':a['buy_agent'].get('auto_limit') if a.get('buy_agent') else None,'sales':sales,'income':[{'asset':r['asset'],'amount':r['micro']/1e6} for r in rs],
+                       'files':sum(h['n'] for h in held),'kinds':len(held),'declines':{k:n for k,n in v.items() if k!='agree'},'why':_why(a['name'],sales,rs,ratio,rules,held,v)})
     return sorted(styles,key=lambda a:(-a['sales'],a['name']))
+
+
+DECLINE_WHY={'decline':"buyers' budgets stayed under its floor",'conditions not met':"its files didn't meet buyers' record and field conditions",
+             'refused by buyer: overlap':"buyers already owned its records",'waiting for owner':"each sale waits for its owner's approval",'outbid':"cheaper sellers filled the lot"}
+
+
+def _seller_verdicts(since):
+    """What each seller's agent answered in recorded negotiations: {seller: {verdict: count}}."""
+    out={}
+    for c in M.s.q("SELECT trace FROM contracts WHERE created>=? AND trace IS NOT NULL",(since,)):
+        try:
+            for a,verdict in (json.loads(c['trace'] or '{}').get('verdicts',{}).get('sellers',{}) or {}).items():
+                d=out.setdefault(a,{});d[verdict]=d.get(verdict,0)+1
+        except (ValueError,TypeError,AttributeError):
+            continue
+    return out
+
+
+def _why(name,sales,rs,ratio,rules,held,v):
+    """One plain line, built only from the agent's settings and its recorded negotiation outcomes."""
+    setting=f"floor {ratio:.0%} of list price, {'asks the owner first' if rules.get('mode')=='ask' else 'sells on its own'}, {sum(h['n'] for h in held)} listed files in {len(held)} kinds"
+    if rules.get('blocks'):
+        setting+=f", refuses {len(rules['blocks'])} purpose{'s' if len(rules['blocks'])>1 else ''}"
+    lost={k:n for k,n in v.items() if k!='agree'}
+    top=max(lost,key=lost.get) if lost else None
+    if sales:
+        earned=" + ".join(f"{_micro(r['micro'] or 0)} {M.rail.label() if r['asset']=='test USD' else r['asset']}" for r in rs)
+        tail=f"; {lost[top]} other negotiation{'s' if lost[top]>1 else ''} failed because {DECLINE_WHY.get(top,top)}" if top else ""
+        return f"{name}: {sales} sale{'s' if sales>1 else ''}, {earned}. {setting}{tail}."
+    if top:
+        return f"{name}: no sales. Mostly because {DECLINE_WHY.get(top,top)} ({lost[top]} of {sum(lost.values())} negotiations). {setting}."
+    return f"{name}: no sales yet; no buyer has asked for its data in this period. {setting}."
 
 
 @app.get("/demo")
@@ -265,7 +303,7 @@ def demo(minutes: int = 60):
         raise HTTPException(400,"Choose 15, 60, 180 minutes or all history")
     now=time.time();start=now-minutes*60 if minutes else M.s.one("SELECT COALESCE(MIN(created),?) t FROM txs",(now,))["t"]
     styles=_agent_styles(start);ids={a['id'] for a in styles}
-    rows=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,t.drops,t.created,t.contract,c.kind,b.name buyer_name FROM txs t LEFT JOIN contracts c ON c.id=t.contract LEFT JOIN accounts b ON b.id=c.buyer WHERE t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' ORDER BY t.created",(start,))
+    rows=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,t.drops,t.created,t.contract,c.kind,b.name buyer_name FROM txs t LEFT JOIN contracts c ON c.id=t.contract LEFT JOIN accounts b ON b.id=c.buyer WHERE (t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' OR t.type='AP4M VoucherRedeemed') AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' ORDER BY t.created",(start,))
     for a in styles:
         a['receipts']=[{'asset':r['asset'],'amount':r['drops']/1e6,'at':r['created'],'contract':r['contract'],'kind':r['kind'],'buyer':r['buyer_name']} for r in rows if r['src']==a['id']]
     activity=[]
@@ -326,7 +364,7 @@ def market(request: Request, account: str = "", domain: str | None = None):
 def _paid_now() -> dict:
     """What settled deals in the current settlement asset paid on the ledger. Older counters mix in the XRP era."""
     r = M.s.one("SELECT COALESCE(SUM(t.drops), 0) micro FROM contracts c JOIN txs t ON t.contract = c.id "
-                "AND t.type LIKE 'EscrowFinish%' AND t.result = 'tesSUCCESS' WHERE c.status = 'settled' AND c.asset = ?", (M.rail.symbol(),))
+                "AND (t.type LIKE 'EscrowFinish%' AND t.result = 'tesSUCCESS' OR t.type = 'AP4M VoucherRedeemed') WHERE c.status = 'settled' AND c.asset = ?", (M.rail.symbol(),))
     return {"micro":r["micro"],"units":r["micro"]/config.MICRO_PER_UNIT}
 
 
@@ -381,8 +419,9 @@ def contract(cid: int, request: Request):
     txs = M.s.q("SELECT * FROM txs WHERE contract = ? ORDER BY id", (cid,))
     for t in txs:
         t["reference"] = f"C{cid}-T{t['id']}"
+        evm = (t.get("type") or "").startswith(("AP4M", "RLUSD forward"))
         evidence = json.loads(t["receipt"]) if t.get("receipt") else None
-        if not evidence and t.get("hash"):
+        if not evidence and t.get("hash") and not evm:
             try:
                 evidence = M.rail.receipt(t["hash"])
                 if evidence.get("validated"):
@@ -390,9 +429,9 @@ def contract(cid: int, request: Request):
             except Exception:
                 evidence = None
         t["receipt"] = evidence
-        t["url"] = M.rail.explorer(t["hash"]) if t["hash"] else None; t["src_name"] = _name(t["src"]); t["dst_name"] = _name(t["dst"])
+        t["url"] = (f"{EVM_EXPLORER}/tx/{t['hash']}" if evm else M.rail.explorer(t["hash"])) if t["hash"] else None; t["src_name"] = _name(t["src"]); t["dst_name"] = _name(t["dst"])
     for st in c["trace"].get("protocol", []):
-        st["url"] = M.rail.explorer(st["tx"]) if st.get("tx") else None; st["who_name"] = _name(st["who"]) if st.get("who") else None
+        st["url"] = st.get("url") or (M.rail.explorer(st["tx"]) if st.get("tx") else None); st["who_name"] = _name(st["who"]) if st.get("who") else None
     c["overview"] = json.loads(c.get("overview") or "null")
     c.pop("terms",None)
     c["seller_name"] = _name(c.get("seller")) if c.get("seller") else None
@@ -448,12 +487,12 @@ def portfolio(aid: str, request: Request):
     if not a:
         raise HTTPException(404)
     addr=a.get("payout") if a.get("payout") and M.rail.has_line(a["payout"]) else M.addr.get(aid)
-    income=M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND type LIKE 'EscrowFinish%' AND result='tesSUCCESS' GROUP BY asset",(aid,))
-    spending=M.s.q("SELECT t.asset,SUM(t.drops)/1000000.0 amount FROM txs t JOIN contracts c ON c.id=t.contract WHERE c.buyer=? AND t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' GROUP BY t.asset",(aid,))
+    income=M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND (type LIKE 'EscrowFinish%' AND result='tesSUCCESS' OR type='AP4M VoucherRedeemed') GROUP BY asset",(aid,))
+    spending=M.s.q("SELECT t.asset,SUM(t.drops)/1000000.0 amount FROM txs t JOIN contracts c ON c.id=t.contract WHERE c.buyer=? AND (t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' OR t.type='AP4M VoucherRedeemed') GROUP BY t.asset",(aid,))
     transactions=[]
-    rows=M.s.q("SELECT t.*,c.buyer FROM txs t LEFT JOIN contracts c ON c.id=t.contract WHERE (t.src=? OR c.buyer=?) AND t.result='tesSUCCESS' AND (t.type LIKE 'EscrowFinish%' OR t.type LIKE 'Payment%' OR t.type LIKE 'EscrowCancel%') ORDER BY t.id DESC",(aid,aid))
+    rows=M.s.q("SELECT t.*,c.buyer FROM txs t LEFT JOIN contracts c ON c.id=t.contract WHERE (t.src=? OR c.buyer=?) AND (t.result='tesSUCCESS' AND (t.type LIKE 'EscrowFinish%' OR t.type LIKE 'Payment%' OR t.type LIKE 'EscrowCancel%') OR t.type='AP4M VoucherRedeemed') ORDER BY t.id DESC",(aid,aid))
     for t in rows:
-        transactions.append({**{k:t[k] for k in ['id','contract','created','type','asset','hash','result']},"amount":t["drops"]/1000000.0,"direction":"in" if t["src"]==aid and t["type"].startswith("EscrowFinish") or t["type"].startswith("EscrowCancel") else "out","url":M.rail.explorer(t["hash"]) if t["hash"] else None})
+        transactions.append({**{k:t[k] for k in ['id','contract','created','type','asset','hash','result']},"amount":t["drops"]/1000000.0,"direction":"in" if t["src"]==aid and t["type"].startswith(("EscrowFinish","AP4M")) or t["type"].startswith("EscrowCancel") else "out","url":(f"{EVM_EXPLORER}/tx/{t['hash']}" if str(t["hash"]).startswith("0x") else M.rail.explorer(t["hash"])) if t["hash"] else None})
     note="Recorded market transfers"
     if addr and M.rail.name!="mock":
         try:
@@ -475,7 +514,7 @@ def account(aid: str, request: Request):
     files, bundles, demand = _bundles(aid)
     growth = M.s.q("SELECT CAST((created - (SELECT MIN(created) FROM files)) / 60 AS INT) m, COUNT(*) n FROM files WHERE account = ? GROUP BY m ORDER BY m", (aid,))
     fees = M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND contract IS NULL AND result='tesSUCCESS' GROUP BY asset", (aid,))
-    balances = M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND type LIKE 'EscrowFinish%' AND result='tesSUCCESS' GROUP BY asset", (aid,))
+    balances = M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND (type LIKE 'EscrowFinish%' AND result='tesSUCCESS' OR type='AP4M VoucherRedeemed') GROUP BY asset", (aid,))
     stats = {"fees_by_asset":fees, "earned_by_asset": balances, "agreed": sum(b["agreed"] for b in bundles), "declined": sum(b["declined"] for b in bundles),
              "earned_xrp": next((b["amount"] for b in balances if b["asset"]=="XRP"),0), "fees_xrp": next((b["amount"] for b in fees if b["asset"]=="XRP"),0)}
     trade_rows=M.s.q("SELECT id,buyer,seller,kind,status,reason,total,items,sellers,asset,unit_micro,created FROM contracts WHERE buyer=? OR seller=? OR sellers LIKE ? ORDER BY id DESC", (aid,aid,'%'+json.dumps(aid)+'%'))
@@ -486,7 +525,8 @@ def account(aid: str, request: Request):
     return {"balance_address":display_address,"trades":trades,"agent_queue": M.s.q("SELECT q.*,p.purpose,p.buyer,c.status contract_status,c.reason contract_reason FROM sale_queue q LEFT JOIN postings p ON p.id=q.posting LEFT JOIN contracts c ON c.id=q.contract WHERE q.account=? ORDER BY q.id DESC", (aid,)),
             "account": a, "balance": display_balance, "address": M.addr.get(aid), "stats": stats, "bundles": bundles, "demand": demand,
             "bought": [f for f in files if f["status"] in ("bought", "bundled")], "files": len(files), "growth": growth,
-            "uploads": M.s.q("SELECT * FROM uploads WHERE account = ? ORDER BY id DESC LIMIT 10", (aid,)),
+            "uploads": [{**u, "fee_url": (f"{EVM_EXPLORER}/tx/{u['fee_tx']}" if config.AP4M and str(u["fee_tx"]).startswith("0x") else M.rail.explorer(u["fee_tx"])) if u.get("fee_tx") else None, "fee_label": f"{_micro(u['fee_micro'] if u.get('fee_micro') is not None else round((u['fee'] or 0) * config.MICRO_PER_UNIT))} {M.rail.label()}"}
+                        for u in M.s.q("SELECT * FROM uploads WHERE account = ? ORDER BY id DESC LIMIT 10", (aid,))],
             "recs": M.s.q("SELECT * FROM recs WHERE account = ? AND status = 'open' ORDER BY id DESC", (aid,)),
             "chat": [{**c, "actions": json.loads(c["actions"]) if c["actions"] else None} for c in M.s.q("SELECT * FROM chat WHERE account = ? ORDER BY id DESC", (aid,))][::-1]}
 
@@ -606,6 +646,9 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
     if aid == "demo-vault" and _chat_today(aid) >= config.DEMO_CHAT_DAILY:
         raise HTTPException(429, "the shared demo has used today's agent messages; use your own vault or try again tomorrow")
     text = body["text"].strip()[:500]
+    last = M.s.one("SELECT text, created FROM chat WHERE account = ? AND role = 'me' ORDER BY id DESC LIMIT 1", (aid,))
+    if last and last["text"] == text and time.time() - (last["created"] or 0) < 10:
+        return {"ok": True, "duplicate": True}   # a double click or a resent form, not a new question
     M.chat(aid, "me", text)
     a = M.acct(aid)
     discovery = body.get("intent")=="discover" or bool(re.search(r"^(?:what|which|how|where)\b|\bcan i\b|뭘|무엇|어떤|뭐|팔\s*수\s*있",text,re.I))
@@ -621,12 +664,40 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
     return {"ok": True}
 
 
+def _micro(m: int) -> str:
+    """The amount actually paid, in the asset, without rounding a 0.005 fee up to 0.01."""
+    return f"{m / 1e6:.6f}".rstrip("0").rstrip(".") if m % 10000 else f"{m / 1e6:.2f}"
+
+
 def _amt(w) -> str:
-    return f"{w['expected']*config.MICRO_PER_UNIT/1000000:.2f} {M.rail.label()}"
+    return f"{_micro(round(w['expected'] * config.MICRO_PER_UNIT))} {M.rail.label()}"
 
 
 def _offer_buttons(offers) -> list[dict]:
-    return [{"t":f"{KINDS[w['kind']]['label']} · {w['purpose']} · ~{_amt(w)}","do":"interest","posting":w["id"]} for w in offers]
+    seen, out = set(), []
+    for w in offers:   # one button per buyer and purpose; three identical labels read as a bug
+        key = (w["kind"], w["purpose"], w.get("buyer_name"))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"t": f"Sell to {w.get('buyer_name') or 'buyer'} · {w['purpose']} · ~{_amt(w)}", "do": "interest", "posting": w["id"]})
+    return out
+
+
+def _retire_suggestions(aid: str):
+    """A new list of offers replaces the last one; old suggestion buttons stop counting as 'waiting for you'."""
+    for c in M.s.q("SELECT id, actions FROM chat WHERE account = ? AND done = 0 AND actions IS NOT NULL", (aid,)):
+        acts = json.loads(c["actions"] or "[]")
+        if acts and all(x.get("do") in ("interest", "sell_kind", "post_buy", "set_min") for x in acts):
+            M.s.x("UPDATE chat SET done = 1 WHERE id = ?", (c["id"],))
+
+
+def _distinct(offers) -> list[dict]:
+    seen, out = set(), []
+    for w in offers:
+        if (w["kind"], w["purpose"], w["buyer_name"]) not in seen:
+            seen.add((w["kind"], w["purpose"], w["buyer_name"])); out.append(w)
+    return out
 
 
 def _set_min(aid: str, kind: str, price: float):
@@ -657,9 +728,10 @@ def _rules_chat(aid: str, text: str, body: dict, discovery: bool):
     if p["intent"] == "other":
         M.chat(aid, "agent", "Tell me what to sell or what you need, for example 'sell my sleep logs' or 'I need air-quality data'.")
     elif not p["kind"]:
-        offers=_sell_now(aid)[:3]
+        offers=_distinct(_sell_now(aid))[:3]
         if offers:
-            M.chat(aid,"agent",f"{len(offers)} buyer request{'s' if len(offers)>1 else ''} fit your data and your minimums: "+"; ".join(f"{KINDS[w['kind']]['label']} for {w['purpose']} (~{_amt(w)})" for w in offers)+". Pick one and I'll negotiate it for you. The price is an estimate until the deal settles.",
+            _retire_suggestions(aid)
+            M.chat(aid,"agent",f"{len(offers)} buyer{'s' if len(offers)>1 else ''} want data you have: "+"; ".join(f"{w['buyer_name']} wants {KINDS[w['kind']]['label'].lower()} for {w['purpose']} (~{_amt(w)})" for w in offers)+". Which one should I negotiate? The price is an estimate until the deal settles.",
                    _offer_buttons(offers))
         else:
             M.chat(aid,"agent","I found no matching sale yet. Add records in My DB; I will classify them and compare them with buyers' requests. Your files stay private until you choose to sell.")
@@ -681,13 +753,13 @@ def _converse(aid: str, text: str, body: dict, discovery: bool):
         a = M.acct(aid); u = config.MICRO_PER_UNIT/1000000
         files = M.s.q("SELECT kind, status, COUNT(*) n FROM files WHERE account = ? AND status IN ('listed','private') GROUP BY kind, status", (aid,))
         sold = M.s.one("SELECT COUNT(*) n, COALESCE(SUM(total*unit_micro),0)/1000000.0 t FROM contracts WHERE seller = ? AND status = 'settled' AND asset = ?", (aid, M.rail.symbol()))
-        offers = _sell_now(aid)[:12]
+        offers = _distinct(_sell_now(aid))[:12]
         demand = [{"kind": d["kind"], "n": d["n"], "best": d["best"]} for d in M.s.q("SELECT kind, COUNT(*) n, MAX(max) best FROM postings WHERE status='open' AND buyer != ? GROUP BY kind", (aid,))]
         history = [{"who": c["role"], "text": c["text"][:300]} for c in M.s.q("SELECT role, text FROM chat WHERE account = ? ORDER BY id DESC LIMIT 8", (aid,))][::-1]
         ctx = {"asset": M.rail.label(), "my_files": [dict(f) for f in files], "deals_sold": sold["n"], "sold_total": sold["t"],
-               "selling_mode": a["sell_agent"].get("mode"), "my_minimums": {k: round(v*u, 2) for k, v in (a["sell_agent"].get("min") or {}).items()},
-               "blocked_purposes": a["sell_agent"].get("blocks", []), "auto_buy_limit": round(a["buy_agent"].get("auto_limit", 0)*u, 2),
-               "matching_offers": [{"id": w["id"], "kind": w["kind"], "buyer": w["buyer_name"], "purpose": w["purpose"], "you_would_get": round(w["expected"]*u, 2), "buyer_budget": round(w["max"]*u, 2)} for w in offers],
+               "selling_mode": a["sell_agent"].get("mode"), "my_minimums": {k: round(v*u, 6) for k, v in (a["sell_agent"].get("min") or {}).items()},
+               "blocked_purposes": a["sell_agent"].get("blocks", []), "auto_buy_limit": round(a["buy_agent"].get("auto_limit", 0)*u, 6),
+               "matching_offers": [{"id": w["id"], "kind": w["kind"], "buyer": w["buyer_name"], "purpose": w["purpose"], "you_would_get": round(w["expected"]*u, 6), "buyer_budget": round(w["max"]*u, 6)} for w in offers],
                "open_demand_by_kind": demand, "kinds": {k: v["label"] for k, v in KINDS.items()}}
         side = "buy_agent" if agents.parse_chat(text)["intent"] == "buy" else "sell_agent"
         out = agents.chat_reply(text, ctx, history, model=a[side].get("model", "auto"))
@@ -702,10 +774,18 @@ def _converse(aid: str, text: str, body: dict, discovery: bool):
         if sm.get("kind") in KINDS and isinstance(sm.get("price"), (int, float)) and 0 <= sm["price"] < 1e6:
             acts.append({"t": f"Set {KINDS[sm['kind']]['label'].lower()} minimum to {sm['price']:g} {M.rail.label()}", "do": "set_min", "kind": sm["kind"], "price": float(sm["price"])})
         if out.get("sell_kind") in KINDS:
-            acts.append({"t": f"Sell my {KINDS[out['sell_kind']]['label'].lower()}", "do": "sell_kind", "kind": out["sell_kind"]})
+            n = sum(1 for w in offers if w["kind"] == out["sell_kind"])
+            acts.append({"t": f"Sell my {KINDS[out['sell_kind']]['label'].lower()} to the best-fitting buyer" + (f" ({n} open request{'s' if n > 1 else ''})" if n else ""), "do": "sell_kind", "kind": out["sell_kind"]})
         buy = out.get("buy") or {}
         if buy.get("kind") in KINDS and isinstance(buy.get("budget"), (int, float)) and 0 < buy["budget"] < 1e6:
-            acts.append({"t": f"Post a request: {KINDS[buy['kind']]['label'].lower()} up to {buy['budget']:g} {M.rail.label()}", "do": "post_buy", "kind": buy["kind"], "budget": float(buy["budget"])})
+            limit = round(a["buy_agent"].get("auto_limit", 0)*u, 2); market = round(M.quote(buy["kind"])["price"]*u, 2); label = KINDS[buy["kind"]]["label"].lower()
+            if market > limit > 0:   # short budget: two concrete choices instead of asking again
+                acts.append({"t": f"Raise my limit to {market:g} and buy {label}", "do": "post_buy", "kind": buy["kind"], "budget": market, "limit": market})
+                acts.append({"t": f"Post a request at {limit:g} and wait for a seller", "do": "post_buy", "kind": buy["kind"], "budget": limit})
+            else:
+                acts.append({"t": f"Post a request: {label} up to {buy['budget']:g} {M.rail.label()}", "do": "post_buy", "kind": buy["kind"], "budget": float(buy["budget"])})
+        if acts:
+            _retire_suggestions(aid)   # only the newest suggestions stay pressable
         M.chat(aid, "agent", reply[:800], acts or None)
     except Exception:
         try:
@@ -721,6 +801,9 @@ def chat_act(aid: str, cid: int, request: Request, body: dict = Body(...)):
     c = M.s.one("SELECT * FROM chat WHERE id = ? AND account = ? AND done = 0", (cid, aid))
     if not c:
         return {"ok": False}
+    if body.get("dismiss"):   # the owner declines the suggestion or request; nothing else happens
+        M.s.x("UPDATE chat SET done = 1 WHERE id = ?", (cid,))
+        return {"ok": True}
     act = json.loads(c["actions"])[int(body["i"])]
     M.s.x("UPDATE chat SET done = 1 WHERE id = ?", (cid,))
     if act["do"] == "interest":
@@ -741,6 +824,9 @@ def chat_act(aid: str, cid: int, request: Request, body: dict = Body(...)):
         _set_min(aid, act["kind"], act["price"])
         M.chat(aid, "agent", f"Your minimum for {KINDS[act['kind']]['label'].lower()} is now {act['price']:g} {M.rail.label()}.")
     elif act["do"] == "post_buy" and act.get("kind") in KINDS:
+        if act.get("limit"):
+            a = M.acct(aid); a["buy_agent"]["auto_limit"] = float(act["limit"])/(config.MICRO_PER_UNIT/1000000)
+            M.s.x("UPDATE accounts SET buy_agent=? WHERE id=?", (json.dumps(a["buy_agent"]), aid))
         pid = _post_buy(aid, act["kind"], act["budget"]/(config.MICRO_PER_UNIT/1000000))
         M.chat(aid, "agent", f"Posted request #{pid} for {KINDS[act['kind']]['label'].lower()}, up to {act['budget']:g} {M.rail.label()}. I'll negotiate it next.")
     elif act["do"] == "skip_buy":

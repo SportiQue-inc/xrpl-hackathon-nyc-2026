@@ -23,8 +23,12 @@ delegation with Touch ID):
   | L0 ask me always | - | - | - | - | - | never |
   | L1 | C | - | - | - | - | never |
   | L2 | C | B | - | - | - | never |
-  | L3 | C | B | A | A, controlled workspace | - | never |
-  | L4 auto except genomic | C | B | A | A, controlled workspace | A, controlled workspace | never |
+  | L3 | C | B | A | screens A, controlled workspace; then asks | - | never |
+  | L4 auto except genomic and imaging | C | B | A | screens A, controlled workspace; then asks | A, controlled workspace | never |
+
+Imaging (CT, MRI) is T3: the agent never sells it on its own. It screens the buyer (grade at or above
+the bar, controlled workspace) and then asks the person for a fresh approval each time; a buyer that
+fails the screen is held without asking.
 
 Genomic data: the agent is a tool that executes the person's signed consent, never a proxy that
 consents for them. Raw variants are never delegated: each study needs a fresh passkey signature from
@@ -121,6 +125,7 @@ class AutonomyPolicy:
         self.sold_drops = 0
 
     def genomic(self, trade: dict, b: dict) -> tuple[str, str]:
+        """After the T3 screen in decide(): Mongolia, then raw vs computed output and signed scope."""
         if self.home == "MN":
             return "refuse", "blocked: genomic data of participants in Mongolia is left out of this MVP"
         if trade.get("output") != "aggregate":
@@ -146,8 +151,19 @@ class AutonomyPolicy:
         nv = {k for k in classes if k in self.never or (k in ("genomic", "imaging", "imaging_pseudo") and "T3" in self.never)}
         if nv:
             return "refuse", f"blocked: you set never for {', '.join(LABEL[k] for k in sorted(nv))}"
-        if "genomic" in classes:
-            return self.genomic(trade, b)
+        img = classes & {"imaging", "imaging_pseudo"}
+        if "genomic" in classes or img:
+            # T3 (genomic, imaging): the same screen first, whatever the preset; a buyer below the bar or
+            # outside a controlled workspace is held, never put to the owner
+            kind = _t3_kind(trade["columns"])
+            bar = self.bars.get("imaging_pseudo") or "A"
+            if GRADES.index(g) > GRADES.index(bar) or b.get("workspace") != "controlled":
+                return "refuse", (f"held: {kind} needs grade {bar}+ and a controlled workspace, buyer is {g} "
+                                  f"({'; '.join(why)})")
+            if "genomic" in classes:
+                return self.genomic(trade, b)
+            return "gate", (f"{kind} is highly sensitive (T3): needs your fresh approval every time; "
+                            f"buyer grade {g} passed your rules")
         short = []
         for k in sorted(classes):
             bar = self.bars.get(k)
@@ -172,6 +188,16 @@ class AutonomyPolicy:
         return rng.random() < self.accept, response_h(rng)
 
 
+def _t3_kind(columns) -> str:
+    """The data type named in a T3 reason: MRI, CT, genomic data."""
+    for c in columns:
+        if c.startswith("imaging."):
+            return c.split(".", 1)[1].split("_")[0].upper()
+        if data_class(c, {}) == "genomic":
+            return "genomic data"
+    return "this data"
+
+
 class SensitivityPolicy(AutonomyPolicy):
     """Act 2: the same autonomy check, with tiered consent per institution on top."""
     name = "sensitivity"
@@ -194,13 +220,6 @@ class SensitivityPolicy(AutonomyPolicy):
         if v == "refuse":
             return v, why
         r = self._request(trade)
-        if v == "allow" and {data_class(c, trade) for c in trade["columns"]} <= {"imaging_pseudo", "T0", "T1", "R"} \
-                and any(data_class(c, trade) == "imaging_pseudo" for c in trade["columns"]):
-            bad = self.owner.restrictions(r)
-            if bad:
-                return "refuse", f"blocked: {bad}"
-            self.owner._log(r, "auto", "pseudonymized imaging to a controlled workspace, buyer meets your bar")
-            return "allow", why
         e = self.owner.request(r)
         if e["decision"] == "refused":
             return "refuse", e["why"]

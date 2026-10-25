@@ -54,6 +54,31 @@ def test_send_contributes_auto_items_and_raises_power(w):
     assert all(c["status"] == "delivered" for c in v["contributions"])
 
 
+def test_repeating_send_keeps_the_same_requests_and_payments(w):
+    first = sent(w)
+    requests = len(w.study.requests)
+    payments = len(w.store.q("SELECT * FROM payments"))
+    again = study.send(w)
+    assert again["spec_status"] == first["spec_status"] == "sent"
+    assert len(w.study.requests) == requests
+    assert len(w.store.q("SELECT * FROM payments")) == payments
+
+
+def test_repeating_an_approved_goal_does_not_reset_its_budget_approval(w):
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    approvals = len(w.store.q("SELECT * FROM approvals"))
+    budget = study.study_view(w)["study"]["budget_xrp"]
+    assert study.set_goal(w, "", capable_needs)["spec_status"] == "approved"
+    assert len(w.store.q("SELECT * FROM approvals")) == approvals
+    assert study.study_view(w)["study"]["budget_xrp"] == budget
+
+
+def test_study_and_participant_expose_the_actual_settlement_asset(w):
+    from agentrail import units
+    assert study.study_view(w)["study"]["asset"] == units.UNIT
+    assert study.participant_view(w, HERO)["asset"] == units.UNIT
+
+
 def test_participant_card_classifies_items_and_shows_ledger_badge(w):
     sent(w)
     card = study.participant_view(w, HERO)["requests"][0]
@@ -80,8 +105,14 @@ def test_approve_contributes_and_issues_a_licence_then_revoke_claws_back_and_ref
     st = {c["weeks"][0]: c["status"] for c in v["contributions"] if "fatigue.survey" in c["items"]}
     assert st == {3: "delivered", 4: "delivered", 5: "escrowed"}       # week 5 held until the round closes
     assert v["licence"]["held_by_study"]
+    held = next(c for c in v["contributions"] if c["weeks"] == [5])
+    done = next(c for c in v["contributions"] if c["weeks"] == [3])
+    assert held["refund_at"] and done["refund_at"] is None
+    assert len(done["bundle_hash"]) == 64 and done["consent_hash"] == v["consent"]["doc_hash"]
     r = study.participant_revoke(w, HERO)
     assert r["clawback"]["tx"] and r["withheld"] and r["refunds"][0]["tx"]
+    assert r["held_rounds"] == [{**r["held_rounds"][0], "week": 5, "key_released": False}]
+    assert r["further_access"].startswith("refused")
     assert r["licence"]["held_by_study"] is False and r["consent"]["status"] == "revoked"
     assert {c["weeks"][0]: c["status"] for c in r["contributions"] if "fatigue.survey" in c["items"]}[5] == "refunded"
     d = r["deletion"]
@@ -344,3 +375,26 @@ def test_clinic_export_is_paid_over_real_http_402(w):
     assert ok.status_code == 200 and ok.json()["receipt"]["success"] and "PAYMENT-RESPONSE" in ok.headers
     again = c.get("/export", params=q, headers={"PAYMENT-SIGNATURE": hdr})
     assert again.status_code == 402 and again.json()["error"] == "payment_already_used"
+
+
+@pytest.mark.parametrize("network", ["mock", "testnet"])
+def test_participant_reports_the_configured_ledger(w, monkeypatch, network):
+    monkeypatch.setattr(w.ledger, "name", network)
+    assert study.participant_view(w, HERO)["ledger"] == network
+
+
+def test_clinic_export_fee_settles_in_xrp_when_orders_settle_in_a_token(w, monkeypatch):
+    """Token mode: the ledger's amount parser only counts the settlement token, so an XRP fee read as
+    'no amount' used to fail with not_settled:tesSUCCESS. The clinic now checks the delivered XRP."""
+    import dataclasses
+    from agentrail import clinic
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    study.send(w)
+    real = w.ledger.lookup
+    monkeypatch.setattr(w.ledger, "lookup", lambda h: dataclasses.replace(
+        real(h), amount_drops=None, xrp_drops=real(h).amount_drops))
+    n = len(w.study.export_fees)
+    study._export_fee(w, w.cohort_people[HERO], ["blood_pressure.daily"])
+    f = w.study.export_fees[n]
+    assert f["ok"] and f["http"] == [402, 200], f
+    assert clinic._cfg["fee"] > 0

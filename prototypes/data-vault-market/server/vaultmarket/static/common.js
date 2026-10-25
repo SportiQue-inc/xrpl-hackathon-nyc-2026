@@ -43,6 +43,7 @@ async function topbar(page) {
   $("ledgerTag").hidden = true;
   $("modelTag").hidden = true;
   AUTH_READY = true;
+  if (typeof tourInit === "function") tourInit();
 }
 function memberBalance(account) {
   const el=$("accountName");
