@@ -19,6 +19,12 @@ KINDS = {
     "air": {"label": "Air-quality sensor data", "domain": "Environment", "price": 4, "personal": False, "ext": "csv"},
 }
 DIRECT = {"owner_name", "email", "phone", "device_serial", "card_last4", "home", "passport_no", "dob", "address"}
+PACKAGE_KIND = 'data_package'
+PACKAGE_INFO = {'label': 'Data package', 'domain': 'Mixed data', 'personal': True}
+
+
+def kind_info(kind):
+    return PACKAGE_INFO if kind == PACKAGE_KIND else KINDS[kind]
 
 # Real New York running loops (rough centre lat/lng, loop radius in km).
 ROUTES = [("Central Park loop", 40.7812, -73.9665, 1.6), ("Prospect Park loop", 40.6602, -73.9690, 1.3),
