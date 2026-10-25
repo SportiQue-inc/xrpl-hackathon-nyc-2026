@@ -59,9 +59,11 @@ class Voice:
             p = "openai" if os.environ.get("OPENAI_API_KEY") else (
                 "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "none")
         self.provider = p
-        self.timeout = float(os.environ.get("LLM_TIMEOUT", "8"))
+        self.timeout = float(os.environ.get("LLM_TIMEOUT", "30"))   # reasoning models take longer
         self.max_calls = int(os.environ.get("LLM_MAX_CALLS", "60"))
         self.calls = 0
+        self.rpm = float(os.environ.get("LLM_RPM", "60"))   # client-side throttle, below the project limit
+        self._next_slot = 0.0
         self.error: str | None = None
         self._lock = threading.Lock()
         self._client = None
@@ -69,7 +71,9 @@ class Voice:
             if p == "openai":
                 from openai import OpenAI
                 self._client = OpenAI(timeout=self.timeout, max_retries=0)
-                self.model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+                # o3-mini has the widest per-minute limit on the team's project (150 RPM, 1M TPM);
+                # gpt-4o-mini and most others are 10 RPM there.
+                self.model = os.environ.get("OPENAI_MODEL", "o3-mini")
             elif p == "anthropic":
                 import anthropic
                 self._client = anthropic.Anthropic(timeout=self.timeout, max_retries=0)
@@ -95,10 +99,37 @@ class Voice:
         self.error = f"{type(e).__name__}: {e}"[:200]
         self._client = None
 
+    def _throttle(self):
+        import time
+        with self._lock:
+            now = time.monotonic()
+            wait = max(0.0, self._next_slot - now)
+            self._next_slot = max(now, self._next_slot) + 60.0 / self.rpm
+        if wait:
+            time.sleep(wait)
+
+    def _openai(self, **kw):
+        """One request, paced; on 429 wait for Retry-After (or a few seconds) and try twice more."""
+        import time
+        if self.model.startswith(("o1", "o3", "o4", "gpt-5")):
+            kw["reasoning_effort"] = os.environ.get("LLM_REASONING", "low")
+            kw["max_completion_tokens"] = max(kw.get("max_completion_tokens", 0), 4000)
+        for attempt in range(3):
+            self._throttle()
+            try:
+                return self._client.chat.completions.create(model=self.model, user=TAG, **kw)
+            except Exception as e:
+                status = getattr(e, "status_code", None)
+                body = str(e).lower()
+                if status != 429 or "insufficient_quota" in body or attempt == 2:
+                    raise
+                ra = getattr(getattr(e, "response", None), "headers", {}).get("retry-after")
+                time.sleep(min(float(ra) if ra else 4.0 * (attempt + 1), 20))
+
     def _ask(self, prompt: str) -> str:
         if self.provider == "openai":
-            r = self._client.chat.completions.create(
-                model=self.model, max_completion_tokens=400, user=TAG,
+            r = self._openai(
+                max_completion_tokens=400,
                 messages=[{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}])
             return (r.choices[0].message.content or "").strip()
         r = self._client.messages.create(
@@ -108,8 +139,8 @@ class Voice:
 
     def _ask_json(self, system: str, prompt: str) -> dict:
         if self.provider == "openai":
-            r = self._client.chat.completions.create(
-                model=self.model, max_completion_tokens=1500, response_format={"type": "json_object"}, user=TAG,
+            r = self._openai(
+                max_completion_tokens=1500, response_format={"type": "json_object"},
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}])
             text = r.choices[0].message.content or ""
         else:
@@ -135,14 +166,7 @@ class Voice:
                 return (hit["answer"], "llm") if hit else (None, "rules")
             self.calls += 1
         try:
-            try:
-                out = self._ask_json(system, json.dumps(payload, ensure_ascii=False))
-            except Exception as e:
-                if "rate" not in str(e).lower() or "quota" in str(e).lower() or "per day" in str(e).lower():
-                    raise
-                import time
-                time.sleep(7)      # per-minute limit: wait once, then give up
-                out = self._ask_json(system, json.dumps(payload, ensure_ascii=False))
+            out = self._ask_json(system, json.dumps(payload, ensure_ascii=False))
             if self.record and isinstance(out, dict):
                 with self._lock:
                     self.cache[key] = {"model": self.model, "answer": out}
