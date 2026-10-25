@@ -102,28 +102,24 @@
  },
  "64cbf73fcef7a647edac19c26baa491cdc794e17b385cc38902efcb5c6932a37": {
   "answer": {
-   "budget_xrp": 300000,
+   "budget_xrp": 100000,
    "do_not_request": [
     {
      "item": "sleep.daily",
-     "reason": "Coverage is nearly complete across all weeks (48-50/50), sufficient for primary analysis."
-    },
-    {
-     "item": "fatigue.survey",
-     "reason": "Except for weeks 3-5, coverage is good; requesting beyond missing weeks not needed."
+     "reason": "Sleep data coverage is nearly complete (48-50/50 per week) and no action needed as per analysis note."
     },
     {
      "item": "activity.daily",
-     "reason": "Complete coverage for all weeks; not needed for primary or secondary analysis."
+     "reason": "Activity data is complete for all weeks and participants; not required by the protocol."
     },
     {
      "item": "blood_pressure.daily",
-     "reason": "No ethics approval for exploratory blood pressure data collection."
+     "reason": "Blood pressure data coverage is zero; protocol states data only collected if ethics approved; no indication to start."
     }
    ],
    "gaps": [
     {
-     "evidence": "fatigue.survey coverage w3: 16/50, w4: 17/50, w5: 11/50 plus note: 'Fatigue survey app outage during weeks 3-5; most participants have no score for those weeks.'",
+     "evidence": "\"fatigue.survey\": {\"w3\": \"16/50\", \"w4\": \"17/50\", \"w5\": \"11/50\"}, analysis_note: \"Fatigue survey app outage during weeks 3-5; most participants have no score for those weeks.\"",
      "item": "fatigue.survey",
      "weeks": [
       3,
@@ -132,7 +128,7 @@
      ]
     },
     {
-     "evidence": "heart_rate.daily coverage w4: 37/50, w5: 38/50 plus note: 'Resting heart rate missing for a subgroup in weeks 4-5 (device sync issue).'",
+     "evidence": "\"heart_rate.daily\": {\"w4\": \"37/50\", \"w5\": \"38/50\"}, analysis_note: \"Resting heart rate missing for a subgroup in weeks 4-5 (device sync issue).\"",
      "item": "heart_rate.daily",
      "weeks": [
       4,
@@ -140,8 +136,30 @@
      ]
     }
    ],
-   "purpose": "To restore sufficient data completeness for the primary analysis of sleep debt and fatigue association and to improve power for the interim report.",
-   "summary_for_participants": "We need to collect missing weekly fatigue survey responses and some resting heart rate data for weeks 3 to 5 to ensure our study can reliably assess how your sleep and fatigue relate."
+   "purpose": "To restore sufficient participant-week data coverage for primary analysis assessing the association between weekly sleep debt and fatigue score, ensuring study power is at least 80%.",
+   "summary_for_participants": "We need to collect more fatigue survey data for weeks 3 to 5 and complete missing resting heart rate data during these weeks to improve the accuracy of our sleep and fatigue study results."
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "9c3b9752863552801d8509500e5cfc0f1e5d2b4c1d392c8256c66809e5061d4c": {
+  "answer": {
+   "missing": [
+    {
+     "item": "fatigue.survey",
+     "reason": "held data missing but source has it",
+     "week": 3
+    },
+    {
+     "item": "fatigue.survey",
+     "reason": "held data missing but source has it",
+     "week": 4
+    },
+    {
+     "item": "heart_rate.daily",
+     "reason": "held data missing but source has it",
+     "week": 4
+    }
+   ]
   },
   "model": "gpt-4.1-mini"
  },

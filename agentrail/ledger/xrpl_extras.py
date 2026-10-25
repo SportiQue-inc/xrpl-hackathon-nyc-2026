@@ -67,14 +67,21 @@ def submit_capture(client, tx, wallet, timeout: float = 90.0) -> tuple[str, str,
 class XrplExtrasMixin:
     def _past_hashes(self, account: str, wanted: list[str], match=lambda tx: True) -> list[str]:
         """Hashes of earlier successful txs of the given types (re-runs reuse wallets.local.json)."""
+        # Oldest first: setup txs sit at the start of an account's history, which grows by
+        # hundreds of payments per run (the newest-200 window lost them after a few runs).
         found: dict[str, str] = {}
-        r = self.client.request(AccountTx(account=account, limit=200)).result
-        for t in r.get("transactions", []):
-            tx = t.get("tx_json") or t.get("tx") or {}
-            ty = tx.get("TransactionType")
-            if (ty in wanted and ty not in found and match(tx)
-                    and t.get("meta", {}).get("TransactionResult") == "tesSUCCESS"):
-                found[ty] = t.get("hash") or tx.get("hash")
+        marker = None
+        for _ in range(20):
+            r = self.client.request(AccountTx(account=account, limit=200, forward=True, marker=marker)).result
+            for t in r.get("transactions", []):
+                tx = t.get("tx_json") or t.get("tx") or {}
+                ty = tx.get("TransactionType")
+                if (ty in wanted and ty not in found and match(tx)
+                        and t.get("meta", {}).get("TransactionResult") == "tesSUCCESS"):
+                    found[ty] = t.get("hash") or tx.get("hash")
+            marker = r.get("marker")
+            if len(found) == len(wanted) or not marker:
+                break
         return [found[ty] for ty in wanted if ty in found]
 
     def new_keypair(self, label: str) -> str:
