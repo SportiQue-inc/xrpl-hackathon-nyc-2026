@@ -125,6 +125,7 @@ class AutonomyPolicy:
         self.sold_drops = 0
 
     def genomic(self, trade: dict, b: dict) -> tuple[str, str]:
+        """After the T3 screen in decide(): Mongolia, then raw vs computed output and signed scope."""
         if self.home == "MN":
             return "refuse", "blocked: genomic data of participants in Mongolia is left out of this MVP"
         if trade.get("output") != "aggregate":
@@ -150,16 +151,18 @@ class AutonomyPolicy:
         nv = {k for k in classes if k in self.never or (k in ("genomic", "imaging", "imaging_pseudo") and "T3" in self.never)}
         if nv:
             return "refuse", f"blocked: you set never for {', '.join(LABEL[k] for k in sorted(nv))}"
-        if "genomic" in classes:
-            return self.genomic(trade, b)
         img = classes & {"imaging", "imaging_pseudo"}
-        if img:
-            # imaging is T3: never sold on the agent's own, whatever the preset; the agent only screens
+        if "genomic" in classes or img:
+            # T3 (genomic, imaging): the same screen first, whatever the preset; a buyer below the bar or
+            # outside a controlled workspace is held, never put to the owner
+            kind = _t3_kind(trade["columns"])
             bar = self.bars.get("imaging_pseudo") or "A"
             if GRADES.index(g) > GRADES.index(bar) or b.get("workspace") != "controlled":
-                return "refuse", (f"held: MRI needs grade {bar}+ and a controlled workspace, buyer is {g} "
+                return "refuse", (f"held: {kind} needs grade {bar}+ and a controlled workspace, buyer is {g} "
                                   f"({'; '.join(why)})")
-            return "gate", (f"MRI is highly sensitive (T3): needs your fresh approval every time; "
+            if "genomic" in classes:
+                return self.genomic(trade, b)
+            return "gate", (f"{kind} is highly sensitive (T3): needs your fresh approval every time; "
                             f"buyer grade {g} passed your rules")
         short = []
         for k in sorted(classes):
@@ -183,6 +186,16 @@ class AutonomyPolicy:
 
     def owner_answers(self, trade, rng, response_h):
         return rng.random() < self.accept, response_h(rng)
+
+
+def _t3_kind(columns) -> str:
+    """The data type named in a T3 reason: MRI, CT, genomic data."""
+    for c in columns:
+        if c.startswith("imaging."):
+            return c.split(".", 1)[1].split("_")[0].upper()
+        if data_class(c, {}) == "genomic":
+            return "genomic data"
+    return "this data"
 
 
 class SensitivityPolicy(AutonomyPolicy):

@@ -11,6 +11,8 @@ zooms into that pair and steps through the decision. Each step is labelled with 
 """
 from __future__ import annotations
 
+from . import units
+
 import json
 import math
 
@@ -24,7 +26,7 @@ def _weeks(n) -> str:
 
 
 def _xrp(d) -> str:
-    return f"{d / 1e6:g} XRP"
+    return f"{d / 1e6:g} {units.UNIT}"
 
 
 def trace(t: dict, need: dict | None) -> list[dict]:

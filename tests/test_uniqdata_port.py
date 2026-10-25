@@ -1,4 +1,5 @@
 """Contract tests: engine results turned into the records UniQdata and UniQLab already store."""
+from agentrail import units
 import json
 
 import pytest
@@ -107,7 +108,7 @@ def test_one_payout_receipt_per_delivered_round(revoked):
     assert len({x["payout_intent_ref"] for x in receipts}) == len(receipts)
     for rec, c in zip([x for x in receipts if x["payout_intent_ref"].startswith("agentrail:order:")], delivered):
         assert rec["receipt_ref_hash"] == sha256_hex(c["finish"]["tx"])
-        assert isinstance(rec["amount_minor"], int) and rec["currency"] == "XRP"
+        assert isinstance(rec["amount_minor"], int) and rec["currency"] == units.UNIT
 
 
 def test_no_participant_id_leaves_through_the_port(revoked):

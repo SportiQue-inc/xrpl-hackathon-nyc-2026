@@ -8,13 +8,15 @@ negotiation from the log alone. Built from what the engine decided; nothing here
 """
 from __future__ import annotations
 
+from .. import units
+
 from .policies import GRADES, LABEL, PROHIBITED, data_class, trust_grade
 
 SCHEMA = "agentrail.contract_trace/1"
 
 
 def _x(d) -> str:
-    return f"{d / 1e6:g} XRP"
+    return units.fmt(d)
 
 
 def _wk(n) -> str:
@@ -70,12 +72,20 @@ def build(need, plan: dict, disc: dict, cand: dict, neg: dict, record: dict | No
         say("buyer", f"I already hold {round(cand['overlap'] * 100)}% of this; I pay only for the new part.",
             f"{cand['overlap_why']}; the ask {_x(cand['full_ask_drops'])} becomes {_x(cand['ask_drops'])}",
             [{"name": "overlap with my store", "ok": True, "detail": f"{round(cand['overlap'] * 100)}%"}], "provenance")
+    ref, sc = neg.get("reference") or {}, neg.get("scarcity") or {}
     say("seller", f"Listed at {_x(cand['ask_drops'])}, grade {cand['grade']}.",
+        (f"reference {_x(ref['price'])} ({ref['source']}) × scarcity {sc.get('factor')} "
+         f"({sc.get('demand')} needs for these columns in the last day, {sc.get('supply')} listings); "
+         f"never under my owner's floor {_x(neg.get('owner_floor', 0))}") if ref else
         "asking price from the column tier rate × weeks × grade; certificate root commits to every row",
-        [{"name": "certificate", "ok": True, "detail": f"grade {cand['grade']}"}], "quality")
+        [{"name": "certificate", "ok": True, "detail": f"grade {cand['grade']}"}] +
+        ([{"name": "market reference", "ok": True,
+           "detail": f"{_x(ref['low'])}–{_x(ref['high'])}, {ref['n']} settled trades"}] if ref else []), "price")
     for r in neg.get("rounds", []):
         say("buyer", f"I offer {_x(r['bid'])}.",
-            "opening at 80% of the ask" if r["round"] == 1 else f"raising toward my ceiling {_x(ceiling)}", [], "price")
+            (f"opening at the low end of the market range {_x(ref['low'])}" if ref else "opening at 80% of the ask")
+            if r["round"] == 1 else f"raising toward my ceiling {_x(ceiling)}"
+            + (f" ({neg['ceiling_why']})" if neg.get("ceiling_why") else ""), [], "price")
         if r["bid"] >= r["counter"]:
             break
         say("seller", f"My price is {_x(r['counter'])}." if r["round"] == 1 else f"I can do {_x(r['counter'])}.",

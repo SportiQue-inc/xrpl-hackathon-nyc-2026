@@ -1,4 +1,5 @@
 """Safety properties of the trade engine, on MockLedger (real sealing, real SQLite)."""
+from agentrail import units
 import json
 import threading
 
@@ -148,7 +149,7 @@ def test_over_limit_or_over_budget_stops_before_any_payment(w):
     with pytest.raises(NeedsHumanApproval):
         w.engine.place_order(request(w, price=7 * XRP))   # per-order limit 6
     res = scene_a(w, budget_xrp=30)                       # full coverage needs 35
-    assert res["status"] == "not_purchased" and "+5 XRP" in res["reason"]
+    assert res["status"] == "not_purchased" and f"+5 {units.UNIT}" in res["reason"]
     assert paid_count(w) == 0
 
 

@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+from . import units
+
 import json
 import os
 import re
@@ -26,7 +28,7 @@ ETHICS_CREDENTIAL = "ETHICS_REVIEW"   # no study topic or condition on the ledge
 ETHICS_VALID_S = 365 * 86400          # ethics approval valid one year
 
 # What the buyer's owner types, and what the company already holds and has measured.
-GOAL_TEXT = "Close the gaps our latest evaluation found before commercial deployment. Spend up to 40 XRP."
+GOAL_TEXT = f"Close the gaps our latest evaluation found before commercial deployment. Spend up to 40 {units.UNIT}."
 ROBOT_SENSORS = ["lidar", "imu"]
 INVENTORY = {
     "robot_sensors": ROBOT_SENSORS,
@@ -193,7 +195,7 @@ def top_up(w: World, buyer_id: str, amount_xrp: float, signers: list[str], treas
     except Exception as e:
         # submit_and_wait wraps the engine result in a timeout message; show just the code.
         m = re.search(r"\b(te[cfmlr][A-Z_]+)\b", str(e))
-        w.store.log(buyer_id, "refused", f"top-up of {amount_xrp:g} XRP rejected by the ledger: "
+        w.store.log(buyer_id, "refused", f"top-up of {amount_xrp:g} {units.UNIT} rejected by the ledger: "
                     f"{m.group(1) if m else e} (agent key is not on the treasury SignerList)")
         return None
     m = w.store.one("SELECT * FROM mandates WHERE buyer_id=?", buyer_id)
@@ -202,8 +204,8 @@ def top_up(w: World, buyer_id: str, amount_xrp: float, signers: list[str], treas
     chain = w.engine.mandate_chains.get(buyer_id)
     if chain is not None:      # the owner signs the new budget for the agent
         chain.issue_from(w.store.one("SELECT * FROM mandates WHERE buyer_id=?", buyer_id), w.store)
-    w.store.log(buyer_id, "top_up", f"owner + compliance co-signed a {amount_xrp:g} XRP treasury top-up; "
-                f"mandate now {(m['total_drops'] / XRP) + amount_xrp:g} XRP",
+    w.store.log(buyer_id, "top_up", f"owner + compliance co-signed a {amount_xrp:g} {units.UNIT} treasury top-up; "
+                f"mandate now {(m['total_drops'] / XRP) + amount_xrp:g} {units.UNIT}",
                 {"tx_hash": h, "url": w.ledger.explorer_url(h)})
     return h
 
@@ -215,7 +217,7 @@ def scene_a_guarded(w: World) -> dict:
     if first["status"] == "purchased" or "gap_xrp" not in first:
         return first
     gap = first["gap_xrp"]
-    w.store.log("org_robodev", "ask_human", f"agent requests +{gap:g} XRP; tries to sign the top-up alone")
+    w.store.log("org_robodev", "ask_human", f"agent requests +{gap:g} {units.UNIT}; tries to sign the top-up alone")
     top_up(w, "org_robodev", gap, [w.engine.party("org_robodev")["address"]])   # agent key: not on the list
     top_up(w, "org_robodev", gap, w.treasury_signers)                             # human approval
     return w.robot_buyer.procure(w.goal, w.sellers)
@@ -312,7 +314,7 @@ def scene_d(w: World, n: int = 50, workers: int = 10) -> dict:
         pa.set_consent("org_cohort", "sleep_research", ["sleep.daily"], automation="auto_all")
         people.append(pa)
     lab = InstitutionAgent("org_cohort", e, "sleep_research")
-    w.store.log("org_cohort", "round", f"week 1: buying sleep.daily from {len(people)} people, 1 XRP each, "
+    w.store.log("org_cohort", "round", f"week 1: buying sleep.daily from {len(people)} people, 1 {units.UNIT} each, "
                 f"{workers} payments in flight")
     oids = []
     for pa in people:
@@ -359,6 +361,8 @@ def build_cohort(w: World, n: int = 50):
             addr = wallet.classic_address
             if addr == own_wallets[pid] and hasattr(w.ledger, "wallets"):
                 w.ledger.wallets[addr] = wallet
+            if hasattr(w.ledger, "token_optin") and w.ledger.can_sign(addr):
+                w.ledger.token_optin(addr, pid)             # trust line so token escrows can pay it
         elif pid == HERO:
             addr = w.ledger.new_account(f"participant_{pid}")   # the followed participant's agent holds a key
         else:

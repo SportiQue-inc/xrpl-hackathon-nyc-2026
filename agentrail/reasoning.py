@@ -14,6 +14,8 @@ Without an LLM (no key, error) the rule versions below produce the proposal inst
 """
 from __future__ import annotations
 
+from . import units
+
 import json
 import re
 import time
@@ -175,7 +177,7 @@ def infer_spec(store, agent: str, goal_text: str, inventory: dict, limits: Owner
     except (TypeError, ValueError):
         budget = limits.budget_cap_drops
     if budget > limits.budget_cap_drops or budget <= 0:
-        notes.append(f"budget {budget / 1e6:g} XRP above owner's cap {limits.budget_cap_drops / 1e6:g}; capped")
+        notes.append(f"budget {budget / 1e6:g} {units.UNIT} above owner's cap {limits.budget_cap_drops / 1e6:g}; capped")
         budget = limits.budget_cap_drops
     sens = bool(raw.get("allow_sensitive_fields")) and limits.allow_sensitive_fields
     if raw.get("allow_sensitive_fields") and not limits.allow_sensitive_fields:

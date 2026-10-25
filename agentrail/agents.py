@@ -2,6 +2,8 @@
 permissions or move money directly: policies decide, the engine executes."""
 from __future__ import annotations
 
+from . import units
+
 import itertools
 import json
 import time
@@ -49,7 +51,7 @@ def licence_text(lic: dict) -> str:
 
 
 def xrp(drops: int) -> str:
-    return f"{drops / 1e6:g} XRP"
+    return f"{drops / 1e6:g} {units.UNIT}"
 
 
 # ---------------- organization seller agent ----------------

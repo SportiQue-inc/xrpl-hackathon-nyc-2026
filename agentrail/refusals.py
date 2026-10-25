@@ -11,6 +11,8 @@ Each step reports how many orders and payments were created (0 is the point).
 """
 from __future__ import annotations
 
+from . import units
+
 import time
 
 from .cohort import HERO
@@ -93,7 +95,7 @@ def run(w, ev, propose=None) -> list[dict]:
         n0 = _ledger_writes(w)
         d = pa.handle_request(LAB, "sleep_research", ["blood_pressure.daily"], 6, CELL_PRICE)
         add(f"1. The study's ethics approval expired on the ledger (Expiration): {HERO}'s agent refuses blood "
-            f"pressure for {CELL_PRICE / 1e6:g} XRP ({d.status}: {d.reason or ', '.join(d.refused)})",
+            f"pressure for {CELL_PRICE / 1e6:g} {units.UNIT} ({d.status}: {d.reason or ', '.join(d.refused)})",
             result=d.status, tx=hs[0], url=L.explorer_url(hs[0]), ledger_writes=_ledger_writes(w) - n0)
         L.delete_credential(board, lab, ETHICS_CREDENTIAL)
         hv = L.issue_credential(board, lab, ETHICS_CREDENTIAL, expiration=L.now() + ETHICS_VALID_S)

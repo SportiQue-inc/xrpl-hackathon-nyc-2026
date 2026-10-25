@@ -2,6 +2,8 @@
 docs/SECURITY.md for roles, login and the demo harness."""
 from __future__ import annotations
 
+from . import units
+
 import json
 import os
 import re
@@ -191,6 +193,7 @@ def state():
             accounts[pid] = {"address": p["address"], "error": str(e)}
     return {
         "ledger": w.ledger.name,
+        "unit": units.UNIT, "unit_label": units.LABEL,
         "voice": voice().label(),
         "mandates": rows("SELECT * FROM mandates"),
         "orders": orders,
@@ -607,6 +610,65 @@ def market_contracts(act: int = Query(default=1, ge=1, le=2), i: int | None = Qu
         return json.loads(json.dumps(cs[i], default=str))
     return [{"i": k, **{x: c[x] for x in ("need", "buyer", "seller", "columns", "status", "price_drops", "verdicts")}}
             for k, c in enumerate(cs)]
+
+
+class SubProjectBody(Strict):
+    name: str = Field(min_length=1, max_length=80)
+    purpose: str = Field(pattern=r"^[a-z_]{1,40}$")
+    data_types: list[str] = Field(min_length=1, max_length=20)
+    budget: float = Field(gt=0, le=1_000_000)          # in the settlement unit (units.UNIT)
+    weeks: int = Field(ge=1, le=52)
+
+
+class RelationshipConsentBody(Strict):
+    institution: str = Field(default=study.LAB, pattern=ID)
+
+
+class SubProjectDecisionBody(Strict):
+    item: str = Field(pattern=r"^[a-z0-9_.]{1,60}$")
+    allow: bool
+
+
+def _rel(fn):
+    from . import subprojects
+    return json.loads(json.dumps(_call(lambda w: fn(subprojects.of(w))), default=str))
+
+
+@app.get("/api/institution")
+def institution_view():
+    """The institution's scope, how many people hold the relationship, and its sub-projects."""
+    return _rel(lambda r: r.institution())
+
+
+@app.post("/api/institution/subprojects")
+def institution_create_subproject(body: SubProjectBody):
+    """A sub-project under the institution's one account and consented scope; returns the routing per
+    person and item (auto inside the scope, ask outside it or for T3, blocked by the person's rules)."""
+    return _rel(lambda r: r.create(body.name, body.purpose, body.data_types, int(body.budget * 1e6), body.weeks))
+
+
+@app.post("/api/institution/subprojects/{sid}/run")
+def institution_run_subproject(sid: str):
+    """One delivery round of a sub-project: one escrow per person, memo tagged sub:<sid>."""
+    return _rel(lambda r: r.run(sid) if sid in r.subprojects else {"ok": False, "reason": "unknown sub-project"})
+
+
+@app.get("/api/p/{pid}/relationship")
+def participant_relationship(pid: str):
+    """The person's one relationship with the institution: scope, consent, each sub-project's payouts."""
+    return _rel(lambda r: r.relationship(pid))
+
+
+@app.post("/api/p/{pid}/relationship/consent")
+def participant_relationship_consent(pid: str, body: RelationshipConsentBody):
+    return _rel(lambda r: {"ok": True, "consented": r.consent(pid), **r.relationship(pid)})
+
+
+@app.post("/api/p/{pid}/subprojects/{sid}/decision")
+def participant_subproject_decision(pid: str, sid: str, body: SubProjectDecisionBody):
+    """The person's answer for an item outside the scope or T3, for this sub-project only."""
+    return _rel(lambda r: r.decide(pid, sid, body.item, body.allow) if sid in r.subprojects
+                else {"ok": False, "reason": "unknown sub-project"})
 
 
 @app.get("/api/proof")
