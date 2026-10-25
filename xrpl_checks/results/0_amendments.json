@@ -1,0 +1,21 @@
+{
+ "Credentials": "enabled | feature rpc: enabled=True supported=True",
+ "DepositAuth": "enabled | feature rpc: enabled=True supported=True",
+ "DepositPreauth": "enabled | feature rpc: enabled=True supported=True",
+ "MPTokensV1": "enabled | feature rpc: enabled=True supported=True",
+ "Clawback": "enabled | feature rpc: enabled=True supported=True",
+ "Escrow": "not enabled | feature rpc: enabled=False supported=True",
+ "TokenEscrow": "enabled | feature rpc: enabled=True supported=True",
+ "Batch": "not enabled",
+ "BatchV1_1": "enabled | feature rpc: enabled=True supported=True",
+ "fixBatchV1_2": "enabled | feature rpc: enabled=True supported=True",
+ "fixBatchInnerSigs": "not enabled",
+ "AMM": "enabled | feature rpc: enabled=True supported=True",
+ "fixAMMv1_1": "enabled | feature rpc: enabled=True supported=True",
+ "fixAMMv1_2": "enabled | feature rpc: enabled=True supported=True",
+ "fixAMMv1_3": "enabled | feature rpc: enabled=True supported=True",
+ "AMMClawback": "enabled | feature rpc: enabled=True supported=True",
+ "PermissionedDomains": "enabled | feature rpc: enabled=True supported=True",
+ "DynamicMPT": "not enabled | feature rpc: enabled=False supported=True",
+ "SingleAssetVault": "not enabled | feature rpc: enabled=False supported=True"
+}

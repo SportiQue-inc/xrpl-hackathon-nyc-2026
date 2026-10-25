@@ -1,0 +1,95 @@
+{
+ "key": "5b_x402_extra",
+ "title": "x402 facilitator hosts, invoice binding, sequential payments",
+ "status": "pass",
+ "amendments": {},
+ "accounts": {
+  "buyer agent": "rwoXSYaf5jnsZyzjFVUYkW1NdNkzpiWFLt",
+  "hospital export API": "rUmP3J8AGvNQm5few7RiWMoTaLZyRD5ovf"
+ },
+ "steps": [
+  {
+   "label": "GET https://xrpl-facilitator-testnet.t54.ai/supported lists xrpl:1 + exact",
+   "kind": "check",
+   "tx": null,
+   "result": "True",
+   "expect": "True",
+   "ok": true,
+   "seconds": 0.8,
+   "explorer": null,
+   "note": "{'kinds': [FacilitatorKind(x402_version=2, scheme='exact', network='xrpl:1'), FacilitatorKind(x402_version=2, scheme='upto', network='xrpl:1'), FacilitatorKind(x402_version=2, scheme='batch-settlement', network='xrpl:1')], 'extensions': ['x402Secure'], 'signers': {'xrpl:*': []}}"
+  },
+  {
+   "label": "GET https://xrpl-x402.t54.ai/supported",
+   "kind": "observe",
+   "tx": null,
+   "result": "error: facilitator_http_error:404",
+   "expect": null,
+   "ok": true,
+   "seconds": 1.4,
+   "explorer": null,
+   "note": ""
+  },
+  {
+   "label": "[both] binding both: settle",
+   "kind": "success",
+   "tx": "92FF5C3B0C7B2F19D235C200F26DC3FDCC8ABAFEF06E2F1AEA3F0E4FF4A18ACA",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 10.5,
+   "explorer": "https://testnet.xrpl.org/transactions/92FF5C3B0C7B2F19D235C200F26DC3FDCC8ABAFEF06E2F1AEA3F0E4FF4A18ACA",
+   "note": "Memos=yes InvoiceID==sha256(invoiceId): True"
+  },
+  {
+   "label": "[invoice_id] binding invoice_id (spec): settle",
+   "kind": "success",
+   "tx": "BB43552DB66FB26715D67C024E0B7A43FA9F74AE13B9836346150D8CE21081B8",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 6.9,
+   "explorer": "https://testnet.xrpl.org/transactions/BB43552DB66FB26715D67C024E0B7A43FA9F74AE13B9836346150D8CE21081B8",
+   "note": "Memos=no InvoiceID==sha256(invoiceId): True"
+  },
+  {
+   "label": "[both] sequential #1: settle",
+   "kind": "success",
+   "tx": "092F6BFAC912C11BCBD19C895910173CFBBFC41BC53DB2157416BF38E904CF90",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 8.1,
+   "explorer": "https://testnet.xrpl.org/transactions/092F6BFAC912C11BCBD19C895910173CFBBFC41BC53DB2157416BF38E904CF90",
+   "note": "Memos=yes InvoiceID==sha256(invoiceId): True"
+  },
+  {
+   "label": "[both] sequential #2: settle",
+   "kind": "success",
+   "tx": "F1243D8BFFBE94C6FD2BB872599E9D11C8F72FC13F43CEEE866354F274382280",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 9.3,
+   "explorer": "https://testnet.xrpl.org/transactions/F1243D8BFFBE94C6FD2BB872599E9D11C8F72FC13F43CEEE866354F274382280",
+   "note": "Memos=yes InvoiceID==sha256(invoiceId): True"
+  },
+  {
+   "label": "verify with a fake x402Secure extension (optional)",
+   "kind": "observe",
+   "tx": null,
+   "result": "is_valid=False reason=verifiable_intent_requirement_token_missing",
+   "expect": null,
+   "ok": true,
+   "seconds": 0.9,
+   "explorer": null,
+   "note": "not used on the demo's main path"
+  }
+ ],
+ "notes": [],
+ "conclusion": "See rows: facilitator hosts, both invoice bindings, two sequential payments.",
+ "blocker": null,
+ "alternative": null,
+ "total_seconds": 58.5,
+ "ran_at": "2026-10-25T03:18:56Z"
+}
