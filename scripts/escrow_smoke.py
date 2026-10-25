@@ -7,8 +7,8 @@ from agentrail.ledger.conditions import condition_hex, fulfillment_hex, new_key
 
 L = make_ledger("testnet")
 buyer, payee = L.new_account("smoke_buyer"), L.new_account("smoke_payee")
-now = L.now()
 for label, window, finish in (("finish", 300, True), ("cancel", 15, False)):
+    now = L.now()  # per case: the finish case alone takes longer than the 15 s cancel window
     k = new_key()
     c = L.prepare_escrow_create(buyer, payee, 1_000_000, condition_hex(k), now + window, f"smoke:{label}")
     L.submit(c)
