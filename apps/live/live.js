@@ -13,7 +13,7 @@ export async function demoToken(sub) {
   if (!res.ok) throw Object.assign(new Error(`sign-in ${res.status}`), { status: res.status });
   return (await res.json()).access_token;
 }
-const api = engine("", { token: demoToken });
+const api = engine("", { token: demoToken, sandboxCode: code() });
 const root = document.getElementById("app");
 const st = { study: null, inst: null, events: [], busy: null, error: null, asks: [], routing: null, settled: [], readOnly: false };
 
@@ -123,7 +123,7 @@ function structure() {
   const unit = st.inst?.subprojects?.[0]?.asset || st.study.settlement.asset || "XRP";
   return h("div", { class: "card col" },
     h("div", { class: "spread" }, h("h2", {}, "Structure"), tag("Person → Institution → Sub-projects", "blue")),
-    h("div", { class: "node person" }, h("b", {}, `${st.study.heatmap.rows.length} people`), h("span", { class: "muted small" }, "each with their own agent and Testnet wallet")),
+    h("div", { class: "node person" }, h("b", {}, `${st.study.heatmap.rows.length} people`), h("span", { class: "muted small" }, "each with their own agent and demo wallet")),
     h("div", { class: "edge" }, "one consent to the institution's scope"),
     h("div", { class: "node inst" }, h("b", {}, s.name), h("span", { class: "muted small" },
       st.inst ? `scope: ${st.inst.scope.data_types.join(", ")}` : "scope: sleep and fatigue research")),
