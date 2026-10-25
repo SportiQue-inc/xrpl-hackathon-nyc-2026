@@ -70,8 +70,24 @@ const ICONS = {
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
   wallet: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h2"/>',
   stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>',
+  data: '<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',
+  history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+  upload: '<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>',
   list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+  fingerprint: '<path d="M12 11v3a8 8 0 0 1-1.5 4.5M8.5 7.5A5 5 0 0 1 17 11v1.5M7 11a5 5 0 0 1 .3-1.7M5 17.5A11 11 0 0 0 7 11M17 15.5a14 14 0 0 1-1 4M14.5 11v2a11 11 0 0 1-2 6.5M4 8.5A9 9 0 0 1 20 9.5"/>',
+  unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
+  spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  server: '<rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/><path d="M8 7.5h.01M8 16.5h.01"/>',
+  gavel: '<path d="m14 5 5 5M11 8l5 5M12.5 6.5l-6 6 3 3 6-6M4 20h9"/>',
+  timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M10 2h4"/>',
+  ban: '<circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/>',
+  coin: '<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6.5V8M12 16v1.5"/>',
+  building: '<path d="M4 21V5l8-2v18M12 8l8 2v11M4 21h16M8 8h.01M8 12h.01M8 16h.01M16 13h.01M16 17h.01"/>',
 };
+// Participation payment unit shown on the participant pages.
+
 export function icon(name, size = 18) {
   const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   s.setAttribute("viewBox", "0 0 24 24");

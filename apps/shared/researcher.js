@@ -6,7 +6,7 @@
 import { engine, watch } from "./api.js";
 import {
   h, render, tag, icon, xrp, short, sum, ago, day, ledgerDay, weeksLabel, txLink, openReceipt, banner, busy, WEEK_STATE,
-  holdbackState, SIGNAL, codeGate,
+  holdbackState, SIGNAL, UNIT, codeGate,
 } from "./ui.js";
 
 const OPENED = new Map();   // order_id -> opened bundle result, kept across poll re-renders
@@ -168,34 +168,32 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
   // ---------- shell ----------
   function shell(content) {
     if (embedded) return h("div", { class: "ar-content" }, content);
-    const on = (p) => (st.route.page === p ? "ar-nav on" : "ar-nav");
+    const pg = st.route.page;
+    const active = pg === "p" || pg === "directory" ? "directory" : pg === "rounds" ? "rounds" : pg === "study" ? "study" : "overview";
+    const nav = (key, ic, label) => h("a", { class: `ew-nav${active === key ? " on" : ""}`, href: `#/${key}` }, icon(ic, 20), h("span", { class: "lbl" }, label));
+    const crumb = { overview: "Overview", directory: pg === "p" ? "Participant detail" : "Directory", rounds: "Rounds", study: "Study details" }[active];
     const budget = st.s ? st.s.study.budget_xrp : 0;
-    return h("div", { class: "ar-shell" },
-      h("aside", { class: "ar-side" },
-        h("div", { class: "ar-logo" }, "UniQLab"),
-        h("label", { class: "ar-search" }, icon("search"), h("input", {
+    return h("div", { class: "ar-shell ew" },
+      h("aside", { class: "ar-side ew-side" },
+        h("div", { class: "ew-logo" }, "UniQdata"),
+        h("label", { class: "ew-search" }, icon("search", 20), h("input", {
           placeholder: "Search", value: st.filters.q,
           onkeydown: (e) => { if (e.key === "Enter") { st.filters.q = e.target.value; go("#/directory"); } },
         })),
-        h("a", { class: on("rounds"), href: "#/rounds" }, icon("plus"), h("span", { class: "lbl" }, "New round")),
-        h("a", { class: on("study"), href: "#/study" }, icon("home"), h("span", { class: "lbl" }, "Research hub")),
-        h("a", { class: "ar-nav", href: "#/overview" }, icon("layers"), h("span", { class: "lbl" }, "My studies"), h("span", { class: "count" }, "4")),
-        h("a", { class: "ar-sub live", href: "#/overview" }, h("span", {}, "Sleep and fatigue"), tag("Live", "green")),
-        SAMPLE_STUDIES.map(([n]) => h("div", { class: "ar-sub", title: "Sample study, no live data" }, h("span", { class: "muted" }, n), tag("Sample"))),
-        h("a", { class: ["overview", "directory", "p"].includes(st.route.page) ? "ar-nav on" : "ar-nav", href: "#/directory" },
-          icon("users"), h("span", { class: "lbl" }, "Participants")),
-        h("div", { class: "ar-divider" }),
-        h("a", { class: on("rounds"), href: "#/rounds" }, icon("rounds"), h("span", { class: "lbl" }, "Rounds"),
-          st.s && h("span", { class: "count" }, roundLabel(st.s.spec_status))),
-      ),
+        h("div", { class: "ew-navs" },
+          h("p", { class: "ew-cap" }, "RESEARCHER WORKSPACE"),
+          nav("overview", "home", "Overview"), nav("directory", "users", "Directory"), nav("rounds", "layers", "Rounds"), nav("study", "list", "Study details")),
+        h("div", { class: "ew-div" }),
+        h("div", { class: "ew-study" }, h("span", { class: "n" }, "Sleep and fatigue"), h("span", { class: "s" }, "Synthetic · live"),
+          h("span", { class: "i" }, st.s ? st.s.study.irb : ""))),
       h("div", { class: "ar-main" },
-        h("header", { class: "ar-top" },
-          h("span", { class: "ar-budget" }, `Study budget ${Math.round(budget)} RLUSD`),
-          tag(st.s && st.s.study.ledger === "testnet" ? "Testnet" : "Practice ledger"),
-          h("button", { class: "ar-iconbtn", "aria-label": "Notifications" }, icon("bell")),
-          h("div", { class: "row" }, h("span", { class: "ar-avatar" }), h("span", { style: { fontWeight: 500 } }, "Researcher A")),
-        ),
-        h("main", { class: "ar-content" }, content),
+        h("header", { class: "ew-gnb" },
+          h("span", { class: "ctx" }, `Sleep and fatigue study  /  ${crumb}`),
+          h("div", { class: "right" },
+            h("span", { class: "budget" }, `Study budget ${Math.round(budget)} ${UNIT}`),
+            h("span", { class: "net" }, st.s && st.s.study.ledger === "testnet" ? "Testnet · no cash value" : "Practice ledger · no cash value"),
+            h("span", { class: "prof" }, h("span", { class: "av" }, "R"), "Researcher"))),
+        h("main", { class: "ar-content ew-main" }, content),
       ));
   }
   const roundLabel = (x) => ({ none: "—", draft: "Draft", approved: "Approved", sent: "Sent" })[x] || x;
@@ -239,34 +237,38 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
 
   function overview() {
     const { kpi, rows } = st.model;
-    const s = st.s;
-    const pct = (n) => (kpi.enrolled ? Math.round((n / kpi.enrolled) * 1000) / 10 : 0);
-    return h("div", { class: "col", style: { gap: "16px" } },
-      h("div", { class: "ar-pagehead" },
-        h("div", {}, h("h1", {}, "All participants"),
-          h("p", { class: "sub" }, "Monitor enrollment, consent, and data readiness for the study.")),
-        studySelector()),
-      h("div", { class: "ar-grid k4" },
-        kpiCard("Enrolled", kpi.enrolled, "of 50 target", tag(`${pct(kpi.enrolled)}%`, "blue"), ""),
-        kpiCard("Active participants", kpi.active, `${kpi.delivered} delivered this round`, tag(`${pct(kpi.active)}%`, "green"), "green"),
-        kpiCard("Awaiting consent", kpi.awaiting, "waiting for the participant's OK", kpi.awaiting ? tag("Action", "amber") : null, "amber"),
-        kpiCard("Withdrawn", kpi.withdrawn, `${pct(kpi.withdrawn)}% of enrolled`, tag(kpi.withdrawn ? "Changed" : "Stable", "red"), "red")),
-      h("div", { class: "ar-grid k2" },
-        h("div", { class: "ar-card" },
-          h("div", { class: "head" },
-            h("div", {}, h("h2", {}, "Data completeness"), h("p", { class: "small muted" }, "Sleep and fatigue pairs, weeks 1–8")),
-            h("div", { style: { textAlign: "right" } },
-              h("div", { style: { color: "var(--ar-brand)", fontSize: "20px", fontWeight: 700 } }, `${s.heatmap.complete_pairs} / ${s.heatmap.total}`),
-              h("div", { class: "tiny muted" }, `Power ${s.heatmap.power_before} → ${s.heatmap.power} · target ${s.power_target}`))),
-          weekChart(s.heatmap)),
-        h("div", { class: "ar-card" },
-          h("div", { class: "head" }, h("h2", {}, "Participant status"), h("span", { class: "small muted" }, `${kpi.enrolled} total`)),
-          donut([["Active", kpi.active, "#2f6bff"], ["Pending consent", kpi.awaiting, "#f59e0b"], ["Withdrawn", kpi.withdrawn, "#ef4444"]], kpi.enrolled))),
-      h("div", { class: "ar-card" },
-        h("div", { class: "head" },
-          h("div", {}, h("h2", {}, "Recent participant activity"), h("p", { class: "small muted" }, "Latest consent, contribution and payment events")),
-          h("a", { href: "#/directory", style: { fontWeight: 500 } }, "View all participants →")),
-        activityTable(8)),
+    const tone = { green: "ok", amber: "warn", red: "danger", blue: "brand", gray: "" };
+    const etag = (tn, label) => h("span", { class: `fg-pill ${tone[tn] ?? tn}` }, h("span", {}, { green: "✓", amber: "!", red: "×", blue: "●" }[tn] || "●"), h("span", {}, label));
+    const kc = (label, v, red) => h("div", { class: "ew-kpi" }, h("p", { class: "t" }, label), h("p", { class: `v${red ? " red" : ""}` }, String(v)));
+    const count = (f) => rows.filter(f).length;
+    const ready = [
+      ["green", `Ready · ${count((r) => r.req && r.req.status === "contributed" && r.delivered.length < r.contribs.length)}`],
+      ["blue", `Waiting for participant · ${count((r) => r.req && r.req.status === "open")}`],
+      ["amber", `Partly approved · ${count((r) => r.req && r.req.status === "partly_open")}`],
+      ["red", `Paused by participant · ${count((r) => r.paused)}`],
+      ["green", `Delivered · ${count((r) => r.contribs.length && r.delivered.length === r.contribs.length)}`],
+    ];
+    const evs = [];
+    for (let i = st.events.length - 1; i >= 0 && evs.length < 4; i--) {
+      const e = st.events[i], pid = personOf(e), a = ACTIVITY[e.kind];
+      if (!pid || !a) continue;
+      const bg = { green: "ok", amber: "warn", red: "danger", blue: "brand", gray: "gray" }[a[2][1]];
+      evs.push(h("button", { class: `ew-ev ${bg}`, title: e.message, onclick: () => go(`#/p/${pid}`) },
+        h("p", { class: "t" }, a[0]), h("p", { class: "d" }, `${pid}${e.amount_xrp ? ` · ${e.amount_xrp.toFixed(2)} ${UNIT}` : ""} · ${ago(e.ts)}`)));
+    }
+    const lastTx = [...st.events].reverse().find((e) => e.tx && ACTIVITY[e.kind]);
+    return h("div", { class: "ew-col" },
+      h("div", { class: "ew-head" }, h("div", {}, h("h1", {}, "Participants"), h("p", { class: "sub" }, LIVE_STUDY)), etag("blue", "Live study")),
+      h("div", { class: "ew-row" }, kc("Enrolled", kpi.enrolled), kc("Active", kpi.active), kc("Awaiting consent", kpi.awaiting), kc("Withdrawn", kpi.withdrawn, true)),
+      h("div", { class: "ew-row mid" },
+        h("div", { class: "ew-card w388" }, h("p", { class: "t" }, "Contribution readiness"), h("p", { class: "d" }, "Same event names used in participant UI"),
+          ready.map(([tn, l]) => etag(tn, l))),
+        h("div", { class: "ew-card grow" }, h("p", { class: "t" }, "Recent participant activity"),
+          evs.length ? evs : [h("p", { class: "d" }, "No participant activity yet. Start a round to send participation requests."),
+            h("a", { class: "fg-btn", href: "#/rounds", style: { width: "auto", display: "inline-grid", placeItems: "center" } }, "Open rounds")])),
+      h("div", { class: "ew-card brand" }, h("p", { class: "t" }, "Synced event contract"),
+        h("p", { class: "d" }, "P3 Delivered updates readiness, detail timeline and payment state from the same event."),
+        lastTx ? txLink({ tx: lastTx.tx, url: lastTx.url }, { title: ACTIVITY[lastTx.kind][0] }) : null),
     );
   }
 
@@ -503,7 +505,13 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
                 h("td", {}, txLink(t, { kind, amount: c.amount_xrp, title: kind === "EscrowFinish" ? `Week ${c.weeks.join(", ")} participation payment released` : undefined })),
                 h("td", {}, c.status === "delivered" && !r.withdrawn ? h("button", { class: "ar-link small", onclick: async (e) => {
                   const b = await busy(e.target, "Opening", () => api.bundle(c.order_id), () => { out.textContent = "Could not open"; });
-                  if (b) { OPENED.set(c.order_id, b.hash_matches ? "Opened · contents match what was sent" : "Hash mismatch"); out.textContent = OPENED.get(c.order_id); }
+                  if (!b) return;
+                  if (!b.ok) { out.textContent = b.message || "Could not open"; return; }
+                  // The key that opened the bundle is the Fulfillment the payment release put on the ledger.
+                  out.replaceChildren(h("span", { class: "col", style: { gap: "2px" } },
+                    h("span", {}, b.hash_matches ? `Opened · ${b.rows ? b.rows.length : 0} row${b.rows && b.rows.length === 1 ? "" : "s"} match what was sent` : "Hash mismatch"),
+                    b.key_from ? h("span", { class: "row", style: { gap: "4px" } }, "Key from the payment release", txLink(b.key_from, { kind: "EscrowFinish", kindNote: "same key that released the payment" })) : null,
+                    b.fulfillment_on_ledger ? h("span", { class: "mono", title: b.fulfillment_on_ledger }, `Fulfillment ${short(b.fulfillment_on_ledger, 10, 6)}`) : null));
                 } }, "Open bundle") : null, out));
             }))) : null),
         controls(r)),
@@ -690,7 +698,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
           h("td", {}, c.kept_weeks && c.kept_weeks.length ? weeksLabel(c.kept_weeks) : "—"))))),
       p.notes && p.notes.length ? h("p", { class: "tiny muted" }, p.notes.join(" · ")) : null,
       h("div", { class: "row", style: { gap: "16px" } },
-        h("b", {}, `${p.people} people · ${p.cells} cells · ${p.budget_xrp} RLUSD`),
+        h("b", {}, `${p.people} people · ${p.cells} cells · ${p.budget_xrp} ${UNIT}`),
         p.verdict === "rejected" ? tag("Nothing in the table supports this goal", "amber") : null),
       h("div", { class: "ar-banner blue", style: { flexDirection: "column", gap: "4px" } },
         h("span", { class: "tiny" }, "Participants will read"), h("span", {}, p.summary_for_participants)));

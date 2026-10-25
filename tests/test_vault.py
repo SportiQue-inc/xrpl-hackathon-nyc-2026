@@ -109,3 +109,22 @@ def test_http_flow_participant_only():
     assert r["ok"], r
     r = c.post(f"/api/p/{HERO}/push/reveal", json={"order_id": prep["order_id"], "key_b64u": K.b64u(k)}, headers=h).json()
     assert r["ok"], r
+
+
+def test_http_flow_for_a_study_participant_whose_keys_live_on_the_phone_keyring():
+    # The participant app seals for a study participant too: their K goes to the phone keyring, not a vault holder.
+    from fastapi.testclient import TestClient
+    from agentrail import web
+    from tests.test_security import login
+    c = TestClient(web.app)
+    c.post("/api/reset?ledger=mock", headers=login(c, "operator"))
+    pid = "P-017"
+    c.get("/api/study", headers=login(c, "researcher@org_sleeplab"))      # the study gives P-017 a phone keyring
+    h = login(c, pid)
+    body = {"institution": "org_cardio", "columns": ["sleep.daily"], "purpose": "cardiometabolic_research",
+            "contract": "cd" * 16, "price_drops": 50_000, "days": 3}
+    prep = c.post(f"/api/p/{pid}/push/prepare", json=body, headers=h).json()
+    rec, k = K.seal(K.SoftPasskey().root(pid), prep["order_id"], K.unb64u(prep["bundle_b64u"]), prep["institution_jwk"])
+    assert c.post(f"/api/p/{pid}/push/sealed", json={"record": rec, "condition": condition_hex(k)}, headers=h).json()["ok"]
+    r = c.post(f"/api/p/{pid}/push/reveal", json={"order_id": prep["order_id"], "key_b64u": K.b64u(k)}, headers=h).json()
+    assert r["ok"] and r["escrow_finish"], r
