@@ -22,12 +22,16 @@ function append(el, kids) {
   }
 }
 
-// Amounts read RLUSD; on Testnet a test USD token stands in for it (UNIT_NOTE, shown once per page).
-export let UNIT = "RLUSD";
-export let UNIT_NOTE = "Testnet: test USD stands in for RLUSD.";
+// The one place the display unit is named. Every page (/try, /console, me.html, /apps/live, /demo)
+// reads it from here; the engine's sub-project log reads the DISPLAY_UNIT env (agentrail/units.py).
+// On Testnet a test USD token stands in for it (UNIT_NOTE, shown once per page).
+export const DISPLAY_UNIT = "RLUSD";
+const TEST_NOTE = `Testnet: test USD stands in for ${DISPLAY_UNIT}.`;
+export let UNIT = DISPLAY_UNIT;
+export let UNIT_NOTE = TEST_NOTE;
 export function setSettlementAsset(asset) {
   if (asset === "XRP") { UNIT = "Test XRP"; UNIT_NOTE = "Testnet: amounts settle in test XRP."; }
-  else if (asset === "USD") { UNIT = "RLUSD"; UNIT_NOTE = "Testnet: test USD stands in for RLUSD."; }
+  else if (asset === "USD") { UNIT = DISPLAY_UNIT; UNIT_NOTE = TEST_NOTE; }
 }
 export const xrp = (n) => `${(Math.round((n || 0) * 100) / 100).toFixed(2)} ${UNIT}`;
 export const short = (s, a = 4, b = 4) => (s && s.length > a + b + 1 ? `${s.slice(0, a)}…${b ? s.slice(-b) : ""}` : s || "");

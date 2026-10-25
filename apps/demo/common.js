@@ -1,6 +1,7 @@
 // Shared pieces for the before/after demo: synthetic data, a tiny DOM helper, and the channel that
 // links the UniQLab page and the UniQdata page (same browser, any window or iframe).
-// All names and numbers are synthetic. Amounts are RLUSD on XRPL Testnet.
+// All names and numbers are synthetic. Amounts are in the display unit (shared/ui.js) on XRPL Testnet.
+import { DISPLAY_UNIT } from "../shared/ui.js";
 
 export const MODE = new URLSearchParams(location.search).get("mode") === "after" ? "after" : "before";
 
@@ -26,7 +27,7 @@ export const PEOPLE = ["P-014", "P-015", "P-016", "P-017", "P-018", "P-019"];
 export const HERO = "P-017";
 export const OPEN_STUDIES = 41;
 
-export const rl = (n) => `${Number(n).toFixed(2)} RLUSD`;
+export const rl = (n) => `${Number(n).toFixed(2)} ${DISPLAY_UNIT}`;
 export const weekPrice = (sub) => sub.items.reduce((a, k) => a + ITEMS[k].price, 0);
 export const subTotal = (sub) => weekPrice(sub) * sub.weeks;
 

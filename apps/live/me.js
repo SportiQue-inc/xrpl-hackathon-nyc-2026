@@ -3,7 +3,7 @@
 // Consent and answers sign with the person's demo key on the server (no passkey needed to try it).
 
 import { engine, watchSelf } from "/apps/shared/api.js";
-import { UNIT, setSettlementAsset } from "/apps/shared/ui.js";
+import { UNIT, UNIT_NOTE, setSettlementAsset } from "/apps/shared/ui.js";
 
 const pid = new URLSearchParams(location.search).get("pid") || "P-017";
 const api = engine("", { token: async (sub) => {
@@ -69,7 +69,7 @@ function docs(r) {
     { key: "sensitive", title: "Health information", sections: [
       ["Why separate consent", "Health records are sensitive information and need their own consent."],
       ["What is included", `Only ${items}. MRI, CT and genomic data are excluded and always need a fresh decision.`],
-      ["Record", "Recorded on the ledger. Amounts are in RLUSD; on Testnet, test USD stands in for RLUSD."]] },
+      ["Record", `Recorded on the ledger. Amounts are in ${UNIT}. ${UNIT_NOTE}`]] },
   ];
 }
 
@@ -97,7 +97,7 @@ function sheet() {
     h("div", { class: "sheet" }, h("div", { class: "grab" }),
       h("div", { class: "pin" },
         h("div", { class: "spread" }, h("span", { class: "small muted" }, `${r.institution.name} · ${r.subprojects.length} sub-projects`), tag("Pinned", "gray")),
-        h("div", { class: "amount" }, "Paid in RLUSD per delivered round"),
+        h("div", { class: "amount" }, `Paid in ${UNIT} per delivered round`),
         h("div", { class: "small muted" }, "Read each document to the end, then agree once.")),
       h("div", { class: "scroll" },
         all.map((x) => h("button", { class: "pcard", style: "width:100%;text-align:left;cursor:pointer", onclick: () => { st.doc = x.key; st.read = false; draw(); } },
@@ -153,7 +153,7 @@ function draw() {
         p.tx && h("span", { class: "tiny mono muted" }, `${String(p.tx).slice(0, 8)}…`),
         h("span", { class: "small", style: "font-weight:600" }, `+${money(p.amount, p.asset)}`)))) : h("div", { class: "tiny muted" }, "No rounds yet"))));
     if (r.consented) body.push(stepBack());
-    body.push(h("p", { class: "tiny muted", style: "text-align:center" }, "Amounts in RLUSD. Testnet: test USD stands in for RLUSD."));
+    body.push(h("p", { class: "tiny muted", style: "text-align:center" }, `Amounts in ${UNIT}. ${UNIT_NOTE}`));
   }
   const ph = h("div", { class: "ph" },
     h("div", { class: "ph-bar" }, h("span", { class: "title" }, "My institutions"), tag(pid, "blue")),

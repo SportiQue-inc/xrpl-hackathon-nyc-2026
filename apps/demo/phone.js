@@ -3,6 +3,7 @@
 // same person with an agent: only matched studies, one bottom sheet for a batch with the amount
 // pinned and one passkey, weekly sends by the agent, and only new or late asks reach the person.
 
+import { DISPLAY_UNIT } from "../shared/ui.js";
 import { MODE, INST, SUBS, NEW_SUB, ITEMS, HERO, OPEN_STUDIES, rl, weekPrice, subTotal, h, tag, send, listen, toast } from "./common.js";
 
 const root = document.getElementById("app");
@@ -336,7 +337,7 @@ function afterActivity() {
     title: "Activity",
     body: [
       h("div", { class: "pcard" }, h("div", { class: "muted small" }, "Paid to you so far"), h("div", { class: "amount" }, rl(st.earned)),
-        h("div", { class: "tiny muted" }, "RLUSD · demo amounts · each week paid when your agent delivers it")),
+        h("div", { class: "tiny muted" }, `${DISPLAY_UNIT} · demo amounts · each week paid when your agent delivers it`)),
       st.timeline.length ? h("div", { class: "pcard timeline" }, st.timeline.map(tl))
         : h("div", { class: "note gray" }, "Nothing yet. Join a matched study and your agent sends each week for you."),
     ],

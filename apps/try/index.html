@@ -50,7 +50,7 @@
     </ol>
     <div class="actions"><a class="btn primary launch" id="console" href="/console">Open the UniQLab study console →</a><a class="btn launch" id="contribution" href="/participant">Review a contribution request →</a><a class="btn launch" id="me" href="/apps/live/me.html">Open your scope and history →</a></div>
     <p id="mePid" class="caption">This browser keeps one synthetic participant for the walkthrough.</p>
-    <p class="caption">Amounts are shown in RLUSD. Testnet: test USD stands in for RLUSD. The live transaction log stays at <a href="/apps/live/">/apps/live</a>.</p>
+    <p class="caption">Amounts are shown in <span data-unit>RLUSD</span>. <span data-unit-note>Testnet: test USD stands in for RLUSD.</span> The live transaction log stays at <a href="/apps/live/">/apps/live</a>.</p>
     <details><summary>Where this belongs in the existing products</summary><p><strong>UniQdata → Research contribution:</strong> agent settings, approved consent scope, requests waiting for the person's decision, contribution and payment history. <strong>UniQLab:</strong> study requirements, budget approval, project routing and received data. The updated Research contribution tab has been checked in a local UniQdata simulator build. Its public rollout is pending. The sandbox above is available now.</p></details>
   </section>
   <section class="access" aria-labelledby="access-title"><h2 id="access-title">Run the hands-on sandbox</h2>
@@ -59,6 +59,11 @@
   </section>
   <footer><p><strong>Keep the evidence separate.</strong> The selected LLM replay uses a simulated ledger. The reproducible rule baseline is a separate run with a different measure; see its source evidence.</p><a href="/demo?mode=after">View the illustrative before/after story</a><span> · </span><a href="https://github.com/SportiQue-inc/xrpl-hackathon-nyc-2026#readme">Read the source and Testnet evidence</a></footer>
 </main>
+<script type="module">
+  import { UNIT, UNIT_NOTE } from "/apps/shared/ui.js";
+  document.querySelectorAll("[data-unit]").forEach((e) => { e.textContent = UNIT; });
+  document.querySelectorAll("[data-unit-note]").forEach((e) => { e.textContent = UNIT_NOTE; });
+</script>
 <script>
   let pid = null;
   try { pid = localStorage.getItem("ar-pid"); } catch {}
