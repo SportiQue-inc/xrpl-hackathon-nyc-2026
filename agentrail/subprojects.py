@@ -70,8 +70,8 @@ class Relationships:
         narrow it: a sub-project inside the agreed items reuses the consent with no new ask."""
         s = ensure(self.w)
         cells = s.needs.cells if s.needs else {}
-        types = sorted({i for wk in cells.values() for its in wk.values() for i in its} | set(PROTOCOL_ITEMS))
-        types = [catalog.canon(t) if catalog.canon(t) in catalog.CATALOG else t for t in types]
+        types = {i for wk in cells.values() for its in wk.values() for i in its}
+        types = {catalog.canon(t) if catalog.canon(t) in catalog.CATALOG else t for t in types} | set(PROTOCOL_ITEMS)
         return {"purposes": [s.needs.purpose] if s.needs else ["sleep_research"],
                 "data_types": sorted({t for t in types if _tier(t) not in T3_TIERS}),
                 "tiers_allowed": sorted({_tier(t) for t in types} - T3_TIERS)}
@@ -152,6 +152,9 @@ class Relationships:
                 by_person.setdefault(r["person"], []).append(r["item"])
         oids, stopped = [], None
         for pid, items in sorted(by_person.items()):
+            items = [i for i in items if i in self.w.cohort_people[pid].vault.by_item]    # only what the person holds
+            if not items:
+                continue
             price = CELL_PRICE * len(items)
             if self._paid(sid) + price > sp.budget_drops:
                 stopped = f"sub-project budget {units.fmt(sp.budget_drops)} reached"

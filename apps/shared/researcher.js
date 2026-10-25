@@ -9,6 +9,8 @@ import {
   holdbackState, SIGNAL, codeGate,
 } from "./ui.js";
 
+const OPENED = new Map();   // order_id -> opened bundle result, kept across poll re-renders
+
 const LIVE_STUDY = "Sleep and fatigue study (synthetic)";
 const SAMPLE_STUDIES = [
   ["Metabolic drug study", "Prospective"],
@@ -496,12 +498,12 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
               const ws = WEEK_STATE[c.cancel && c.cancel.tx ? "refunded" : c.status] || { label: c.status, tone: "gray" };
               const t = c.finish && c.finish.tx ? c.finish : c.cancel && c.cancel.tx ? c.cancel : c.escrow;
               const kind = t === c.finish ? "EscrowFinish" : t === c.cancel ? "EscrowCancel" : "EscrowCreate";
-              const out = h("span", { class: "tiny muted" });
+              const out = h("span", { class: "tiny muted" }, OPENED.get(c.order_id) || "");
               return h("tr", {}, h("td", {}, `W${c.weeks.join(", ")}`), h("td", {}, xrp(c.amount_xrp)), h("td", {}, tag(ws.label, ws.tone)),
                 h("td", {}, txLink(t, { kind, amount: c.amount_xrp, title: kind === "EscrowFinish" ? `Week ${c.weeks.join(", ")} participation payment released` : undefined })),
                 h("td", {}, c.status === "delivered" && !r.withdrawn ? h("button", { class: "ar-link small", onclick: async (e) => {
                   const b = await busy(e.target, "Opening", () => api.bundle(c.order_id), () => { out.textContent = "Could not open"; });
-                  if (b) out.textContent = b.hash_matches ? "Opened · contents match what was sent" : "Hash mismatch";
+                  if (b) { OPENED.set(c.order_id, b.hash_matches ? "Opened · contents match what was sent" : "Hash mismatch"); out.textContent = OPENED.get(c.order_id); }
                 } }, "Open bundle") : null, out));
             }))) : null),
         controls(r)),

@@ -66,3 +66,11 @@ def test_scope_and_relationships_follow_the_study_when_read_before_it_starts():
     study.send(w)
     sp = rel.create("After send", rel.scope["purposes"][0], [rel.scope["data_types"][0]], 50_000_000, 1)
     assert rel.consents and any(r["decision"] == "auto" for r in sp["routing"])
+
+
+def test_a_subproject_inside_the_agreed_protocol_needs_no_ask_whatever_the_week_gaps(w):
+    rel = subprojects.of(w)
+    assert set(subprojects.PROTOCOL_ITEMS) <= set(rel.scope["data_types"])
+    sp = rel.create("Protocol only", rel.scope["purposes"][0], ["heart_rate.daily", "sleep.daily"], 50_000_000, 2)
+    asked = [r for r in sp["routing"] if r["decision"] == "ask"]
+    assert not asked and any(r["decision"] == "auto" for r in sp["routing"])
