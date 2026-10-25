@@ -37,9 +37,13 @@ K_MIN = 5
 LLM_PROVIDER = os.environ.get("VM_LLM_PROVIDER") or os.environ.get("LLM_PROVIDER") or (
     "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "openai" if os.environ.get("OPENAI_API_KEY") else "none")
 ANTHROPIC_MODEL = os.environ.get("VM_ANTHROPIC_MODEL", "claude-haiku-5-5")
-OPENAI_MODEL = os.environ.get("VM_OPENAI_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+# one model, or a comma list tried in order: a model that answers 429 rests until its limit resets.
+# On OpenAI's lowest tier every model has its own 50 requests/day, so a chain of seven gives about 350.
+OPENAI_MODELS = [m.strip() for m in (os.environ.get("VM_OPENAI_MODEL") or os.environ.get("OPENAI_MODEL") or "gpt-5-nano,gpt-4o-mini,gpt-5.4-nano,gpt-5-mini,gpt-5.4-mini,gpt-4.1-mini,o4-mini").split(",") if m.strip()]
+OPENAI_MODEL = OPENAI_MODELS[0]
+OPENAI_REASONING = os.environ.get("VM_OPENAI_REASONING", "minimal")   # reasoning models only; short turns don't need more
 LLM_RPM = int(os.environ.get("VM_LLM_RPM", "4"))                 # calls per minute, all agents together
-LLM_DAILY_CALLS = int(os.environ.get("VM_LLM_DAILY_CALLS", "600"))
+LLM_DAILY_CALLS = int(os.environ.get("VM_LLM_DAILY_CALLS", "320"))   # spread evenly over the day (llm.free_slots)
 
 # Membership. VM_PUBLIC=1 when the site is reachable from the internet: the demo accounts become
 # read-only and only signed-in members act, each on their own account.
