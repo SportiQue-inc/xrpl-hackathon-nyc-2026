@@ -62,19 +62,27 @@ rejects a tampered package hash, refuses an off-consent purpose or item.
 
 ## Setup daniel must do before a live run
 
-1. On the participant portal (`https://hackathon.ap4m.build/participant`, My setup tab): add the Agent wallet
-   address, set up the team Merchant and its payout wallet, and fund the budget. The SDK expects this to be done
-   in the portal, not in code.
+1. Prepare three separate wallets: the Agent, the merchant payout recipient, and the merchant submitter
+   (which pays gas to redeem vouchers). The payout address receives test RLUSD settlement; it is not a
+   hackathon prize-payment setting. Keep private keys on the Mac, outside chat and Git.
 2. Fund the Agent wallet and the merchant submitter wallet with XRP for gas from the XRPL EVM Testnet faucet
    (`https://faucet.testevm.ripple.com` per the SDK files; the developer guide links `https://faucet.xrplevm.org/`).
    The Agent pays gas for `requestChannel`; the submitter pays gas for redemptions. The payout wallet must be
    a different wallet from the Agent and funding wallets (the agent refuses to start otherwise).
-   Optional: the portal's Quick Start `ap4m-agent.js` (Demo 1) has the team name, API URL and an open Channel ID
-   already filled in; copy those values into `.env` as `TEAM_NAME`, `AP4M_API_URL` and `CHANNEL_ID`.
-3. `cp .env.example .env` and fill in `TEAM_NAME`, `AGENT_PRIVATE_KEY`, `MERCHANT_ID`, `MERCHANT_PAYOUT`,
-   `MERCHANT_SUBMITTER_KEY` (and `AP4M_API_URL` if it differs from `https://hackathon.ap4m.build`).
-   `.env` is git-ignored. Never paste key values into chat or commits.
-4. `npm install` in `ap4m/`.
+3. On the participant portal (`https://hackathon.ap4m.build/participant`, My setup tab): register and sign
+   for the Agent, set up the team Merchant and its payout address, and fund the RLUSD budget. Use the exact
+   registered team name and a registered funding or Agent wallet to sign in.
+4. If `.env` does not exist, copy `.env.example` to `.env`. Fill in `TEAM_NAME`, `AGENT_PRIVATE_KEY`,
+   `MERCHANT_ID`, `MERCHANT_PAYOUT`, and `MERCHANT_SUBMITTER_KEY`. The portal's Quick Start `ap4m-agent.js`
+   (Demo 1) also contains `TEAM_NAME`, `AP4M_API_URL`, and an open `CHANNEL_ID`: copy those values to reuse
+   that channel instead of opening another. Without a channel to reuse, leave `CHANNEL_ID` unset.
+   Keep `.env` git-ignored and readable only by its owner (`chmod 600 .env`).
+5. On the Mac: `cd ~/Developer/xrpl-ap4m/ap4m && npm install`. This installs the vendored external AP4M SDK
+   and ethers; installation alone does not establish portal registration, funding, or a successful payment.
+
+Setup is complete only after the wallet roles, gas, portal registration, funded budget, `.env`, and installed
+dependencies have been checked. A live run is a separate check: collect `VoucherRedeemed`, settlement and payout
+transaction hashes, and the on-chain payout balance change before claiming AP4M live success.
 
 ## 3-minute live demo
 

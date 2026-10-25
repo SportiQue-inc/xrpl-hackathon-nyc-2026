@@ -101,6 +101,19 @@ ISSUES = [
      "tests": ["test_one_signer_cannot_release_the_study_budget",
                "test_agent_signed_order_above_the_owners_limit_is_refused",
                "test_raised_budget_row_without_owner_signature_is_refused_by_the_engine"]},
+    {"id": "refusals", "title": "The agent turns money down",
+     "problem": "Every other agent spends its owner's money. A participant's agent must also refuse money when "
+                "the person's terms say no, including when the instruction to say yes is hidden in the data.",
+     "solution": "The personal agent re-checks every request against the ledger and the consent: an expired "
+                 "ethics approval stops the sensitive item, an item outside consent waits for the person, and an "
+                 "LLM proposal that goes beyond consent (for example after reading an instruction planted in a "
+                 "clinic note) makes code refuse the whole round. Nothing reaches the ledger.",
+     "enforced": ["ledger: ethics-review Credential with Expiration, read before sensitive items",
+                  "code: PersonalConsentPolicy.evaluate", "code: refusals.bundle_fields allows only requested "
+                  "AND consented items; any proposal outside them refuses the round"],
+     "moment": "Three refusals in a row on P-017's agent, each with 0 orders and 0 payments created.",
+     "tests": ["test_agent_refuses_expired_approval_outside_consent_and_planted_instruction",
+               "test_llm_that_stays_inside_consent_is_accepted"]},
     {"id": "other_domains", "title": "Other domains are easier",
      "problem": "Does the same engine work where data is not about a person?",
      "solution": "Robot sensor data between companies (scene A) runs on the same engine with only the consent "
@@ -271,6 +284,10 @@ def run(w) -> dict:
         c = w.store.one("SELECT doc_hash FROM consents WHERE person_id=? AND buyer_id=?", HERO, LAB)
         _ev(w, "consent", f"Escrow for {HERO}'s contribution carries consent hash {c['doc_hash'][:16]} in its memo",
             **_tx(w, o["tx_hash"]))
+
+    # ---- the agent turns money down ----
+    from . import refusals
+    refusals.run(w, lambda issue, label, **k: _ev(w, issue, label, **k))
 
     # ---- re-identification ----
     d = pa.handle_request(LAB, "sleep_research", list(QUASI_IDENTIFIERS), 6, study.CELL_PRICE)
