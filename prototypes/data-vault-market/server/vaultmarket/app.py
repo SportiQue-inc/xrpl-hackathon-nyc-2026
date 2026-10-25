@@ -82,7 +82,7 @@ def _guard(request: Request, aid: str, write: bool = True):
         if not me or me["account"] != aid:
             raise HTTPException(403, "sign in as this member")
     elif write and config.PUBLIC:
-        raise HTTPException(403, "demo accounts are read-only here; sign up to use your own")
+        raise HTTPException(403, "Open your own vault to continue")
     return me
 
 
@@ -188,6 +188,11 @@ def accounts(request: Request):
     return M.s.q("SELECT id, name, type, online FROM accounts WHERE id NOT LIKE 'u-%' OR id = ? ORDER BY type DESC, name", (me["account"] if me else "",))
 
 
+def _can_view_contract(c, account):
+    participants={c.get("buyer"), c.get("seller"), *json.loads(c.get("sellers") or "[]")}
+    return not config.PUBLIC or not any(str(a).startswith("u-") for a in participants) or account in participants
+
+
 def _trade_summaries(contracts, account):
     s = M.s
     for c in contracts:
@@ -221,6 +226,7 @@ def market(request: Request, account: str = "", domain: str | None = None):
                    f"(SELECT COUNT(*) FROM interests i WHERE i.posting = p.id AND i.account = ?) AS mine "
                    f"FROM postings p JOIN accounts a ON a.id = p.buyer WHERE p.status = 'open' AND p.kind IN ({ph}) ORDER BY interest DESC, p.offer DESC", (account, *kinds))
     contracts = s.q(f"SELECT id, posting, buyer, seller, kind, status, reason, total, items, sellers, created, asset, unit_micro, overview FROM contracts WHERE status != 'negotiating' AND kind IN ({ph}) ORDER BY id DESC LIMIT 60", tuple(kinds))
+    contracts=[c for c in contracts if _can_view_contract(c,account)]
     _trade_summaries(contracts, account)
     people = s.q("SELECT COUNT(*) n, SUM(online) o FROM accounts")[0]
     # what is for sale: listed pseudonymized files per category, plus resale bundles
@@ -272,10 +278,13 @@ def sell_now(aid: str, pid: int, request: Request):
 
 
 @app.get("/api/contract/{cid}")
-def contract(cid: int):
+def contract(cid: int, request: Request):
     c = M.s.one("SELECT * FROM contracts WHERE id = ?", (cid,))
     if not c:
         raise HTTPException(404)
+    me=_me(request)
+    if not _can_view_contract(c, me["account"] if me else None):
+        raise HTTPException(403, "This negotiation belongs to its buyer and seller")
     c["trace"] = json.loads(c["trace"] or "{}"); c["sellers"] = json.loads(c["sellers"] or "[]")
     c["buyer_name"] = _name(c["buyer"])
     p = M.s.one("SELECT * FROM postings WHERE id = ?", (c["posting"],))

@@ -371,3 +371,23 @@ def test_price_discovery_does_not_mix_xrp_and_test_usd_trade_units(market):
     market.s.insert('prices',kind='sleep_log',price=8,contract=a)
     market.s.insert('prices',kind='sleep_log',price=900,contract=b)
     assert market.quote('sleep_log')['median']==8
+
+
+def test_member_negotiation_history_is_private_to_the_participants(market, monkeypatch):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web, 'M', market)
+    monkeypatch.setattr(config, 'PUBLIC', True)
+    for aid in ('u-owner','u-other'):
+        market.s.insert('accounts', id=aid, name=aid, type='person')
+        market.s.insert('users', username=aid, account=aid)
+        market.s.insert('sessions', token=aid, username=aid)
+    cid=market.s.insert('contracts',posting=market.test_post,buyer='u-owner',seller='seller',sellers=['seller'],kind='sleep_log',status='rejected',trace={})
+    client=TestClient(web.app)
+    assert client.get(f'/api/contract/{cid}').status_code==403
+    assert cid not in [c['id'] for c in client.get('/api/market').json()['contracts']]
+    client.cookies.set(web.COOKIE,'u-other')
+    assert client.get(f'/api/contract/{cid}').status_code==403
+    client.cookies.set(web.COOKIE,'u-owner')
+    assert client.get(f'/api/contract/{cid}').status_code==200
+    assert cid in [c['id'] for c in client.get('/api/market').json()['contracts']]
