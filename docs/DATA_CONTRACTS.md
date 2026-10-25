@@ -128,3 +128,28 @@ python scripts/run_engine.py              # the full trade, then a data-contract
 python scripts/measure_contracts.py       # forecast calibration and the comparison above
 python -m pytest -q tests/test_contract.py
 ```
+
+## 9. Schema mapping: the LLM proposes, code verifies
+
+`agentrail/contract/mapping.py`. Providers export in their own formats. Code parses six synthetic formats into flat fields (structure only): an Apple Health export (XML), Garmin and Fitbit style JSON, a FHIR Observation bundle (LOINC codes, `valueQuantity.unit`), a survey CSV and a robot sensor log. The LLM reads the field names, declared units, three example values and the contract's column meanings, and proposes for each column one field and its unit, or none. Code checks every proposal:
+
+| check | rejects |
+|---|---|
+| field | a field that is not in the source |
+| dimension | a duration offered for a rate, etc. |
+| metadata | a unit that disagrees with what the source declares (FHIR `unit`, Apple `unit`, `InSeconds`, `_mg`, `_kmh`) |
+| range | fewer than 90% of converted values in the column's possible range |
+| typical | a median outside the column's typical band |
+
+A rejected mapping leaves the column unmapped for that source; nothing is guessed. Every proposal and verdict is kept in the proposals log.
+
+Measured against ground truth, 13 cases per seed × 3 seeds (`scripts/measure_mapping.py`):
+
+| proposer | correct | declined (rightly none) | caught by code | missed (wrong, accepted) |
+|---|---|---|---|---|
+| name-matching rules (no LLM) | 30 | 3 | 3 | 3 |
+| scripted model with typical mistakes (tests) | 12 | 6 | 15 | 6 |
+
+What code caught from the scripted model: FHIR sleep in hours called minutes, systolic blood pressure offered as resting heart rate, Garmin deep sleep offered as total sleep, robot acceleration in mg called m/s², a field that does not exist. What it cannot catch: time in bed offered as time asleep, average heart rate offered as resting heart rate. Both are plausible values in the right unit; they count as missed. The survey's self-reported sleep is a correct "none": the column asks for a device measure.
+
+The run with the real LLM goes on the machine that holds the key (`LLM_RECORD=1 python scripts/measure_mapping.py`); the replay cache then lets anyone repeat it without a key.
