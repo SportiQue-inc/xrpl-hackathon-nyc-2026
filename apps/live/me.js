@@ -12,7 +12,7 @@ const api = engine("", { token: async (sub) => {
   return (await r.json()).access_token;
 } });
 const root = document.getElementById("app");
-const st = { rel: null, sheet: false, read: false, busy: null, error: null, toast: null };
+const st = { rel: null, sheet: false, doc: null, checked: new Set(), read: false, busy: null, error: null, toast: null };
 
 const h = (tag, props, ...kids) => {
   const el = document.createElement(tag);
@@ -51,32 +51,82 @@ async function act(label, fn, done) {
 const consent = () => act("Signing", () => call("POST", `${P}/relationship/consent`, { institution: st.rel.institution.id }), "Consent recorded · one signature for the whole scope");
 const decide = (p, allow) => act("Answering", () => call("POST", `${P}/subprojects/${encodeURIComponent(p.sid)}/decision`, { item: p.item, allow }), allow ? "Allowed · your agent sends it" : "Declined · nothing sent");
 
+// One document per consent, each read to the end before it can be checked (as on /participant).
+// One signature covers the checked set; each document keeps its own record. MRI, CT and genomic data are never in it.
+function docs(r) {
+  const items = (r.scope.data_types || []).join(", ");
+  const purposes = (r.scope.purposes || []).join(", ");
+  return [
+    { key: "research", title: "Study participation", sections: [
+      ["What you agree to", `${r.institution.name} may ask your agent for ${items} for ${purposes}. You agree once; each sub-project inside this scope is routed by your agent and settled on its own, with no new contract.`],
+      ["Sub-projects today", r.subprojects.map((x) => `· ${x.name}`).join("\n") || "None yet"],
+      ["Payment", "Each sub-project pays for each round your agent delivers: 50% of a first week at delivery, 10 points more for each consecutive week up to 90%, the rest after a 7-day review."],
+      ["Always asked first", "Anything outside this scope, a new purpose, and MRI, CT or genomic data come back to you for a yes or no."]] },
+    { key: "third_party", title: "Providing data to the institution", sections: [
+      ["Who receives it", `${r.institution.name} and its approved study roles, under a study pseudonym.`],
+      ["What is sent", `Weekly records of ${items}, sealed until payment releases the key.`],
+      ["Retention", "As the study protocol states. Withdrawing access ends further use and asks the institution to delete its copy."]] },
+    { key: "sensitive", title: "Health information", sections: [
+      ["Why separate consent", "Health records are sensitive information and need their own consent."],
+      ["What is included", `Only ${items}. MRI, CT and genomic data are excluded and always need a fresh decision.`],
+      ["Record", "Recorded on the ledger. Amounts are in RLUSD; on Testnet, test USD stands in for RLUSD."]] },
+  ];
+}
+
 function sheet() {
   const r = st.rel;
-  const total = r.subprojects.reduce((a, s) => a + (s.budget_share || 0), 0);
-  const onScroll = (e) => {
-    const sc = e.target;
-    if (!st.read && sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 8) { st.read = true; sc.closest(".sheet").querySelector(".act .btn.primary").disabled = false; }
-  };
+  const all = docs(r);
+  if (st.doc) {
+    const d = all.find((x) => x.key === st.doc);
+    const onScroll = (e) => {
+      const sc = e.target;
+      if (!st.read && sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 8) { st.read = true; sc.closest(".sheet").querySelector(".act .btn.primary").disabled = false; }
+    };
+    return [h("div", { class: "scrim", onclick: () => { st.doc = null; draw(); } }),
+      h("div", { class: "sheet" }, h("div", { class: "grab" }),
+        h("div", { class: "pin" }, h("div", { class: "spread" }, h("b", {}, d.title), tag(`${all.findIndex((x) => x.key === d.key) + 1} of ${all.length}`, "gray"))),
+        h("div", { class: "scroll", onscroll: onScroll },
+          d.sections.map(([hd, v]) => h("div", { class: "sec" }, h("h3", {}, hd), String(v).split("\n").map((x) => h("p", {}, x)))),
+          h("p", { class: "tiny muted", style: "text-align:center" }, "— End —")),
+        h("div", { class: "act" },
+          h("button", { class: "btn primary block", disabled: !st.read, onclick: () => { st.checked.add(d.key); st.doc = null; draw(); } }, "I agree to this document"),
+          h("button", { class: "btn ghost", onclick: () => { st.doc = null; draw(); } }, "Back")))];
+  }
+  const ready = all.every((x) => st.checked.has(x.key));
   return [h("div", { class: "scrim", onclick: () => { st.sheet = false; draw(); } }),
     h("div", { class: "sheet" }, h("div", { class: "grab" }),
       h("div", { class: "pin" },
         h("div", { class: "spread" }, h("span", { class: "small muted" }, `${r.institution.name} · ${r.subprojects.length} sub-projects`), tag("Pinned", "gray")),
-        h("div", { class: "amount" }, total ? `Up to ${money(total)}` : `Paid in ${UNIT} per delivered round`),
-        h("div", { class: "small muted" }, "Each sub-project pays for each round your agent delivers. 80% at delivery, 20% after review.")),
-      h("div", { class: "scroll", onscroll: onScroll },
-        h("div", { class: "sec" }, h("h3", {}, "One relationship with this institution"),
-          h("p", {}, "You agree once to the scope below. New sub-projects inside it are routed by your agent and settled on their own, with no new contract.")),
-        h("div", { class: "sec" }, h("h3", {}, "Scope"), h("ul", {}, (r.scope.data_types || []).map((d) => h("li", {}, d))),
-          h("p", { class: "small muted" }, `Purposes: ${(r.scope.purposes || []).join(", ")}`)),
-        h("div", { class: "sec" }, h("h3", {}, "Sub-projects today"), r.subprojects.map((s) => h("p", {}, `· ${s.name}`))),
-        h("div", { class: "sec" }, h("h3", {}, "Always asked here first"),
-          h("p", {}, "Anything outside this scope, and genomic, CT or MRI data (T3), comes back to you for a yes or no.")),
-        h("div", { class: "sec" }, h("h3", {}, "If you want to stop"), h("p", {}, "Stop any sub-project or withdraw the whole relationship. Unsent rounds are returned.")),
-        h("div", { class: "sec" }, h("h3", {}, "Record"), h("p", {}, `Recorded on the ledger. Amounts are in ${r.asset_label || r.asset}.`))),
+        h("div", { class: "amount" }, "Paid in RLUSD per delivered round"),
+        h("div", { class: "small muted" }, "Read each document to the end, then agree once.")),
+      h("div", { class: "scroll" },
+        all.map((x) => h("button", { class: "pcard", style: "width:100%;text-align:left;cursor:pointer", onclick: () => { st.doc = x.key; st.read = false; draw(); } },
+          h("div", { class: "spread" }, h("b", {}, x.title), st.checked.has(x.key) ? tag("Read · agreed", "blue") : tag("Read to the end", "gray"))))),
       h("div", { class: "act" },
-        h("button", { class: "btn primary block", disabled: !st.read || !!st.busy, onclick: () => { st.sheet = false; consent(); } }, "Agree once (demo key)"),
+        h("button", { class: "btn primary block", disabled: !ready || !!st.busy, onclick: () => { st.sheet = false; consent(); } }, `Agree once (${st.checked.size} of ${all.length} documents, demo key)`),
         h("button", { class: "btn ghost", onclick: () => { st.sheet = false; draw(); } }, "Not now")))];
+}
+
+// Three ways to step back, as on /participant. Nothing already paid is taken back.
+async function openRequest() {
+  const v = await call("GET", P);
+  return (v.requests || []).find((x) => x.status === "open" || x.status === "partly_open");
+}
+const skipRound = () => act("Skipping", async () => {
+  const r = await openRequest();
+  if (!r) throw Object.assign(new Error("no open request"), { detail: "There is no open request to skip this round." });
+  await call("POST", `${P}/requests/${r.id}/decline`, {});
+}, "Skipped this round · nothing was sent");
+const stopFuture = () => act("Stopping", () => call("POST", `${P}/pause`, {}), "Future requests stopped · past data and payments stay");
+const withdraw = () => act("Withdrawing", () => call("POST", `${P}/revoke`, {}), "Access withdrawn · licence revoked, unreleased escrows return");
+function stepBack() {
+  const opt = (title, d, label, fn) => h("div", { class: "col", style: "gap:4px;padding:8px 0;border-top:1px solid var(--border)" },
+    h("b", { class: "small" }, title), h("div", { class: "tiny muted" }, d),
+    h("button", { class: "btn sm", style: "align-self:flex-start", disabled: !!st.busy, onclick: fn }, label));
+  return h("div", { class: "pcard" }, h("b", {}, "Stop or withdraw"),
+    opt("Skip this round", "This request only. Earlier contributions, consent history and payments stay.", "Skip this round", skipRound),
+    opt("Stop future requests", "No new requests from any sub-project. Past data and payments stay.", "Stop future requests", stopFuture),
+    opt("Withdraw access", "Revokes the data licence and asks the institution to delete its copy. Amounts received and shares in review stay with you.", "Withdraw access (demo key)", withdraw));
 }
 
 function draw() {
@@ -88,7 +138,7 @@ function draw() {
       h("div", { class: "spread" }, h("b", {}, r.institution.name), r.consented ? tag("1 relationship", "blue") : tag("Not joined", "gray")),
       h("div", { class: "small muted" }, r.consented ? `One consent · ${r.subprojects.length} sub-projects under it` : "Agree once to this institution's scope; your agent handles each sub-project inside it."),
       r.consented?.tx && h("div", { class: "tiny mono muted" }, `consent tx ${r.consented.tx.slice(0, 12)}…`),
-      !r.consented && h("button", { class: "btn primary", onclick: () => { st.sheet = true; st.read = false; draw(); } }, "Review and agree")));
+      !r.consented && h("button", { class: "btn primary", onclick: () => { st.sheet = true; st.doc = null; draw(); } }, "Review and agree")));
     if (r.pending.length) body.push(h("div", { class: "pcard" }, h("b", {}, "Your agent asks"),
       r.pending.map((p) => h("div", { class: "col", style: "gap:4px;padding:8px 0;border-top:1px solid var(--border)" },
         h("div", { class: "small" }, h("b", {}, p.item), ` · ${r.subprojects.find((s) => s.id === p.sid)?.name || p.sid}`),
@@ -102,7 +152,8 @@ function draw() {
         h("div", { class: "grow small" }, `Round ${p.round} · ${p.status}`),
         p.tx && h("span", { class: "tiny mono muted" }, `${String(p.tx).slice(0, 8)}…`),
         h("span", { class: "small", style: "font-weight:600" }, `+${money(p.amount, p.asset)}`)))) : h("div", { class: "tiny muted" }, "No rounds yet"))));
-    body.push(h("p", { class: "tiny muted", style: "text-align:center" }, r.asset_label || ""));
+    if (r.consented) body.push(stepBack());
+    body.push(h("p", { class: "tiny muted", style: "text-align:center" }, "Amounts in RLUSD. Testnet: test USD stands in for RLUSD."));
   }
   const ph = h("div", { class: "ph" },
     h("div", { class: "ph-bar" }, h("span", { class: "title" }, "My institutions"), tag(pid, "blue")),

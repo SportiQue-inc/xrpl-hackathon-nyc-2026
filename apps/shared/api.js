@@ -64,6 +64,10 @@ export function engine(base = "", { token, sandboxCode = storedSandboxCode() } =
     reset: (ledger) => { tokens.clear(); return post(`/api/reset${ledger ? `?ledger=${ledger}` : ""}`, {}, "operator"); },
     events: (after = 0) => get(`/api/events?after=${after}`),
     study: () => get("/api/study"),
+    // Person -> institution -> sub-projects (agentrail/subprojects.py)
+    institution: () => get("/api/institution"),
+    createSubproject: (b) => post("/api/institution/subprojects", b),
+    runSubproject: (sid) => post(`/api/institution/subprojects/${encodeURIComponent(sid)}/run`, {}),
     setGoal: (goal) => post("/api/study/goal", { goal }),
     // Budget approval: the researcher opens it, each approver signs on their own device.
     openApproval: () => post("/api/study/approvals"),
