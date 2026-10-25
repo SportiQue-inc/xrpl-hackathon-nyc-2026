@@ -7,6 +7,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# The replay shows prices in the settlement token (test USD standing in for RLUSD) even when the shell
+# still carries SETTLE_ASSET=XRP from a Testnet run of the XRP path.
+os.environ["SETTLE_ASSET"] = os.environ.get("EXPORT_UNIT", "USD")
 
 from agentrail import network_view  # noqa: E402
 from agentrail.market import acts  # noqa: E402
