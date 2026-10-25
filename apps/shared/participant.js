@@ -5,7 +5,7 @@
 import { engine, watchSelf } from "./api.js";
 import {
   h, render, tag, icon, xrp, short, sum, day, ledgerDay, weeksLabel, txLink, banner, busy, WEEK_STATE, holdbackState,
-  ITEM_CLASS, SIGNAL,
+  ITEM_CLASS, SIGNAL, codeGate,
 } from "./ui.js";
 
 const SOURCE = { wearable: "Wearable", survey_app: "Survey app", clinic_export: "Clinic export" };
@@ -66,7 +66,9 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
 
   function draw() {
     let out;
-    if (st.error && !st.p) {
+    if (st.error && !st.p && st.error.status === 403) {
+      out = frame("Research participation", [codeGate("your agent")]);
+    } else if (st.error && !st.p) {
       out = frame("Research participation", [banner("red", "Could not reach your agent. ", h("button", { class: "ar-link", onclick: load }, "Retry")),
         h("span", { class: "tiny muted" }, st.error.message)]);
     } else if (!st.p) {

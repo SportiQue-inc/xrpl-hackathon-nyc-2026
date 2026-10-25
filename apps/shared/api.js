@@ -10,12 +10,21 @@ export const STUDY = "org_sleeplab";
 export const RESEARCHER = `researcher@${STUDY}`;
 export const approverSub = (signer) => `approver:${signer}@${STUDY}`;
 
-export function engine(base = "", { token, sandboxCode } = {}) {
+// Access code for a public demo deploy (AGENTRAIL_SANDBOX_CODE): taken from ?code= once and kept per browser.
+export function storedSandboxCode() {
+  try {
+    const q = new URLSearchParams(location.search).get("code");
+    if (q) localStorage.setItem("ar-code", q);
+    return q || localStorage.getItem("ar-code") || "";
+  } catch { return ""; }
+}
+
+export function engine(base = "", { token, sandboxCode = storedSandboxCode() } = {}) {
   const root = base.replace(/\/$/, "");
   const tokens = new Map();
 
   async function devToken(sub) {
-    const res = await fetch(`${root}/api/dev/login/${encodeURIComponent(sub)}`, { method: "POST" });
+    const res = await fetch(`${root}/api/dev/login/${encodeURIComponent(sub)}`, { method: "POST", headers: sandboxCode ? { "X-Sandbox-Code": sandboxCode } : {} });
     if (!res.ok) throw Object.assign(new Error(`sign-in for ${sub} -> ${res.status}`), { status: res.status });
     return (await res.json()).access_token;
   }
