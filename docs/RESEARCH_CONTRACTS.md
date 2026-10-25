@@ -11,11 +11,16 @@ Contracts keep their own store, so `/api/reset` does not touch them.
 
 | env | meaning |
 |---|---|
-| `AGENTRAIL_CONTRACTS_DB` | SQLite file for contracts, members, orders (default: a temp file, lost on restart) |
+| `AGENTRAIL_CONTRACTS_DB` | SQLite file for contracts, members, orders. Default: `$RAILWAY_VOLUME_MOUNT_PATH/contracts.db` on a Railway volume, otherwise a temp file lost on restart |
+| `AGENTRAIL_CONTRACTS_WALLETS` | Testnet wallet labels for institutions and members. Default: `contracts.wallets.json` on the volume |
 | `AGENTRAIL_POSTING_CODE` | at least 8 characters; `POST /api/contracts` from anywhere but localhost needs it in `X-Posting-Code` |
 | `LEDGER` | `mock` or `testnet` (same as the engine) |
 | `UNIQDATA_ROSTER` | optional: UniQdata accounts members may join with (`uniqdata_account`); their vault reads that account and their payments are reported to it |
-| `AGENTRAIL_KEYSTORE` | keeps institution box keys and member keyrings across restarts |
+| `AGENTRAIL_KEYSTORE` | keeps institution box keys and member keyrings across restarts. Default: `keystore/` on the volume |
+
+Pages: `/apps/contracts/post.html` (researcher: post, invite link, run a week, members and orders with
+ledger links) and `/apps/contracts/join.html?contract=…&invite=…` (participant: Ed25519 key made in the
+browser with WebCrypto, sign the consent, approve a waiting week, withdraw).
 
 `scripts/contract_join.py` posts a contract, joins test accounts (`--count 50`), sandbox UniQdata accounts
 (`--roster`), or one teammate (`--name`), and runs a round as the researcher. Keys stay in the gitignored

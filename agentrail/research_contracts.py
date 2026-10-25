@@ -33,7 +33,7 @@ from .db import Store
 from .engine import BudgetExceeded, Engine, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
 from .policy import AUTOMATION_LEVELS, PURPOSE_DUO, SENSITIVITY, BuyerMandate, ComplianceRules
 from .security.auth import Identity
-from .security.devices import InstitutionVault, consent_message, verify_ed25519
+from .security.devices import InstitutionVault, ParticipantKeyring, consent_message, verify_ed25519
 from .security.keystore import LocalKeyStore
 
 SCHEMA = """
@@ -95,12 +95,20 @@ class StoredSource:
 class Lane:
     def __init__(self, path: str | None = None, ledger=None):
         from .ledger import make_ledger
-        self.store = Store(path or os.environ.get("AGENTRAIL_CONTRACTS_DB", ":memory:"))
+        vol = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH")      # a deploy's volume: contracts outlive redeploys
+        self.store = Store(path or os.environ.get("AGENTRAIL_CONTRACTS_DB")
+                           or (os.path.join(vol, "contracts.db") if vol else ":memory:"))
         self.store._keepalive.executescript(SCHEMA)
         self.ledger = ledger or make_ledger(os.environ.get("LEDGER", "mock"))
+        wallets = os.environ.get("AGENTRAIL_CONTRACTS_WALLETS") or (os.path.join(vol, "contracts.wallets.json") if vol else None)
+        if wallets and hasattr(self.ledger, "_labels"):
+            # the institution's and members' Testnet wallets, so a restart signs with the same accounts
+            self.ledger.wallet_file = wallets
+            if os.path.exists(wallets):
+                self.ledger._labels = json.load(open(wallets))
         self.engine = Engine(self.store, self.ledger)
         self.engine.relay = self.ledger.new_account("contracts_relay")
-        self.root = os.environ.get("AGENTRAIL_KEYSTORE") or None
+        self.root = os.environ.get("AGENTRAIL_KEYSTORE") or (os.path.join(vol, "keystore") if vol else None)
         self.people: dict[str, PersonalAgent] = {}
         self.uniqdata: dict = {}                      # roster id -> UniQdataClient (UNIQDATA_ROSTER)
         self._pending: dict[str, dict] = {}           # pid -> join waiting for its signature
@@ -118,9 +126,20 @@ class Lane:
     def _load(self):
         for c in self.store.q("SELECT * FROM research_contracts"):
             self._open_institution(c["institution_id"])
+            self._rewallet(c["institution_id"])
         for m in self.store.q("SELECT * FROM contract_members"):
             if m["pid"] not in self.people:
-                self._agent(m["pid"], m["data_source"])
+                try:
+                    self._agent(m["pid"], m["data_source"])
+                except ContractError:          # their UniQdata account is not connected here any more
+                    self._agent(m["pid"], "stored")
+                self._rewallet(m["pid"])
+
+    def _rewallet(self, pid: str):
+        """After a restart the ledger adapter needs the account's key again (same label, same wallet)."""
+        addr = self.engine.party(pid)["address"]
+        if not self.ledger.can_sign(addr) and self.ledger.new_account(pid) != addr:
+            self.store.log(pid, "wallet_lost", f"{pid}: the saved wallet for {addr} is gone; it can receive but not sign")
 
     def enrol_all(self, authority):
         """Re-enrol every researcher and member key with the API's authority (it is rebuilt on reset)."""
@@ -141,6 +160,10 @@ class Lane:
 
     def _agent(self, pid: str, data_source: str) -> PersonalAgent:
         pa = PersonalAgent(Person(pid, pid), self.engine, self._compliance())
+        if self.root:     # the member's keyring (escrow keys, vault secret) survives a restart
+            pa.keyring = ParticipantKeyring(pid, LocalKeyStore(f"participant.{pid}", self.root))
+            pa.vault._secret = pa.keyring.vault_secret()
+            self.engine.key_holders[pid] = pa.keyring
         if data_source.startswith("uniqdata:"):
             client = self.uniqdata.get(data_source.split(":", 1)[1])
             if client is None:

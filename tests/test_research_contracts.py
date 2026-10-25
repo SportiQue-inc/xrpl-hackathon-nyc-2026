@@ -150,3 +150,8 @@ def test_payments_reach_the_members_uniqdata_account_once_per_order(c, monkeypat
     r = sent[0][0]
     assert r["status"] == "settled" and r["period"] == "week 1" and r["display_unit"] and r["escrow_finish_tx"]
     assert r["consent_hash"] == s["consent_hash"] and r["contract_status"] == "active"
+
+
+def test_contract_pages_are_served(c):
+    for f in ("post.html", "post.js", "join.html", "join.js", "contracts.js", "contracts.css"):
+        assert c.get(f"/apps/contracts/{f}").status_code == 200

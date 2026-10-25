@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join a research contract</title>
+<link rel="stylesheet" href="../shared/ui.css"><link rel="stylesheet" href="contracts.css">
+</head>
+<body class="ar contracts">
+<main class="wrap">
+  <header><h1>Join a research contract</h1>
+    <p class="sub">UniQdata participant side. Your key is made in this browser and never leaves it. You sign the consent yourself; your agent then answers each week by the choice you make here.</p></header>
+  <section class="ar-card" id="terms"></section>
+  <section class="ar-card" id="join" hidden>
+    <form id="form" class="items">
+      <fieldset class="items" id="items"><legend class="note">What you agree to share</legend></fieldset>
+      <label>How your agent answers
+        <select class="ar-input" name="automation">
+          <option value="confirm_each">Ask me every week</option>
+          <option value="auto_standard">Standard items automatically, ask me for sensitive ones</option>
+          <option value="auto_all">Everything I agreed to, automatically</option>
+        </select></label>
+      <label class="row"><input type="checkbox" name="testdata" checked> This is a test account: store generated test readings for the contract weeks (no real health data)</label>
+      <button class="ar-btn primary block" type="submit">Sign consent and join</button>
+      <p class="err" id="err"></p>
+    </form>
+  </section>
+  <section class="ar-card" id="mine" hidden></section>
+  <p class="note" id="foot"></p>
+</main>
+<script type="module" src="join.js"></script>
+</body>
+</html>
