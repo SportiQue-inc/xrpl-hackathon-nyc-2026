@@ -54,3 +54,15 @@ def test_a_pause_stops_the_next_subproject_delivery(w):
     assert rel.route(rel.subprojects["sp-1"], pid, rel.scope["data_types"][0]) == ("blocked", "rule")
     out = rel.run("sp-1")
     assert pid not in {s["person"] for s in out["settled"]}
+
+
+def test_scope_and_relationships_follow_the_study_when_read_before_it_starts():
+    w = scenario.build_world("mock", ":memory:")
+    rel = subprojects.of(w)                       # the page asks before the study reads its gaps
+    assert rel.scope["data_types"] and not rel.consents
+    study.ensure(w)
+    study.set_goal(w, "", capable_needs)
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    study.send(w)
+    sp = rel.create("After send", rel.scope["purposes"][0], [rel.scope["data_types"][0]], 50_000_000, 1)
+    assert rel.consents and any(r["decision"] == "auto" for r in sp["routing"])
