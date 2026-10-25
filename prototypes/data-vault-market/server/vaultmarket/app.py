@@ -69,6 +69,9 @@ def _me(request: Request) -> dict | None:
     tok = request.cookies.get(COOKIE)
     if not tok:
         return None
+    demo=M.s.one("SELECT 1 FROM sessions WHERE token=? AND username='@demo'", (tok,))
+    if demo:
+        return {"username":"Demo","account":"demo-vault","demo":True,"wallet":None,"wallet_tx":None}
     s = M.s.one("SELECT u.* FROM sessions s JOIN users u ON u.username = s.username WHERE s.token = ?", (tok,))
     if s:
         s.pop("pw", None); s.pop("salt", None)
@@ -78,6 +81,8 @@ def _me(request: Request) -> dict | None:
 def _guard(request: Request, aid: str, write: bool = True):
     """Members act only on their own account. Demo accounts are open locally and read-only when public."""
     me = _me(request)
+    if me and me.get("demo") and aid=="demo-vault":
+        return me
     if aid.startswith("u-"):
         if not me or me["account"] != aid:
             raise HTTPException(403, "sign in as this member")
@@ -131,6 +136,17 @@ def logout(request: Request, response: Response):
     return {"ok": True}
 
 
+@app.post("/api/demo-session")
+def demo_session(request: Request,response: Response):
+    current=_me(request)
+    if current:
+        return {"ok":True,"account":current["account"]}
+    if not M.s.one("SELECT id FROM accounts WHERE id='demo-vault'"):
+        raise HTTPException(503,"The synthetic demo is starting. Please try again shortly.")
+    _session(response,"@demo")
+    return {"ok":True,"account":"demo-vault","demo":True}
+
+
 @app.get("/api/me")
 def me(request: Request):
     u = _me(request)
@@ -146,6 +162,8 @@ def link_wallet(request: Request, body: dict = Body(...)):
     u = _me(request)
     if not u:
         raise HTTPException(401)
+    if u.get("demo"):
+        raise HTTPException(403,"Sign in to your own vault before linking a personal wallet")
     from xrpl.core.addresscodec import is_valid_classic_address
     addr = str(body.get("address", "")).strip()
     if not is_valid_classic_address(addr):
@@ -160,6 +178,8 @@ def link_wallet(request: Request, body: dict = Body(...)):
 def verify_wallet(request: Request):
     """Step 2: find the member's 1-drop Payment with that tag on the ledger; then sales pay out to that wallet."""
     u = _me(request)
+    if u and u.get("demo"):
+        raise HTTPException(403,"Sign in to your own vault before linking a personal wallet")
     if not u or not u.get("wallet"):
         raise HTTPException(400, "link a wallet first")
     h = M.rail.find_link_payment(u["wallet"], M.platform, u["wallet_tag"])
@@ -190,7 +210,7 @@ def accounts(request: Request):
 
 def _can_view_contract(c, account):
     participants={c.get("buyer"), c.get("seller"), *json.loads(c.get("sellers") or "[]")}
-    return not config.PUBLIC or not any(str(a).startswith("u-") for a in participants) or (bool(account) and account in participants)
+    return not config.PUBLIC or not any(str(a).startswith("u-") for a in participants) or (str(account).startswith("u-") and account in participants)
 
 
 def _trade_summaries(contracts, account):
@@ -209,7 +229,7 @@ def _trade_summaries(contracts, account):
 def _agent_styles(since=0):
     receipts=M.s.q("SELECT src,COALESCE(asset,'XRP') asset,COUNT(DISTINCT contract) sales,SUM(drops) micro FROM txs WHERE type LIKE 'EscrowFinish%' AND result='tesSUCCESS' AND created>=? GROUP BY src,asset", (since,))
     styles=[]
-    for row in M.s.q("SELECT id FROM accounts WHERE id NOT LIKE 'u-%'"):
+    for row in M.s.q("SELECT id FROM accounts WHERE id NOT LIKE 'u-%' AND id!='demo-vault'"):
         a=M.acct(row['id']);rules=a['sell_agent'];mins=rules.get('min',{})
         ratio=sum(mins.get(k,v['price'])/v['price'] for k,v in KINDS.items())/len(KINDS)
         style='Approval first' if rules.get('mode')=='ask' else 'Price firm' if ratio>=1 else 'Flexible pricing'
@@ -223,6 +243,16 @@ def demo_page():
     return FileResponse(os.path.join(STATIC,"demo.html"))
 
 
+@app.get("/report")
+def research_report_page():
+    return FileResponse(os.path.join(STATIC,"demo.html"))
+
+
+@app.get("/api/research-report")
+def research_report_data():
+    return FileResponse(os.path.join(STATIC,"research-report.json"),media_type="application/json")
+
+
 @app.get("/api/demo")
 def demo(minutes: int = 60):
     if minutes not in (15,60,180,0):
@@ -232,7 +262,19 @@ def demo(minutes: int = 60):
     rows=M.s.q("SELECT src,COALESCE(asset,'XRP') asset,drops,created FROM txs WHERE type LIKE 'EscrowFinish%' AND result='tesSUCCESS' AND created>=? ORDER BY created",(start,))
     for a in styles:
         a['receipts']=[{'asset':r['asset'],'amount':r['drops']/1e6,'at':r['created']} for r in rows if r['src']==a['id']]
-    return {'start':start,'end':now,'minutes':minutes,'agents':styles,'assets':sorted({r['asset'] for r in rows if r['src'] in ids} | {M.rail.symbol()}),'unit':config.MICRO_PER_UNIT/1e6,'note':'Simulated participants. Income is the gross amount from successful escrow finishes in the selected period; XRP network fees are separate.'}
+    activity=[]
+    for c in M.s.q("SELECT id,buyer,seller,kind,status,reason,created FROM contracts ORDER BY id DESC LIMIT 100"):
+        if c['buyer'] not in ids or c['seller'] not in ids:
+            continue
+        sources=set()
+        for m in M.s.q("SELECT thinking FROM messages WHERE contract=?",(c['id'],)):
+            try:
+                by=json.loads(m['thinking'] or '{}').get('by','rules')
+                if by and by!='rules':sources.add(by)
+            except (ValueError,TypeError):pass
+        c['source']=', '.join(sorted(sources)) or 'rules'
+        activity.append(c)
+    return {'activity':activity[:20],'start':start,'end':now,'minutes':minutes,'agents':styles,'assets':sorted({r['asset'] for r in rows if r['src'] in ids} | {M.rail.symbol()}),'unit':config.MICRO_PER_UNIT/1e6,'note':'Simulated participants. Income is the gross amount from successful escrow finishes in the selected period; XRP network fees are separate.'}
 
 
 @app.get("/api/market")
@@ -283,6 +325,8 @@ def _sell_now(aid: str) -> list[dict]:
         return []
     out = []
     for w in M.s.q("SELECT p.*, a.name buyer_name, a.verified FROM postings p JOIN accounts a ON a.id = p.buyer WHERE p.status = 'open' AND p.buyer != ?", (aid,)):
+        if aid=="demo-vault" and w["buyer"].startswith("u-"):
+            continue
         mine = M.s.q("SELECT status FROM files WHERE account = ? AND kind = ? AND status IN ('listed', 'private')", (aid, w["kind"]))
         if not mine or w["purpose"] in a["sell_agent"].get("blocks", []):
             continue
@@ -419,7 +463,8 @@ def account(aid: str, request: Request):
     balances = M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND type LIKE 'EscrowFinish%' AND result='tesSUCCESS' GROUP BY asset", (aid,))
     stats = {"fees_by_asset":fees, "earned_by_asset": balances, "agreed": sum(b["agreed"] for b in bundles), "declined": sum(b["declined"] for b in bundles),
              "earned_xrp": next((b["amount"] for b in balances if b["asset"]=="XRP"),0), "fees_xrp": next((b["amount"] for b in fees if b["asset"]=="XRP"),0)}
-    trades = _trade_summaries(M.s.q("SELECT id,buyer,seller,kind,status,reason,total,items,sellers,asset,unit_micro,created FROM contracts WHERE buyer=? OR seller=? OR sellers LIKE ? ORDER BY id DESC", (aid,aid,'%'+json.dumps(aid)+'%')),aid)
+    trade_rows=M.s.q("SELECT id,buyer,seller,kind,status,reason,total,items,sellers,asset,unit_micro,created FROM contracts WHERE buyer=? OR seller=? OR sellers LIKE ? ORDER BY id DESC", (aid,aid,'%'+json.dumps(aid)+'%'))
+    trades = _trade_summaries([c for c in trade_rows if _can_view_contract(c,aid)],aid)
     payout=a.get("payout")
     display_address=payout if payout and M.rail.has_line(payout) else M.addr.get(aid)
     display_balance=M.rail.balance(payout) if payout and display_address==payout else M.balance(aid)
@@ -478,7 +523,9 @@ def bundle(aid: str,request: Request,body: dict=Body(...)):
 
 @app.post("/api/account/{aid}/upload")
 async def upload(aid: str, request: Request, file: UploadFile):
-    _guard(request, aid)
+    user=_guard(request, aid)
+    if user and user.get("demo"):
+        raise HTTPException(403,"The shared demo accepts synthetic samples only. Sign in to upload your own files.")
     raw = await file.read()
     try:
         body = json.loads(raw)

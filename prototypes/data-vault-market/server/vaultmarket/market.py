@@ -85,6 +85,14 @@ class Market:
                     for j in range(8):
                         body = data.make_record("air", rng, o["name"], j, (0, 0))
                         self.add_file(o["id"], "air", data.file_name("air", body, j), body, listed=True, source="kite-sensor-net")
+        if not self.s.one("SELECT id FROM accounts WHERE id='demo-vault'"):
+            self.s.insert("accounts",id="demo-vault",name="Demo vault",type="person",trust=.9,verified=0,
+                          sell_agent={"mode":"ask","min":{k:v["price"] for k,v in KINDS.items()},"blocks":["insurance pricing"]},
+                          buy_agent={"auto_limit":10,"min_trust":.7,"max_overlap":0})
+            demo_rng=random.Random(101)
+            for k in ("gps_track","sleep_log","purchase_receipts"):
+                body=data.make_record(k,demo_rng,"Synthetic demo",0,(40.7,-74))
+                self.add_file("demo-vault",k,data.file_name(k,body,0),body,listed=False,source="synthetic demo")
         legacy=self.s.q("SELECT DISTINCT account FROM chat WHERE done=0 AND actions IS NOT NULL AND text LIKE '%lot of at least % people%'")
         self.s.x("UPDATE chat SET done=1 WHERE done=0 AND actions IS NOT NULL AND text LIKE '%lot of at least % people%'")
         for a in legacy:
@@ -296,7 +304,7 @@ class Market:
         else:
             requests = self.s.q("SELECT * FROM postings WHERE status='open' AND kind=? AND buyer!=? ORDER BY max DESC", (q["kind"], q["account"]))
             own_fps=self.owned_fps(q["account"],q["kind"])
-            requests=[w for w in requests if len(own_fps & self.owned_fps(w["buyer"],q["kind"])) == 0]
+            requests=[w for w in requests if not (q["account"]=="demo-vault" and w["buyer"].startswith("u-")) and len(own_fps & self.owned_fps(w["buyer"],q["kind"])) == 0]
             w = next((w for w in requests if (q["posting"] is None or w["id"]==q["posting"]) and w["purpose"] not in a["sell_agent"].get("blocks", []) and w["max"]>=a["sell_agent"]["min"].get(q["kind"],0)), None)
             if w:
                 self.s.x("INSERT OR IGNORE INTO interests(account,posting,created) VALUES(?,?,?)", (q["account"],w["id"],time.time()))
@@ -344,7 +352,8 @@ class Market:
         q = self.quote(w["kind"])
         opening = round(min(w["max"], max(0.5, q["price"] * 0.92)), 1)
         w = {**w, "offer": opening, "quote": q}
-        cid = self.s.insert("contracts", posting=w["id"], buyer=w["buyer"], kind=w["kind"], seller=seller_id, status="negotiating", asset=self.rail.symbol(), unit_micro=config.MICRO_PER_UNIT)
+        cid = self.s.insert("contracts", posting=w["id"], buyer=w["buyer"], kind=w["kind"], seller=seller_id, status="negotiating", reason="Buyer agent is preparing an offer", asset=self.rail.symbol(), unit_micro=config.MICRO_PER_UNIT)
+        self.events += 1
         if queue_id:
             self.s.x("UPDATE sale_queue SET status='negotiating',contract=?,updated=? WHERE id=?", (cid,time.time(),queue_id))
         def say(who, side, text, thinking="", by=""):
@@ -362,6 +371,8 @@ class Market:
         files = self.s.q("SELECT f.*, a.trust FROM files f JOIN accounts a ON a.id = f.account WHERE f.kind = ? AND f.status = 'listed' AND f.account != ?", (w["kind"], w["buyer"]))
         by_acct: dict[str, list] = {}
         for f in files:
+            if (w["buyer"]=="demo-vault" and f["account"].startswith("u-")) or (w["buyer"].startswith("u-") and f["account"]=="demo-vault"):
+                continue  # The public demo never trades a real member's records.
             if f["account"] not in self.addr:      # wallet not funded yet: not in the market this round
                 continue
             by_acct.setdefault(f["account"], []).append(f)
@@ -395,6 +406,7 @@ class Market:
                 step("Duplicate check (record fingerprints)", f"{ov:.0%} of this lot's record fingerprints are already in the buyer's DB; any overlap is refused. Refused before price talk.", False, a)
                 overlap += 1
                 continue
+            self.s.x("UPDATE contracts SET reason='Seller agent is reviewing the offer' WHERE id=?",(cid,));self.events += 1
             r = agents.seller_reply(sa["name"], sa["sell_agent"], w, buyer["name"], len(fs))
             say(a, "seller", r["message"], r["thinking"], r["by"])
             final = r["verdict"]
@@ -554,7 +566,7 @@ class Market:
             self.s.insert("files", account=buyer_id, kind=w["kind"], name=f"{w['kind']}_lot_{cid}.json", raw=data.dumps(raw), clean=data.dumps({"records": merged[:3], "_people": people}),
                           status="bought", fps=sorted(fps), source=f"contract {cid}", resale=w.get("resale", 0), bytes=sum(len(c) for c in plain.values()))
             self.s.x("UPDATE sale_queue SET status='settled',reason='Payment and delivery verified',updated=? WHERE contract=?", (time.time(),cid))
-            self.s.x("UPDATE contracts SET status='settled', total=?, items=?, sellers=?, trace=? WHERE id=?", (paid_total, items, json.dumps([l["seller"] for l in paid]), json.dumps(trace), cid))
+            self.s.x("UPDATE contracts SET status='settled', reason=NULL, total=?, items=?, sellers=?, trace=? WHERE id=?", (paid_total, items, json.dumps([l["seller"] for l in paid]), json.dumps(trace), cid))
             self.s.x("UPDATE postings SET settled = settled + 1 WHERE id = ?", (w["id"],))
             if w.get("once"):
                 self.s.x("UPDATE postings SET status = 'filled' WHERE id = ?", (w["id"],))
@@ -761,7 +773,7 @@ class Market:
         kind of data that has the least open demand right now, at a price near the going rate."""
         open_by = {k: self.s.one("SELECT COUNT(*) n FROM postings WHERE kind = ? AND status = 'open'", (k,))["n"] for k in KINDS}
         kind = min(open_by, key=lambda k: (open_by[k], rng.random()))
-        buyer = rng.choice([a for a in self.s.q("SELECT id, type FROM accounts WHERE id NOT LIKE 'u-%'") if a["id"] in self.addr] or [{"id": "atlas-maps", "type": "org"}])
+        buyer = rng.choice([a for a in self.s.q("SELECT id, type FROM accounts WHERE id NOT LIKE 'u-%' AND id!='demo-vault'") if a["id"] in self.addr] or [{"id": "atlas-maps", "type": "org"}])
         base = KINDS[kind]["price"] * rng.uniform(0.85, 1.3)
         offer = round(base, 1)
         pid = self.s.insert("postings", buyer=buyer["id"], kind=kind, offer=offer, max=round(offer * rng.uniform(1.15, 1.4), 1), purpose=rng.choice(self.PURPOSES[kind]),

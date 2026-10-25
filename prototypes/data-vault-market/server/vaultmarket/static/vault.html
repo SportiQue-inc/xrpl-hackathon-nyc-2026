@@ -5,10 +5,10 @@
 <link rel="stylesheet" href="/static/ui.css">
 </head><body>
 <div class="top">
-  <span class="brand">Data Vault Market</span>
-  <nav><a href="/">Market</a><a href="/vault" aria-current="page">My DB</a><a href="/assets">Assets</a></nav>
+  <span class="brand">Data Vault Market</span><span class="small" id="accountName">Loading vault…</span>
+  <nav><a href="/">Market</a><a href="/vault" aria-current="page">My DB</a><a href="/assets">Assets</a><a href="/demo">Demo</a><a href="/report">Report</a></nav>
   <span class="tag" id="ledgerTag"></span><span class="tag" id="modelTag"></span>
-  <span class="small" id="accountName"></span>
+  
 </div>
 <div class="banner" id="banner" hidden></div>
 <div class="app vault-app">
@@ -56,6 +56,9 @@ async function refresh() {
   }
   try { ACC = await api(`/api/account/${ME}`); META = await api("/api/meta"); } catch { return; }
   const a = ACC.account, k = META.kinds;
+  $('file').disabled=!!USER.user?.demo;
+  if(USER.user?.demo){document.querySelector('.onboarding').innerHTML='<h2>Your demo vault</h2><p class="small">Synthetic files are ready below. Ask your agent what to sell, then approve a request. Use your own vault to import personal files or link a wallet.</p>';$('file').closest('.intake-work')?.querySelector('.drop span').replaceChildren(document.createTextNode('Demo uses synthetic samples. Use your own vault to import personal files.'));}
+
   $('diagnostics').textContent=`${META.connected}/${META.accounts} wallets connected · provider ${META.llm.provider} · ${META.llm.calls} calls · ${META.llm.out_tokens} generated tokens · ${META.llm.fallbacks} rule fallbacks. ${META.asset_note||''}`;
 
 $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribute("aria-pressed", VIEW === "demand"); $("vAll").setAttribute("aria-pressed", VIEW === "all");
@@ -97,7 +100,7 @@ $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribut
   $('discoverData').onclick=()=>tellAgent('What can I sell from my DB?');
   if(!$('buyKind').options.length){$('buyKind').innerHTML=Object.entries(k).map(([id,v])=>`<option value="${id}">${esc(v.label)}</option>`).join('');$('buyPrice').value=(k[$('buyKind').value].price*(META.unit_xrp||.01)).toFixed(2);}
   $('buyForm').onsubmit=async(e)=>{e.preventDefault();try{await post(`/api/account/${ME}/chat`,{text:'buy '+k[$('buyKind').value].label,price:Number($('buyPrice').value)/(META.unit_xrp||.01),resale:$('buyResale').checked});await refresh();}catch(err){showError(err);}};
-  chatBox($("chat"), ACC);
+  chatBox($("chat"), ACC);$("banner").hidden=true;
 }
 topbar("vault").then(refresh).catch(showError); live();
 </script></body></html>

@@ -23,14 +23,12 @@ function canAct() {
 }
 async function topbar(page) {
   [META, USER] = await Promise.all([api("/api/meta"), api("/api/me")]);
+  if (!USER.user) {await post('/api/demo-session');USER=await api('/api/me');}
   ME = USER.user?.account || null;
+  document.querySelectorAll('nav a').forEach(a=>{if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   $("accountName").textContent = USER.user?.username || "";
   const brand=document.querySelector(".brand");if(brand)brand.after($("accountName"));
   memberBar();
-  if (!$('demoLink')) {const a=document.createElement('a');a.id='demoLink';a.href='/demo';a.textContent='Demo';if(location.pathname==='/demo')a.setAttribute('aria-current','page');document.querySelector('nav').append(a);}
-  if (META.engine_url && !$("engineLink")) {
-    const a=document.createElement("a");a.id="engineLink";a.href=META.engine_url;a.target="_blank";a.rel="noopener";a.textContent="Engine ↗";document.querySelector("nav").append(a);
-  }
   $("ledgerTag").textContent = META.asset === "test USD" ? "Testnet · test USD" : `Testnet · ${sym()}`;
   $("ledgerTag").title = META.asset_note || "";
   $("ledgerTag").hidden = true;
@@ -38,7 +36,7 @@ async function topbar(page) {
 }
 function memberBalance(account) {
   const el=$("accountName");
-  if (USER.user) el.textContent=`${USER.user.username} · ${account.balance==null?'Wallet connecting':amount(account.balance)}`;
+  if (USER.user) el.textContent=`${USER.user.demo?'Demo vault (synthetic)':USER.user.username} · ${account.balance==null?'Wallet connecting':amount(account.balance)}`;
 }
 function chatBox(el, data) {
   const draft = $("say")?.value || "", focused = document.activeElement?.id === "say";
@@ -67,13 +65,10 @@ function live() { try { const es = new EventSource("/api/stream"); es.onmessage 
 
 // ---------------- members: sign up, sign in, link a personal wallet ----------------
 function memberBar() {
-  let el = $("member");
-  if (!el) { el = document.createElement("span"); el.id = "member"; el.className = "acts"; $("accountName").after(el); }
-  el.innerHTML = USER.user
-    ? `<button type="button" id="mWallet">${USER.user.wallet_tx ? "Wallet linked ✓" : "Link my wallet"}</button><button type="button" id="mOut">Sign out</button>`
-    : `<button type="button" class="primary" id="mIn">Sign up / Sign in</button>`;
-  if (USER.user) { $("mWallet").onclick = walletDlg; $("mOut").onclick = async () => { await post("/api/logout"); location.href = location.pathname; }; }
-  else $("mIn").onclick = authDlg;
+  let el=$("member");if(!el){el=document.createElement("span");el.id="member";el.className="acts";$("accountName").after(el);}
+  if(USER.user?.demo){el.innerHTML='<button type="button" id="mIn">Use my own vault</button>';$("mIn").onclick=authDlg;return;}
+  el.innerHTML=USER.user?`<button type="button" id="mWallet">${USER.user.wallet_tx?'Wallet linked ✓':'Link my wallet'}</button><button type="button" id="mOut">Sign out</button>`:'<button type="button" id="mIn">Sign in</button>';
+  if(USER.user){$("mWallet").onclick=walletDlg;$("mOut").onclick=async()=>{await post('/api/logout');location.href=location.pathname;};}else $("mIn").onclick=authDlg;
 }
 function dlg(html) {
   let d = $("mDlg");
