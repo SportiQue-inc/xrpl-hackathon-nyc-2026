@@ -78,11 +78,13 @@ class MandateChain:
         self.payees: list[str] | None = None
         self.ceiling_drops = 0
 
-    def issue_from(self, mandate_row, store=None):
-        """Owner signs the current mandate (after a co-signed budget change, for example)."""
+    def issue_from(self, mandate_row, store=None, funded_by: str | None = None):
+        """Owner signs the current mandate (after a co-signed budget change, for example). funded_by:
+        the co-signed treasury tx that put this budget on the ledger, signed into the delegation."""
         # The issuer's ceiling (L1) is fixed when the chain is set up; a raised budget row cannot lift it.
         self.issue(self.ceiling_drops, mandate_row["per_order_limit_drops"],
-                   mandate_row["total_drops"], json.loads(mandate_row["purposes"]), self.payees)
+                   mandate_row["total_drops"], json.loads(mandate_row["purposes"]), self.payees,
+                   funded_by=funded_by)
         if store is not None:
             store.log(self.buyer_id, "mandate", f"owner signed the agent's delegation: up to "
                       f"{mandate_row['per_order_limit_drops'] / 1e6:g} XRP per payment, "
@@ -90,7 +92,8 @@ class MandateChain:
                       f"(Verifiable Intent L2 {presentation_hash(self.l2)})", {"l2": presentation_hash(self.l2)})
 
     def issue(self, ceiling_drops: int, per_tx_drops: int, total_drops: int, purposes: list[str],
-              payees: list[str] | None, ttl_s: int = 24 * 3600, now: int | None = None):
+              payees: list[str] | None, ttl_s: int = 24 * 3600, now: int | None = None,
+              funded_by: str | None = None):
         now = int(now if now is not None else time.time())
         disc, dig = _make_disclosure("credential", {"subject": self.buyer_id, "allowedChains": ["xrpl"],
                                                     "allowedAssets": ["XRP"], "spendingCeiling": ceiling_drops})
@@ -102,7 +105,8 @@ class MandateChain:
             owner_private_jwk=self.owner_key, agent_public_jwk=self.agent_pub, owner_kid=self.owner_key["kid"],
             agent_kid=self.agent_key["kid"], l1_presentation=self.l1, audience=AUD, now=now, ttl_seconds=ttl_s,
             constraints={"per_transaction_max": per_tx_drops, "total_max": total_drops,
-                         "allowed_purposes": sorted(purposes), "allowed_payees": sorted(payees) if payees else ["*"]})
+                         "allowed_purposes": sorted(purposes), "allowed_payees": sorted(payees) if payees else ["*"],
+                         **({"treasury_tx": funded_by} if funded_by else {})})
         return self.l2
 
     def sign_order(self, order: dict, now: int | None = None) -> str:
@@ -157,3 +161,27 @@ def verify(l1: str, l2: str, l3: str, issuer_pub: dict, order: dict, committed_d
     if "*" not in payees and order["payee_id"] not in payees:
         return False, f"payee {order['payee_id']} not in the owner's signed mandate"
     return True, "ok"
+
+
+def explain(l1: str, l2: str, l3: str, issuer_pub: dict) -> dict:
+    """Dispute and audit view of one payment's chain: what each party signed, and whether each
+    signature and binding still checks. Read-only; nothing here moves money."""
+    out = {"standard": "Verifiable Intent (Mastercard, open standard, with Google), autonomous mode: "
+                       "the owner signs constraints and binds the agent key; the agent signs each final action"}
+    try:
+        p1 = _verify_jws(l1.split("~")[0], issuer_pub)
+        out["l1"] = {"signed_by": "issuer", "valid": True, "subject": p1.get("sub"),
+                     "credential": _disclosed(l1, p1).get("credential", {}), "exp": p1.get("exp")}
+        p2 = _verify_jws(l2.split("~")[0], p1["cnf"]["jwk"])
+        out["l2"] = {"signed_by": "owner (principal investigator)", "valid": True,
+                     "bound_to_l1": p2.get("sd_hash") == sd_hash_of_presentation(l1),
+                     "agent_key": p2.get("cnf", {}).get("jwk", {}).get("kid"),
+                     "constraints": _disclosed(l2, p2).get("constraints", {}), "iat": p2.get("iat"), "exp": p2.get("exp")}
+        p3 = _verify_jws(l3.split("~")[0], p2["cnf"]["jwk"])
+        out["l3"] = {"signed_by": "agent (delegated key)", "valid": True,
+                     "bound_to_l2": p3.get("sd_hash") == sd_hash_of_presentation(l2),
+                     "transaction": p3.get("transaction", {}), "iat": p3.get("iat"), "exp": p3.get("exp"),
+                     "hash": presentation_hash(l3)}
+    except (ValueError, KeyError) as e:
+        out["error"] = f"chain does not verify: {e}"
+    return out

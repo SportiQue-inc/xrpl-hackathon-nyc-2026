@@ -465,6 +465,36 @@ def licence_gate(w, pid: str, use: str) -> dict | None:
     return {"mpt_id": lic["mpt_id"], "held": True, "duo": duo, "use": use}
 
 
+def dispute(w, tx_hash: str) -> dict:
+    """Dispute view: from one ledger tx (escrow, payment, finish or cancel) back to who authorized it.
+    memo mandate hash -> L3 (the agent's signed order) -> L2 (the owner's signed limits, with the
+    co-signed treasury tx that funded them) -> L1 (the issuer's ceiling)."""
+    from .mandate import explain, presentation_hash
+    h = tx_hash.upper()
+    p = w.store.one("SELECT * FROM payments WHERE upper(tx_hash)=? OR upper(finish_tx)=? OR upper(cancel_tx)=?", h, h, h)
+    if p is None:
+        raise KeyError(f"no payment with tx {tx_hash}")
+    o = w.store.one("SELECT * FROM orders WHERE id=?", p["order_id"])
+    a = w.store.one("SELECT * FROM mandate_actions WHERE order_id=?", p["order_id"])
+    if a is None:
+        raise KeyError(f"order {p['order_id']} has no signed order")
+    chain = w.engine.mandate_chains[o["buyer_id"]]
+    st = w.ledger.lookup(p["tx_hash"])
+    view = explain(a["l1"], a["l2"], a["l3"], chain.issuer_pub)
+    t = view.get("l3", {}).get("transaction", {})
+    view["ledger"] = {"tx": p["tx_hash"], "url": _url(w, p["tx_hash"]), "type": st.tx_type, "result": st.result,
+                      "amount_drops": st.amount_drops, "finish_tx": p["finish_tx"], "cancel_tx": p["cancel_tx"],
+                      "memo_mandate_hash": a["hash"], "memo_matches_l3": a["hash"] == presentation_hash(a["l3"])}
+    view["checks"] = {"amount": t.get("amount") == p["amount_drops"], "invoice": t.get("invoiceId") == o["order_key"].upper(),
+                      "purpose": t.get("purpose") == o["purpose"], "verdict_at_payment": a["verdict"], "reason": a["reason"]}
+    funded = view.get("l2", {}).get("constraints", {}).get("treasury_tx")
+    if funded:
+        view["l2"]["treasury_tx_url"] = _url(w, funded)
+    view["order"] = {"id": o["id"], "buyer": o["buyer_id"], "payee": o["payee_id"], "purpose": o["purpose"],
+                     "status": o["status"]}
+    return view
+
+
 def open_bundle(w, oid: int, use: str = "sleep_research") -> dict:
     o = w.store.one("SELECT * FROM orders WHERE id=?", oid)
     if o is not None and o["seller_id"] in getattr(ensure(w), "withdrawn", set()):

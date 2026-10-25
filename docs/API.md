@@ -277,3 +277,13 @@ behind the API sign-in). Without a payment: **402** with body and `PAYMENT-REQUI
 `payment_requirements_mismatch`, `invoice_not_bound`, `payment_already_used`, `not_settled:<code>`.
 The person's agent uses `CLINIC_EXPORT_URL` (e.g. `http://localhost:8000/clinic`) or, by default, the
 same app in process through a full HTTP exchange.
+
+
+## Dispute view (Verifiable Intent)
+
+`GET /api/study/dispute/{tx_hash}` (study team) with any escrow, finish or cancel tx of an order:
+`{"standard": "Verifiable Intent ... autonomous mode", "ledger": {"tx", "url", "type", "result", "memo_mandate_hash",
+"memo_matches_l3"}, "l3": {"signed_by": "agent", "valid", "bound_to_l2", "transaction": {...}},
+"l2": {"signed_by": "owner", "valid", "bound_to_l1", "constraints": {"per_transaction_max", "total_max",
+"allowed_purposes", "allowed_payees", "treasury_tx"}, "treasury_tx_url"}, "l1": {"signed_by": "issuer",
+"credential": {"spendingCeiling", ...}}, "checks": {"amount", "invoice", "purpose", "verdict_at_payment"}}`.

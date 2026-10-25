@@ -238,7 +238,7 @@ def _apply_budget(w, a: dict, h: str, approvers: list[str]):
                                json.loads(m["purposes"])))
     chain = e.mandate_chains.get(buyer)
     if chain is not None:
-        chain.issue_from(st.one("SELECT * FROM mandates WHERE buyer_id=?", buyer), st)
+        chain.issue_from(st.one("SELECT * FROM mandates WHERE buyer_id=?", buyer), st, funded_by=h)
     st.log(buyer, "top_up", f"{' + '.join(approvers)} co-signed a {a['amount_drops'] / 1e6:g} XRP treasury payment "
            f"on their own devices (approval {a['id']}); mandate now {(m['total_drops'] + a['amount_drops']) / 1e6:g} XRP",
            {"tx_hash": h, "url": w.ledger.explorer_url(h)})
