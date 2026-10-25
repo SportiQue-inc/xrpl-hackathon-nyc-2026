@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import threading
 import time
 from contextlib import contextmanager
+from decimal import Decimal, DecimalException
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS accounts (
@@ -65,6 +67,7 @@ class Store:
             if "payout" not in cols:          # databases from before signup
                 self.db.execute("ALTER TABLE accounts ADD COLUMN payout TEXT")
             had_units = "unit_micro" in {r[1] for r in self.db.execute("PRAGMA table_info(contracts)")}
+            had_tx_asset = "asset" in {r[1] for r in self.db.execute("PRAGMA table_info(txs)")}
             for table, additions in {
                 "contracts": {"seller": "TEXT", "overview": "TEXT", "terms": "TEXT", "asset": "TEXT DEFAULT 'XRP'", "unit_micro": "INT DEFAULT 10000"},
                 "txs": {"asset": "TEXT DEFAULT 'XRP'", "receipt": "TEXT"},
@@ -79,7 +82,64 @@ class Store:
             self.db.execute("UPDATE contracts SET asset='XRP' WHERE asset IS NULL")
             if not had_units:
                 self.db.execute("UPDATE contracts SET unit_micro=1000000 WHERE asset='test USD'")
-            self.db.execute("UPDATE txs SET asset=COALESCE((SELECT asset FROM contracts WHERE contracts.id=txs.contract), asset, 'XRP')")
+            # Existing transaction denominations are evidence, not a cache of the contract label.
+            fill_missing = " WHERE asset IS NULL OR asset=''" if had_tx_asset else ""
+            self.db.execute("UPDATE txs SET asset=COALESCE(NULLIF((SELECT asset FROM contracts WHERE contracts.id=txs.contract),''), NULLIF(asset,''), 'XRP')" + fill_missing)
+            self._repair_proven_ap4m_assets()
+
+    def _repair_proven_ap4m_assets(self):
+        # A stored verified claim must bind the exact hash and amount; type/hash shape alone is not proof.
+        repairable = {None, '', 'XRP', 'test USD'}
+        canonical = 'RLUSD (AP4M)'
+        with self.transaction():
+            contracts = self.q("""SELECT id,asset,trace FROM contracts WHERE
+                EXISTS (SELECT 1 FROM txs WHERE txs.contract=contracts.id AND type='AP4M VoucherRedeemed')
+                AND NOT EXISTS (SELECT 1 FROM txs WHERE txs.contract=contracts.id
+                    AND (type LIKE 'EscrowCreate%' OR type LIKE 'EscrowFinish%'))""")
+            for contract in contracts:
+                try:
+                    trace = json.loads(contract['trace'] or '{}', parse_float=Decimal)
+                except (DecimalException, ValueError, TypeError, RecursionError):
+                    continue
+                if not isinstance(trace, dict) or not isinstance(trace.get('tx'), list):
+                    continue
+                for leg in trace['tx']:
+                    if not isinstance(leg, dict) or not isinstance(leg.get('ap4m'), list):
+                        continue
+                    for proof in leg['ap4m']:
+                        if not isinstance(proof, dict) or proof.get('verified') is not True:
+                            continue
+                        tx_hash, claim = proof.get('voucher_redeemed_tx'), proof.get('claim_id')
+                        if not isinstance(tx_hash, str) or not re.fullmatch(r'0x[0-9a-fA-F]{64}', tx_hash):
+                            continue
+                        if not isinstance(claim, str) or not re.fullmatch(r'0x[0-9a-fA-F]{64}', claim) or proof.get('voucher_url') != 'https://explorer.testnet.xrplevm.org/tx/' + tx_hash:
+                            continue
+                        try:
+                            amount = Decimal(str(proof.get('amount_rlusd')))
+                            if not amount.is_finite() or not 0 < amount <= Decimal('0.1'):
+                                continue
+                            if amount != amount.quantize(Decimal('0.000001')):
+                                continue
+                            micro = int(amount * 1000000)
+                        except (DecimalException, ValueError, TypeError):
+                            continue
+                        paid = self.q("SELECT id,asset,drops FROM txs WHERE contract=? AND type='AP4M VoucherRedeemed' AND hash=? AND result='verified'", (contract['id'], tx_hash))
+                        matched = False
+                        for tx in paid:
+                            if tx['drops'] != micro or tx['asset'] not in repairable | {canonical}:
+                                continue
+                            matched = True
+                            if tx['asset'] != canonical:
+                                self.x("UPDATE txs SET asset=? WHERE id=?", (canonical, tx['id']))
+                        if not matched:
+                            continue
+                        if contract['asset'] in repairable:
+                            self.x("UPDATE contracts SET asset=? WHERE id=?", (canonical, contract['id']))
+                        forward = proof.get('forward_tx')
+                        if isinstance(forward, str) and re.fullmatch(r'0x[0-9a-fA-F]{64}', forward):
+                            for tx in self.q("SELECT id,asset,drops FROM txs WHERE contract=? AND type='RLUSD forward to seller' AND hash=?", (contract['id'], forward)):
+                                if tx['drops'] == micro and tx['asset'] in repairable:
+                                    self.x("UPDATE txs SET asset=? WHERE id=?", (canonical, tx['id']))
 
     @contextmanager
     def transaction(self):

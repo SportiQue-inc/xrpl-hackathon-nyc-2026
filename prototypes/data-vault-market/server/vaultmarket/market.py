@@ -646,6 +646,9 @@ class Market:
             plain[a] = clear
         self.s.x("UPDATE contracts SET trace=?,sellers=? WHERE id=?", (json.dumps(trace),json.dumps([l["seller"] for l in legs]),cid))
         use_ap4m = w['kind'] != data.PACKAGE_KIND and self._use_ap4m(buyer_id, [l["seller"] for l in legs])
+        if use_ap4m:
+            trace["asset"] = "RLUSD (AP4M)"
+            self.s.x("UPDATE contracts SET asset=?,trace=? WHERE id=?", (trace["asset"], json.dumps(trace), cid))
         eids = {}
         def record(i, seq, create_hash, cancel_after, create_blob):
             l = legs[i]

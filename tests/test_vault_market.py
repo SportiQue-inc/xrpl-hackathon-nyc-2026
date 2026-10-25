@@ -196,7 +196,7 @@ def test_existing_test_usd_and_xrp_keep_distinct_units_after_migration(market):
     from vaultmarket.store import Store
     a=market.s.insert('contracts',kind='sleep_log',asset='test USD',status='settled')
     b=market.s.insert('contracts',kind='sleep_log',asset=None,status='settled')
-    market.s.insert('txs',contract=a,type='EscrowFinish',drops=2900000,result='tesSUCCESS')
+    market.s.insert('txs',contract=a,type='EscrowFinish',drops=2900000,result='tesSUCCESS',asset=None)
     market.s.x("ALTER TABLE contracts DROP COLUMN unit_micro")
     market.s.db.close()
     s=Store(config.DB_PATH)
@@ -743,6 +743,30 @@ def test_ap4m_deal_pays_one_voucher_within_the_cap_and_it_releases_the_key(marke
     assert any(p["protocol"].startswith("AP4M Voucher redeemed") and p.get("receipt_url") for p in trace["protocol"])
     assert any(p["protocol"] == "Buyer opens the bundle" and p["ok"] for p in trace["protocol"])
 
+
+
+
+def test_ap4m_contract_records_actual_asset_before_one_payment(market, monkeypatch):
+    from agentrail import ap4m_rail
+    calls = _fake_rail(monkeypatch)
+    post = ap4m_rail._post
+    assets_at_payment = []
+    def pay(path, body, timeout):
+        contract = market.s.one('SELECT asset,trace FROM contracts WHERE id=?', (body['memo']['contract'],))
+        assets_at_payment.append((contract['asset'], json.loads(contract['trace'])['asset']))
+        return post(path, body, timeout)
+    monkeypatch.setattr(ap4m_rail, '_post', pay)
+    monkeypatch.setattr(config, 'MICRO_PER_UNIT', 5000)
+
+    contract, cid = _trade(market)
+
+    assert assets_at_payment == [('RLUSD (AP4M)', 'RLUSD (AP4M)')]
+    paid = market.s.q("SELECT asset,drops FROM txs WHERE contract=? AND type='AP4M VoucherRedeemed'", (cid,))
+    assert contract['status'] == 'settled' and contract['asset'] == 'RLUSD (AP4M)'
+    assert json.loads(contract['trace'])['asset'] == 'RLUSD (AP4M)'
+    assert len(calls) == len(paid) == 1
+    assert paid[0]['asset'] == contract['asset']
+    assert calls[0]['amount_micro'] == paid[0]['drops'] == round(contract['total'] * contract['unit_micro'])
 
 
 def test_ap4m_failed_forward_keeps_redemption_without_claiming_seller_payment(market, monkeypatch):
