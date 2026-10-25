@@ -99,7 +99,7 @@ institutional budget top-up approvals would be signed with a hardware wallet suc
 | Criterion | How AgentRail meets it | Evidence |
 |---|---|---|
 | Agentic Finance track: agents that move money | buyer agents discover, negotiate and pay autonomously inside a mandate; holders' agents answer for them | scene A, scene B, `agents.py` |
-| Safe autonomy | spending limits, consent and compliance are code; multisig treasury stops self-funding | `policy.py`, `engine.py`, 25 tests (`pytest -q`) |
+| Safe autonomy | spending limits, consent and compliance are code; multisig treasury stops self-funding | `policy.py`, `engine.py`, 23 tests (`pytest -q`) |
 | Idea (25%) | one engine for organization data and personal data; consent and sensitivity are part of the trade | sections 1-2, scene B |
 | Implementation (25%) | Payment + InvoiceID + validated-ledger release, idempotent recovery, Credentials, Multi-signing, x402 rail | section 3, `tests/test_engine.py` |
 | Demo (25%) | one command runs both scenes; dashboard shows agent dialogue, orders and explorer links | section 5 |
