@@ -7,7 +7,7 @@ from common import HERE, amendment_status, client
 NAMES = ["Credentials", "DepositAuth", "DepositPreauth", "MPTokensV1", "Clawback", "Escrow", "TokenEscrow",
          "Batch", "BatchV1_1", "fixBatchV1_2", "fixBatchInnerSigs", "AMM", "fixAMMv1_1", "fixAMMv1_2", "fixAMMv1_3", "AMMClawback",
          "PermissionedDomains", "DynamicMPT", "SingleAssetVault"]
-# xrpl-py >= 5.0 changed the Wallet.from_seed default algorithm; all seeds here are created fresh by this run.
+# xrpl-py >= 5.0 changed the Wallet.from_seed default algorithm; reruns reuse xrpl_checks/wallets.local.json, so keep the same xrpl-py major version between runs.
 
 if __name__ == "__main__":
     c = client()
