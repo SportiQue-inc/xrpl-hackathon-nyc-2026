@@ -89,3 +89,23 @@ def test_a_subproject_inside_the_agreed_protocol_needs_no_ask_whatever_the_week_
     sp = rel.create("Protocol only", rel.scope["purposes"][0], ["heart_rate.daily", "sleep.daily"], 50_000_000, 2)
     asked = [r for r in sp["routing"] if r["decision"] == "ask"]
     assert not asked and any(r["decision"] == "auto" for r in sp["routing"])
+
+
+def test_a_narrowed_consent_sends_the_left_out_items_back_to_the_person(w):
+    rel = subprojects.of(w)
+    pid = sorted(w.cohort_people)[-1]
+    keep, left = rel.scope["data_types"][0], rel.scope["data_types"][1]
+    rel.consent(pid, [keep])
+    sp = rel.subprojects[rel.create("Narrowed", rel.scope["purposes"][0], [keep, left], 50_000_000, 1)["id"]]
+    assert rel.route(sp, pid, keep) == ("auto", "in_scope")
+    assert rel.route(sp, pid, left) == ("ask", "narrowed")
+    with pytest.raises(ValueError):
+        rel.consent(pid, ["imaging.mri"])
+
+
+def test_the_same_items_for_a_new_purpose_go_back_to_the_person(w):
+    rel = subprojects.of(w)
+    pid = next(p for p in rel.consents if "items" not in rel.consents[p] and not rel._withdrawn(p))
+    t = rel.scope["data_types"][0]
+    sp = rel.subprojects[rel.create("Marketing reuse", "product_marketing", [t], 50_000_000, 1)["id"]]
+    assert rel.route(sp, pid, t) == ("ask", "outside_scope")

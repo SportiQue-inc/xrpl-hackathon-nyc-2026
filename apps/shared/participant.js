@@ -530,6 +530,12 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
           c.status === "delivered" ? T("Delivered", "전달됨") : c.cancel && c.cancel.tx ? T("Returned", "반환") : T("Locked", "예치됨"))))),
       card("", T("Payment evidence", "지급 증빙"),
         d(`${cs.length ? won(cs[0].amount_xrp) : ""} ${T("per delivered week", "회차당")} · ${ledgerNotice()}`),
+        // One order end to end: the consent it ran under, the bundle it sealed, the finish that paid it.
+        ...(() => { const oc = firstFinish || cs[0]; return oc ? [
+          row(T("Consent document", "동의 문서"), oc.consent_hash ? short(oc.consent_hash, 6, 4) : "—", "neutral"),
+          row(T("Bundle hash", "묶음 해시"), oc.bundle_hash ? short(oc.bundle_hash, 6, 4) : "—", "neutral"),
+          row("EscrowFinish", oc.finish && oc.finish.tx ? short(oc.finish.tx, 6, 4) : T("Not yet", "아직"), oc.finish && oc.finish.tx ? "ok" : "neutral"),
+        ] : []; })(),
         ledger(firstFinish ? firstFinish.finish : cs[0] && cs[0].escrow, { kind: firstFinish ? "finish" : "escrow", amount: cs[0] && cs[0].amount_xrp, week: cs[0] && cs[0].weeks[0] })),
     ];
     return fig(allDone ? T("Contribution delivered", "기여 전달 완료") : T("Payment locked", "예치 완료"), T("Submission status", "전달 상태"), body,
@@ -749,6 +755,12 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
       card("", T("Withdrawal evidence", "철회 증빙"),
         h("div", { class: "fg-row", style: { cursor: rv.clawback ? "pointer" : "default" }, onclick: () => { if (rv.clawback) { st.receipt = { kind: "clawback", tx: rv.clawback }; draw(); } } },
           h("span", { class: "l" }, T("Access revoked", "열람 권한 회수")), h("span", { class: "v danger" }, rv.clawback ? T(`Confirmed ${md(rv.ts)}`, `${md(rv.ts)} 확인`) : T("Pending", "대기"))),
+        (rv.held_rounds || []).flatMap((x) => [
+          row(T(`Week ${x.week} key`, `${x.week}주 차 키`), x.key_released ? T("Released", "공개됨") : T("Not released", "공개 안 함"), x.key_released ? "warn" : "ok"),
+          row(T(`Week ${x.week} locked payment`, `${x.week}주 차 예치금`), x.tx ? T("Returned to the study", "연구로 반환됨")
+            : x.refund_at ? T(`Returns to the study after ${md(x.refund_at)}`, `${md(x.refund_at)} 이후 연구로 반환`) : "—", "neutral"),
+        ]),
+        row(T("Further access", "이후 열람"), T("Refused · checked on every open", "거절 · 열 때마다 확인"), "ok"),
         row(T("Deletion requested", "삭제 요청"), T("Sent to the study", "연구 기관에 보냄"), "brand"),
         row(T("Deletion confirmed by the study", "연구 기관 삭제 확인"), dl.confirmation_hash ? `${dl.bundles ? `${dl.bundles} ${T("bundles", "묶음")} · ` : ""}${short(dl.confirmation_hash, 4, 0)}` : T("Waiting for the study", "기관 확인 대기"), dl.confirmation_hash ? "ok" : "neutral"),
         row(T("Retention exception", "보관 예외"), dl.retained ? dl.retained : T("None reported by the study", "기관이 보고한 예외 없음"), "neutral")),

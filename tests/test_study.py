@@ -105,8 +105,14 @@ def test_approve_contributes_and_issues_a_licence_then_revoke_claws_back_and_ref
     st = {c["weeks"][0]: c["status"] for c in v["contributions"] if "fatigue.survey" in c["items"]}
     assert st == {3: "delivered", 4: "delivered", 5: "escrowed"}       # week 5 held until the round closes
     assert v["licence"]["held_by_study"]
+    held = next(c for c in v["contributions"] if c["weeks"] == [5])
+    done = next(c for c in v["contributions"] if c["weeks"] == [3])
+    assert held["refund_at"] and done["refund_at"] is None
+    assert len(done["bundle_hash"]) == 64 and done["consent_hash"] == v["consent"]["doc_hash"]
     r = study.participant_revoke(w, HERO)
     assert r["clawback"]["tx"] and r["withheld"] and r["refunds"][0]["tx"]
+    assert r["held_rounds"] == [{**r["held_rounds"][0], "week": 5, "key_released": False}]
+    assert r["further_access"].startswith("refused")
     assert r["licence"]["held_by_study"] is False and r["consent"]["status"] == "revoked"
     assert {c["weeks"][0]: c["status"] for c in r["contributions"] if "fatigue.survey" in c["items"]}[5] == "refunded"
     d = r["deletion"]

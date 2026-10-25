@@ -1,6 +1,8 @@
 """One paid order, checked link by link: the contract, the provenance stamps, the escrow on the ledger,
 the revealed key and the bundle all point at the same data.
 
+    budget         ->  co-signed by two treasury approvers (validated Payment)       [proof() only]
+    consent        ->  the person's consent version and document hash in force when the order was placed
     contract hash  ->  manifest inside the bundle (signed by the holder, stamps signed by the source)
     bundle hash    ->  EscrowCreate memo (validated)            condition = SHA-256(K)
     EscrowFinish   ->  K on the validated ledger                SHA-256(K) == condition
@@ -94,6 +96,31 @@ def chain(engine, buyer: str, oid: int) -> dict:
                       "is a refund claim, not a prevented payment"}
 
 
+def consent_in_force(store, person: str, buyer: str, at: float) -> dict | None:
+    """The person's consent version for this buyer as it stood when the order was placed."""
+    r = store.one("SELECT version, status, doc_hash, ts FROM consent_history WHERE person_id=? AND buyer_id=? AND ts<=? "
+                  "ORDER BY id DESC LIMIT 1", person, buyer, at)
+    return dict(r) if r else None
+
+
+def authorization(w, oid: int) -> list[dict]:
+    """The two signatures before the order: the institution's co-signed budget and the person's consent."""
+    out = []
+    a = getattr(getattr(w, "study", None), "approval", None) or {}
+    signers = a.get("signers") or []
+    amount = a.get("amount_xrp")
+    _step(out, f"budget co-signed by {len(signers)} approvers", bool(a.get("tx")) and len(signers) >= 2,
+          ", ".join(signers) + (f" · {amount:g} released from the treasury" if amount else "") if signers else "no co-signed budget",
+          a.get("tx"), a.get("url"))
+    o = w.store.one("SELECT seller_id, buyer_id, created_at FROM orders WHERE id=?", oid)
+    c = consent_in_force(w.store, o["seller_id"], o["buyer_id"], o["created_at"]) if o else None
+    _step(out, "person's consent in force", bool(c) and c["status"] == "active",
+          f"{o['seller_id']} · version {c['version']} · {c['status']} · doc {c['doc_hash'][:16]}" if c else "no consent on record")
+    if c:
+        out[-1]["consent_hash"] = c["doc_hash"]
+    return out
+
+
 def proof(w) -> dict:
     """The three cases of one run on one version: a paid contract checked link by link, a contribution
     refused before payment, and a withdrawal that stopped the next delivery."""
@@ -107,6 +134,12 @@ def proof(w) -> dict:
     else:
         row = w.store.one("SELECT p.order_id FROM payments p WHERE p.finish_tx IS NOT NULL AND p.kind='escrow' LIMIT 1")
         out["paid_trade"] = chain(w.engine, LAB, row["order_id"]) if row else {"ok": False, "steps": []}
+    t = out["paid_trade"]
+    if t.get("order"):
+        auth = authorization(w, t["order"])
+        t["steps"] = auth + t["steps"]
+        t["ok"] = all(s["ok"] for s in t["steps"])
+        t["consent_hash"] = next((s.get("consent_hash") for s in auth if s.get("consent_hash")), None)
     refused = next((o for o in (r.outcomes if r else []) if o.get("stage") == "before_payment"), None)
     out["refused_before_payment"] = ({"provider": refused.get("provider", refused.get("pid")), "window": refused.get("window"),
                                       "signals": refused["signals"], "paid_drops": refused["paid_drops"],
