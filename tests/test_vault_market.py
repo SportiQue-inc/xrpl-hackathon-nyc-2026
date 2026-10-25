@@ -448,3 +448,15 @@ def test_settlement_uses_the_agreed_exact_micro_amount(market, monkeypatch):
     monkeypatch.setattr(agents,'seller_reply',lambda *a:{'verdict':'agree','price':2.01,'message':'Agreed','thinking':'Owner terms fit','by':'rules'})
     cid=market.negotiate(market.s.one('SELECT * FROM postings WHERE id=?',(market.test_post,)))
     assert market.s.one('SELECT drops FROM escrows WHERE contract=?',(cid,))['drops']==2010000
+
+
+def test_seller_wallet_history_only_counts_a_finished_escrow_as_received(market):
+    from types import SimpleNamespace
+    market.rail.name='testnet'
+    rows=[]
+    for typ in ['EscrowCreate','EscrowFinish','EscrowCancel']:
+        tx={'TransactionType':typ,'Account':'buyer' if typ!='EscrowFinish' else 'seller','Owner':'buyer','Destination':'seller','Amount':'80000'}
+        rows.append({'hash':typ,'validated':True,'tx_json':tx,'meta':{'TransactionResult':'tesSUCCESS'}})
+    market.rail.led.client=SimpleNamespace(request=lambda _:SimpleNamespace(result={'transactions':rows}))
+    history=market.rail.wallet_activity('seller')
+    assert len(history)==1 and history[0]['type']=='EscrowFinish' and history[0]['direction']=='in'

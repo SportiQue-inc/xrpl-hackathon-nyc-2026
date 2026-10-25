@@ -399,6 +399,10 @@ class Rail:
                 continue
             if rec["type"]=="EscrowFinish" and rec["destination"]!=address:
                 continue
+            if rec["type"]=="EscrowCreate" and rec["account"]!=address:
+                continue
+            if rec["type"]=="EscrowCancel" and rec["owner"]!=address:
+                continue
             if rec["type"]=="EscrowCancel" and rec["owner"]==address:
                 direction="in"
             else:
