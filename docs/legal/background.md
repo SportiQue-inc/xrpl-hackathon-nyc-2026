@@ -19,3 +19,20 @@
 No consultation addressed settlement in virtual assets on XRPL. The demo runs on Testnet, the
 platform is non-custodial (the institution signs its own payments), and confirming the payment
 model with financial regulators is listed as work before a live service.
+
+## Precedents (public sources only)
+
+No public approval covers the whole structure: a person giving their own combined health record
+to a research institution round by round and being paid for each round. Each mechanism has a close
+public precedent. Sources were checked through reports that quote the originals; no case or
+decision numbers are given because none were confirmed.
+
+| Mechanism | Closest public precedent | What the design takes from it |
+|---|---|---|
+| Passing one's own medical record to a third party | Korea ICT regulatory sandbox, medical MyData for telemedicine (positive interpretation; service launched 2025-05). US HHS OCR FAQ on the access right, health apps and APIs (2019) | The person's consent is the route. In the US, once data reaches an app the person chose, the FTC and state law apply rather than HIPAA |
+| Per-round payment and a small completion bonus | FDA guidance on payment to research subjects (2018); SACHRP recommendations (2019) | Every completed round is paid; the bonus and the held share stay small (20%) |
+| Fixed payment, not equity or appreciating tokens | LunaDNA (2018) paid participants in shares and had to register a securities offering with the SEC | A fixed amount per round in XRP; no revenue share, no token whose value is meant to rise |
+| Withdrawal stops new use | NIH All of Us (no new use; data already used cannot be recalled); HHS FAQ 316 | The withdrawal screen says what stops, what comes back and what cannot be recalled |
+| Consent and international transfer notice | FTC orders on Flo (2021), GoodRx, BetterHelp, Premom (2023); PIPC improvement recommendation to DeepSeek (2025-04-23) and penalty on AliExpress (2024-07-24) | Separate, affirmative consent apart from the terms; each round names the institution, country, purpose and items; international transfer is a separate consent, off by default; the institution is told to delete on withdrawal |
+| Records on a blockchain | PIPC guideline on personal information and blockchain (2026-06) | Personal data stays off the ledger. Each round's ledger hash uses its own salt kept inside the sealed bundle, and destroying the bundle on withdrawal destroys the salt |
+| Research oversight | Apple Heart and Movement Study (in-app consent and withdrawal under IRB oversight) | A study cannot get a budget approved or send a request without an IRB approval number |
