@@ -1,0 +1,122 @@
+{
+  "fetched_at": "2026-10-25T16:49:47+00:00",
+  "person": "RC1-4dbb6c1d",
+  "unit": "USD",
+  "display_unit": "RLUSD",
+  "ledger": "mock",
+  "active_institutions": 1,
+  "settled_drops": 20000,
+  "held_drops": 0,
+  "contracts": [
+    {
+      "contract": "RC1-16b39a",
+      "title": "Sleep diary, 2 weeks (50 test accounts, AP4M)",
+      "institution": "SportiQue Research Pilot",
+      "institution_verified": "ethics credential on ledger (IRB number declared by the researcher)",
+      "items": [
+        "sleep.daily"
+      ],
+      "automation": "auto_all",
+      "status": "active",
+      "consent_hash": "9cba0b20e3691d8b9a197e31614c1a44f06509a474c9bd595d0ce43620580025",
+      "pending_approvals": [],
+      "payment_rail": "ap4m",
+      "settled_drops": 20000,
+      "held_drops": 0,
+      "latest_tx": {
+        "tx": "0xf6f53cd3575434330672e66aa889e2fe2cbf4bbac74ced9a958aac4933f57ef2",
+        "url": "https://explorer.testnet.xrplevm.org/tx/0xf6f53cd3575434330672e66aa889e2fe2cbf4bbac74ced9a958aac4933f57ef2",
+        "receipt_url": null,
+        "rail": "ap4m"
+      }
+    }
+  ],
+  "history": [
+    {
+      "contract": "RC1-16b39a",
+      "institution": "SportiQue Research Pilot",
+      "study": "Sleep diary, 2 weeks (50 test accounts, AP4M)",
+      "order_id": 19,
+      "status": "delivered",
+      "amount_drops": 10000,
+      "slot": "RC1-4dbb6c1d|week1",
+      "granted": [
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 10000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x9de7281438178252ef2e6f786d67d4431a6eff8d5056171c967fce37112655de",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x97e2681866731accc2a64362f114f04731008b343039d031569a90cb517d4f3c",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x97e2681866731accc2a64362f114f04731008b343039d031569a90cb517d4f3c"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "7F392961267EA51AFFD90001072E0EF88EB0EF66B8F820F19A627DF6ACD239E6",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "5111EAA48D594DC7DC45286C29308644BCFFCD11975F6739B8E5F47CC3DD6CF6",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "contract": "RC1-16b39a",
+      "institution": "SportiQue Research Pilot",
+      "study": "Sleep diary, 2 weeks (50 test accounts, AP4M)",
+      "order_id": 65,
+      "status": "delivered",
+      "amount_drops": 10000,
+      "slot": "RC1-4dbb6c1d|week2",
+      "granted": [
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 10000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x8be2e3c4d8b01e4e644c8aeadda819bc02eb29ff1c5a059aa1222476a067b498",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0xf6f53cd3575434330672e66aa889e2fe2cbf4bbac74ced9a958aac4933f57ef2",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0xf6f53cd3575434330672e66aa889e2fe2cbf4bbac74ced9a958aac4933f57ef2"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "E56A262F30C6ED14322F52EE69906A2989294D88ADBEB41CF72ACC2E12E4CEAE",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "A0D0C91FBB0108E6E4A550EF4894A32625485BF8490F725D72040CC58DE17A34",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    }
+  ]
+}

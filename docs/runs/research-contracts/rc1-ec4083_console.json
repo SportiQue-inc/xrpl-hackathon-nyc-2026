@@ -1,0 +1,1257 @@
+{
+  "id": "RC1-ec4083",
+  "status": "closed",
+  "terms": {
+    "budget_drops": 1000000,
+    "capacity": 20,
+    "data_use": [
+      "DUO:0000006",
+      "DUO:0000046",
+      "DUO:0000021",
+      "DUO:0000044"
+    ],
+    "display_unit": "RLUSD",
+    "id": "RC1-ec4083",
+    "institution": "SportiQue Research Pilot",
+    "institution_id": "org_sportique_research_pilot_ec4083",
+    "irb_approval": "IRB-PILOT-2026-001",
+    "irb_checked": "declared by the researcher",
+    "items": [
+      "sleep.daily",
+      "fatigue.survey"
+    ],
+    "payment_rail": "ap4m",
+    "per_order_limit_drops": 20000,
+    "posted_at": 1792943073,
+    "price_per_item_drops": 10000,
+    "purpose": "sleep_research",
+    "round_every_s": 60,
+    "sensitive": [],
+    "summary": "Test accounts only. No real health data. Paid through AP4M on XRPL EVM Testnet.",
+    "title": "Sleep and fatigue, 3 weeks (AP4M live)",
+    "unit": "USD",
+    "weeks": [
+      1,
+      3
+    ]
+  },
+  "terms_hash": "65e35dc2bac69d5fe6cb1adc4315be0f1fdc973f046618a648d1b85568353fa2",
+  "members": 9,
+  "spent_drops": 520000,
+  "budget_drops": 1000000,
+  "institution_address": "r0c6e9cd8079d8cd7a4c30ddb",
+  "ledger": "mock",
+  "member_list": [
+    {
+      "pid": "RC1-77c9b402",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_all",
+      "data_source": "stored",
+      "status": "active"
+    },
+    {
+      "pid": "RC1-3c8e1cf1",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_all",
+      "data_source": "stored",
+      "status": "active"
+    },
+    {
+      "pid": "RC1-75db28a3",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_all",
+      "data_source": "stored",
+      "status": "withdrawn"
+    },
+    {
+      "pid": "RC1-15764ea6",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_all",
+      "data_source": "stored",
+      "status": "active"
+    },
+    {
+      "pid": "RC1-4db4d4f8",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_all",
+      "data_source": "stored",
+      "status": "withdrawn"
+    },
+    {
+      "pid": "RC1-378feaba",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_all",
+      "data_source": "stored",
+      "status": "active"
+    },
+    {
+      "pid": "RC1-7ce28b2a",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_standard",
+      "data_source": "stored",
+      "status": "active"
+    },
+    {
+      "pid": "RC1-977668ef",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_standard",
+      "data_source": "stored",
+      "status": "active"
+    },
+    {
+      "pid": "RC1-dd40fe54",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_standard",
+      "data_source": "stored",
+      "status": "active"
+    },
+    {
+      "pid": "RC1-74756f1d",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "confirm_each",
+      "data_source": "stored",
+      "status": "active"
+    },
+    {
+      "pid": "RC1-76b4b760",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_all",
+      "data_source": "stored",
+      "status": "active"
+    }
+  ],
+  "orders": [
+    {
+      "order_id": 1,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-15764ea6|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0xb9a9d8b7896610c67c19315b1800a692b401952906eb4df8b2393cc6a77bab3d",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x451d3682fa655e0741a67518af6b4c883b4ea8f0421339699e89b1c45f11d044",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x451d3682fa655e0741a67518af6b4c883b4ea8f0421339699e89b1c45f11d044"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "C27DB98BF4DEDC10AE48085AE00801ADA406C8865C045B67302D232C809803C2",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "D57C1DF86602FC50C566F96A305DECB5E1CDC4BBB3DA30162DE91B8A107F70B4",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 2,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-378feaba|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x4faa4b43fc2a4285d0cec1f46ca01582340c1ed9168c731a8f7949e145e8ad39",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0xb80a9377681a6319786198905e4bb0f3def4c846c1aad456be4022f015187d95",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0xb80a9377681a6319786198905e4bb0f3def4c846c1aad456be4022f015187d95"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "8E4F5EC76EF1F93F1F88CDA52FE6D060E45F438D2016565B25D7F3F8500B25AF",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "6EB81E3AC96D1DA1E381AB3E888054CE147405C6DD2D62CED3BB86739B0DFF33",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 3,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-3c8e1cf1|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0xc3a3587af1d6c244958131eab5baf7ddce936a7eee6075dd36221d797145613c",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x2e66a0f34f990d5193013cb4835b98c081cdd8442c228aeae6167794b7448209",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x2e66a0f34f990d5193013cb4835b98c081cdd8442c228aeae6167794b7448209"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "5025EAF2B3BE51F43C3AD6782654E55B6B0A393DBBE07C6570093C8543AB7E78",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "971EE1D3737DB231F0F1964D4C4204AFEB860D5CE02E19C407845E4B0CB00547",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 4,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-4db4d4f8|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x97d88ed992a1644d5b8896a28c05680b4c4f2b5f82a7ee0f6764e1ab76d8884b",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x5149b31038809eaa8fbe94f0a6fcf6ce8dca2eaccd30968a93ce8cc604d5b516",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x5149b31038809eaa8fbe94f0a6fcf6ce8dca2eaccd30968a93ce8cc604d5b516"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "986BD854B8E093B7FF7811DAD4885441CE1751EDC6504844742EB91D46DED341",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "935C1D79CB4E63729F0F60462D6B8514AF98A8DF4BE1048E665EB75E3D7607A1",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 5,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-75db28a3|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x78d77f4a2de8c15fe9b2fca113faa76782f3d32d6ebcff1207f78e057910cb5a",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x31af0c8b9465c665fe32e66e9483f8379d214777970051b0b8f009485973d88c",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x31af0c8b9465c665fe32e66e9483f8379d214777970051b0b8f009485973d88c"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "9715519C58E5899390B6AA8B32C0C75519E3FD4C5E27A5CA72915AF5FA34BB08",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "3BF0FA4CC0BB7A4198E4DB0C50D178D903588A216D35E676CC5E2FB2139F1387",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 6,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-76b4b760|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x5d25c984eb4a3f261f57d0f6366dd70e39d7bdb1d65d9079006e13fb090ee36f",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x0883346c7f7710a0976c5057b83d8ef93e093a0fec003419808e4c564bd65a57",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x0883346c7f7710a0976c5057b83d8ef93e093a0fec003419808e4c564bd65a57"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "F10B949BB0BF33DDF012F8028FDF2141B90D8065E18F518A4AD5A9281BBC7693",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "26215BE48DA6F7BEC3135DCE107AC4BE96BA514E352854F1F3EF6C794BD54420",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 7,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-77c9b402|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x83d8db52f70fd4d6e1649f80c892d5798a6e2a499ffb2d6fa9ae22a50ac91c47",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x85504c9de4d4d3a6d6b64b9a70bc5a4a08a364d782bf5a1684281b63f62c8deb",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x85504c9de4d4d3a6d6b64b9a70bc5a4a08a364d782bf5a1684281b63f62c8deb"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "306B35DC52BCE620F55B8D07251CF01E02358160D21E248CB32EF69B9230D57C",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "C9ADAC78DA01A703BD29A3CB9113BD0B81DFF7BB1F720F8F7F00CE199EA6F218",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 8,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-7ce28b2a|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x9daa1abd3eaa70d96af9328f1191232863d897549442cc72f88d7f6086689cc5",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x247af0000a27cc1cab59fcc5d9f03972e935a99628d8fb2698a6497bc134fa5e",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x247af0000a27cc1cab59fcc5d9f03972e935a99628d8fb2698a6497bc134fa5e"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "3D8D25985409041B1D07278CF704A6ACA5281CF8608BDDB64544E845E400C9EE",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "EC9CF0FFADE2244E1ABF57942962B66E48F20E56A36F5A09115E92625D8492EC",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 9,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-977668ef|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x7ffe6fb02126dfa1dbf20a2026c9bbc87170af7c8b914d98fe34210e80c2a5cb",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x0b391b3752e00b6208bda46b6d1936a29bcd8ae4ff5765281920d11c2663fab4",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x0b391b3752e00b6208bda46b6d1936a29bcd8ae4ff5765281920d11c2663fab4"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "7FEDF5A5B009B57559AA9467A7838E4B281EE0ACC5A765221461634B37294EA5",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "FD3963476CCF9A274DFCA7B05BEE59ED1376EB265232A69BA9391D88B707E58E",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 10,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-dd40fe54|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0xb2a21eef3cb460ba7fa839aae77b4cd9a1f636b7d4fe688de20e6aec5db3fc48",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0xffa0d4539d8d599efea2a3349ba4fbc59ab318195ac7d8533eaddcb38ef21440",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0xffa0d4539d8d599efea2a3349ba4fbc59ab318195ac7d8533eaddcb38ef21440"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "7070DD355F37E96746AC55E6F13957A82A7FEED19C0405D4944B6ED56E0EF17D",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "518384B2D262E5B28304E9D92A85EB10799D787389B41CD2281D2D7ED2E0C676",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 11,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-15764ea6|week2",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x7eed1d89594444e01010cc08ec8dc84f934b83cd15a38fb8902882a78005a518",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0xd7a519c3649830eaf34127c46293d9fa75eebb6f7e6cedc30e8d0917c5a38718",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0xd7a519c3649830eaf34127c46293d9fa75eebb6f7e6cedc30e8d0917c5a38718"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "0BAA381E237ACD6B32C2D94B0FDDA54FCDA4802F552C0FD1471FA23786DAB77E",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "7C698F063050C05406D869CE2AADD1A05D9379BFFAC4EB2D5A1CA3FED1006DC1",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 12,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-378feaba|week2",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "unpaid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": "payment error: purchase outcome unavailable (HTTP 503); resume the same operation",
+        "claim_id": null,
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": null,
+          "url": null
+        },
+        "settlement_tx": null,
+        "verified": null
+      },
+      "escrow_create": {
+        "tx": "71910F88E3898D57F17FA7261EF0F46D43F4B217260A77D4BD1E3737C1502EF3",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "B4B1F9086212294F717A1708F790ED397F586D813C1693CA284E0E8938188167",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 13,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-3c8e1cf1|week2",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x9232e5fd68e3704b2589f970551b503ce89eaee4bd942cba60a5318be93b60a4",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x107d729cdae60a7db8eb01767cf2a92b65f59fc57ec75edba52f35f18aa83660",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x107d729cdae60a7db8eb01767cf2a92b65f59fc57ec75edba52f35f18aa83660"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "B3490F32589011F9E640CBDDA8DB1B729EFFAF571F132957A444341E6FCAF8E9",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "97B4017D4F14FFF41F5F2F6481B66653B71656D8773150A87A8B9CE487CFCEED",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 14,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-76b4b760|week2",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0xe2fab057858a02738dbf9395f72d2ce6e529fb80b1cae465707181dbfae80ea6",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0xd7e340ae0e83ce0540c4deb33f8bfaedec3ca871d236f91069f3b41720cf6e5c",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0xd7e340ae0e83ce0540c4deb33f8bfaedec3ca871d236f91069f3b41720cf6e5c"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "96C74287344EEAEA02A0E6DB4EFF8736B7987767CC4C30C9991D5BA694E6ED47",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "D0C1701BE5F8AE023A84C2ED81045773CEB699E584D98EA8B94B76BB0C268C39",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 15,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-77c9b402|week2",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x831f1a0007590bd0cd68afbe5db1390719bc730565b4210eb18220b050417354",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x1f3fc4a7f968dca748afe5e84c934fd0ca00bb968e733a0fa8a1ad6c7d2d485f",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x1f3fc4a7f968dca748afe5e84c934fd0ca00bb968e733a0fa8a1ad6c7d2d485f"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "67DEC06D408A15438D3542DF5AAC6B0D78B2D4241CF2BC2D01C52DABA399AC5E",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "F6621E473610875DFA375306DACB873818C3FB6CEC487DB68B6FA2925863E064",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 16,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-7ce28b2a|week2",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0xdd8c868e322cd13255a66a9f97d43ac94870338c3860528d941e4bf496f491bf",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x3a3accbff26c08bcd52f8697e97dc4f744afc50b10f5d52e7afa1e4c03de50d5",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x3a3accbff26c08bcd52f8697e97dc4f744afc50b10f5d52e7afa1e4c03de50d5"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "4C0DC844DCE7DE2ECBA6D1C96D99982ECB3979B475484FBB2DEFD85C9C7827B3",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "718E18635EE703F3B267834A5F7FC1D3420AA0B6AD1AE2F830E635F1EC7675F7",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 17,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-977668ef|week2",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x4143ca4a0b705ba158728ab29297415e548a52f99245332a86aa6ee964a60c57",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x938ce4eec967a46d0d5bd3064cab349ffeab449d9703446127cbd52ce0eb91b6",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x938ce4eec967a46d0d5bd3064cab349ffeab449d9703446127cbd52ce0eb91b6"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "B971EE67ABAA916223158125396A9729EE2F1DBC5C7B85CE42805927398DA226",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "F81426CF0F33478115EB7B01DDBCF02F18E08758B9332273826872ACB4A7CBEB",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 18,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-dd40fe54|week2",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0xb780525b6afbcdc76862286d38180d16de2a123732756d51e1e933868c9ae38b",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0xe860c0cd45d03d96d4acc523e69569a6e0155de01261a472e1a56ecedfd9ac4e",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0xe860c0cd45d03d96d4acc523e69569a6e0155de01261a472e1a56ecedfd9ac4e"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "10CC29645D92977A7A8C2ECE94586F2FD80D04A67552915639CBD2B2E996C559",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "96D01AB9A293AED084CF6148E6CA35592A8604F78CBFBE4F7D438BF74F14C2EF",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 19,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-15764ea6|week3",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0xbbe8bd133df4f546a74334f0fc33d5c5d98460ac1225380cf530d1f77af134ea",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x89d451a1c06221fe9530d356bcb7dd4bd5bf8faabdf2eb178a48966a04af2186",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x89d451a1c06221fe9530d356bcb7dd4bd5bf8faabdf2eb178a48966a04af2186"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "E0BF328E64346BF86226654E46DABA2601FBC0270BCA7D9335F1B56AA6B5FA84",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "1C0016B405D319D363DC0CBEC706398857E173DEBD2B615AEA9C9A2716838449",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 20,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-378feaba|week3",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x6d476284a69895adbab1ffda1a42c8cd0f8272ce9775e641e0a7499336961bc1",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0xaa3abc57ed79dd9a72d18a17badb366816c7b2b5e6f5e1344836187d6c0df0f7",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0xaa3abc57ed79dd9a72d18a17badb366816c7b2b5e6f5e1344836187d6c0df0f7"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "D34A4A46FC01FEF22634269C2503DB12AA15AC1690285B4275F20212C270ED3B",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "AE97F427DD213EAF6FA30F8F1DD0673D40AA75ADA3E7BB4925EC18F2512EDE20",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 21,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-3c8e1cf1|week3",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x9bb0472e6b0a4fa6ac0d68456489d966fd0e934148fb90fa7a6a3234aa87f5e5",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x1a330b565abddc4053ba28a743184e8e585b3ddfcb53b3de75829d62d3e081f5",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x1a330b565abddc4053ba28a743184e8e585b3ddfcb53b3de75829d62d3e081f5"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "9556AFF44B44AB7DBDDD2D480D30043686DB99776D9F1FC5343BB06745AE8F27",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "4C70D3BD85C81ABB61E833B8261574DE4B8B50B4A5BC7A9FD51BF2F94F155AAE",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 22,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-76b4b760|week3",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x45e444218b8c7f4a9708282270bdd94ebd49aa0a2993fefa82f237d0916eb039",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x9b363e2de6ed3df130742bdfcb210fde8bf18ca88cf0ddbb4177c9bf25327f7e",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x9b363e2de6ed3df130742bdfcb210fde8bf18ca88cf0ddbb4177c9bf25327f7e"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "97D28499099C2A1AB19AD9DD1E2DB838988AE93E9AE21BA3C477949A9B1F31E7",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "BD31A699CFE59B126416A1893F7177268B60AC77439E766F5A82E8BB84B1C9D0",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 23,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-77c9b402|week3",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x02759c89f67f662865d3af85935efab4b133f05dce536fba0f34077c4eee3854",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x45aeaa2e6c98bdd07c206ac668470d7290d945d37a81f422e319879fa21738e2",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x45aeaa2e6c98bdd07c206ac668470d7290d945d37a81f422e319879fa21738e2"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "44C299D0F7996750A21011C4289F163265ECC8E9914DE6F78CE16C0993E8FF04",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "7463AF5CC3819CC7EE795096870B2839CCE12DE212EC1BB32CDD386D69B4A49B",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 24,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-7ce28b2a|week3",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x97832b9246a07bea8e94b1f7a3190cbf1e17c728e6acda6314e9b5e7231faa18",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0xe656a3c486e261776732d0ee3b11ba20ae2e11916ecfa381c21c7b6f50fcdd1a",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0xe656a3c486e261776732d0ee3b11ba20ae2e11916ecfa381c21c7b6f50fcdd1a"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "EEBF821C23EC7D913FB321E0DF0E1B975B56912DE90D1DB8D30E50667FE0C079",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "BC03C175D976C8155E0F25B433EB3A928406EF26C9877FE548B840F89D9BC0CB",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 25,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-977668ef|week3",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x7ede12054f14fb9e8bae426d3d109abf5f72970f68253f52d1d9e86a35b6429d",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0xa50c925bd0b0e7210f89c760180e3d47392530a671c8912c3180aa003d82a21a",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0xa50c925bd0b0e7210f89c760180e3d47392530a671c8912c3180aa003d82a21a"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "4B311B965F057634C8D5724EDEDD833FD843DF5F33E52D2316588C6D3B789A32",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "7769B80D2B1437DBADE9C33590B2524AF9A36E14E1FA628619EF458F060168D8",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    },
+    {
+      "order_id": 26,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-dd40fe54|week3",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "unpaid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": "not attempted yet",
+        "claim_id": null,
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": null,
+          "url": null
+        },
+        "settlement_tx": null,
+        "verified": null
+      },
+      "escrow_create": {
+        "tx": "E6837D4444ACF0059DDF92C3E56B3636EA8F1162D4D6B2922DFA1CC5C8E237AC",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "95EAD70CC119D6774310ED7CEDB4840961F3F5B1790C3800FCA6AC6E4973CE93",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "week": 1,
+      "at": 1792943572.8518596,
+      "summary": {
+        "needs_approval": 1,
+        "delivered": 10
+      }
+    },
+    {
+      "week": 2,
+      "at": 1792943837.958609,
+      "summary": {
+        "needs_approval": 1,
+        "delivered": 8
+      }
+    },
+    {
+      "week": 3,
+      "at": 1792944097.3438344,
+      "summary": {
+        "needs_approval": 1,
+        "delivered": 8
+      }
+    }
+  ],
+  "payments": {
+    "rail": "ap4m",
+    "paid_count": 24,
+    "paid_drops": 480000,
+    "unpaid_count": 2,
+    "unpaid_drops": 40000
+  }
+}
