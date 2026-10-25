@@ -49,12 +49,14 @@ def held(price_drops: int) -> int:
 
 def windows(ledger) -> dict:
     """Seconds of ledger time. Mock: the real policy (7 days, +14 days if fraud is suspected).
-    Testnet: the same steps shortened so the release and the refusal show up in one run."""
+    Testnet: the same steps shortened so the release and the refusal show up in one run. The grace
+    before CancelAfter stays long (10 min): past it the ledger refuses EscrowFinish, so a held part
+    that was due but not yet released would otherwise be lost to a slow run."""
     if ledger.name == "mock":
         return {"review": 7 * DAY, "extend": 14 * DAY, "grace": 7 * DAY, "respond": 3 * DAY, "bonus": 60 * DAY}
     g = lambda k, d: int(os.environ.get(k, d))
     return {"review": g("HOLDBACK_REVIEW_S", 20), "extend": g("HOLDBACK_EXTEND_S", 20),
-            "grace": g("HOLDBACK_GRACE_S", 10), "respond": g("HOLDBACK_RESPOND_S", 5),
+            "grace": g("HOLDBACK_GRACE_S", 600), "respond": g("HOLDBACK_RESPOND_S", 5),
             "bonus": g("BONUS_WINDOW_S", 90)}
 
 

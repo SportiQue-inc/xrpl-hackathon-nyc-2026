@@ -372,7 +372,10 @@ def _after_contribution(w, req):
 
 def _settle(w, req, withdrawn=False):
     payout.bonus_progress(w, LAB, req)
-    return payout.settle_round(w, LAB, req, withdrawn=withdrawn)
+    out = payout.settle_round(w, LAB, req, withdrawn=withdrawn)
+    if w.ledger.name != "mock":       # live ledger: pay what is already due on the way, before CancelAfter
+        payout.release_due(w)
+    return out
 
 
 def close_round(w) -> dict:

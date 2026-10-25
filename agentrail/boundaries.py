@@ -138,26 +138,33 @@ def _payment_evidence(w, s):
     _ev(w, "payment", f"{HERO} withdrew; what pay and sanction decisions read for {HERO}: fraud confirmed "
         f"{inp['fraud_confirmed']}, missed rounds {inp['missed_in_row']}, excluded {inp['excluded']} "
         "(withdrawal is not an input)", result=inp)
-    # Release what is due, return what must go back (Testnet: wait for the short windows).
-    deadline = _t.time() + 240
+    # Release what is due, return what must go back (Testnet: wait for the short windows). On a live
+    # ledger some held parts were already released along the way, so the evidence reads the table.
+    deadline = _t.time() + (0 if w.ledger.name == "mock" else 660)
     while True:
         r = payout.release_due(w)
-        mine = [x for x in r["released"] if x["person"] == HERO]
-        for x in mine:
-            _ev(w, "payment", f"{HERO} withdrew, and the reviewed held part {x['amount_xrp']:g} XRP is still paid "
-                "(EscrowFinish)", tx=x["tx"], url=x["url"])
-        rest = [x for x in r["released"] if x["person"] != HERO]
-        if rest:
-            _ev(w, "payment", f"{len(rest)} other participants: held parts released after review "
-                f"({sum(x['amount_xrp'] for x in rest):.2f} XRP)", tx=rest[0]["tx"], url=rest[0]["url"])
-        for x in r["returned"]:
-            _ev(w, "payment", f"{x['person']}: {x['kind']} {x['amount_xrp']:g} XRP returned to the study "
-                "(EscrowCancel)", tx=x["tx"], url=x["url"])
         open_ = [h for h in r["waiting"] if h["kind"] == "bonus" or h["person"] in (HERO, (fx or {}).get("person"))]
-        if not open_ or w.ledger.name == "mock" or _t.time() > deadline:
+        if not open_ or _t.time() > deadline:
             break
         _t.sleep(5)
-
+    hb = w.store.q("SELECT * FROM holdbacks WHERE study=? ORDER BY id", LAB)
+    url = lambda h: w.ledger.explorer_url(h) if h else None
+    for h in hb:
+        if h["person"] == HERO and h["kind"] == "round" and h["status"] == "released":
+            _ev(w, "payment", f"{HERO} withdrew, and the reviewed held part {h['amount_drops'] / 1e6:g} XRP is still "
+                "paid (EscrowFinish)", tx=h["finish_tx"], url=url(h["finish_tx"]))
+    rest = [h for h in hb if h["person"] != HERO and h["kind"] == "round" and h["status"] == "released"]
+    if rest:
+        _ev(w, "payment", f"{len(rest)} other participants: held parts released after review "
+            f"({sum(h['amount_drops'] for h in rest) / 1e6:.2f} XRP)", tx=rest[0]["finish_tx"],
+            url=url(rest[0]["finish_tx"]))
+    for h in hb:
+        if h["status"] == "returned":
+            _ev(w, "payment", f"{h['person']}: {h['kind']} {h['amount_drops'] / 1e6:g} XRP returned to the study "
+                "(EscrowCancel)", tx=h["cancel_tx"], url=url(h["cancel_tx"]))
+    left = [h for h in hb if h["status"] in ("held", "suspected", "earned", "withheld", "returning")]
+    if left:
+        _ev(w, "payment", f"{len(left)} escrows still waiting for their release or return time", result="waiting")
 
 def view(w) -> dict:
     ev = getattr(w, "boundary_evidence", {})
