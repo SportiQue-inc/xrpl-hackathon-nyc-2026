@@ -9,7 +9,9 @@ import traceback
 
 from . import agents, config, data, intake, llm
 from .data import KINDS
-from .rail import Rail, merkle_proof, merkle_verify
+import hashlib
+
+from .rail import Rail, condition_hex, merkle_proof, merkle_verify
 from .store import Store
 
 PEOPLE = ["Dana Park", "Minho Lee", "Sora Kim", "Jae Choi", "Lina Haddad", "Omar Farouk", "Priya Nair", "Ken Watanabe", "Ana Souza", "Tomas Novak",
@@ -181,7 +183,9 @@ class Market:
         say = lambda who, side, text, thinking="", by="": self.s.insert("messages", contract=cid, speaker=who, side=side, text=text, thinking=json.dumps({"t": thinking, "by": by}))
         op = agents.buyer_open(buyer["name"], w, len(owned))
         say(w["buyer"], "buyer", op["message"], op["thinking"], op["by"])
-        trace = {"buyer_trace": [op["thinking"]], "seller_trace": [], "verdicts": {"sellers": {}}, "tx": [], "model": llm.model_name()}
+        trace = {"buyer_trace": [op["thinking"]], "seller_trace": [], "verdicts": {"sellers": {}}, "tx": [], "protocol": [], "model": llm.model_name()}
+        def step(protocol, detail, ok=True, who=None, tx=None):
+            trace["protocol"].append({"protocol": protocol, "detail": detail, "ok": ok, "who": who, "tx": tx})
 
         files = self.s.q("SELECT f.*, a.trust FROM files f JOIN accounts a ON a.id = f.account WHERE f.kind = ? AND f.status = 'listed' AND f.account != ?", (w["kind"], w["buyer"]))
         by_acct: dict[str, list] = {}
@@ -212,6 +216,7 @@ class Market:
                 say(w["buyer"], "buyer", f"Your lot overlaps {ov:.0%} with records I already own. I won't pay twice for the same data.",
                     f"Fingerprint check: {len(fps & owned)} of {len(fps)} records already in my vault.", "rules")
                 trace["seller_trace"].append({"seller": a, "verdict": "refused by buyer: overlap", "price": None, "overlap": round(ov, 2)})
+                step("Duplicate check (record fingerprints)", f"{ov:.0%} of this lot's record fingerprints are already in the buyer's DB; limit {buyer['buy_agent'].get('max_overlap', 0.3):.0%}. Refused before price talk.", False, a)
                 overlap += 1
                 continue
             r = agents.seller_reply(sa["name"], sa["sell_agent"], w, buyer["name"], len(fs))
@@ -237,7 +242,11 @@ class Market:
                 c = json.loads(f["clean"]); att = c.get("_attestation", {})
                 recs = intake.leaves(f["kind"], c)
                 i = self.rng.randrange(len(recs)) if recs else 0
-                if not (att and intake.verify_attestation(att) and recs and merkle_verify(recs[i], merkle_proof(recs, i), att["merkle_root"])):
+                sig_ok = bool(att) and intake.verify_attestation(att)
+                mk_ok = bool(recs) and sig_ok and merkle_verify(recs[i], merkle_proof(recs, i), att["merkle_root"])
+                step("Intake attestation (Ed25519)", f"{f['name']}: schema {att.get('schema', '?')}, {att.get('records', 0)} records, checks: {', '.join(att.get('checks', [])) or 'none'}; signature {'valid' if sig_ok else 'INVALID'} (intake key {str(att.get('pubkey', ''))[:12]}…)", sig_ok, a)
+                step("Merkle sample proof (SHA-256)", f"record {i + 1} of {len(recs)} proven against root {str(att.get('merkle_root', ''))[:16]}… with {len(merkle_proof(recs, i)) if recs else 0} sibling hashes", mk_ok, a)
+                if not (sig_ok and mk_ok):
                     ok = False
             if ok:
                 verified.append((a, fs, price))
@@ -251,6 +260,8 @@ class Market:
             reason = f"only {people_eff} people agreed; a lot of personal data needs at least {config.K_MIN}" if personal else "no seller agreed"
         elif total * config.DROPS_PER_XRP_UNIT / 1e6 + 0.2 * len(verified) > bal:
             reason = f"not enough XRP for {len(verified)} escrows"
+        if personal:
+            step(f"k-anonymity (k >= {config.K_MIN})", f"{people_eff} people in the lot", people_eff >= config.K_MIN)
         outcome = {"agreed": len(agreed), "declined": declined, "overlap": overlap, "people": people_eff, "total": total, "ok": not reason, "reason": reason}
         cl = agents.buyer_close(buyer["name"], w, outcome)
         say(w["buyer"], "buyer", cl["message"], cl["thinking"], cl["by"])
@@ -286,6 +297,8 @@ class Market:
             recs = [json.loads(f["clean"]) for f in fs]
             clear = data.dumps({"contract": cid, "seller": "p_" + data.fp(a, cid)[:10], "records": recs}).encode()
             sealed, K = self.rail.seal(buyer_id, clear)
+            trace["protocol"].append({"protocol": "Sealed delivery (AES-256-GCM, key wrapped with X25519 + HKDF-SHA256)", "who": a, "ok": True, "tx": None,
+                                      "detail": f"{len(clear)} bytes sealed to the buyer's X25519 key; bundle SHA-256 {hashlib.sha256(clear).hexdigest()[:16]}…; content key K stays with the seller's agent"})
             legs.append({"seller": a, "seller_addr": self.addr[a], "drops": int(price * config.DROPS_PER_XRP_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
             plain[a] = clear
         res = self.rail.escrow_lot(self.addr[buyer_id], legs, f"vaultmarket/contract/{cid}")
@@ -295,12 +308,21 @@ class Market:
             if r["finish"]["hash"]:
                 self.s.insert("txs", contract=cid, type="EscrowFinish (key released)", hash=r["finish"]["hash"], src=leg["seller"], dst=buyer_id, drops=leg["drops"], result=r["finish"]["result"])
             trace["tx"].append({"seller": leg["seller"], "create": r["create"]["hash"], "finish": r["finish"]["hash"], "ok": r["finish"]["ok"]})
+            cond = condition_hex(leg["K"])
+            trace["protocol"].append({"protocol": "XRPL EscrowCreate (PREIMAGE-SHA-256 crypto-condition)", "who": leg["seller"], "ok": r["create"]["ok"], "tx": r["create"]["hash"],
+                                      "detail": f"buyer locks {leg['drops'] / 1e6:.3f} XRP to the seller under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
+            trace["protocol"].append({"protocol": "XRPL EscrowFinish (fulfillment reveals K)", "who": leg["seller"], "ok": r["finish"]["ok"], "tx": r["finish"]["hash"],
+                                      "detail": f"seller's agent submits the fulfillment (the preimage K); the ledger checks SHA-256(K) against the condition and pays; {r['finish']['result']}"})
             if not r["finish"]["ok"]:
                 continue
             # the buyer reads K from the ledger's EscrowFinish and opens what it already holds
             st = self.rail.led.lookup(r["finish"]["hash"])
             K = bytes.fromhex(st.fulfillment[8:]) if st.fulfillment else leg["K"]
-            opened = json.loads(self.rail.open(buyer_id, leg["sealed"], K))
+            raw_open = self.rail.open(buyer_id, leg["sealed"], K)
+            opened = json.loads(raw_open)
+            same = hashlib.sha256(raw_open).digest() == hashlib.sha256(plain[leg["seller"]]).digest()
+            trace["protocol"].append({"protocol": "Buyer opens the bundle", "who": leg["seller"], "ok": same, "tx": None,
+                                      "detail": f"buyer agent read K from the validated EscrowFinish on the ledger, unwrapped and decrypted {len(opened['records'])} records; bundle SHA-256 {hashlib.sha256(raw_open).hexdigest()[:16]}… {'matches' if same else 'DOES NOT match'} the sealed bundle"})
             merged.extend(opened["records"]); items += len(leg["fs"]); paid.append(leg)
             for f in leg["fs"]:
                 self.s.x("UPDATE files SET sold = sold + 1 WHERE id = ?", (f["id"],)); fps.update(json.loads(f["fps"] or "[]"))

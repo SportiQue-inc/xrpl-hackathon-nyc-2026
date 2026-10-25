@@ -79,6 +79,8 @@ def market(account: str = "dana", domain: str | None = None):
         c["buyer_name"] = _name(c["buyer"]); c["sellers"] = json.loads(c["sellers"] or "[]")
         c["mine"] = c["buyer"] == account or account in c["sellers"]
         c["drops"] = int((c["total"] or 0) * config.DROPS_PER_XRP_UNIT)
+        t = s.one("SELECT hash FROM txs WHERE contract = ? AND hash IS NOT NULL ORDER BY id DESC LIMIT 1", (c["id"],))
+        c["tx_url"] = M.rail.explorer(t["hash"]) if t else None
     people = s.q("SELECT COUNT(*) n, SUM(online) o FROM accounts")[0]
     return {"overview": {"online": people["o"], "accounts": people["n"], "settled": s.stat("settled"), "rejected": s.stat("rejected"),
                          "volume": round(s.stat("volume"), 1), "xrp": round(s.stat("drops") / 1e6, 4), "uploads": s.stat("uploads"),
@@ -102,6 +104,8 @@ def contract(cid: int):
     txs = M.s.q("SELECT * FROM txs WHERE contract = ? ORDER BY id", (cid,))
     for t in txs:
         t["url"] = M.rail.explorer(t["hash"]) if t["hash"] else None; t["src_name"] = _name(t["src"]); t["dst_name"] = _name(t["dst"])
+    for st in c["trace"].get("protocol", []):
+        st["url"] = M.rail.explorer(st["tx"]) if st.get("tx") else None; st["who_name"] = _name(st["who"]) if st.get("who") else None
     return {"contract": c, "posting": p, "messages": msgs, "txs": txs, "ledger": M.rail.name}
 
 

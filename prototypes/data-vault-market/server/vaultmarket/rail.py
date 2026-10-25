@@ -40,8 +40,9 @@ class Rail:
             self.led = MockLedger(start_balance_drops=100_000_000)
         else:
             from agentrail.ledger.xrpl_ledger import XrplLedger
-            self.led = XrplLedger(wallet_file=config.WALLETS)
-        self.name = self.led.name
+            rpc = {"devnet": "https://s.devnet.rippletest.net:51234/"}.get(config.LEDGER, "https://s.altnet.rippletest.net:51234/")
+            self.led = XrplLedger(rpc_url=rpc, wallet_file=config.WALLETS)
+        self.name = "mock" if config.LEDGER == "mock" else config.LEDGER
         self._keys = json.load(open(KEYS_FILE)) if os.path.exists(KEYS_FILE) else {}
         self._lock = threading.Lock()
 
@@ -68,7 +69,7 @@ class Rail:
             return None
 
     def explorer(self, tx_hash: str) -> str | None:
-        return f"https://testnet.xrpl.org/transactions/{tx_hash}" if self.name == "testnet" else None
+        return f"https://{self.name}.xrpl.org/transactions/{tx_hash}" if self.name in ("testnet", "devnet") else None
 
     # ---- sealing ----
     def seal(self, buyer_label: str, clear: bytes) -> tuple[bytes, bytes]:

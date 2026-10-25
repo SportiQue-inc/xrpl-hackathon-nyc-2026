@@ -12,8 +12,8 @@ async function topbar(page) {
   $("acct").innerHTML = accts.map((a) => `<option value="${a.id}">${esc(a.name)}${a.type === "org" ? " (company)" : ""}</option>`).join("");
   $("acct").value = ME;
   $("acct").onchange = (e) => { ME = e.target.value; try { localStorage.setItem("vm-as", ME); } catch {} refresh(); };
-  $("ledgerTag").textContent = META.ledger === "testnet" ? "XRPL Testnet" : "TEST LEDGER (not real)";
-  $("ledgerTag").className = "tag " + (META.ledger === "testnet" ? "blue" : "red");
+  $("ledgerTag").textContent = ({ testnet: "XRPL Testnet", devnet: "XRPL Devnet" })[META.ledger] || "TEST LEDGER (not real)";
+  $("ledgerTag").className = "tag " + (META.ledger === "mock" ? "red" : "blue");
   $("modelTag").textContent = META.model === "rules" ? "agents: written rules (no LLM key)" : `agents: ${META.model}`;
   if (META.connected < META.accounts) $("banner").hidden = false, $("banner").textContent = `Connecting accounts to the ledger: ${META.connected} of ${META.accounts}…`;
   else $("banner").hidden = true;

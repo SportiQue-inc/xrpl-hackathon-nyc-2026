@@ -77,3 +77,8 @@ pre { margin: 6px 0 0; background: var(--code); border-radius: 8px; padding: 8px
 .banner { padding: 6px 16px; background: var(--bad-soft); color: var(--bad); font-size: 13px; }
 .drop { border: 1.5px dashed var(--line); border-radius: 12px; padding: 16px; text-align: center; color: var(--muted); }
 .drop.over { border-color: var(--accent); color: var(--accent); }
+.proto { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 8px; }
+.proto li { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; overflow-wrap: anywhere; }
+.proto li.bad { border-color: var(--bad); }
+.proto a, .proto .mono { display: block; margin-top: 2px; overflow-wrap: anywhere; }
+.txlink { display: block; padding: 0 6px 8px 5.6em; }

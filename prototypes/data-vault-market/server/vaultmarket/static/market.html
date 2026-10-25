@@ -55,7 +55,7 @@ async function refresh() {
   $("ledger").innerHTML = DATA.contracts.map((c) => `<div class="tx ${c.mine ? "mine" : ""} ${c.status === "settled" ? "" : "rej"}"><button type="button" data-c="${c.id}"><time>${hhmm(c.created)}</time>
     <div><b>${c.buyer === ME ? "You" : esc(c.buyer_name)}</b> → <b>${c.status === "settled" ? `${c.sellers.length} ${META.kinds[c.kind].personal ? "people" : "sellers"}${c.sellers.includes(ME) ? " incl. you" : ""}` : "no deal"}</b>
     <div class="what">${esc(META.kinds[c.kind].label)} · #${c.id}${c.status === "settled" ? ` · ${c.items} files` : ` · ${esc(c.reason || c.status)}`}</div></div>
-    <span class="amt">${c.status === "settled" ? `${c.total} · ${(c.drops / 1e6).toFixed(3)} XRP` : esc(c.status)}</span></button></div>`).join("") || '<p class="muted small">No contracts yet.</p>';
+    <span class="amt">${c.status === "settled" ? `${c.total} · ${(c.drops / 1e6).toFixed(3)} XRP` : esc(c.status)}</span></button>${c.tx_url ? `<a class="txlink small mono" href="${c.tx_url}" target="_blank" rel="noopener">View on XRPL explorer ↗</a>` : ""}</div>`).join("") || '<p class="muted small">No contracts yet.</p>';
   $("ledger").querySelectorAll("[data-c]").forEach((b) => b.onclick = () => openContract(+b.dataset.c));
   chatBox($("chat"), ACC);
   renderAgents();
@@ -94,6 +94,9 @@ async function openContract(id) {
     </div>
     <div><h2>Negotiation</h2><p class="muted small">Every message between the agents, in order. Open "thinking" to read why each agent said it.</p></div>
     <div class="talk">${d.messages.map((m) => `<div class="say ${m.side}"><span class="who">${esc(m.name)} · ${m.side} agent${m.by ? " · " + esc(m.by) : ""}</span><div class="bubble">${esc(m.text)}</div>${m.thinking ? `<details><summary>thinking</summary>${esc(m.thinking)}</details>` : ""}</div>`).join("")}</div>
+    ${(t.protocol || []).length ? `<div><h2>Protocol steps</h2><p class="muted small">What each side ran, in order. Ledger steps link to the transaction on the XRPL ${esc(d.ledger)} explorer.</p>
+      <ol class="proto">${t.protocol.map((x) => `<li class="${x.ok ? "" : "bad"}"><div class="row"><b>${esc(x.protocol)}</b><span class="${x.ok ? "y" : "n"}">${x.ok ? "pass" : "fail"}</span></div>
+        <div class="small muted">${x.who_name ? esc(x.who_name) + " · " : ""}${esc(x.detail)}</div>${x.url ? `<a class="small mono" href="${x.url}" target="_blank" rel="noopener">${esc(x.tx)} ↗</a>` : x.tx ? `<span class="small mono">${esc(x.tx)} (test ledger)</span>` : ""}</li>`).join("")}</ol></div>` : ""}
     ${c.status !== "settled" ? `<p><span class="n">Rejected:</span> ${esc(c.reason)}. No payment was made and nothing was delivered.</p>` : ""}
     ${d.txs.length ? `<div><h2>On the ledger (${esc(d.ledger)})</h2><div class="small" style="display:grid;gap:4px;margin-top:6px">${d.txs.map((x) => `<div class="row"><span>${esc(x.type)} · ${esc(x.src_name)} → ${esc(x.dst_name)} · ${(x.drops / 1e6).toFixed(3)} XRP · ${esc(x.result)}</span>${x.url ? `<a href="${x.url}" target="_blank" rel="noopener" class="mono">${x.hash.slice(0, 12)}…</a>` : `<span class="mono">${esc((x.hash || "").slice(0, 12))}</span>`}</div>`).join("")}</div></div>` : ""}`;
   $("close").onclick = () => $("dlg").close();

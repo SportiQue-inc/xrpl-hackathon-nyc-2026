@@ -19,7 +19,7 @@ def _load_dotenv():
 _load_dotenv()
 
 DB_PATH = os.environ.get("VM_DB", os.path.join(ROOT, "vaultmarket.db"))
-LEDGER = os.environ.get("VM_LEDGER", "testnet")            # testnet | mock (tests only; the UI says so)
+LEDGER = os.environ.get("VM_LEDGER", "testnet")            # testnet | devnet | mock (tests only; the UI says so)
 WALLETS = os.environ.get("VM_WALLETS", os.path.join(ROOT, "wallets.local.json"))
 AGENTS = int(os.environ.get("VM_AGENTS", "50"))
 TICK_SECONDS = float(os.environ.get("VM_TICK_SECONDS", "15"))   # one negotiation round per tick
