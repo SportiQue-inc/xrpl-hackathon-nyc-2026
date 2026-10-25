@@ -6,7 +6,7 @@ import sys
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-CHECKS = ["amendments", "kyb", "mpt_licence", "escrow", "batch", "x402", "amm"]
+CHECKS = ["amendments", "kyb", "mpt_licence", "escrow", "batch", "x402", "x402_extra", "amm"]
 
 if __name__ == "__main__":
     wanted = [c for c in CHECKS if not sys.argv[1:] or any(a in c for a in sys.argv[1:])]

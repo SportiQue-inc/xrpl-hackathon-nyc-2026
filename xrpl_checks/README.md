@@ -20,6 +20,7 @@ refuse to run unless the RPC server reports `network_id = 1` (Testnet).
 | `check_mpt_licence.py` | MPT licence (max 1, RequireAuth + CanClawback, no CanTransfer): onward transfer `tecNO_AUTH`, Clawback on revoke |
 | `check_escrow.py` | key-reveal escrow: wrong key / early cancel refused, finish reveals K, after deadline only cancel (refund) |
 | `check_batch.py` | Batch all-or-nothing if enabled; escrow bundle (shared condition) as the fallback |
+| `check_x402_extra.py` | T54 `/supported` on both hosts, invoice binding `both` vs `invoice_id` (InvoiceID = sha256), two sequential payments, fake x402Secure refused |
 | `check_x402.py` | one hospital export API fee paid through the T54 Testnet facilitator, replay/tamper refused |
 | `check_amm.py` | payer sends XRP, participant receives a stablecoin via AMM (RLUSD pool if present, else synthetic tUSD) |
 

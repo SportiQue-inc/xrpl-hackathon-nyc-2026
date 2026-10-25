@@ -17,17 +17,17 @@ def main():
     if os.path.exists(am):
         out += ["## Amendments on Testnet", "", "| amendment | status |", "|---|---|"]
         out += [f"| {k} | {v} |" for k, v in json.load(open(am)).items()] + [""]
-    res = [json.load(open(p)) for p in sorted(glob.glob(os.path.join(HERE, "results", "[1-9]_*.json")))]
+    res = [json.load(open(p)) for p in sorted(glob.glob(os.path.join(HERE, "results", "[1-9]*_*.json")))]
     out += ["## Summary", "", "| # | feature | status | success tx | failure tx (expected refusal) | time | conclusion |",
             "|---|---|---|---|---|---|---|"]
     for r in res:
         ok = next((s for s in r["steps"] if s["kind"] == "success" and s.get("tx") and s["result"] == "tesSUCCESS"), None)
         bad = next((s for s in r["steps"] if s["kind"] == "failure" and s.get("tx")), None)
-        out.append(f"| {r['key'][0]} | {r['title']} | {r['status']} | {link(ok) if ok else '—'} | "
+        out.append(f"| {r['key'].split('_')[0]} | {r['title']} | {r['status']} | {link(ok) if ok else '—'} | "
                    f"{(link(bad) + ' ' + str(bad['result'])) if bad else '—'} | {r['total_seconds']}s | "
                    f"{r['conclusion']}{' Blocker: ' + r['blocker'] if r.get('blocker') else ''} |")
     for r in res:
-        out += ["", f"## {r['key'][0]}. {r['title']} — {r['status']}", "",
+        out += ["", f"## {r['key'].split('_')[0]}. {r['title']} — {r['status']}", "",
                 "amendments: " + (", ".join(f"{k} {v}" for k, v in r["amendments"].items()) or "n/a"), "",
                 "| step | result | expected | ok | s | tx |", "|---|---|---|---|---|---|"]
         for s in r["steps"]:
