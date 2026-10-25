@@ -277,6 +277,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
       h("td", {}, h("button", { class: "ar-btn sm", onclick: async (e) => {
         const r = await busy(e.target, "Agents deliver, escrow settles", () => api.runSubproject(x.id),
           (er) => { sp.msg = banner("red", "Round failed. ", h("span", { class: "tiny" }, er.message)); draw(); });
+        if (r && !r.settled) { sp.msg = banner("amber", "Round not run. ", h("span", { class: "tiny" }, `${r.reason || "no result"}: the study was reset since this page loaded; it now shows the current sub-projects.`)); loadInst(); return; }
         if (r) { sp.settled = r.settled.map((y) => ({ ...y, sub: x.name, round: r.round })).concat(sp.settled).slice(0, 40); loadInst(); }
       } }, "Run a round"))));
     return h("div", { class: "col", style: { gap: "16px" } },
