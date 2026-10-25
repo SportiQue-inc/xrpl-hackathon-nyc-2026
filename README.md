@@ -1,29 +1,63 @@
-# AgentRail - when a study stalls on missing data, the person's own agent fills the gap
+# AgentRail - a shared agent transaction rail for institutions, with a sensitive-data layer proven on health research
 
 XRPL AI & Fintech Hackathon NYC 2026 (Oct 24-25) - SportiQue team.
 Track: **Agentic Finance**. Everything in this repository was built during the hackathon
 (reused material is listed in [docs/REUSE_LOG.md](docs/REUSE_LOG.md)).
 
-## 1. The problem, and what AgentRail does
+## 1. What AgentRail is: three stacked layers
 
-**A study stalls.** Half a sleep study's cohort skipped three weeks of fatigue surveys. Today the only
-fix is to recruit again: a median of 80 days of agreements, and $2,000+ per new participant (close to
-$20k per dropout replaced). Nobody can check, round by round, what each person agreed to, and a $20
-weekly payment costs $0.88 in card fees.
+A sleep study stalls on three missing weeks, because every exchange between a lab, a hospital and a
+person is a separate months-long contract and no one lets an agent pay. AgentRail is the rail that
+removes that.
 
-**AgentRail: when a study stalls on missing data, each person's own agent fills the gap from their
-own records, within the limits they set, and the ledger guarantees the terms on both sides.**
+```
+③ Sensitive data layer (proven on health research)
+   consent per use (3-way) · key-reveal escrow · MPT clawback · deletion receipt
+   per-round salt · ethics-review credential · 20% holdback
+② Agent permission layer
+   owners set limits, purposes, conditions: Mastercard Verifiable Intent · multisig · credentials
+① Agent transaction layer (any industry: robotics, AI data, ...)
+   institutions define data and needs · agents contract and pay · B2B and B2C
+   XRPL settlement · Mastercard AP4M (RLUSD)
+```
 
-- The study pays only when the exact missing weeks arrive (key-reveal Escrow: payment and delivery
-  are one transaction).
-- The person shares only what they agreed to, is paid directly, and can withdraw at any time (MPT
-  licence with clawback, credentials, multisig treasury).
-- The LLM proposes, code verifies, the ledger enforces.
+- **Layer 1, agent transactions:** any institution defines its data and needs, and agents contract,
+  pay and settle on XRPL, institution to institution (B2B) and institution to person (B2C). Robot
+  sensor data between companies (scene A) runs on this layer alone.
+- **Layer 2, agent permissions:** institutions and individuals set their own agents' limits, purposes
+  and conditions. The agent cannot widen them.
+- **Layer 3, sensitive data:** for health records, consent is per use, payment happens only on
+  delivery, and withdrawal claws the licence back.
 
-Person-level health records are the hardest case: consent, re-identification and withdrawal all
-apply at once. **We solved that boundary first.** An engine that passes it handles organization
-data, AI training and evaluation data or robot sensor data by making the consent layer lighter;
-scene A (robot data between companies) runs on the same engine as the Testnet proof.
+  Person-level health records are the hardest case: consent, re-identification and withdrawal all
+  apply at once. **We solved that boundary first.** An engine that passes it handles organization
+  data, AI training and evaluation data or robot sensor data by making the consent layer lighter.
+- **Why health first:** it is the hardest case. If layer 3 holds there, layers 1 and 2 hold in every
+  industry.
+
+The LLM proposes, code verifies, the ledger enforces.
+
+### 1.1 Layers in code
+
+Only what exists in this repository. Testnet links are from the runs listed in section 4.
+
+| Layer | Feature | Module | Testnet evidence |
+|---|---|---|---|
+| ① | Agents contract and pay between institutions (B2B): robot sensor data, scene A | `agentrail/scenario.py` (`scene_a`), `agents.py` (`BuyerAgent`), `policy.py` (`SellerPolicy`), `engine.py` (`_pay`) | [B1 20 XRP](https://testnet.xrpl.org/transactions/FD14E5D69E6F244D5ECF6AFE8B8EBF038D6E75BD5C03D16A4F32DDB76B362B03), [C1 15 XRP](https://testnet.xrpl.org/transactions/AD54A5E8064C13DA41E6D24D97A95E5E77B6A7BFB6386758C771C8D81036C98A) |
+| ① | Institution to person (B2C): weekly escrow per participant, all weeks of a round in one Batch (all or nothing) | `engine.py` (`escrow_create_batch`), `ledger/xrpl_ledger.py` (`prepare_escrow_batch`) | [Batch](https://testnet.xrpl.org/transactions/4DD5DE9FC891BBB2AF50963B9FBB9518A7A6C3BDDE603A9021848971C0EC0979), [failing batch, nothing applied](https://testnet.xrpl.org/transactions/625B77F00C0E808D18510DC11C6A3791B5B01FEAEB00B63567A123662BD23762) |
+| ① | Pay per request over HTTP 402 (x402 on XRPL, T54 facilitator) | `clinic.py`, `study._export_fee` | [export fee settled](https://testnet.xrpl.org/transactions/68EA814B23881270ECDA345AA9E847B139AE8A9EE1184D05E3DE9134FF764003) |
+| ① | Payout in the stablecoin the person picks (Testnet AMM) | `ledger/amm.py`, `study._swap_paid` | [XRP -> RLUSD](https://testnet.xrpl.org/transactions/D0AC61991BE3286234CEF957688CE7ACB1EDEA87C8AF03D33476BA6FCD3692C6) |
+| ① | Mastercard AP4M (RLUSD on XRPL EVM Testnet, EIP-712 vouchers) | `ap4m/` | live run pending |
+| ② | Owner-signed limits, purposes, payees and expiry (Verifiable Intent L1 -> L2 -> L3), checked before every payment and escrow; dispute view | `mandate.py`, `engine._mandate_check`, `study.dispute` | an order above the owner's limit is refused before it reaches the ledger (`test_agent_signed_order_above_the_owners_limit_is_refused`) |
+| ② | Multisig treasury: master key off, two approvers; one signer refused | `ledger/xrpl_extras.py` (`setup_multisig`), `security/cosign.py` | [SignerListSet](https://testnet.xrpl.org/transactions/6812EB098980EFEA7478517484AFDD082BD119CF32E9128D630B6D7AECFA029A), [master key off](https://testnet.xrpl.org/transactions/5FAAF7FE40D30E9558B120E27A49BAA55443F53BBF400C7596437864D620C8F8), [co-signed top-up](https://testnet.xrpl.org/transactions/E6F9FD3BB14245F7ED3ADF79FAA185C83155C1D40F70241FACDDA7178AB16D1C); one signer: `tefBAD_QUORUM` |
+| ② | Verified-organization credential + DepositPreauth (KYB) | `ledger/xrpl_extras.py` (`require_credential_deposits`), `study._kyb` | [DepositPreauth](https://testnet.xrpl.org/transactions/DB8615A294585F2BA87F794BB2F45949780A76632B8628286652BD28016C532B), [unverified lab: tecNO_PERMISSION](https://testnet.xrpl.org/transactions/C4BDB237A1973CC7C1CBD62BA31C0C17E148F9D720FFBCFF06EA861AD9CD7491) |
+| ③ | Consent per use, three separate consents (third-party provision, sensitive data, international transfer), re-checked every round | `agents.py` (`consent_document`), `policy.py` (`PersonalConsentPolicy`) | consent hash in every [escrow memo](https://testnet.xrpl.org/transactions/3BD87B70CBC94F786C8B464B3F011299C82D759D817AE315AF581FAEED6FCEBC) |
+| ③ | Key-reveal escrow: paid only when the data can be opened | `engine.py`, `ledger/conditions.py` | [EscrowFinish reveals K](https://testnet.xrpl.org/transactions/6A96310816B9EC9F7B445C113FFBB719E794A588AC20BE06D71C086C435706C4), [wrong key: tecCRYPTOCONDITION_ERROR](https://testnet.xrpl.org/transactions/EB42B232463E64299C654E573ABFDE87CFD911FFBB72A60996BAB26B4FB66148) |
+| ③ | MPT licence per (study, participant), clawed back on withdrawal | `ledger/licence.py`, `study.participant_revoke`, `study.licence_gate` | [MPTokenIssuanceCreate](https://testnet.xrpl.org/transactions/76C15EB2769A5F732BF0B33C0B419C54D580EAAA990CDC17F21F31D4EEB63BC9), [Clawback](https://testnet.xrpl.org/transactions/9E180A4E6F31A4E76CB3281D478ABA98AE79C4EFA56A73601C335AA6040079AF), [onward transfer: tecNO_AUTH](https://testnet.xrpl.org/transactions/6BE571AF3D33F761410CCDE9AE93FD9FAE44BB01D242757EA96D2B57E2DCFDF1) |
+| ③ | Deletion receipt: on withdrawal the lab destroys the person's bundles and cells and sends a confirmation hash to the person's agent | `study.py` (`deletion_confirmed`) | off ledger by design (`tests/test_study.py`) |
+| ③ | Per-round salt inside the sealed bundle: the hash on the ledger cannot be matched by guessing values | `engine.place_order` | off ledger by design (`test_ledger_hash_is_salted_per_round`) |
+| ③ | Ethics-review credential with expiry, withdrawn with `CredentialDelete` | `ledger/xrpl_extras.py`, `scenario.py` | [CredentialCreate](https://testnet.xrpl.org/transactions/58656AB4E6ABEC47BAA92F90C3F304B8959D1FDAE03AE6ED193FA2D98CBD1A37), [CredentialAccept](https://testnet.xrpl.org/transactions/FC7710C97C3783157778952291A28B2322E2FD65DBBDB5B52F4662DF9D514218) |
+| ③ | 20% holdback per round in its own escrow, released after review | `payout.py` | [holdback EscrowCreate](https://testnet.xrpl.org/transactions/E77702780035D4AB75770C11EAECE6A6273DF3EEE58E659A941F62C814CBA166) |
 
 ## 2. How we solved the hard boundaries
 
