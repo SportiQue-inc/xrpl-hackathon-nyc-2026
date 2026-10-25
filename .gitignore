@@ -35,3 +35,4 @@ ap4m/.env
 ap4m/out/
 ap4m/state/
 .uniqdata_person.json*
+runs/

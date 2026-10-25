@@ -75,6 +75,7 @@
   .c-held { background: color-mix(in srgb, var(--muted) 35%, var(--panel)); }
   .c-contributed { background: var(--ok); } .c-waiting { background: var(--warn); }
   .c-missing { background: transparent; border: 1px dashed var(--line); }
+  .c-withdrawn { background: color-mix(in srgb, var(--muted) 70%, var(--panel)); opacity: .55; }
   input { width: 70px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
 </style>
 </head>
@@ -107,6 +108,8 @@
   <section class="wide">
     <h2>Sleep study - 50 participants x 8 weeks (sleep + fatigue in the same week)</h2>
     <div class="nums" id="study-nums"></div>
+    <div id="live" class="badge" style="margin:6px 0">ledger stream: starting</div>
+    <div id="live-ev"></div>
     <div id="heat" class="hm"></div>
   </section>
   <section>
@@ -189,8 +192,30 @@ async function loadStudy() {
     [st.responses.auto + ' / ' + st.responses.approval, 'auto / asked person'],
     [st.settlement.paid_xrp + ' XRP', 'paid by escrow']].map(([v, l]) => `<div class="num"><b>${v}</b><span>${l}</span></div>`).join('');
   document.getElementById('heat').innerHTML = '<div class="lbl"></div>' + h.weeks.map(w => `<div class="lbl">w${w}</div>`).join('') +
-    h.rows.map(r => `<div class="lbl">${r.person}</div>` + r.cells.map(c => `<div class="c-${c.s}" title="${r.person} ${c.s}"></div>`).join('')).join('');
+    h.rows.map(r => `<div class="lbl">${r.person}</div>` + r.cells.map(c => `<div class="c-${GONE.has(r.person) ? 'withdrawn' : c.s}" title="${r.person} ${c.s}"></div>`).join('')).join('');
+  HM = h;
 }
+// Withdrawal as a ledger event: the server holds a WebSocket subscribe on the study's account; the page asks for
+// new Clawback / EscrowCancel every second and greys the person's row as soon as one arrives.
+let LIVE_AFTER = 0, HM = null;
+const GONE = new Set(), LIVE = [];
+async function pollLive() {
+  try {
+    const r = await (await api('/api/study/live?after=' + LIVE_AFTER)).json();
+    document.getElementById('live').textContent = 'ledger stream: ' + r.status;
+    for (const e of r.events) {
+      LIVE_AFTER = Math.max(LIVE_AFTER, e.id); LIVE.unshift(e);
+      if (e.person && e.type === 'Clawback') GONE.add(e.person);
+    }
+    if (r.events.length) {
+      document.getElementById('live-ev').innerHTML = LIVE.slice(0, 6).map(e => `<div class="evd">${esc(e.type)} for <b>${esc(e.person || '?')}</b>
+        received ${new Date(e.received_at * 1000).toLocaleTimeString()}${e.latency_s != null ? ` (${e.latency_s} s after the ledger closed)` : ''}
+        <a href="${e.url}" target="_blank" rel="noopener">tx</a> <span style="color:var(--muted)">${esc(e.source)}</span></div>`).join('');
+      if (r.events.some(e => e.type === 'Clawback')) loadStudy().catch(() => {});
+    }
+  } catch (e) {}
+}
+setInterval(pollLive, 1000);
 async function load() {
   loadStudy().catch(() => {});
   const s = await (await api('/api/state')).json();
