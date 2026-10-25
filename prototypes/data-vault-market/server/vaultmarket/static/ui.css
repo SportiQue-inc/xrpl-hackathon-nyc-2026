@@ -162,3 +162,5 @@ dialog label input { display: block; width: 100%; margin-top: 3px; }
 
 .mine-panel { margin-top:18px;padding-top:14px;border-top:1px solid var(--line); }.mine-panel:empty { display:none; }
 .right .scroll { display:flex;flex-direction:column; }.right .chatbox { flex:1;min-height:0; }.right .msgs { flex:1;max-height:none;min-height:260px; }
+
+.vault-startup{max-width:560px;margin:48px auto;padding:24px;display:grid;gap:14px;border:1px solid var(--line);border-radius:14px;background:var(--side)}.vault-startup h1{font-size:22px}.vault-startup p{color:var(--muted);line-height:1.6}.vault-startup button{justify-self:start;min-height:40px;height:auto}.vault-startup[hidden],.vault-app[hidden]{display:none!important}
