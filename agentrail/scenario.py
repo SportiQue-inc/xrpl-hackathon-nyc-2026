@@ -336,6 +336,21 @@ def scene_d(w: World, n: int = 50, workers: int = 10) -> dict:
 COHORT_PROFILES = (["auto_all"] * 7) + ["auto_standard", "auto_standard", "confirm_each"]
 
 
+def _reset_own_wallet(ledger, wallet):
+    """A participant's own wallet outlives a run. Undo DepositAuth left on by an earlier run's KYB step,
+    so this run's funding and payments start from the same state as a fresh account."""
+    from xrpl.models.requests import AccountInfo
+    from xrpl.models.transactions import AccountSet, AccountSetAsfFlag
+    from xrpl.transaction import submit_and_wait
+    try:
+        info = ledger.client.request(AccountInfo(account=wallet.classic_address, ledger_index="validated")).result
+        if int(info.get("account_data", {}).get("Flags", 0)) & 0x01000000:      # lsfDepositAuth
+            submit_and_wait(AccountSet(account=wallet.classic_address, clear_flag=AccountSetAsfFlag.ASF_DEPOSIT_AUTH),
+                            ledger.client, wallet)
+    except Exception:
+        pass
+
+
 def build_cohort(w: World, n: int = 50):
     """50 participants with their own agents. Payees on Testnet are the public fixture addresses."""
     from .cohort import synthetic_coverage
@@ -361,6 +376,7 @@ def build_cohort(w: World, n: int = 50):
             addr = wallet.classic_address
             if addr == own_wallets[pid] and hasattr(w.ledger, "wallets"):
                 w.ledger.wallets[addr] = wallet
+                _reset_own_wallet(w.ledger, wallet)
             if hasattr(w.ledger, "token_optin") and w.ledger.can_sign(addr):
                 w.ledger.token_optin(addr, pid)             # trust line so token escrows can pay it
         elif pid == HERO:
