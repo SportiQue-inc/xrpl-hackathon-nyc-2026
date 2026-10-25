@@ -64,7 +64,7 @@ function render(){
 }
 async function refresh(){
  if(busy||document.hidden||(IS_REPORT&&D))return;
- const wait=(IS_REPORT?4000:1500)-(Date.now()-lastFetch);if(wait>0){if(!refreshTimer)refreshTimer=setTimeout(()=>{refreshTimer=null;refresh();},wait);return;}
+ const wait=4000-(Date.now()-lastFetch);if(wait>0){if(!refreshTimer)refreshTimer=setTimeout(()=>{refreshTimer=null;refresh();},wait);return;}
  busy=true;lastFetch=Date.now();
  try{
   const next=await api(IS_REPORT?'/api/research-report':'/api/demo?minutes='+$('period').value);D=next;
@@ -75,6 +75,6 @@ async function refresh(){
  }catch(e){showError(e);}finally{busy=false;}
 }
 $('period').onchange=refresh;$('asset').onchange=render;$('view').onclick=()=>{asList=!asList;$('view').textContent=asList?'Grid view':'List view';render();};
-topbar(IS_REPORT?'report':'demo').then(()=>{refresh();if(!IS_REPORT){try{new EventSource('/api/stream').onmessage=()=>refresh();}catch{}setInterval(refresh,5000);}}).catch(showError);
+topbar(IS_REPORT?'report':'demo').then(()=>{refresh();if(!IS_REPORT){try{new EventSource('/api/stream').onmessage=()=>refresh();}catch{}setInterval(refresh,30000);}}).catch(showError);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
 </script></body></html>

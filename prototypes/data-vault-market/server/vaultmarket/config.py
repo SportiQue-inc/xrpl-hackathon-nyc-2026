@@ -50,6 +50,7 @@ LLM_DAILY_CALLS = int(os.environ.get("VM_LLM_DAILY_CALLS", "320"))   # spread ev
 # Membership. VM_PUBLIC=1 when the site is reachable from the internet: the demo accounts become
 # read-only and only signed-in members act, each on their own account.
 PUBLIC = os.environ.get("VM_PUBLIC", "0") == "1"
+DEMO_CHAT_DAILY = int(os.environ.get("VM_DEMO_CHAT_DAILY", "200"))   # the shared demo vault, all visitors together
 CHAT_RESERVE = int(os.environ.get("VM_CHAT_RESERVE", "150"))    # extra model calls a day kept for owner chat
 CHAT_DAILY = int(os.environ.get("VM_CHAT_DAILY", "30"))         # agent chat messages per member per day
 SIGNUPS_PER_HOUR = int(os.environ.get("VM_SIGNUPS_PER_HOUR", "5"))  # per IP address

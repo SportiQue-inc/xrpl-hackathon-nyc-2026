@@ -39,6 +39,44 @@ def buyer_open(buyer: str, w: dict, owned: int) -> dict:
                 'Return {"thinking": "...", "message": "..."} where message opens the negotiation to this seller.', fb)
 
 
+# What a buyer of each kind typically needs: a minimum amount of records and the fields its purpose depends on.
+NEEDS = {"gps_track": (3, ["hr", "lat", "lng"], "runs"), "sleep_log": (14, ["hrv_ms", "deep_h", "rem_h"], "nights"),
+         "purchase_receipts": (12, ["store", "lines", "total"], "receipts"), "audio": (8, ["snr_db", "lang"], "clips"),
+         "air": (48, ["pm25", "no2_ppb"], "hourly readings"), "step_count": (14, ["steps", "active_min"], "days"),
+         "commute": (10, ["mode", "minutes", "km"], "trips"), "screen_time": (7, ["apps", "pickups"], "days"),
+         "energy_use": (72, ["kwh"], "hourly readings")}
+
+
+def requirements(w: dict) -> dict:
+    """The buyer's conditions for this request, fixed per posting so every seller is held to the same terms."""
+    import random
+    n, fields, unit = NEEDS[w["kind"]]
+    rng = random.Random(w["id"])
+    return {"min_records": max(1, round(n * rng.uniform(0.5, 1.5))), "fields": rng.sample(fields, rng.randint(1, len(fields))), "unit": unit}
+
+
+def match_terms(buyer: str, seller: str, w: dict, need: dict, have: dict) -> dict:
+    """Both agents state what they need and what they hold; code has already priced the fit.
+    -> {"buyer": msg, "seller": msg, "by"}"""
+    lab = KINDS[w["kind"]]["label"].lower()
+    fb_b = (f"For {w['purpose']} I need at least {need['min_records']} {need['unit']} of {lab} with {', '.join(need['fields'])}. What do you have?")
+    if have["fit"] >= 1:
+        fb_s = f"I have {have['records']} {need['unit']} with all of those fields. That covers your request in full."
+    elif have["fit"] > 0:
+        fb_s = (f"I have {have['records']} {need['unit']}" + (f", without {', '.join(have['missing'])}" if have["missing"] else "")
+                + f". That covers about {have['fit']:.0%} of what you need, so I'll price it as a partial bundle.")
+    else:
+        fb_s = f"I only have {have['records']} {need['unit']}" + (f" and no {', '.join(have['missing'])}" if have["missing"] else "") + ". That won't meet your conditions."
+    out = llm.ask_json(SYSTEM, f"Write the requirements exchange between the BUYER agent for {buyer} and the SELLER agent for {seller}. "
+                       f"Data: {lab}; purpose: {w['purpose']}. Buyer needs at least {need['min_records']} {need['unit']} with fields {need['fields']}. "
+                       f"Seller holds {have['records']} {need['unit']}; missing fields {have['missing'] or 'none'}; fit {have['fit']:.0%} "
+                       f"({'full' if have['fit'] >= 1 else 'partial, priced down' if have['fit'] > 0 else 'not enough to trade'}). No prices yet. "
+                       'Return {"buyer": "buyer states its conditions, max 30 words", "seller": "seller says what it has and how well it fits, max 30 words"}.', max_tokens=250)
+    if out and out.get("buyer") and out.get("seller"):
+        return {"buyer": str(out["buyer"]), "seller": str(out["seller"]), "by": llm.model_name()}
+    return {"buyer": fb_b, "seller": fb_s, "by": "rules"}
+
+
 def seller_reply(seller: str, rules: dict, w: dict, buyer: str, nfiles: int) -> dict:
     """Code bounds: a blocked purpose must be declined; any agreed price is at least the owner's minimum."""
     lab, kind = KINDS[w["kind"]]["label"].lower(), w["kind"]

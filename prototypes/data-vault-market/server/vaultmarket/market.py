@@ -437,12 +437,33 @@ class Market:
                 step("Duplicate check (record fingerprints)", f"{ov:.0%} of this lot's record fingerprints are already in the buyer's DB; any overlap is refused. Refused before price talk.", False, a)
                 overlap += 1
                 continue
+            # both agents check that what the buyer needs is what the seller holds, before any price talk
+            need = agents.requirements(w)
+            recs = [json.loads(x) for f in fs for x in intake.leaves(f["kind"], json.loads(f["clean"]))]
+            present = set().union(*(r.keys() for r in recs if isinstance(r, dict))) if recs else set()
+            if w["kind"] == "gps_track":
+                present |= {k for r in recs for p in (r.get("points") or [])[:1] for k in p}
+            missing = [x for x in need["fields"] if x not in present]
+            fit = min(1.0, len(recs) / need["min_records"]) * (1 - 0.5 * len(missing) / max(1, len(need["fields"])))
+            fit = round(fit if fit >= 0.2 else 0, 2)
+            mt = agents.match_terms(buyer["name"], sa["name"], w, need, {"records": len(recs), "missing": missing, "fit": fit})
+            say(w["buyer"], "buyer", mt["buyer"], f"Conditions for {w['purpose']}: at least {need['min_records']} {need['unit']}, fields {', '.join(need['fields'])}.", mt["by"])
+            say(a, "seller", mt["seller"], f"I hold {len(recs)} {need['unit']}; missing {', '.join(missing) or 'nothing'}; fit {fit:.0%}.", mt["by"])
+            step("Requirements match", f"buyer needs ≥{need['min_records']} {need['unit']} with {', '.join(need['fields'])}; seller has {len(recs)}"
+                 + (f", missing {', '.join(missing)}" if missing else "") + f" → fit {fit:.0%}" + ("" if fit >= 1 else ", priced as a partial bundle" if fit else ", no trade"), fit > 0, a)
+            if not fit:
+                trace["seller_trace"].append({"seller": a, "verdict": "conditions not met", "price": None, "fit": fit})
+                trace["verdicts"]["sellers"][a] = "conditions not met"
+                declined += 1
+                continue
+            value = 0.5 + 0.5 * fit   # a partial bundle is still worth something to the buyer, just less
+            w_fit = {**w, "max": round(w["max"] * value, 1), "offer": round(min(w["offer"], w["max"] * value * 0.92), 1)} if fit < 1 else w
             self.s.x("UPDATE contracts SET reason='Seller agent is reviewing the offer' WHERE id=?",(cid,));self.events += 1
-            r = agents.seller_reply(sa["name"], sa["sell_agent"], w, buyer["name"], len(fs))
+            r = agents.seller_reply(sa["name"], sa["sell_agent"], w_fit, buyer["name"], len(fs))
             say(a, "seller", r["message"], r["thinking"], r["by"])
             final = r["verdict"]
             if r["verdict"] == "counter":
-                if r["price"] <= w["max"]:
+                if r["price"] <= w_fit["max"]:
                     say(w["buyer"], "buyer", f"{r['price']} accepted.", f"Counter {r['price']} is within my max.", "rules"); final = "agree"
                 else:
                     say(w["buyer"], "buyer", f"{r['price']} is more than I can pay. Pass.", f"Counter {r['price']} exceeds my max.", "rules"); final = "decline"

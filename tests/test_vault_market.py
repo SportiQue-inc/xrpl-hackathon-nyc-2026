@@ -600,3 +600,63 @@ def test_demo_receipt_details_never_expose_real_member_or_shared_vault_trades(ma
     assert [r['contract'] for r in seller['receipts']]==[good]
     assert seller['sales']==1 and seller['income']==[{'asset':'test USD','amount':1}]
     assert 'Private buyer name' not in json.dumps(d)
+
+
+def _demo_client(market, monkeypatch):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web, 'M', market)
+    monkeypatch.setattr(config, 'PUBLIC', True)
+    monkeypatch.setattr(market, '_connect_all', lambda: None)
+    market.seed()
+    market.addr['demo-vault'] = market.rail.ensure_account('demo-vault')
+    client = TestClient(web.app, base_url='https://testserver')
+    assert client.post('/api/demo-session').status_code == 200
+    return client, web
+
+
+def test_model_chat_only_proposes_and_acts_after_the_owner_presses(market, monkeypatch):
+    from vaultmarket import agents
+    client, web = _demo_client(market, monkeypatch)
+    seen = {}
+    def fake(text, ctx, history=None):
+        seen.update(ctx)
+        return {"reply": "Sure, I can sell those.", "sell_kind": "sleep_log", "set_min": {"kind": "sleep_log", "price": 9}, "buy": {"kind": "air", "budget": 5}}
+    monkeypatch.setattr(agents, 'chat_reply', fake)
+    market.s.insert("contracts", posting=market.test_post, buyer="buyer", seller="demo-vault", kind="sleep_log", status="settled", total=999, asset="OTHER")
+    before = (market.s.one("SELECT COUNT(*) n FROM sale_queue")["n"], market.s.one("SELECT COUNT(*) n FROM postings")["n"], market.acct('demo-vault')["sell_agent"]["min"]["sleep_log"])
+    web._converse('demo-vault', 'how much are my sleep logs worth?', {}, False)
+    after = (market.s.one("SELECT COUNT(*) n FROM sale_queue")["n"], market.s.one("SELECT COUNT(*) n FROM postings")["n"], market.acct('demo-vault')["sell_agent"]["min"]["sleep_log"])
+    assert before == after                                   # nothing happened on the model's word alone
+    assert seen["sold_total"] == 0                           # another asset's totals are not summed under this label
+    msg = market.s.one("SELECT * FROM chat WHERE account='demo-vault' AND role='agent' ORDER BY id DESC LIMIT 1")
+    acts = json.loads(msg["actions"])
+    assert {a["do"] for a in acts} == {"sell_kind", "set_min", "post_buy"}
+    i = next(i for i, a in enumerate(acts) if a["do"] == "set_min")
+    assert client.post(f"/api/account/demo-vault/chat/{msg['id']}/act", json={"i": i}).status_code == 200
+    assert market.acct('demo-vault')["sell_agent"]["min"]["sleep_log"] == pytest.approx(9 / (config.MICRO_PER_UNIT / 1e6))
+
+
+def test_shared_demo_chat_has_a_daily_cap(market, monkeypatch):
+    client, web = _demo_client(market, monkeypatch)
+    monkeypatch.setattr(config, 'DEMO_CHAT_DAILY', 1)
+    assert client.post('/api/account/demo-vault/chat', json={'text': 'sell my sleep logs'}).status_code == 200
+    assert client.post('/api/account/demo-vault/chat', json={'text': 'sell my sleep logs'}).status_code == 429
+
+
+def test_settings_sliders_keep_untouched_values_and_demo_refresh_stays_throttled():
+    static = Path(__file__).resolve().parents[1] / "prototypes/data-vault-market/server/vaultmarket/static"
+    market_html = (static / "market.html").read_text()
+    assert 'step="any"' in market_html and "r.dataset.dirty ? +r.value/u : (s.min?.[k]" in market_html
+    demo = (static / "demo.html").read_text()
+    assert "const wait=4000-(Date.now()-lastFetch)" in demo and "setInterval(refresh,30000)" in demo
+
+
+def test_buyer_and_seller_match_conditions_before_price(market):
+    market.s.x("UPDATE files SET status='listed' WHERE id=?", (market.test_file,))
+    market.s.insert('interests', account='seller', posting=market.test_post)
+    cid = market.negotiate(market.s.one('SELECT * FROM postings WHERE id=?', (market.test_post,)), seller_id='seller')
+    trace = json.loads(market.s.one("SELECT trace FROM contracts WHERE id=?", (cid,))["trace"])
+    assert any(p["protocol"] == "Requirements match" for p in trace["protocol"])
+    texts = [m["text"] for m in market.s.q("SELECT text FROM messages WHERE contract=? ORDER BY id", (cid,))]
+    assert any("I need at least" in t for t in texts) and any(t.startswith("I have") or t.startswith("I only have") for t in texts)
