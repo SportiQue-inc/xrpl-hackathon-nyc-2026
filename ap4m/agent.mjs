@@ -4,7 +4,7 @@
 // whether to pay. A paid call goes through the AP4M x402 toolkit (signed EIP-712 Voucher on an open Channel,
 // redeemed on-chain by the merchant), then the agent reports the redemption, settles, and writes a run record.
 // A fourth, scripted request (week 6 at a price above the per-call cap) must be refused with no payment.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -42,6 +42,7 @@ async function connectLive(env) {
   const { ethers } = await import('ethers');
   const { default: sdk } = await import(pathToFileURL(join(HERE, 'vendor/ap4m-hackathon-sdk.cjs')).href);
   const { buyResource, loadX402Context } = await import(pathToFileURL(join(HERE, 'vendor/ap4m-x402.mjs')).href);
+  const { readParticipantFinalizedBlock, readParticipantPaymentChannel } = await import('@ap4m/sdk/participant-requests');
   const apiUrl = setting(env, 'AP4M_API_URL');
   const config = await (await fetch(`${apiUrl}/public/config`)).json();
   const provider = new ethers.JsonRpcProvider(env.AP4M_RPC_URL || config.network.rpcUrl);
@@ -49,14 +50,33 @@ async function connectLive(env) {
   const context = await loadX402Context(apiUrl);
   const { token } = await sdk.signIn(apiUrl, env.TEAM_NAME, wallet);
   const rlusd = new ethers.Contract(context.x402.token, ERC20_ABI, provider);
-  return { ethers, sdk, buyResource, apiUrl, config, provider, wallet, context, token, rlusd };
+  const readChannel = async (channelId) => {
+    const safe = await readParticipantFinalizedBlock(provider, context.participantRequest);
+    return readParticipantPaymentChannel(provider, context.participantRequest, channelId, safe.number);
+  };
+  return { ethers, sdk, buyResource, apiUrl, config, provider, wallet, context, token, rlusd, readChannel };
 }
 
 /**
  * @param {{ dryRun: boolean, env: Record<string,string>, merchantUrl: string, outDir?: string,
- *           fetchImpl?: typeof fetch, log?: (line: string) => void, runId?: string }} options
+ *           fetchImpl?: typeof fetch, log?: (line: string) => void, runId?: string,
+ *           stateDirectory?: string, connect?: typeof connectLive }} options
  */
-export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, 'out'), fetchImpl = fetch, log = console.log, runId }) {
+export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, 'out'), fetchImpl = fetch, log = console.log, runId, connect = connectLive, stateDirectory = join(HERE, 'state', 'agent') }) {
+  if (!dryRun) {
+    let retained;
+    try {
+      const file = join(stateDirectory, 'purchase.json');
+      const stat = lstatSync(file);
+      if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 131_072) throw new Error('invalid purchase file');
+      retained = JSON.parse(readFileSync(file, 'utf8'));
+      if (!retained || typeof retained !== 'object' || typeof retained.complete !== 'boolean') throw new Error('invalid purchase state');
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw new Error('Cannot verify AP4M purchase state; preserve it for recovery');
+    }
+    // shortcut: unresolved purchases require the original SDK operation; add automatic task recovery before unattended runs.
+    if (retained && retained.complete !== true) throw new Error('Unresolved purchase: resume the original SDK operation before starting a new run; do not delete its state');
+  }
   const startedAt = new Date();
   runId ??= startedAt.toISOString().replace(/[:.]/g, '-');
   const operationRun = runId.toLowerCase().replace(/[^a-z0-9]/g, '').slice(-14);
@@ -67,7 +87,7 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
     payeeAllowlist: allowlist,
   });
   const consent = taskConsent();
-  const live = dryRun ? null : await connectLive(env);
+  const live = dryRun ? null : await connect(env);
   const explorer = live?.config.network.explorerUrl ?? 'https://explorer.testnet.xrplevm.org';
   const txLink = (hash) => (hash ? `${explorer}/tx/${hash}` : null);
   const record = {
@@ -114,6 +134,11 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
     const state = await live.sdk.getChannelState(live.provider, live.context.participantRequest.ledger, channelId);
     record.channel.cap_rlusd = fromWei(state.cap);
     record.channel.redeemed_before_rlusd = fromWei(state.redeemed);
+    const channel = await live.readChannel(channelId);
+    if (!policy.payeeAllowlist.includes(channel.payout.toLowerCase())) {
+      throw new Error('Channel payout is not in the configured payee allowlist');
+    }
+    record.channel.payout = channel.payout;
   } else {
     record.channel = { channel_id: channelId, opened_by_this_run: true, cap_rlusd: fromWei(policy.budgetWei) };
   }
@@ -160,13 +185,11 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
       call.voucher = { cumulative_amount_rlusd: fromWei(dryCumulative), signature: 'fake (DRY_RUN)' };
       call.record_redemption = { status: 'skipped (DRY_RUN)' };
     } else {
-      // The per-call cap is the hard ceiling handed to the SDK; buyResource refuses a challenge above it.
-      const remaining = policy.budgetWei - spentWei;
-      const maximumAmount = (policy.perCallCapWei < remaining ? policy.perCallCapWei : remaining).toString();
+      if (offer.pay_to.toLowerCase() !== record.channel.payout.toLowerCase()) throw new Error('Offer payee does not match the on-chain channel payout');
       const purchase = await live.buyResource({
         context: live.context, provider: live.provider, wallet: live.wallet,
-        stateDirectory: join(HERE, 'state', 'agent'),
-        resourceUrl: offer.resource_url, channelId, maximumAmount,
+        stateDirectory,
+        resourceUrl: offer.resource_url, channelId, maximumAmount: verdict.priceWei.toString(),
         operation: `${offer.package_id}-${operationRun}`.slice(0, 64),
       });
       sealed = purchase.resource;

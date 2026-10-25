@@ -22,7 +22,8 @@ All data is synthetic.
 3. To pay, the agent uses the SDK: `signIn` → `requestChannel` (cap = budget, or reuse `CHANNEL_ID`) →
    `buyResource` (signs the EIP-712 Voucher; the merchant redeems it on-chain, which emits `VoucherRedeemed`) →
    `POST /public/participant/record-redemption` → `settle` (payout tx, settlement tx, receipt URL).
-   The SDK gets the per-call cap as `maximumAmount`, so it also refuses any 402 challenge above the cap.
+   The SDK gets the approved offer price as `maximumAmount`, so a separate 402 challenge cannot charge more
+   than the policy approved. The agent also checks the on-chain channel payout against the allowlist and offer.
 4. The package is a study-only pseudonym, study-relative days in place of calendar dates, and only the
    requested items, plus its sha256. The agent recomputes the hash and rejects a package that does not match.
 5. Scripted refusal: a fourth request (week 6, 0.50 RLUSD) is above the cap. The agent refuses it and pays nothing.
@@ -83,6 +84,10 @@ rejects a tampered package hash, refuses an off-consent purpose or item.
 Setup is complete only after the wallet roles, gas, portal registration, funded budget, `.env`, and installed
 dependencies have been checked. A live run is a separate check: collect `VoucherRedeemed`, settlement and payout
 transaction hashes, and the on-chain payout balance change before claiming AP4M live success.
+
+If `state/agent/purchase.json` contains an unresolved purchase, the agent stops before signing in or opening
+another channel. Resume that purchase with its original SDK intent (same operation, channel, URL and maximum
+amount), keeping the merchant state intact. Do not delete the state to restart. Automatic task recovery is not implemented.
 
 ## 3-minute live demo
 
