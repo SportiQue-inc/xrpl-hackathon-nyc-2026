@@ -1,0 +1,539 @@
+{
+  "schema_version": "1.0",
+  "network": "testnet",
+  "mainnet_prohibited": true,
+  "synthetic": true,
+  "note": "Synthetic demo mapping of public XRPL Testnet addresses. No private keys. Receive-only in the demo: accounts that must sign (buyers, treasury, ethics board) use faucet keys created at run time.",
+  "accounts": [
+    {
+      "account_id": "ORG-001",
+      "role": "institution",
+      "network": "testnet",
+      "classic_address": "r96KENJaxe22LjzuKPefnCcvHexy2HzJx",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "ORG-002",
+      "role": "institution",
+      "network": "testnet",
+      "classic_address": "rf21m1bf1np12NvcD52mLbAjTaoBJyipiV",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "ORG-003",
+      "role": "institution",
+      "network": "testnet",
+      "classic_address": "rMW3tQWfUAxGJgNMk5UpUMQV2Rh7LAXUAm",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-001",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rK6s5cPYpwijGErrUwnuFJYmnJ3n8dEV7u",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-002",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rNUBFLVFLcy3yK9qiQyQLeS1Kkw1W8vtv7",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-003",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rD6QdhwxEDtkgmvtBwyrBNEbpV7WQGz9ki",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-004",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "r9uzUzGPTeoQXWNP4yCMdX1Jf984vR4icS",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-005",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rKHqHdRVSXSq4rdo5ui9EE9t5TGzvYmwXB",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-006",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "raKdpwVb81s6HeqegY3gA7D3SxBNrdykWq",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-007",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rB7vghaTecuFvj6nyJX83cUyjgpUuT8R6D",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-008",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "r9Pgo3SD3ySBMHS9cqV7K4eVK1pH1qi8Gx",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-009",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rJnwE8chPmYp4E6fXBTAf9PFAtQ7bBV9oA",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-010",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rNZLHgU7dCNhM5QB6KkTNgVtsSgzSVNnqJ",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-011",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "r3Yf4xg6j6rXAS6yCUTYKwEPtg5csVooP9",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-012",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "raCrfauyizq39XMo4XpaMg33uzje3y69pp",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-013",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rwcwtaBbMqenqPywbgeo4qYX3UfqnwLkAe",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-014",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rEUYKPnooC4fxC8MPiVwxn9zGf3k32vp2D",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-015",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rUPxVp9VJmjpYsQjPpdbrfJhhVFcidZpZJ",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-016",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rBz28JmfM2wGqiZfF9yPS2Tw4XYGhcJdUV",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-017",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rEL7Nk33uMeLhAACde5Y1F1prhLUAH7RTm",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-018",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rK2E8uH8vtDk7RkV3ociwc54pfyZvXccXo",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-019",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rsoeRs3BXKk78ZvkCNaLsQChdyuAgYxTFn",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-020",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rEDmvkpd49p7n2XbPMrP2wGA3B2EuN3TBr",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-021",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rabUvNKVWJoHSFFkCU83S5zsxRxFjDg5ey",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-022",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rDE9V3k5ePw4TVUnFyp3eSn54npAD8tp3w",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-023",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rNAVfuUY8ixCUYXifdpKbPFMQ1riRyhpEq",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-024",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rBA9PQhc9CuDMcXiXmTgW9Wb3vSbujtbaS",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-025",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rwqXn8C3KXu1zh81tN6iAKTv8YCqzz1T59",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-026",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rf9DLVnxadP1SXqa9ENXawQDdSMuL7GLG7",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-027",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rGf2AtJw6WTKRBiSzj2gnwNz1zRdviQAAC",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-028",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rfJLLS5Q628zayLBrcAzDy2jUvUPE3cCA6",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-029",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "r9nLzrK4UnLhH7Hi7fFps8EwtL9tTzjBZ",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-030",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rJEJfYBXdJZnRh6Mh2Eka64ikfn2XKjhxe",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-031",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rwDYn2YdziSAdXupQV94pAaeuxQcFZktHU",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-032",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rEHJ6inG9ANhMSzVFNTaEDh1LMYoTFpiRe",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-033",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rBBQUP2FmjDf4MRjpRcn8u9xGRHJGmQLof",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-034",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rnwAEFvAT1iJw3aQZKjUBNdYFZfvzXr7kq",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-035",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rBTWGmz8yyJbWuHpWFC3HfwM1PZCXZnSyA",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-036",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rUt9xs9CHKKFuck6mfnydx9LY62bhWBG4e",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-037",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rfgwiBJoWGbgGLMwhh5UWJE3Kn7NstuQsM",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-038",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "r9d5KVNhN9kF87yWb7gS7Q4UZKGiMNCc9M",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-039",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rrsXENKqWM9D7Nmt8bahNqTjWRwpCvznwu",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-040",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "r44JKgGgYmJUVBbkunCJWQjZxkikVkUtRQ",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-041",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rDeEyw8y59eixo4Ac1cyUUiCPLFN5PEcmj",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-042",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rMoK8CBSDUHXJt1Xqm3h1K2euavseNdWnX",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-043",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rpUefVPBA2mtD96X9Y9uSFdag6thbu12F9",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-044",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rDcTT4QMHdK99jpVzrWkrNaRNEt6kxo969",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-045",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rM8KDhCezYzJWQ2458RTiQ6UF6XrFTX2Qx",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-046",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rPsc5eseMqtjQoDgicPBzjW8pHSfewhJSU",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-047",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "r33XxD7BD2KxVjN9v4Tshz1bSGWA7VeHZ8",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-048",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rEN6astvUQtURMNmefYd8eKyeWWhYr7yiE",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-049",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rhKxoKiqX6Ui6jEHP8iGFKeTrskdqiDDmK",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    },
+    {
+      "account_id": "P-050",
+      "role": "participant",
+      "network": "testnet",
+      "classic_address": "rs2Dow1M3JnFkMegVbU6j9isLF61DLrDAt",
+      "destination_tag": null,
+      "binding_type": "synthetic_demo_mapping",
+      "ownership_verification": "not_performed",
+      "ledger_status": "not_checked"
+    }
+  ]
+}
