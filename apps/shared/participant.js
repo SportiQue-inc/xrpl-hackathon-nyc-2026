@@ -6,7 +6,7 @@ import { createPasskey, passkeySupported, signWithPasskey } from "./passkey.js";
 import { consentPages, textHash } from "./consent.js";
 import {
   h, render, tag, icon, xrp, short, sum, day, ledgerDay, weeksLabel, txLink, banner, busy, WEEK_STATE, holdbackState,
-  ITEM_CLASS, SIGNAL, codeGate, UNIT,
+  ITEM_CLASS, SIGNAL, codeGate, UNIT, UNIT_NOTE,
 } from "./ui.js";
 
 const ITEM = {
@@ -92,7 +92,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
       h("div", { class: "bar" },
         back ? h("button", { class: "ar-iconbtn", style: { border: 0 }, onclick: back, "aria-label": "뒤로" }, icon("back")) : null,
         h("span", { class: "title" }, title)),
-      h("div", { class: "body" }, body),
+      h("div", { class: "body" }, body, h("p", { class: "tiny muted", style: { textAlign: "center", margin: "16px 0 4px" } }, UNIT_NOTE)),
       foot ? h("div", { class: "foot" }, foot)
         : h("nav", { class: "ar-tabs four" },
           tabBtn("home", T("Requests", "요청"), "list"), tabBtn("data", T("My data", "내 데이터"), "data"),

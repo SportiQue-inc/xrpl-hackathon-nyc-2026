@@ -22,9 +22,12 @@ function append(el, kids) {
   }
 }
 
-export let UNIT = "test USD";
+// Amounts read RLUSD; on Testnet a test USD token stands in for it (UNIT_NOTE, shown once per page).
+export let UNIT = "RLUSD";
+export let UNIT_NOTE = "Testnet: test USD stands in for RLUSD.";
 export function setSettlementAsset(asset) {
-  if (asset === "USD" || asset === "XRP") UNIT = asset === "USD" ? "test USD" : "Test XRP";
+  if (asset === "XRP") { UNIT = "Test XRP"; UNIT_NOTE = "Testnet: amounts settle in test XRP."; }
+  else if (asset === "USD") { UNIT = "RLUSD"; UNIT_NOTE = "Testnet: test USD stands in for RLUSD."; }
 }
 export const xrp = (n) => `${(Math.round((n || 0) * 100) / 100).toFixed(2)} ${UNIT}`;
 export const short = (s, a = 4, b = 4) => (s && s.length > a + b + 1 ? `${s.slice(0, a)}…${b ? s.slice(-b) : ""}` : s || "");
@@ -120,7 +123,7 @@ export const WEEK_STATE = {
   missing: { label: "No data", tone: "ghost" },
 };
 
-// Held 20% part of a round, and the completion bonus.
+// The part of a round held for review (what the continuity curve did not pay at release), and the completion bonus.
 export function holdbackState(hb) {
   if (hb.kind === "bonus") {
     if (hb.status === "released") return { label: "Bonus paid", tone: "green" };

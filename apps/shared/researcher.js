@@ -6,7 +6,7 @@
 import { engine, watch } from "./api.js";
 import {
   h, render, tag, icon, xrp, short, sum, ago, day, ledgerDay, weeksLabel, txLink, openReceipt, banner, busy, WEEK_STATE,
-  holdbackState, SIGNAL, UNIT, codeGate,
+  holdbackState, SIGNAL, UNIT, UNIT_NOTE, codeGate,
 } from "./ui.js";
 
 const OPENED = new Map();   // order_id -> opened bundle result, kept across poll re-renders
@@ -109,7 +109,7 @@ const ACTIVITY = {
   escrowed: ["Payment locked for a week", "Payment", ["Locked", "blue"]],
   locked_delivery: ["Week sealed until the round closes", "Contribution", ["Locked", "blue"]],
   paid: ["Payment released", "Payment", ["Paid", "green"]],
-  holdback: ["20% held for review", "Payment", ["In review", "blue"]],
+  holdback: ["Share held for review", "Payment", ["In review", "blue"]],
   licence: ["Access licence issued", "Authorization", ["On ledger", "green"]],
   bonus: ["Completion bonus", "Payment", ["Bonus", "blue"]],
   paused: ["Future rounds stopped by participant", "Consent", ["Paused", "amber"]],
@@ -169,9 +169,9 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
   function shell(content) {
     if (embedded) return h("div", { class: "ar-content" }, content);
     const pg = st.route.page;
-    const active = pg === "p" || pg === "directory" ? "directory" : pg === "rounds" ? "rounds" : pg === "study" ? "study" : "overview";
+    const active = pg === "p" || pg === "directory" ? "directory" : pg === "rounds" ? "rounds" : pg === "study" ? "study" : pg === "subprojects" ? "subprojects" : "overview";
     const nav = (key, ic, label) => h("a", { class: `ew-nav${active === key ? " on" : ""}`, href: `#/${key}` }, icon(ic, 20), h("span", { class: "lbl" }, label));
-    const crumb = { overview: "Overview", directory: pg === "p" ? "Participant detail" : "Directory", rounds: "Rounds", study: "Study details" }[active];
+    const crumb = { overview: "Overview", directory: pg === "p" ? "Participant detail" : "Directory", rounds: "Rounds", subprojects: "Sub-projects", study: "Study details" }[active];
     const budget = st.s ? st.s.study.budget_xrp : 0;
     return h("div", { class: "ar-shell ew" },
       h("aside", { class: "ar-side ew-side" },
@@ -182,7 +182,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
         })),
         h("div", { class: "ew-navs" },
           h("p", { class: "ew-cap" }, "RESEARCHER WORKSPACE"),
-          nav("overview", "home", "Overview"), nav("directory", "users", "Directory"), nav("rounds", "layers", "Rounds"), nav("study", "list", "Study details")),
+          nav("overview", "home", "Overview"), nav("directory", "users", "Directory"), nav("rounds", "layers", "Rounds"), nav("subprojects", "building", "Sub-projects"), nav("study", "list", "Study details")),
         h("div", { class: "ew-div" }),
         h("div", { class: "ew-study" }, h("span", { class: "n" }, "Sleep and fatigue"), h("span", { class: "s" }, "Synthetic · live"),
           h("span", { class: "i" }, st.s ? st.s.study.irb : ""))),
@@ -193,7 +193,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
             h("span", { class: "budget" }, `Study budget ${Math.round(budget)} ${UNIT}`),
             h("span", { class: "net" }, st.s && st.s.study.ledger === "testnet" ? "Testnet · no cash value" : "Practice ledger · no cash value"),
             h("span", { class: "prof" }, h("span", { class: "av" }, "R"), "Researcher"))),
-        h("main", { class: "ar-content ew-main" }, content),
+        h("main", { class: "ar-content ew-main" }, content, h("p", { class: "tiny muted", style: { marginTop: "24px" } }, `Amounts in ${UNIT}. ${UNIT_NOTE}`)),
       ));
   }
   const roundLabel = (x) => ({ none: "—", draft: "Draft", approved: "Approved", sent: "Sent" })[x] || x;
@@ -221,12 +221,76 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
     } else {
       const p = st.route.page;
       page = p === "directory" ? directory() : p === "p" ? detail(st.route.id) : p === "rounds" ? rounds()
-        : p === "study" ? studyDetails() : overview();
+        : p === "study" ? studyDetails() : p === "subprojects" ? subprojects() : overview();
     }
     const scroll = window.scrollY;
     render(root, shell(page));
     window.scrollTo(0, scroll);
     st.flash.clear();
+  }
+
+  // ---------- sub-projects: one institution, many sub-projects under the scope people approved ----------
+  const sp = { inst: null, loading: false, routing: null, settled: [], msg: null };
+  async function loadInst() {
+    if (sp.loading) return;
+    sp.loading = true;
+    try { sp.inst = await api.institution(); } catch (e) { sp.msg = banner("red", "Could not read the institution. ", h("span", { class: "tiny" }, e.message)); }
+    sp.loading = false;
+    draw();
+  }
+  function subprojects() {
+    if (!sp.inst && !sp.loading) loadInst();
+    if (!sp.inst) return h("div", { class: "col" }, sp.msg || h("div", { class: "ar-skel", style: { height: "240px" } }));
+    const I = sp.inst;
+    const form = h("form", { class: "col", style: { gap: "8px" }, onsubmit: async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const b = { name: fd.get("name"), purpose: fd.get("purpose"),
+        data_types: String(fd.get("items")).split(",").map((x) => x.trim()).filter(Boolean),
+        budget: Number(fd.get("budget")), weeks: Number(fd.get("weeks")) };
+      const r = await busy(e.submitter, "Routing to each person's agent", () => api.createSubproject(b),
+        (x) => { sp.msg = banner("red", "Could not create the sub-project. ", h("span", { class: "tiny" }, x.message)); draw(); });
+      if (r) { sp.routing = r; sp.msg = null; loadInst(); }
+    } },
+      h("div", { class: "ar-grid k4" },
+        h("input", { class: "ar-input", name: "name", value: "Night-shift follow-up", "aria-label": "Name" }),
+        h("input", { class: "ar-input", name: "items", value: "fatigue.survey, heart_rate.daily", "aria-label": "Data types" }),
+        h("input", { class: "ar-input", name: "budget", type: "number", value: "20", "aria-label": `Budget (${UNIT})` }),
+        h("input", { class: "ar-input", name: "weeks", type: "number", value: "4", "aria-label": "Weeks" })),
+      h("input", { type: "hidden", name: "purpose", value: (I.scope.purposes || ["sleep_research"])[0] }),
+      h("div", { class: "row" }, h("button", { class: "ar-btn primary", type: "submit" }, "Create sub-project"),
+        h("span", { class: "small muted" }, "Data types, budget (", UNIT, ") and weeks. Each person's agent routes it against the scope that person approved.")));
+    const count = (k) => (sp.routing ? sp.routing.routing.filter((r) => r.decision === k).length : 0);
+    const routed = sp.routing && h("div", { class: "ar-card" },
+      h("h3", {}, `${sp.routing.name}: routed by each person's agent`),
+      h("div", { class: "row", style: { gap: "8px", flexWrap: "wrap" } },
+        tag(`${count("auto")} handled inside scope`, "green"), tag(`${count("ask")} back to the person`, "amber"), tag(`${count("blocked")} blocked`, "gray")),
+      h("p", { class: "small muted" }, "Inside scope settles with no new contract. Outside scope, and MRI, CT or genomic data, go back to the person. No relationship, a pause or a withdrawal blocks it."));
+    const rows = I.subprojects.map((x) => h("tr", {},
+      h("td", {}, h("b", {}, x.name), h("div", { class: "tiny muted" }, x.data_types.join(", "))),
+      h("td", {}, `${x.budget} ${UNIT}`), h("td", {}, `${x.rounds || 0}`), h("td", {}, xrp(x.paid)),
+      h("td", {}, h("button", { class: "ar-btn sm", onclick: async (e) => {
+        const r = await busy(e.target, "Agents deliver, escrow settles", () => api.runSubproject(x.id),
+          (er) => { sp.msg = banner("red", "Round failed. ", h("span", { class: "tiny" }, er.message)); draw(); });
+        if (r) { sp.settled = r.settled.map((y) => ({ ...y, sub: x.name, round: r.round })).concat(sp.settled).slice(0, 40); loadInst(); }
+      } }, "Run a round"))));
+    return h("div", { class: "col", style: { gap: "16px" } },
+      h("div", { class: "ar-pagehead" }, h("div", {}, h("h1", {}, "Sub-projects"),
+        h("p", { class: "sub" }, `${I.institution.name || I.institution} · ${I.relationships} people hold one relationship with this institution`))),
+      sp.msg,
+      h("div", { class: "ar-card" }, h("h2", {}, "Approved scope"),
+        h("p", { class: "small" }, `Purposes: ${(I.scope.purposes || []).join(", ")} · Data types: ${(I.scope.data_types || []).join(", ")}`),
+        h("p", { class: "tiny muted" }, "A person agrees once to this scope. Sub-projects inside it need no new contract; each payment carries its sub-project id (memo sub:<id>).")),
+      h("div", { class: "ar-card" }, h("h2", {}, "New sub-project"), form),
+      routed,
+      h("div", { class: "ar-card" }, h("h2", {}, "Sub-projects"),
+        I.subprojects.length ? h("table", { class: "ar-table" },
+          h("thead", {}, h("tr", {}, ["Sub-project", "Budget", "Rounds", "Paid", ""].map((t) => h("th", {}, t)))), h("tbody", {}, rows))
+          : h("p", { class: "muted" }, "No sub-projects yet.")),
+      sp.settled.length ? h("div", { class: "ar-card" }, h("h2", {}, "Settled"),
+        h("table", { class: "ar-table" }, h("thead", {}, h("tr", {}, ["Sub-project", "Round", "Person", "Amount", "Ledger"].map((t) => h("th", {}, t)))),
+          h("tbody", {}, sp.settled.map((y) => h("tr", {}, h("td", {}, y.sub), h("td", {}, `${y.round}`), h("td", {}, y.person),
+            h("td", {}, xrp(y.amount)), h("td", {}, txLink({ tx: y.escrow_finish || y.escrow_create, url: y.url }, { kind: y.escrow_finish ? "EscrowFinish" : "EscrowCreate", amount: y.amount }))))))) : null);
   }
 
   function skeleton() {
@@ -644,7 +708,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
             h("button", { class: "ar-btn", disabled: status !== "sent", title: "Release weeks the agents sealed until the round closes", onclick: async (e) => {
               if (await busy(e.target, "Closing", () => api.closeRound(), err)) load();
             } }, "Close round"),
-            h("button", { class: "ar-btn", disabled: status !== "sent", title: "Pay held 20% parts whose review ended", onclick: async (e) => {
+            h("button", { class: "ar-btn", disabled: status !== "sent", title: "Pay the shares held for review whose review ended (release paid 50% to 90% by the continuity curve)", onclick: async (e) => {
               if (await busy(e.target, "Releasing", () => api.releaseHeld(), err)) load();
             } }, "Release reviewed payments"),
             h("button", { class: "ar-btn", disabled: status !== "sent", title: "Return locked payments for weeks that were never released", onclick: async (e) => {

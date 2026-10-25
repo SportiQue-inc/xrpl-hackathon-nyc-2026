@@ -38,7 +38,7 @@ const STEP = {
   approval_signed: ["Co-signed (demo key)", "amber"], top_up: ["Budget released", "amber"], round: ["Requests sent", "blue"],
   ask_person: ["Asks the person", "amber"], provide: ["Agent answers", "blue"], batch: ["EscrowCreate (Batch)", "green"],
   escrowed: ["EscrowCreate", "green"], locked_delivery: ["Sealed delivery", "blue"], paid: ["EscrowFinish · paid", "green"],
-  licence: ["Data licence (MPT)", "gray"], holdback: ["Payout · 20% held", "green"], consent: ["Consent", "blue"],
+  licence: ["Data licence (MPT)", "gray"], holdback: ["Payout · rest held for review", "green"], consent: ["Consent", "blue"],
   subproject: ["Sub-project", "blue"], revoke: ["Withdrawn", "red"],
 };
 const txOf = (e) => e.tx || e.data?.tx_hash || (Array.isArray(e.data?.tx) ? e.data.tx[0] : null);
@@ -60,18 +60,6 @@ const signAsPerson = (p) => act(`Sign as ${p.person}`, async () => {
   const v = await api.participant(p.person);
   const r = v.requests.find((x) => x.status === "open" || x.status === "partly_open");
   if (r) await api.approve(p.person, r.id, p.items);
-});
-const createSub = (form) => act("Create sub-project", async () => {
-  const fd = new FormData(form);
-  st.routing = await fetchJSON("/api/institution/subprojects", {
-    name: fd.get("name"), purpose: fd.get("purpose"),
-    data_types: String(fd.get("types")).split(",").map((s) => s.trim()).filter(Boolean),
-    budget: Number(fd.get("budget")), weeks: Number(fd.get("weeks")),
-  });
-});
-const runSub = (sub) => act(`Run a round of ${sub.name}`, async () => {
-  const r = await fetchJSON(`/api/institution/subprojects/${encodeURIComponent(sub.id)}/run`, {});
-  st.settled = r.settled.map((x) => ({ ...x, sub: sub.name, round: r.round })).concat(st.settled).slice(0, 60);
 });
 async function fetchJSON(path, body) {
   const t = await demoToken(`researcher@${st.study.study.id}`);
@@ -132,17 +120,10 @@ function structure() {
       h("div", { class: "spread" }, h("b", {}, x.name), tag(x.status || "Live", "green")),
       h("div", { class: "spread small muted" }, h("span", {}, (x.data_types || []).join(", ")),
         h("span", {}, st.inst ? `budget ${x.budget} · round ${x.rounds || 0} · paid ${Number(x.paid || 0).toFixed(2)} ${unit}` : `paid ${Number(x.paid || 0).toFixed(2)} ${unit}`)),
-      st.inst && !st.readOnly && h("button", { class: "btn sm", style: "align-self:flex-start;margin-top:4px", disabled: !!st.busy, onclick: () => runSub(x) }, "Run a round · agents deliver, escrow settles")))),
+      ))),
     st.inst && h("p", { class: "muted tiny" }, st.inst.asset_label || ""),
     st.routing && routingView(st.routing, unit),
-    st.inst && !st.readOnly ? h("form", { class: "subform", onsubmit: (e) => { e.preventDefault(); createSub(e.target); } },
-      h("b", { class: "small" }, "New sub-project under this scope (no new contract)"),
-      h("input", { name: "name", value: "Caffeine and sleep", required: true }),
-      h("input", { name: "purpose", value: "sleep_research" }),
-      h("input", { name: "types", value: "heart_rate.daily, caffeine", title: "in scope: heart_rate.daily, fatigue.survey · outside: caffeine · T3: genome.vcf, mri" }),
-      h("div", { class: "row" }, h("input", { name: "budget", type: "number", value: "20", step: "0.01", title: `budget in ${unit}` }), h("input", { name: "weeks", type: "number", value: "4", title: "weeks" })),
-      h("button", { class: "btn primary", disabled: !!st.busy }, "Create · agents route it")) :
-      null);
+    h("a", { class: "small", href: "/console#/subprojects" }, "Create and run sub-projects in the UniQLab study console →"));
 }
 
 function routingView(r, unit) {
