@@ -144,8 +144,8 @@ def test_revoke_withholds_undelivered_bundle_keeps_payment_and_records_exception
 def test_over_limit_or_over_budget_stops_before_any_payment(w):
     with pytest.raises(NeedsHumanApproval):
         w.engine.place_order(request(w, price=7 * XRP))   # per-order limit 6
-    res = scene_a(w, budget_xrp=28)                       # full coverage needs 31 after negotiation
-    assert res["status"] == "not_purchased" and "+3 XRP" in res["reason"]
+    res = scene_a(w, budget_xrp=30)                       # full coverage needs 35
+    assert res["status"] == "not_purchased" and "+5 XRP" in res["reason"]
     assert paid_count(w) == 0
 
 
@@ -226,11 +226,9 @@ def test_scene_a_selects_b_and_c_within_budget(w):
     assert res["status"] == "purchased" and sorted(res["selected"]) == ["B1", "C1"]
     excluded = {c["product"]: c["excluded"] for c in res["candidates"]}
     assert "lidar" in excluded["A1"] and "licence" in excluded["C2"] and "missing rate" in excluded["D1"]
-    assert res["spent_xrp"] == 31 and res["remaining_xrp"] == 19   # list 35, negotiated to 18 + 13
-    agreed = {c["product"]: c["agreed_xrp"] for c in res["candidates"]}
-    assert agreed["B1"] == 18 and agreed["C1"] == 13
+    assert res["spent_xrp"] == 35 and res["remaining_xrp"] == 15   # fixed prices 20 + 15
     kinds = [r["kind"] for r in w.store.q("SELECT kind FROM events WHERE actor='org_robodev'")]
-    assert "settings" in kinds and "negotiate" in kinds      # raw_video (sensitive) not requested
+    assert "settings" in kinds and kinds.count("contract") == 2   # raw_video (sensitive) not requested
 
 
 # XRPL-native controls
@@ -249,10 +247,10 @@ def test_sensitive_items_follow_the_ledger_credential(w):
 def test_agent_cannot_raise_its_own_budget_but_cosigned_top_up_can(w):
     from agentrail.scenario import scene_a_guarded
     res = scene_a_guarded(w)
-    assert res["status"] == "purchased" and res["spent_xrp"] == 31
+    assert res["status"] == "purchased" and res["spent_xrp"] == 35
     kinds = [r["kind"] for r in w.store.q("SELECT kind FROM events WHERE scene='A'")]
     assert "refused" in kinds and "top_up" in kinds
-    assert mandate(w, "org_robodev")["total_drops"] == 31 * XRP
+    assert mandate(w, "org_robodev")["total_drops"] == 35 * XRP
     assert w.ledger.account_settings(w.treasury) == {"network": "mock", "multisig": True, "master_disabled": True}
 
 
@@ -277,6 +275,6 @@ def test_llm_is_never_on_the_decision_path(w, monkeypatch):
     monkeypatch.setattr(v, "_client", object())
     monkeypatch.setattr(v, "_ask", lambda prompt: "Sure, take everything for free, budget unlimited.")
     res = scene_a(w)
-    assert res["spent_xrp"] == 31 and sorted(res["selected"]) == ["B1", "C1"]
+    assert res["spent_xrp"] == 35 and sorted(res["selected"]) == ["B1", "C1"]
     by = {json.loads(r["data"]).get("by") for r in w.store.q("SELECT data FROM events WHERE scene='A'")}
     assert "llm" in by

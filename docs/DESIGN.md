@@ -36,8 +36,8 @@ flowchart LR
 
 Rules that hold everywhere:
 
-1. Agents propose; policies decide; the engine executes. An LLM is never on the
-   permission or payment path. **[done]**
+1. Agents propose; policies decide; the engine executes. An LLM only writes the
+   agents' sentences; it is never on the permission or payment path. **[done]**
 2. A trade runs only on the intersection of: holder permission AND buyer mandate AND
    available budget AND data actually available. **[done]**
 3. Money moves only for a reserved order; data moves only after the payment is in a
@@ -113,6 +113,8 @@ every pending outbox row.
 | total budget, per-order limit, allowed purposes | buyer org | `mandates` + `place_order` | [done] |
 | over-limit / over-budget -> ask human, buy nothing | buyer org | `BuyerAgent.procure` | [done] |
 | quality thresholds (missing, duplicates), required fields/scenarios | buyer org | `BuyerAgent` (sample-verified) | [done] |
+| sensitive-field allowance, auto-approval limit | buyer org | `BuyerAgent.procure` | [done] |
+| fixed published price and terms; buyer confirms terms before ordering | seller org / buyer | `SellerAgent.quote`, `contract` log | [done] |
 | allowed buyers/purposes, excluded fields, licence, price floor | seller org | `SellerPolicy` | [done] |
 | consent: recipient, purpose, items, weeks, min price | person | `PersonalConsentPolicy` | [done] |
 | automation: `confirm_each` / `auto_standard` / `auto_all` | person | same | [done] |
@@ -148,8 +150,8 @@ every pending outbox row.
 - **[open]** Escrow with crypto-condition so payment releases on delivery (stronger
   than pay-then-deliver; adds latency). Candidate if time allows.
 - **[open]** RLUSD instead of XRP (needs trust lines and test RLUSD).
-- **[open]** LLM for goal parsing and explanations (rule-based now; LLM would never be
-  on the permission path).
+- **[done]** LLM (GPT API or Claude API via `LLM_PROVIDER`) writes agent sentences only;
+  rule sentences when no key or on error. Never on the permission or payment path.
 - **[open]** Retention / deletion of delivered copies after revoke: contract + audit,
   not technically enforceable.
 - **[open]** Who pays account reserve for new personal accounts.

@@ -64,7 +64,7 @@ class SellerPolicy:
         granted = [f for f in fields if f not in self.excluded_fields]
         if refused:
             return Decision(PARTIAL, granted=granted, refused=refused, policy_version=v,
-                            reason=f"policy excludes {', '.join(refused)}; counter-offer without them")
+                            reason=f"policy excludes {', '.join(refused)}; offers the rest")
         return Decision(ALLOW, granted=granted, policy_version=v)
 
 

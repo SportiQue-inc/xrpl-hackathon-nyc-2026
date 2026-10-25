@@ -59,13 +59,11 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
         ("org_beta", "Beta Logistics", [Product("B1", "org_beta", "Night warehouse navigation", "robotics",
                                                 ["lidar", "imu", "wheel_odometry", "raw_video"],
                                                 {"night": 40, "narrow_aisle": 30},
-                                                20 * XRP, {"commercial_training": True, "resale": False},
-                                                floor_drops=18 * XRP)],
+                                                20 * XRP, {"commercial_training": True, "resale": False})],
          ["raw_video"]),
         ("org_gamma", "Gamma Robotics", [
             Product("C1", "org_gamma", "Dynamic obstacle encounters", "robotics", ["lidar", "imu"],
-                    {"dynamic_obstacle": 25, "night": 10}, 15 * XRP, {"commercial_training": True},
-                    floor_drops=13 * XRP),
+                    {"dynamic_obstacle": 25, "night": 10}, 15 * XRP, {"commercial_training": True}),
             Product("C2", "org_gamma", "Obstacle set (evaluation only)", "robotics", ["lidar", "imu"],
                     {"dynamic_obstacle": 40}, 8 * XRP, {"commercial_training": False})], []),
         ("org_delta", "Delta Fleet", [Product("D1", "org_delta", "Mixed fleet logs", "robotics", ["lidar", "imu"],
@@ -143,7 +141,7 @@ def top_up(w: World, buyer_id: str, amount_xrp: float, signers: list[str]) -> st
 def scene_a_guarded(w: World) -> dict:
     """Budget too small -> agent buys nothing and asks; agent alone cannot raise it;
     owner + compliance co-sign a top-up; agent completes the purchase."""
-    first = scene_a(w, budget_xrp=28)
+    first = scene_a(w, budget_xrp=30)
     if first["status"] == "purchased" or "gap_xrp" not in first:
         return first
     gap = first["gap_xrp"]

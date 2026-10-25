@@ -132,7 +132,7 @@ async function load() {
       .map(([k, v]) => `<div class="num"><b>${xrp(v)}</b><span>${k} XRP</span></div>`).join('');
   }
   const a = s.results.a;
-  table('cands', [['Product', r => esc(r.seller + ' / ' + r.product)], ['List', r => xrp(r.price_xrp * 1e6)], ['Agreed', r => r.agreed_xrp ? xrp(r.agreed_xrp * 1e6) : '-'],
+  table('cands', [['Product', r => esc(r.seller + ' / ' + r.product)], ['Price', r => xrp(r.price_xrp * 1e6)],
     ['Result', r => r.excluded ? `<span class="s-blocked">excluded: ${esc(r.excluded)}</span>`
        : (a.selected || []).includes(r.product) ? `<span class="s-delivered">selected</span>` +
          (r.refused_fields.length ? ` (without ${esc(r.refused_fields.join(', '))})` : '') : 'qualified'],

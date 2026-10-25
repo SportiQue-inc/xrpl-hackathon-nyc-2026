@@ -18,11 +18,6 @@ class Product:
     licence: dict
     missing_rate: float = 0.0          # used to generate the sample
     duplicate_rate: float = 0.0
-    floor_drops: int | None = None     # lowest price the seller agent may agree to (default: list price)
-
-    @property
-    def floor(self) -> int:
-        return self.price_drops if self.floor_drops is None else self.floor_drops
 
     def public(self) -> dict:
         """What a buyer agent sees before paying: description only, no raw rows."""

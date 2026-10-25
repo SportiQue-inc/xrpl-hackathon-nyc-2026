@@ -1,4 +1,4 @@
-"""Agents. They search, evaluate, negotiate and explain. They never decide
+"""Agents. They search, compare fixed quotes, confirm terms and explain. They never decide
 permissions or move money directly: policies decide, the engine executes."""
 from __future__ import annotations
 
@@ -23,6 +23,10 @@ def talk(store, speaker: str, to: str | None, kind: str, facts: dict, fallback: 
     store.log(speaker, kind, text, {"to": to, "by": by, "facts": facts, **(extra or {})})
 
 
+def licence_text(lic: dict) -> str:
+    return ", ".join(f"{k.replace('_', ' ')} {'allowed' if v else 'not allowed'}" for k, v in lic.items())
+
+
 def xrp(drops: int) -> str:
     return f"{drops / 1e6:g} XRP"
 
@@ -30,8 +34,8 @@ def xrp(drops: int) -> str:
 # ---------------- organization seller agent ----------------
 
 class SellerAgent:
-    """Answers quotes and price offers within its organization's policy:
-    allowed purposes, excluded fields, licence and the lowest price it may accept."""
+    """Publishes fixed prices and terms, and answers quotes within its organization's
+    policy: allowed purposes, excluded fields, licence."""
 
     def __init__(self, party_id: str, connector: RoboticsConnector, policy: SellerPolicy, engine: Engine):
         self.id = party_id
@@ -51,26 +55,14 @@ class SellerAgent:
         d = self.policy.evaluate(buyer_id, purpose, [f for f in fields if f in p.fields], p.price_drops)
         if p.licence.get(purpose) is False:
             d = Decision(DENY, reason=f"licence does not allow {purpose}", policy_version=d.policy_version)
-        msg = {ALLOW: f"I can provide {', '.join(d.granted)}", PARTIAL: f"counter-offer: {d.reason}",
+        msg = {ALLOW: f"I can provide {', '.join(d.granted)}",
+               PARTIAL: f"I can provide {', '.join(d.granted)} only ({d.reason.split(';')[0]})",
                DENY: f"declined: {d.reason}"}[d.status]
         talk(self.engine.store, self.id, buyer_id, "quote",
              {"product": product_id, "status": d.status, "granted": d.granted, "refused": d.refused,
               "list_price_xrp": p.price_drops / 1e6, "reason": d.reason},
-             f"{product_id}: {msg}, list price {xrp(p.price_drops)}.")
+             f"{product_id}: {msg}, fixed price {xrp(p.price_drops)}, licence: {licence_text(p.licence)}.")
         return d, p.price_drops
-
-    def respond_to_offer(self, buyer_id: str, product_id: str, offer_drops: int) -> tuple[str, int]:
-        """Deterministic: accept at or above the floor, otherwise counter at the floor."""
-        p = self.connector.products[product_id]
-        if offer_drops >= p.floor:
-            status, price = "accept", offer_drops
-            fb = f"{product_id}: {xrp(offer_drops)} accepted."
-        else:
-            status, price = "counter", p.floor
-            fb = f"{product_id}: {xrp(offer_drops)} is below what my policy allows; I can do {xrp(p.floor)}."
-        talk(self.engine.store, self.id, buyer_id, "negotiate",
-             {"product": product_id, "offer_xrp": offer_drops / 1e6, "answer": status, "price_xrp": price / 1e6}, fb)
-        return status, price
 
 
 # ---------------- buyer agent (organization procurement) ----------------
@@ -88,7 +80,6 @@ class Goal:
     max_duplicate_rate: float = 0.05
     allow_sensitive_fields: bool = False    # e.g. raw video that may show people
     auto_approve_limit_drops: int | None = None  # above this total, a human approves first
-    opening_offer: float = 0.85             # first offer as a share of list price
 
 
 @dataclass
@@ -112,7 +103,7 @@ def check_quality(sample: list[dict], fields: list[str]) -> dict:
 
 
 class BuyerAgent:
-    """Discovery -> quality check -> quote -> negotiation -> selection -> purchase -> report.
+    """Discovery -> quality check -> fixed quotes -> selection -> contract terms -> purchase -> report.
     Every step is logged with its reason. Money moves only through the engine."""
 
     def __init__(self, party_id: str, engine: Engine):
@@ -167,23 +158,13 @@ class BuyerAgent:
                     continue
                 c.decision, c.price_drops = d, price
                 covers = [k for k in prod["scenarios"] if k in goal.required_scenarios]
-                note = f"; accepting counter-offer without {', '.join(d.refused)} (optional)" if d.refused else ""
+                note = f"; offered without {', '.join(d.refused)} (optional, acceptable)" if d.refused else ""
                 self.say("evaluate", {"product": prod["id"], "covers": covers, "quality": c.quality,
                                       "refused_optional": d.refused},
                          f"{prod['seller']}/{prod['id']}: qualifies, covers {', '.join(covers)}, missing "
                          f"{c.quality['missing_rate']:.1%} (sample-verified){note}.", to=s.id)
 
         ok = [c for c in cands if not c.excluded]
-        # Negotiation: one opening offer, seller accepts or counters at its floor.
-        for c in ok:
-            offer = int(c.price_drops * goal.opening_offer)
-            self.say("negotiate", {"product": c.product["id"], "list_price_xrp": c.price_drops / 1e6,
-                                   "offer_xrp": offer / 1e6},
-                     f"{c.product['id']}: would you take {xrp(offer)} instead of {xrp(c.price_drops)}?",
-                     to=c.seller.id)
-            _, agreed = c.seller.respond_to_offer(self.id, c.product["id"], offer)
-            c.price_drops = min(agreed, c.price_drops)   # never pay above list
-
         need = set(goal.required_scenarios)
         best, best_any = None, None
         for r in range(1, len(ok) + 1):
@@ -198,7 +179,6 @@ class BuyerAgent:
                     best = (cost, combo)
         report = {"goal": goal.text, "candidates": [
             {"seller": c.product["seller"], "product": c.product["id"], "price_xrp": c.product["price_xrp"],
-             "agreed_xrp": c.price_drops / 1e6 if c.decision else None,
              "excluded": c.excluded, "quality": c.quality,
              "refused_fields": c.decision.refused if c.decision else []} for c in cands]}
         if best is None:
@@ -221,11 +201,21 @@ class BuyerAgent:
                                    "auto_approve_limit_xrp": goal.auto_approve_limit_drops / 1e6}, msg)
             return {**report, "status": "needs_approval", "reason": msg, "orders": []}
 
-        listed = sum(c.product["price_xrp"] for c in combo)
-        self.say("select", {"selected": ids, "cost_xrp": cost / 1e6, "list_total_xrp": listed,
-                            "covers": goal.required_scenarios, "available_xrp": available / 1e6},
-                 f"Selected {' + '.join(ids)} for {xrp(cost)} (list {listed:g} XRP): together they cover "
-                 f"{', '.join(goal.required_scenarios)} within the {xrp(available)} available.")
+        alts = sorted(((sum(c.price_drops for c in cb), [c.product["id"] for c in cb])
+                       for r in range(1, len(ok) + 1) for cb in itertools.combinations(ok, r)
+                       if need <= set().union(*(set(c.product["scenarios"]) for c in cb))), key=lambda t: t[0])
+        self.say("select", {"selected": ids, "cost_xrp": cost / 1e6, "covers": goal.required_scenarios,
+                            "available_xrp": available / 1e6,
+                            "alternatives": [{"products": a, "cost_xrp": c / 1e6} for c, a in alts[1:4]]},
+                 f"Compared fixed quotes: {' + '.join(ids)} for {xrp(cost)} is the cheapest combination that "
+                 f"covers {', '.join(goal.required_scenarios)} within the {xrp(available)} available.")
+        for c in combo:
+            self.say("contract", {"product": c.product["id"], "fields": c.decision.granted, "purpose": goal.purpose,
+                                  "licence": c.product["licence"], "terms": c.decision.policy_version,
+                                  "price_xrp": c.price_drops / 1e6},
+                     f"{c.product['id']}: terms confirmed - {', '.join(c.decision.granted)} for {goal.purpose}, "
+                     f"licence: {licence_text(c.product['licence'])}, terms {c.decision.policy_version}, {xrp(c.price_drops)}. "
+                     f"Placing the order.", to=c.seller.id)
         orders = []
         for c in combo:
             rows = c.seller.connector.extract(c.product["id"], c.decision.granted)

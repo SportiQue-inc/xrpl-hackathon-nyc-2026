@@ -6,8 +6,8 @@ Track: **Agentic Finance**. Everything in this repository was built during the h
 ## 1. One line, and the problem
 
 Give your agent a goal, a quality bar and a budget. It finds data held in other
-organizations' (or people's) own databases, checks samples, negotiates with their
-agents, pays each holder on XRPL and receives exactly what was agreed - and it **stops**
+organizations' (or people's) own databases, checks samples, compares their agents'
+fixed quotes, confirms contract terms, pays each holder on XRPL and receives exactly what was agreed - and it **stops**
 when a request falls outside what the holder allowed, even at a higher price.
 
 Data that AI and research teams need (robot trajectories, sensor logs, personal health
@@ -38,7 +38,7 @@ flowchart LR
     ORD[Orders + budget reservation]
     OB[Outbox: pay -> verify -> deliver]
   end
-  BA <-->|quote, offer, counter-offer| SA
+  BA <-->|catalog, sample, fixed quote, terms| SA
   BA <-->|weekly request| PA
   SA --> POL
   PA --> POL
@@ -54,8 +54,8 @@ flowchart LR
 
 | Agent | Owner gives it | What it does |
 |---|---|---|
-| Buyer agent (`BuyerAgent`, `InstitutionAgent`) | goal, required fields and scenarios, minimum quality (sample missing / duplicate rate), sensitive-field allowance, auto-approval limit, budget and per-order limit (mandate) | discovery over seller catalogs -> sample quality check -> quote -> price negotiation -> cheapest combination that covers every required scenario within budget -> purchase -> receipt and report |
-| Seller agents A-D (`SellerAgent`) | catalog, allowed purposes, excluded fields, licence, lowest acceptable price | answers quotes (full / counter-offer without excluded fields / decline), accepts an offer at or above its floor, otherwise counters at the floor |
+| Buyer agent (`BuyerAgent`, `InstitutionAgent`) | goal, required fields and scenarios, minimum quality (sample missing / duplicate rate), sensitive-field allowance, auto-approval limit, budget and per-order limit (mandate) | discovery over seller catalogs -> sample quality check -> fixed quotes -> cheapest combination that covers every required scenario within budget -> contract terms confirmed (fields, purpose, licence, policy version) -> purchase -> receipt and report |
+| Seller agents A-D (`SellerAgent`) | catalog with fixed prices, allowed purposes, excluded fields, licence | publishes price and terms; answers each quote with what it can provide (all fields / without excluded fields / decline) |
 | Personal agent (`PersonalAgent`) | per-institution consent (items, purpose, weeks), automation level (`confirm_each` / `auto_standard` / `auto_all`), minimum price, pause / revoke | provides consented items automatically, asks the person for anything outside consent, confirms sensitive items by name each round, blocks prohibited purposes |
 
 Every step is written to a decision log that the dashboard shows as a conversation
@@ -65,9 +65,8 @@ Every step is written to a decision log that the dashboard shows as a conversati
 
 | Decided by code (never by the LLM) | Written by the LLM (optional) |
 |---|---|
-| budget, per-order limit, reservation (`engine.place_order`) | the sentence each agent says in the log |
+| budget, per-order limit, reservation (`engine.place_order`) | the sentence each agent says in the log: discovery summary, reason for the selection |
 | seller policy, consent, sensitivity, compliance (`policy.py`) | explanations to the owner / the person |
-| negotiation outcome (`SellerAgent.respond_to_offer`: floor rule) | |
 | auto-approval limit, sensitive-field filter (`BuyerAgent.procure`) | |
 | duplicate / conflict checks (order key), ledger verification before release | |
 
@@ -98,7 +97,7 @@ institutional budget top-up approvals would be signed with a hardware wallet suc
 
 | Criterion | How AgentRail meets it | Evidence |
 |---|---|---|
-| Agentic Finance track: agents that move money | buyer agents discover, negotiate and pay autonomously inside a mandate; holders' agents answer for them | scene A, scene B, `agents.py` |
+| Agentic Finance track: agents that move money | buyer agents discover, compare, contract and pay autonomously inside a mandate; holders' agents answer for them | scene A, scene B, `agents.py` |
 | Safe autonomy | spending limits, consent and compliance are code; multisig treasury stops self-funding | `policy.py`, `engine.py`, 23 tests (`pytest -q`) |
 | Idea (25%) | one engine for organization data and personal data; consent and sensitivity are part of the trade | sections 1-2, scene B |
 | Implementation (25%) | Payment + InvoiceID + validated-ledger release, idempotent recovery, Credentials, Multi-signing, x402 rail | section 3, `tests/test_engine.py` |
@@ -112,9 +111,9 @@ institutional budget top-up approvals would be signed with a hardware wallet suc
 **Scene A - organization to organization (robotics data).** Goal: night warehouse
 navigation, LiDAR + IMU, dynamic obstacles + narrow aisles, commercial training. The
 buyer agent skips raw video (sensitive, not allowed by its settings), excludes A1 (no
-LiDAR), C2 (licence: evaluation only) and D1 (20% missing in sample), negotiates B1
-20 -> 18 XRP and C1 15 -> 13 XRP, and buys B1 + C1 for 31 XRP. With a 28 XRP budget it
-buys nothing and asks for +3 XRP; it cannot sign the top-up alone; owner + compliance
+LiDAR), C2 (licence: evaluation only) and D1 (20% missing in sample), compares fixed
+quotes, confirms the terms of B1 (20 XRP) and C1 (15 XRP) and buys both for 35 XRP. With a
+30 XRP budget it buys nothing and asks for +5 XRP; it cannot sign the top-up alone; owner + compliance
 co-sign; it completes the purchase.
 
 **Scene B - same engine, personal health data.** Three people with different

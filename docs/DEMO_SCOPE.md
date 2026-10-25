@@ -15,8 +15,8 @@ All parties, records and amounts are synthetic. XRPL Testnet only.
 | # | Scene | What must really happen |
 |---|-------|-------------------------|
 | A1 | Buyer gives one goal: night warehouse navigation, LiDAR + IMU, dynamic obstacles + narrow aisles, commercial training, budget 50 XRP | Goal and mandate stored; agent queries 4 sellers |
-| A2 | Agent evaluates | A1 excluded (no LiDAR), C2 excluded (licence: evaluation only), D1 excluded (20% missing in sample), B1 counter-offer without raw video accepted |
-| A3 | Agent buys B1 + C1 for 35 XRP | Two Payments on Testnet, validated; sealed bundles delivered; report shows spent 35 / remaining 15 |
+| A2 | Agent evaluates | A1 excluded (no LiDAR), C2 excluded (licence: evaluation only), D1 excluded (20% missing in sample); raw video not requested (sensitive, buyer setting); fixed quotes compared |
+| A3 | Agent confirms contract terms (fields, purpose, licence, policy version) and buys B1 + C1 for 35 XRP | Two Payments on Testnet, validated; sealed bundles delivered; report shows spent 35 / remaining 15 |
 | A4 | Live variation: budget 30 | Agent buys nothing, reports it needs +5 XRP and asks a human |
 | B1 | Three people sign consents (sleep, activity, heart rate) with different automation levels | Consent documents hashed, versions kept |
 | B2 | Week 1 | P017, P023 paid and delivered automatically; P031 confirms by hand, then paid |
@@ -44,4 +44,4 @@ people, exceptions, buyer account settings.
 ## Out of scope
 
 Real hospital or device APIs, mainnet funds, RLUSD, arbitrary queries from buyers,
-LLM in the decision path, recall of already delivered copies.
+price negotiation between agents, LLM in the decision path, recall of already delivered copies.
