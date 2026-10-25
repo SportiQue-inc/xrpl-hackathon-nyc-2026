@@ -250,24 +250,26 @@ and are kept only in `wallets.local.json` (git-ignored).
 - **Three withdrawal options**: decline this round / stop future contributions / withdraw data-use consent (PIPA Art. 37). Withdrawal immediately blocks sessions and key release, and asks the institution to destroy individual-level data and confirm; the demo records the request and the confirmation as events. Aggregate statistics already produced remain.
 - **International transfer**: access from abroad counts as transfer, so we disclose countries, recipients, purpose, fields and retention, and ask for separate consent. Each person's records stay in their own country.
 - **IRB**: approval and exemption are decided by the IRB (Bioethics Act Art. 15; 45 CFR 46.112). An XRPL Credential only shows the issuer's attestation.
-- **Participation compensation**: paid per round by the institution through Escrow and never taken back after withdrawal; Clawback applies only to the licence token. 20% of each round is held for a short review and paid by default; it is withheld only when a named reviewer confirms fraud after notice and a chance to respond. Declining or withdrawing never affects future requests, priority or compensation. The platform holds no keys or funds.
+- **Participation compensation**: non-custodial; the institution signs. Paid per round by the institution through Escrow and never taken back after withdrawal; Clawback applies only to the licence token. 20% of each round is held for a short review and paid by default; it is withheld only when a named reviewer confirms fraud after notice and a chance to respond. Declining or withdrawing never affects future requests, priority or compensation. The platform holds no keys or funds.
 - **Records**: access logs are kept 2 years and permission-change logs 3 years; no personal data, study names or conditions go on the ledger.
 
 ### Legal requirements -> product rules
 
-We reflected legal requirements in the design; we do not claim compliance. Full table in English and
+We reflected legal requirements in the design; we do not claim compliance. Per FDA guidance (2018), "any credit for
+payment should accrue as the study progresses and not be contingent upon the subject completing the
+entire study": hence per-round escrows and a small, separate completion bonus. Full table in English and
 Korean, with the payment and penalty rules: [docs/legal/README.md](docs/legal/README.md).
 
 | What the law requires | The product rule we built | Basis |
 |---|---|---|
 | Separate consent for health data, kept apart from other consents | Separate consents for sensitive data, third-party provision and international transfer, each hashed and tied to the signature | Korea PIPA Arts. 22, 23; 45 CFR 46.116 |
 | No use beyond the consented scope | Code checks recipient, purpose, items and period on every round and again before the key is published; the LLM cannot widen it | PIPA Art. 17 |
-| Researchers must not identify the person | Per-study participant number and minimum items only; the link stays with the person's agent; risky item combinations refused | PIPA Arts. 28-2 to 28-5; HIPAA 164.514 (reference) |
-| Withdraw at any time, without penalty | Three withdrawal options; key release stops at once; the institution is asked to destroy person-level copies and its confirmation is recorded; withdrawal history is never an input to pay or priority (tested) | PIPA Art. 37; Bioethics Act Art. 16; 45 CFR 46.116(b)(8) |
+| Researchers must not identify the person; no other studies | Per-study participant number and minimum items only; the link stays with the person's agent; risky item combinations refused; consent states that data, even with identifiers removed, will not be used for other studies | PIPA Arts. 28-2 to 28-5; 45 CFR 46.116(b)(9); HIPAA 164.514 (reference) |
+| Withdraw at any time, without penalty | Three withdrawal options; key release stops at once; the institution is asked to destroy person-level copies and its confirmation is recorded (same rule in every country; only aggregate statistics remain); withdrawal history is never an input to pay or priority (tested) | PIPA Art. 37; Bioethics Act Art. 16; 45 CFR 46.116(b)(8) |
 | Access from abroad is an international transfer | Countries, recipients, purpose, items and retention disclosed; separate consent; records stay in the person's country | PIPA Art. 28-8 |
 | The IRB decides approval | Agents never create approval; an XRPL Credential only shows the issuer's attestation | Bioethics Act Art. 15; 45 CFR 46.112 |
 | Compensation accrues with participation, without undue inducement | Per-round escrow: 80% on contribution, 20% after a short review, paid by default; paid money is never taken back on chain | Bioethics Act Art. 16(1)5; FDA 2018 payment guidance |
-| Holding others' funds needs a licence | The institution signs its own payments; the platform holds no keys or funds | Korea AML Act (VASP); FinCEN FIN-2019-G001 |
+| Holding or moving others' funds needs a licence | Non-custodial: the platform only drafts transactions; the institution's wallet signs and pays; the platform never receives or sends funds | Korea AML Act (VASP); FinCEN FIN-2019-G001 |
 | No personal data on a public ledger | Only payment and licence state and hashes on chain; no health values, study names or conditions | PIPC blockchain guideline (2026) |
 
 ## 12. Where this goes (production targets)
