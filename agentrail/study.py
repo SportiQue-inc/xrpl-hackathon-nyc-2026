@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from . import payout
+from .security import passkey
 from .agents import talk
 from .cohort import (HERO, PRIMARY, WEEKS, apply_deliveries, heatmap, infer_needs, person_gaps, power)
 from .connectors import HospitalExportSource
@@ -661,7 +662,97 @@ def participant_view(w, pid: str) -> dict:
         "withdrawals": [x for x in s.withdrawals if x["person"] == pid],
         "export_fees": [x for x in s.export_fees if x["person"] == pid],
         "payout": payout.view(w, LAB, pid),
+        "passkey": {"registered": passkey.has_passkey(w, pid), "held_by": passkey.backend(w, pid).name}
+                   if _has_passkeys(w) else None,
+        "approvals": passkey.approvals(w.store, pid) if _has_passkeys(w) else [],
+        "audit": audit_trail(w, pid),
     }
+
+
+def _has_passkeys(w) -> bool:
+    return getattr(w, "security", None) is not None
+
+
+def audit_trail(w, pid: str, limit: int = 200) -> list[dict]:
+    """The participant's own rows of the hash-chained event log, with each row's hash and its link."""
+    rows = w.store.q("SELECT id, ts, actor, kind, data, prev_hash, hash FROM events WHERE kind != 'access' AND "
+                     "(actor=? OR actor=? OR message LIKE ?) ORDER BY id DESC LIMIT ?",
+                     pid, f"person {pid}", f"%{pid}%", limit)
+    out = []
+    for r in reversed(rows):
+        d = json.loads(r["data"] or "{}")
+        d = d if isinstance(d, dict) else {}
+        tx = d.get("tx") or d.get("tx_hash")
+        if isinstance(tx, str) and "," in tx:
+            tx = tx.split(",")
+        if isinstance(tx, list):
+            tx = tx[-1] if tx else None
+        out.append({"id": r["id"], "ts": r["ts"], "kind": r["kind"], "prev_hash": r["prev_hash"], "hash": r["hash"],
+                    "tx": _tx(w, tx) if isinstance(tx, str) and tx else None,
+                    "statement_hash": d.get("statement_hash")})
+    return out
+
+
+def approval_challenge(w, pid: str, rid: int, items: list[str]) -> dict:
+    """The statement the participant signs with their passkey, and the WebAuthn options for it."""
+    req = _own_request(w, pid, rid)
+    pa = w.cohort_people[pid]
+    cells = sum(len([i for i in its if i in items]) for its in req["weeks"].values())
+    stmt = passkey.statement(w, pid, req, items, cells * CELL_PRICE, pa.vault.pseudonym(LAB), LAB,
+                             w.engine.party(pid)["address"])
+    if not stmt["items"]:
+        raise ValueError("pick at least one item this request asks for")
+    return passkey.begin_approval(w, pid, rid, stmt)
+
+
+SEPARATE_CONSENTS = ("research", "third_party", "sensitive")      # always asked; "international" when planned
+
+
+def batch_challenge(w, pid: str, entries: list[dict]) -> dict:
+    """One passkey prompt for several requests. Each entry is {request, items, consents: [{kind, text_hash}]};
+    each request still gets its own statement, with each separate consent named and hashed on its own."""
+    if not entries:
+        raise ValueError("pick at least one request")
+    pa = w.cohort_people[pid]
+    out = []
+    for e in entries:
+        req = _own_request(w, pid, e["request"])
+        kinds = {c["kind"] for c in e.get("consents", [])}
+        missing = [k for k in SEPARATE_CONSENTS if k not in kinds]
+        if missing:
+            raise ValueError(f"request {req['id']}: separate consent missing: {', '.join(missing)}")
+        cells = sum(len([i for i in its if i in e["items"]]) for its in req["weeks"].values())
+        stmt = passkey.statement(w, pid, req, e["items"], cells * CELL_PRICE, pa.vault.pseudonym(LAB), LAB,
+                                 w.engine.party(pid)["address"])
+        if not stmt["items"]:
+            raise ValueError(f"request {req['id']}: pick at least one item it asks for")
+        stmt["consents"] = sorted(({"kind": c["kind"], "text_hash": c["text_hash"]} for c in e["consents"]),
+                                  key=lambda c: c["kind"])
+        out.append((req["id"], stmt))
+    return passkey.begin_batch(w, pid, out)
+
+
+def participant_approve_batch(w, pid: str, entries: list[dict], assertion: dict, hold_last: bool = True) -> dict:
+    """Apply a batch signed with one passkey prompt; each request is bound to its own statement."""
+    signed = passkey.verify_batch(w, pid, {e["request"]: e["items"] for e in entries}, assertion)
+    pa = w.cohort_people[pid]
+    results = []
+    for e in entries:
+        req = _own_request(w, pid, e["request"])
+        sig = signed[req["id"]]
+        passkey.mark_verified(w.store, pid, sig["statement_hash"])
+        before = {o["order_id"] for o in req.get("orders", [])}
+        try:
+            out = _apply_approval(w, pid, req, pa, e["items"], hold_last)
+        except Exception:
+            passkey.bind(w.store, pid, sig["statement_hash"], [], failed=True)
+            raise
+        passkey.bind(w.store, pid, sig["statement_hash"],
+                     [{"order_id": c["order_id"], "weeks": c["weeks"], "items": c["items"],
+                       "escrow_tx": (c["escrow"] or {}).get("tx"), "escrow": c["escrow"]} for c in out["contributions"]
+                      if c["order_id"] in {o["order_id"] for o in req.get("orders", [])} - before])
+        results.append({"request": req["id"], **sig})
+    return {**participant_view(w, pid), "signed_batch": results}
 
 
 def _own_request(w, pid: str, rid: int) -> dict:
@@ -712,9 +803,33 @@ def upload_data(w, pid: str, weeks: list[int], items: list[str]) -> dict:
     return {**out, **my_data(w, pid)}
 
 
-def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool = True) -> dict:
+def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool = True,
+                        assertion: dict | None = None) -> dict:
     req = _own_request(w, pid, rid)
     pa = w.cohort_people[pid]
+    signed = None
+    if _has_passkeys(w) and passkey.has_passkey(w, pid):
+        # A person with a passkey approves only by signing the statement for exactly these items.
+        if not assertion:
+            raise PermissionError("this participant approves with their passkey; ask for a challenge first")
+        signed = passkey.verify_approval(w, pid, rid, items, assertion)
+    before = {o["order_id"] for o in req.get("orders", [])}
+    try:
+        out = _apply_approval(w, pid, req, pa, items, hold_last)
+    except Exception:
+        if signed:
+            passkey.bind(w.store, pid, signed["statement_hash"], [], failed=True)
+        raise
+    if signed:
+        passkey.bind(w.store, pid, signed["statement_hash"],
+                     [{"order_id": c["order_id"], "weeks": c["weeks"], "items": c["items"],
+                       "escrow_tx": (c["escrow"] or {}).get("tx"), "escrow": c["escrow"]} for c in out["contributions"]
+                      if c["order_id"] in {o["order_id"] for o in req.get("orders", [])} - before])
+        out = {**participant_view(w, pid), "signed": signed}
+    return out
+
+
+def _apply_approval(w, pid, req, pa, items, hold_last):
     asked = {wk: [i for i in its if i in items] for wk, its in req["weeks"].items()}
     req["weeks_approved"] = {wk: its for wk, its in asked.items() if its}
     # Ticking an item by name approves the scope and, for sensitive items, this round as well.
@@ -761,11 +876,27 @@ def participant_pause(w, pid: str, resume: bool = False) -> dict:
     return participant_view(w, pid)
 
 
-def participant_revoke(w, pid: str) -> dict:
+def withdrawal_challenge(w, pid: str) -> dict:
+    """The withdrawal statement the participant signs with their passkey, and the WebAuthn options for it."""
+    s = ensure(w)
+    pa = w.cohort_people[pid]
+    lic = s.licences.get(pid)
+    held = [{"order_id": o["order_id"], "weeks": o.get("weeks")} for req in _requests_for(w, pid)
+            for o in req["orders"] if o.get("hold")]
+    stmt = passkey.withdrawal_statement(w, pid, pa.vault.pseudonym(LAB), LAB,
+                                        lic["mpt_id"] if lic and not lic["clawback"] else None, held)
+    return passkey.begin_withdrawal(w, pid, stmt)
+
+
+def participant_revoke(w, pid: str, assertion: dict | None = None) -> dict:
     """Withdrawal 3: revoke data access consent. Licence clawed back, held rounds withheld and
     refunded to the study after the deadline, consent history kept. Delivered rounds cannot be recalled."""
     s = ensure(w)
     pa = w.cohort_people[pid]
+    if _has_passkeys(w) and passkey.has_passkey(w, pid):
+        if not assertion:
+            raise PermissionError("this participant withdraws with their passkey; ask for a challenge first")
+        passkey.verify_withdrawal(w, pid, assertion)
     out = {"clawback": None, "withheld": [], "refunds": []}
     lic = s.licences.get(pid)
     if lic and not lic["clawback"]:
