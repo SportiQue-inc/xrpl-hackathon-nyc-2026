@@ -22,7 +22,7 @@ function append(el, kids) {
   }
 }
 
-export const xrp = (n) => `${(Math.round((n || 0) * 100) / 100).toFixed(2)} XRP`;
+export const xrp = (n) => `${(Math.round((n || 0) * 100) / 100).toFixed(2)} RLUSD`;
 export const short = (s, a = 4, b = 4) => (s && s.length > a + b + 1 ? `${s.slice(0, a)}…${b ? s.slice(-b) : ""}` : s || "");
 export const sum = (xs, f = (x) => x) => xs.reduce((a, x) => a + (f(x) || 0), 0);
 export const weeksLabel = (ws) => {

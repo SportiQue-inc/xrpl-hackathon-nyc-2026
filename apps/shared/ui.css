@@ -452,3 +452,46 @@ button.fg-card { cursor: pointer; }
 .fg-sheet .fg-card { padding: 13px 14px; }
 .fg-sheet .fg-card .t { font-size: 13px; } .fg-sheet .fg-card .d { font-size: 11px; } .fg-sheet .fg-card .x { font-size: 10px; font-weight: 500; }
 .fg-tabs { position: sticky; bottom: 0; }
+
+/* ---------- Figma E1 researcher shell (1280x832: 258 sidebar + 68 GNB) ---------- */
+.ar-shell.ew { grid-template-columns: 258px 1fr; background: #f8f9fa; font-family: Inter, Pretendard, "Apple SD Gothic Neo", system-ui, sans-serif; }
+.ew-side { background: #fff; border-right: 0; padding: 32px 16px 16px; gap: 24px; }
+.ew-logo { height: 24px; display: flex; align-items: center; font-size: 14px; line-height: 20px; font-weight: 600; color: #326ae9; }
+.ew-search { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 12px; border: 1px solid #d5d9dd; border-radius: 8px; color: #646a73; }
+.ew-search input { border: 0; outline: 0; font: inherit; font-size: 14px; font-weight: 500; flex: 1; min-width: 0; background: transparent; color: #191f28; }
+.ew-search input::placeholder { color: #646a73; }
+.ew-navs { display: flex; flex-direction: column; gap: 6px; }
+.ew-cap { font-size: 12px; line-height: 17px; font-weight: 600; color: #646a73; margin: 0; }
+.ew-nav { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 8px; color: #535860; font-size: 16px; line-height: 22px; font-weight: 500; }
+.ar .ew-nav { color: #535860; }
+.ar .ew-nav.on { background: #f0f7fe; color: #4a89f4; }
+.ew-div { height: 1px; background: #e9eaec; }
+.ew-study { background: #f8f9fa; border: 1px solid #e9eaec; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px; height: 104px; }
+.ew-study .n { font-size: 16px; line-height: 22px; font-weight: 500; color: #535860; }
+.ew-study .s { font-size: 12px; line-height: 17px; font-weight: 600; color: #326ae9; }
+.ew-study .i { font-size: 12px; line-height: 17px; font-weight: 600; color: #646a73; }
+.ew-gnb { position: sticky; top: 0; z-index: 5; height: 68px; background: #fff; border-bottom: 1px solid #e9eaec; display: flex; align-items: center;
+  justify-content: space-between; padding: 18px 36px; }
+.ew-gnb .ctx { font-size: 14px; line-height: 20px; font-weight: 500; color: #535860; white-space: pre; }
+.ew-gnb .right { display: flex; align-items: center; gap: 16px; }
+.ew-gnb .budget { font-size: 14px; line-height: 20px; font-weight: 500; color: #326ae9; }
+.ew-gnb .net { height: 28px; padding: 0 10px; display: grid; place-items: center; border-radius: 999px; background: #f0f7fe; color: #326ae9; font-size: 12px; font-weight: 600; }
+.ew-gnb .prof { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: #535860; }
+.ew-gnb .av { width: 32px; height: 32px; border-radius: 999px; background: #f2f3f5; display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+.ar-content.ew-main { padding: 28px 32px 48px; max-width: 1022px; }
+.ew-col { display: flex; flex-direction: column; gap: 14px; }
+.ew-head { display: flex; justify-content: space-between; align-items: center; }
+.ew-head h1 { font-size: 25px; font-weight: 700; color: #191f28; }
+.ew-head .sub { font-size: 12px; color: #6b7684; margin-top: 4px; }
+.ew-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.ew-row.mid { grid-template-columns: 388px 1fr; gap: 14px; align-items: center; }
+.ew-kpi, .ew-card { background: #fff; border: 1px solid #e5e8eb; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.ew-kpi .t, .ew-card .t { font-size: 14px; font-weight: 600; color: #191f28; margin: 0; }
+.ew-kpi .v { font-size: 28px; font-weight: 700; color: #191f28; margin: 0; } .ew-kpi .v.red { color: #dc2626; }
+.ew-card .d { font-size: 12px; color: #6b7684; margin: 0; }
+.ew-card.brand { background: #eef4ff; border: 1.5px solid #2f6bff; }
+.ew-card.warn { background: #fff4e6; border: 1.5px solid #f79009; }
+.ew-ev { width: 100%; border: 0; text-align: left; border-radius: 8px; padding: 7px 10px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; font: inherit; }
+.ew-ev .t { font-size: 11px; font-weight: 600; color: #191f28; margin: 0; } .ew-ev .d { font-size: 10px; color: #6b7684; margin: 0; }
+.ew-ev.ok { background: #eafbf3; } .ew-ev.warn { background: #fff4e6; } .ew-ev.danger { background: #feecec; } .ew-ev.brand { background: #eef4ff; } .ew-ev.gray { background: #f2f4f6; }
+.ew .fg-pill.ok { background: #eafbf3; color: #17b26a; } .ew .fg-pill.warn { background: #fff4e6; color: #f79009; }
