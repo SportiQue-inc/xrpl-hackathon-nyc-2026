@@ -6,6 +6,8 @@ the consent layer made lighter.
 """
 from __future__ import annotations
 
+from . import units
+
 import json
 
 from nacl.exceptions import CryptoError
@@ -153,7 +155,7 @@ def _spending_evidence(w, s, alone):
         _ev(w, "spending", f"One approver signs the budget release alone: {alone.get('engine_result')}",
             result=alone.get("engine_result"), ledger_response=alone.get("ledger_response"))
     if s.approval.get("tx"):
-        _ev(w, "spending", f"Both approvers co-sign on their own devices: {s.approval.get('amount_xrp')} XRP released "
+        _ev(w, "spending", f"Both approvers co-sign on their own devices: {s.approval.get('amount_xrp')} {units.UNIT} released "
             "from the treasury", tx=s.approval["tx"], url=s.approval.get("url"))
     chain = w.engine.mandate_chains.get(LAB)
     m = w.store.one("SELECT per_order_limit_drops FROM mandates WHERE buyer_id=?", LAB)
@@ -162,8 +164,8 @@ def _spending_evidence(w, s, alone):
     over = {"content_hash": "0" * 64, "invoice_id": "F" * 64, "amount_drops": m["per_order_limit_drops"] + 2 * 10**6,
             "payee_id": HERO, "order_id": 0, "purpose": "sleep_research"}
     ok, why = mandate.verify(chain.l1, chain.l2, chain.sign_order(over), chain.issuer_pub, over, 0)
-    _ev(w, "spending", f"The agent signs a {over['amount_drops'] / 1e6:g} XRP escrow, above the "
-        f"{m['per_order_limit_drops'] / 1e6:g} XRP per payment the PI signed: "
+    _ev(w, "spending", f"The agent signs a {over['amount_drops'] / 1e6:g} {units.UNIT} escrow, above the "
+        f"{m['per_order_limit_drops'] / 1e6:g} {units.UNIT} per payment the PI signed: "
         f"{'refused before the ledger' if not ok else 'passed'} ({why})", result="refused" if not ok else "ok",
         sent=False)
 
@@ -191,7 +193,7 @@ def _payment_evidence(w, s):
                 _t.sleep(2)
         r = payout.decide(w, LAB, case["id"], "reviewer-1", True)
         _ev(w, "payment", f"Reviewer-1 confirms after reading the response: held part withheld, excluded for "
-            f"{payout.BLOCK_DAYS} days, repayment claim {r.get('repayment_claim_xrp')} XRP recorded off the ledger "
+            f"{payout.BLOCK_DAYS} days, repayment claim {r.get('repayment_claim_xrp')} {units.UNIT} recorded off the ledger "
             "(nothing taken back on chain)", result=r.get("status"))
     # Missed accepted rounds: a pause of automatic requests, not a penalty.
     active = lambda pid: (w.store.one("SELECT status FROM consents WHERE person_id=? AND buyer_id=?", pid, LAB)
@@ -220,16 +222,16 @@ def _payment_evidence(w, s):
     url = lambda h: w.ledger.explorer_url(h) if h else None
     for h in hb:
         if h["person"] == HERO and h["kind"] == "round" and h["status"] == "released":
-            _ev(w, "payment", f"{HERO} withdrew, and the reviewed held part {h['amount_drops'] / 1e6:g} XRP is still "
+            _ev(w, "payment", f"{HERO} withdrew, and the reviewed held part {h['amount_drops'] / 1e6:g} {units.UNIT} is still "
                 "paid (EscrowFinish)", tx=h["finish_tx"], url=url(h["finish_tx"]))
     rest = [h for h in hb if h["person"] != HERO and h["kind"] == "round" and h["status"] == "released"]
     if rest:
         _ev(w, "payment", f"{len(rest)} other participants: held parts released after review "
-            f"({sum(h['amount_drops'] for h in rest) / 1e6:.2f} XRP)", tx=rest[0]["finish_tx"],
+            f"({sum(h['amount_drops'] for h in rest) / 1e6:.2f} {units.UNIT})", tx=rest[0]["finish_tx"],
             url=url(rest[0]["finish_tx"]))
     for h in hb:
         if h["status"] == "returned":
-            _ev(w, "payment", f"{h['person']}: {h['kind']} {h['amount_drops'] / 1e6:g} XRP returned to the study "
+            _ev(w, "payment", f"{h['person']}: {h['kind']} {h['amount_drops'] / 1e6:g} {units.UNIT} returned to the study "
                 "(EscrowCancel)", tx=h["cancel_tx"], url=url(h["cancel_tx"]))
     left = [h for h in hb if h["status"] in ("held", "suspected", "earned", "withheld", "returning")]
     if left:

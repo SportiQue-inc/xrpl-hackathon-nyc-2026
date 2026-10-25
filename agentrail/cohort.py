@@ -8,6 +8,8 @@ answers for its person: provide automatically, ask the person, or block.
 """
 from __future__ import annotations
 
+from . import units
+
 import json
 import math
 import random
@@ -228,7 +230,7 @@ def infer_needs(store, agent: str, cov: Coverage, allowed_purposes: list[str], b
     except (TypeError, ValueError):
         budget = budget_cap_drops
     if not 0 < budget <= budget_cap_drops:
-        notes.append(f"budget capped at {budget_cap_drops / 1e6:g} XRP")
+        notes.append(f"budget capped at {budget_cap_drops / 1e6:g} {units.UNIT}")
         budget = budget_cap_drops
     cells: dict = {}
     for item, weeks in gaps.items():

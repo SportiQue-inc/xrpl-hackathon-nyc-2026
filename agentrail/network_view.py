@@ -11,6 +11,8 @@ zooms into that pair and steps through the decision. Each step is labelled with 
 """
 from __future__ import annotations
 
+from . import units
+
 import json
 import math
 
@@ -24,7 +26,7 @@ def _weeks(n) -> str:
 
 
 def _xrp(d) -> str:
-    return f"{d / 1e6:g} XRP"
+    return f"{d / 1e6:g} {units.UNIT}"
 
 
 def trace(t: dict, need: dict | None) -> list[dict]:
@@ -189,7 +191,17 @@ function setup(){E.innerHTML="";N.innerHTML="";
  const a=Math.atan2(n.y-500,n.x-500),lx=500+435*Math.cos(a),ly=500+435*Math.sin(a);
  lbl[n.id]=el("text",{x:lx,y:ly+4,"text-anchor":lx<500?"end":"start",class:"lbl"},N);lbl[n.id].textContent=n.id}}
 const C={ok:"var(--ok)",bad:"var(--bad)",wait:"var(--wait)"};
+function viaBook(e){const a=pos[e.b],b=pos[e.s];if(!a||!b)return;const B=bookPos;
+ // every trade goes through the shared offer book: the buyer's agent queries it, the match leads to the seller
+ const d=`M${a.x},${a.y} L${B.x},${B.y} L${b.x},${b.y}`;
+ const q=el("path",{d:`M${a.x},${a.y} L${B.x},${B.y}`,stroke:"var(--wait)","stroke-dasharray":"3 4",class:"edge"},E);
+ const p=el("path",{d,stroke:C[e.c],class:"edge",opacity:0},E);
+ const dot=el("circle",{r:4,fill:C[e.c]},E);const m=el("animateMotion",{dur:".7s",path:d,fill:"freeze"},dot);
+ setTimeout(()=>{p.setAttribute("opacity",.9);m.beginElement&&m.beginElement()},140);
+ if(bookC){bookC.setAttribute("stroke-width",3.5);setTimeout(()=>bookC.setAttribute("stroke-width",1.5),260)}
+ setTimeout(()=>{q.style.opacity=0;p.style.opacity=0;dot.remove()},900);setTimeout(()=>{q.remove();p.remove()},2100)}
 function flash(e,keep){const a=pos[e.b],b=pos[e.s];if(!a||!b)return;
+ if(!keep)return viaBook(e);
  const mx=(a.x+b.x)/2*0.45+275,my=(a.y+b.y)/2*0.45+275;
  const p=el("path",{d:`M${b.x},${b.y} Q${mx},${my} ${a.x},${a.y}`,stroke:C[e.c],class:"edge"},E);
  if(!keep)setTimeout(()=>p.style.opacity=0,700),setTimeout(()=>p.remove(),2000);return p}

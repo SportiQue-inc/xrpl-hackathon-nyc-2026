@@ -80,6 +80,7 @@ class _RetryingClient(JsonRpcClient):
 
 class XrplLedger(Ledger):
     name = "testnet"
+    finish_margin_s = 60          # an EscrowFinish expires (LastLedgerSequence) well before this
 
     def __init__(self, rpc_url: str = TESTNET_RPC, wallet_file: str = WALLET_FILE):
         self.client = _RetryingClient(rpc_url)
@@ -151,8 +152,14 @@ class XrplLedger(Ledger):
                 return [o["index"]]
         return None
 
+    def _amount(self, drops: int):
+        return str(int(drops))
+
+    def _parse_amount(self, a) -> int | None:
+        return int(a) if isinstance(a, str) else None
+
     def prepare_payment(self, source, destination, amount_drops, invoice_id, memo):
-        tx = Payment(account=source, destination=destination, amount=str(amount_drops),
+        tx = Payment(account=source, destination=destination, amount=self._amount(amount_drops),
                      credential_ids=self.credential_ids_for(source, destination),
                      invoice_id=invoice_id, sequence=self._next_sequence(source),
                      memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))])
@@ -181,7 +188,7 @@ class XrplLedger(Ledger):
 
     def prepare_escrow_create(self, source, destination, amount_drops, condition, cancel_after, memo,
                               finish_after=None):
-        return self._sign(EscrowCreate(account=source, destination=destination, amount=str(amount_drops),
+        return self._sign(EscrowCreate(account=source, destination=destination, amount=self._amount(amount_drops),
                                        condition=condition, cancel_after=cancel_after, finish_after=finish_after,
                                        sequence=self._next_sequence(source),
                                        memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))]), source)
@@ -194,7 +201,7 @@ class XrplLedger(Ledger):
         with self._seq_lock:
             self._seq.pop(source, None)          # autofill reads the account's sequence; resync after
         tx = Batch(account=source, flags=BatchFlag.TF_ALL_OR_NOTHING, raw_transactions=[
-            EscrowCreate(account=source, destination=l["destination"], amount=str(l["amount_drops"]),
+            EscrowCreate(account=source, destination=l["destination"], amount=self._amount(l["amount_drops"]),
                          condition=l["condition"], cancel_after=l["cancel_after"],
                          memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(l["memo"]))])
             for l in legs])
@@ -215,6 +222,9 @@ class XrplLedger(Ledger):
         return self._sign(EscrowFinish(account=submitter, owner=owner, offer_sequence=offer_sequence,
                                        condition=condition, fulfillment=fulfillment, credential_ids=creds,
                                        sequence=self._next_sequence(submitter),
+                                       # ~40 s: never valid long enough to land after CancelAfter
+                                       last_ledger_sequence=_retry(lambda: get_latest_validated_ledger_sequence(
+                                           self.client)) + 10,
                                        memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))]),
                           submitter)
 
@@ -255,7 +265,7 @@ class XrplLedger(Ledger):
             found=True, validated=bool(r.get("validated")),
             success=meta.get("TransactionResult") == "tesSUCCESS",
             ledger_index=r.get("ledger_index"), destination=txj.get("Destination"),
-            amount_drops=int(delivered) if isinstance(delivered, str) else None,
+            amount_drops=self._parse_amount(delivered),
             invoice_id=txj.get("InvoiceID"), tx_type=txj.get("TransactionType"),
             result=meta.get("TransactionResult"), condition=txj.get("Condition"),
             fulfillment=txj.get("Fulfillment"), sequence=txj.get("Sequence"))
@@ -271,6 +281,15 @@ class XrplLedger(Ledger):
             with self._seq_lock:  # the sequence was never consumed: re-read it from the ledger
                 self._seq.pop(tx["Account"], None)
         return expired
+
+    def memo_of(self, tx_hash: str) -> str | None:
+        r = _retry(lambda: self.client.request(Tx(transaction=tx_hash))).result
+        txj = r.get("tx_json") or r
+        for m in txj.get("Memos", []):
+            d = m.get("Memo", {}).get("MemoData")
+            if d:
+                return bytes.fromhex(d).decode(errors="replace")
+        return None
 
     def wait_validated(self, tx_hash: str, timeout: float = 30.0) -> TxStatus:
         end = time.time() + timeout

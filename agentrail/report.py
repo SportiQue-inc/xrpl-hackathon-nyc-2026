@@ -3,6 +3,8 @@ the projection over time, payments, holdbacks and transaction links; plus the ma
 engine check if they ran. A single self-contained file (inline CSS and SVG, no scripts)."""
 from __future__ import annotations
 
+from . import units
+
 import html
 import json
 import time
@@ -87,13 +89,13 @@ def render(contract: dict | None = None, markets: list[dict] | None = None, engi
     for m in markets or []:
         a = m.get("activity", {})
         out.append(f"<h2>Market act {e(m.get('act'))}</h2><p>{e(a.get('trades'))} trades · "
-                   f"{e(json.dumps(a.get('by_status', {})))} · volume {e(a.get('volume_xrp'))} XRP · withheld "
-                   f"{e(a.get('withheld_xrp'))} XRP · waiting for an owner {e(a.get('awaiting_owner'))}</p>")
+                   f"{e(json.dumps(a.get('by_status', {})))} · volume {e(a.get('volume_xrp'))} {units.UNIT} · withheld "
+                   f"{e(a.get('withheld_xrp'))} {units.UNIT} · waiting for an owner {e(a.get('awaiting_owner'))}</p>")
         if m.get("buyer_grades"):
             out.append("<table><tr><th>buyer</th><th>grade</th><th>reasons</th></tr>" + "".join(
                 f"<tr><td>{e(k)}</td><td>{e(v['grade'])}</td><td>{e('; '.join(v['reasons']))}</td></tr>"
                 for k, v in m["buyer_grades"].items()) + "</table>")
-        out.append("<table><tr><th>need</th><th>seller → buyer</th><th>columns</th><th>status</th><th>why</th><th>XRP</th><th>tx</th></tr>")
+        out.append(f"<table><tr><th>need</th><th>seller → buyer</th><th>columns</th><th>status</th><th>why</th><th>{units.UNIT}</th><th>tx</th></tr>")
         for t in a.get("recent", []):
             txs = " ".join(link(u, n) for n, u in (t.get("urls") or {}).items())
             out.append(f"<tr><td>{e(t['need'])}</td><td>{e(t['seller'])} → {e(t['buyer'])}</td><td>{e(', '.join(t.get('columns', [])))}</td>"
@@ -104,7 +106,7 @@ def render(contract: dict | None = None, markets: list[dict] | None = None, engi
         out.append(f"<h2>Person's agent: products ({e(pr['person'])})</h2><p>collected from connected sources: "
                    f"{e(', '.join(c['column'] for c in pr['collected'] if c['collected']) or 'nothing')} · "
                    f"re-identification check: {e('; '.join(pr['k_anonymity']))}</p>"
-                   "<table><tr><th>direction</th><th>domain</th><th>columns</th><th>tier</th><th>grade</th><th>XRP</th>"
+                   f"<table><tr><th>direction</th><th>domain</th><th>columns</th><th>tier</th><th>grade</th><th>{units.UNIT}</th>"
                    "<th>review</th><th>payout</th><th>de-identification</th><th>sale</th></tr>")
         for c in pr["candidates"]:
             sale = c.get("sale") or {}

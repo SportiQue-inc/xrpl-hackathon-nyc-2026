@@ -21,6 +21,8 @@ returned to the institution if the participant withdraws.
 """
 from __future__ import annotations
 
+from . import units
+
 import hashlib
 import json
 import os
@@ -239,8 +241,8 @@ def settle_round(w, study: str, req: dict, withdrawn: bool = False):
     with w.store.tx() as c:
         c.execute("UPDATE standing SET missed_in_row=0 WHERE study=? AND person=?", (study, pid))
     h = w.store.one("SELECT * FROM holdbacks WHERE id=?", hid)
-    w.store.log(study, "holdback", f"{pid}: {paid_now / XRP:g} XRP paid with the weeks (continuity curve, "
-                f"{round(100 * paid_now / full)}% of {full / XRP:g}); {amount / XRP:g} XRP held in escrow until "
+    w.store.log(study, "holdback", f"{pid}: {paid_now / XRP:g} {units.UNIT} paid with the weeks (continuity curve, "
+                f"{round(100 * paid_now / full)}% of {full / XRP:g}); {amount / XRP:g} {units.UNIT} held in escrow until "
                 "review ends", {"tx_hash": h["create_tx"], "url": _url(w, h["create_tx"])})
     review(w, h, delivered, withdrawn)
     return hid
@@ -385,9 +387,9 @@ def decide(w, study: str, case_id: int, reviewer_id: str, confirm: bool) -> dict
            c["notified_at"])
     talk(w.store, study, pid, "integrity_notice", {"case": case_id, "status": "confirmed"},
          f"Reviewer {reviewer_id} confirmed the case. The held part of this round will not be paid, you are "
-         f"removed from this study for {BLOCK_DAYS} days, and a claim for {paid / XRP:g} XRP already paid is "
+         f"removed from this study for {BLOCK_DAYS} days, and a claim for {paid / XRP:g} {units.UNIT} already paid is "
          "recorded. Nothing is taken back on the ledger.")
-    w.store.log(study, "repayment_claim", f"{pid}: repayment claim of {paid / XRP:g} XRP recorded off the ledger; "
+    w.store.log(study, "repayment_claim", f"{pid}: repayment claim of {paid / XRP:g} {units.UNIT} recorded off the ledger; "
                 "no on-chain clawback of payments")
     return {"ok": True, "status": "confirmed", "repayment_claim_xrp": paid / XRP}
 
@@ -400,7 +402,7 @@ def offer_bonus(w, study: str, req: dict, amount: int):
                   now + win["bonus"], now + win["bonus"], "held")
     if hid:
         h = w.store.one("SELECT * FROM holdbacks WHERE id=?", hid)
-        w.store.log(study, "bonus", f"{req['person']}: completion bonus {amount / XRP:g} XRP locked in its own "
+        w.store.log(study, "bonus", f"{req['person']}: completion bonus {amount / XRP:g} {units.UNIT} locked in its own "
                     "escrow; paid when every requested week is in, returned to the study on withdrawal",
                     {"tx_hash": h["create_tx"], "url": _url(w, h["create_tx"])})
     return hid
@@ -483,7 +485,7 @@ def release_due(w) -> dict:
             if tx:
                 out["released"].append({"id": h["id"], "person": h["person"], "kind": h["kind"],
                                         "amount_xrp": h["amount_drops"] / XRP, "tx": tx, "url": _url(w, tx)})
-                w.store.log(h["study"], "holdback", f"{h['person']}: {h['kind']} part {h['amount_drops'] / XRP:g} XRP "
+                w.store.log(h["study"], "holdback", f"{h['person']}: {h['kind']} part {h['amount_drops'] / XRP:g} {units.UNIT} "
                             "released (EscrowFinish)", {"tx_hash": tx, "url": _url(w, tx)})
     back = [h for h in rows() if h["status"] in ("withheld", "returning")]
     open_cases = [h for h in rows() if h["status"] == "suspected"]
@@ -496,7 +498,7 @@ def release_due(w) -> dict:
             if tx:
                 out["returned"].append({"id": h["id"], "person": h["person"], "kind": h["kind"],
                                         "amount_xrp": h["amount_drops"] / XRP, "tx": tx, "url": _url(w, tx)})
-                w.store.log(h["study"], "holdback", f"{h['person']}: {h['kind']} {h['amount_drops'] / XRP:g} XRP "
+                w.store.log(h["study"], "holdback", f"{h['person']}: {h['kind']} {h['amount_drops'] / XRP:g} {units.UNIT} "
                             "returned to the study (EscrowCancel)", {"tx_hash": tx, "url": _url(w, tx)})
     out["waiting"] = [{"id": h["id"], "person": h["person"], "kind": h["kind"], "status": h["status"]}
                       for h in rows()]

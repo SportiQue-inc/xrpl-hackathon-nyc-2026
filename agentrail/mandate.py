@@ -13,6 +13,8 @@ presentations are stored.
 """
 from __future__ import annotations
 
+from . import units
+
 import base64
 import hashlib
 import json
@@ -87,8 +89,8 @@ class MandateChain:
                    funded_by=funded_by)
         if store is not None:
             store.log(self.buyer_id, "mandate", f"owner signed the agent's delegation: up to "
-                      f"{mandate_row['per_order_limit_drops'] / 1e6:g} XRP per payment, "
-                      f"{mandate_row['total_drops'] / 1e6:g} XRP in total "
+                      f"{mandate_row['per_order_limit_drops'] / 1e6:g} {units.UNIT} per payment, "
+                      f"{mandate_row['total_drops'] / 1e6:g} {units.UNIT} in total "
                       f"(Verifiable Intent L2 {presentation_hash(self.l2)})", {"l2": presentation_hash(self.l2)})
 
     def issue(self, ceiling_drops: int, per_tx_drops: int, total_drops: int, purposes: list[str],
@@ -96,7 +98,7 @@ class MandateChain:
               funded_by: str | None = None):
         now = int(now if now is not None else time.time())
         disc, dig = _make_disclosure("credential", {"subject": self.buyer_id, "allowedChains": ["xrpl"],
-                                                    "allowedAssets": ["XRP"], "spendingCeiling": ceiling_drops})
+                                                    "allowedAssets": [units.UNIT], "spendingCeiling": ceiling_drops})
         l1 = _sign_jws({"alg": "ES256", "typ": "vc+sd-jwt", "kid": self.issuer_key["kid"]},
                        {"iss": "issuer", "sub": self.buyer_id, "aud": AUD, "iat": now, "exp": now + 30 * 86400,
                         "cnf": {"jwk": self.owner_pub}, "_sd": [dig], "_sd_alg": "sha-256"}, self.issuer_key)
@@ -150,9 +152,9 @@ def verify(l1: str, l2: str, l3: str, issuer_pub: dict, order: dict, committed_d
             return False, f"signed order differs from the payment ({k})"
     amt = order["amount_drops"]
     if amt > c.get("per_transaction_max", 0):
-        return False, f"{amt / 1e6:g} XRP is above the owner's signed per-transaction max {c.get('per_transaction_max', 0) / 1e6:g}"
+        return False, f"{amt / 1e6:g} {units.UNIT} is above the owner's signed per-transaction max {c.get('per_transaction_max', 0) / 1e6:g}"
     if committed_drops + amt > c.get("total_max", 0):
-        return False, f"would exceed the owner's signed total {c.get('total_max', 0) / 1e6:g} XRP"
+        return False, f"would exceed the owner's signed total {c.get('total_max', 0) / 1e6:g} {units.UNIT}"
     if committed_drops + amt > cred.get("spendingCeiling", 0):
         return False, "above the institution's spending ceiling"
     if order["purpose"] not in c.get("allowed_purposes", []):
