@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Research participation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/apps/shared/ui.css">
+  <style>html, body { margin: 0; background: #eef0f3; }</style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module">
+    import { mountParticipant } from "/apps/shared/participant.js";
+    const pid = new URLSearchParams(location.search).get("pid") || "P-017";
+    mountParticipant(document.getElementById("app"), { pid });
+  </script>
+</body>
+</html>
