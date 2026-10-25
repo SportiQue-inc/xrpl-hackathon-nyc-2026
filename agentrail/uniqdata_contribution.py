@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS uniqdata_file_transfers (
 
 
 class ResidentCore:
-    """An operator-configured argv, e.g. an authenticated resident SSH command.
+    """A resident-local Core argv, e.g. docker exec -i on that same host.
 
     No shell, secret printing, passkey simulation, arbitrary URL, or bearer
     forwarding. The command's stdout is private and must never be logged.
