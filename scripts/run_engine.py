@@ -86,6 +86,11 @@ def main():
 
     api.call("POST", "/api/reset", who=O)
     log("world built: parties, credentials, multisig treasury, cohort of 50 (synthetic)")
+    if os.environ.get("UNIQDATA_PERSON"):          # the followed person's records live in UniQdata
+        d = api.call("GET", "/api/p/P-017/data", who="P-017")
+        up = api.call("POST", "/api/p/P-017/data/upload", {}, who="P-017")
+        log(f"P-017 uploaded {up['written']} records to UniQdata ({d['records']} before, {up['records']} now; "
+            f"first record {up['receipts'][0]['record_hash'][:16] if up['receipts'] else '-'})")
     g = api.call("POST", "/api/study/goal", {"goal": a.goal}, who=R)
     log(f"proposal: gaps {g.get('proposal', {}).get('gaps')} (source {g.get('proposal', {}).get('source')})")
     one = api.call("POST", "/api/study/approve", {"signers": ["owner"]}, who=O)
@@ -99,6 +104,10 @@ def main():
     log(f"co-signed budget release: {res.get('status')}")
     s = api.call("POST", "/api/study/send", who=R)
     log(f"requests sent; power {s.get('heatmap', {}).get('power_before')} -> {s.get('heatmap', {}).get('power')}")
+    if os.environ.get("UNIQDATA_PERSON"):
+        rid = api.call("GET", "/api/p/P-017", who="P-017")["requests"][0]["id"]
+        pv = api.call("GET", f"/api/p/P-017/preview?request={rid}", who="P-017")
+        log(f"P-017 preview: {pv['row_count']} rows from {pv['from']['records']} UniQdata records")
     api.call("POST", "/api/run/boundaries", who=O)
     log("boundary checks done (consent, refusals, payout review, withdrawals)")
 

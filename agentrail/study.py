@@ -670,6 +670,7 @@ def preview(w, pid: str, rid: int) -> dict:
 
 
 def _uniqdata_person(w, pid: str):
+    ensure(w)
     pa = w.cohort_people[pid]
     if getattr(pa.vault, "uniqdata", None) is None:
         raise KeyError(f"{pid} has no UniQdata account connected")
