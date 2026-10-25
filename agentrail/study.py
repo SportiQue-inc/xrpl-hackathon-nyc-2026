@@ -683,6 +683,56 @@ def approval_challenge(w, pid: str, rid: int, items: list[str]) -> dict:
     return passkey.begin_approval(w, pid, rid, stmt)
 
 
+SEPARATE_CONSENTS = ("research", "third_party", "sensitive")      # always asked; "international" when planned
+
+
+def batch_challenge(w, pid: str, entries: list[dict]) -> dict:
+    """One passkey prompt for several requests. Each entry is {request, items, consents: [{kind, text_hash}]};
+    each request still gets its own statement, with each separate consent named and hashed on its own."""
+    if not entries:
+        raise ValueError("pick at least one request")
+    pa = w.cohort_people[pid]
+    out = []
+    for e in entries:
+        req = _own_request(w, pid, e["request"])
+        kinds = {c["kind"] for c in e.get("consents", [])}
+        missing = [k for k in SEPARATE_CONSENTS if k not in kinds]
+        if missing:
+            raise ValueError(f"request {req['id']}: separate consent missing: {', '.join(missing)}")
+        cells = sum(len([i for i in its if i in e["items"]]) for its in req["weeks"].values())
+        stmt = passkey.statement(w, pid, req, e["items"], cells * CELL_PRICE, pa.vault.pseudonym(LAB), LAB,
+                                 w.engine.party(pid)["address"])
+        if not stmt["items"]:
+            raise ValueError(f"request {req['id']}: pick at least one item it asks for")
+        stmt["consents"] = sorted(({"kind": c["kind"], "text_hash": c["text_hash"]} for c in e["consents"]),
+                                  key=lambda c: c["kind"])
+        out.append((req["id"], stmt))
+    return passkey.begin_batch(w, pid, out)
+
+
+def participant_approve_batch(w, pid: str, entries: list[dict], assertion: dict, hold_last: bool = True) -> dict:
+    """Apply a batch signed with one passkey prompt; each request is bound to its own statement."""
+    signed = passkey.verify_batch(w, pid, {e["request"]: e["items"] for e in entries}, assertion)
+    pa = w.cohort_people[pid]
+    results = []
+    for e in entries:
+        req = _own_request(w, pid, e["request"])
+        sig = signed[req["id"]]
+        passkey.mark_verified(w.store, pid, sig["statement_hash"])
+        before = {o["order_id"] for o in req.get("orders", [])}
+        try:
+            out = _apply_approval(w, pid, req, pa, e["items"], hold_last)
+        except Exception:
+            passkey.bind(w.store, pid, sig["statement_hash"], [], failed=True)
+            raise
+        passkey.bind(w.store, pid, sig["statement_hash"],
+                     [{"order_id": c["order_id"], "weeks": c["weeks"], "items": c["items"],
+                       "escrow_tx": (c["escrow"] or {}).get("tx"), "escrow": c["escrow"]} for c in out["contributions"]
+                      if c["order_id"] in {o["order_id"] for o in req.get("orders", [])} - before])
+        results.append({"request": req["id"], **sig})
+    return {**participant_view(w, pid), "signed_batch": results}
+
+
 def _own_request(w, pid: str, rid: int) -> dict:
     """A participant can see and answer only their own requests (unknown or someone else's -> 404)."""
     req = ensure(w).requests[rid]

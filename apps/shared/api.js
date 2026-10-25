@@ -79,6 +79,8 @@ export function engine(base = "", { token } = {}) {
     pause: (pid) => post(`${P(pid)}/pause`, {}, pid),
     resume: (pid) => post(`${P(pid)}/resume`, {}, pid),
     revoke: (pid, assertion) => post(`${P(pid)}/revoke`, assertion ? { assertion } : {}, pid),
+    consentChallenge: (pid, entries) => post(`${P(pid)}/consents/challenge`, { entries }, pid),
+    consentApprove: (pid, entries, assertion) => post(`${P(pid)}/consents/approve`, { entries, assertion }, pid),
     revokeChallenge: (pid) => post(`${P(pid)}/revoke/challenge`, {}, pid),
     respond: (pid, caseId, text) => post(`${P(pid)}/cases/${caseId}/respond`, { text }, pid),
     resumeRequests: (pid) => post(`${P(pid)}/resume-requests`, {}, pid),

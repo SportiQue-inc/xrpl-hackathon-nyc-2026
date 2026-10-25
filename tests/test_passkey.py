@@ -237,3 +237,33 @@ def test_with_a_passkey_withdrawal_needs_a_signature(c):
     v = c.get(f"/api/p/{HERO}", headers=me).json()
     assert v["consent"]["status"] == "revoked"
     assert any(e["kind"] == "passkey_signed" and e["statement_hash"] == ch["statement_hash"] for e in v["audit"])
+
+
+CONSENTS = [{"kind": k, "text_hash": hashlib.sha256(k.encode()).hexdigest()} for k in ("research", "third_party", "sensitive")]
+
+
+def test_one_passkey_prompt_signs_each_request_and_each_separate_consent(c):
+    me = login(c, HERO)
+    key = registered(c, me)
+    reqs = [r for r in c.get(f"/api/p/{HERO}", headers=me).json()["requests"] if r["status"] in ("open", "partly_open")]
+    entries = [{"request": r["id"], "items": [i["item"] for i in r["items"] if i["class"] == "approval"],
+                "consents": CONSENTS} for r in reqs]
+    short = [{**entries[0], "consents": CONSENTS[:2]}]
+    assert c.post(f"/api/p/{HERO}/consents/challenge", json={"entries": short}, headers=me).status_code == 409
+    ch = c.post(f"/api/p/{HERO}/consents/challenge", json={"entries": entries}, headers=me).json()
+    assert unb64u(ch["publicKey"]["challenge"]).hex() == ch["batch_hash"]
+    assert [s["statement"]["consents"] for s in ch["statements"]] == [sorted(CONSENTS, key=lambda x: x["kind"])] * len(entries)
+    a = key.get(ch["publicKey"])
+    r = c.post(f"/api/p/{HERO}/consents/approve", json={"entries": entries, "assertion": a}, headers=me)
+    assert r.status_code == 200, r.text
+    v = r.json()
+    assert len(v["signed_batch"]) == len(entries)
+    bound = {x["statement_hash"]: x for x in v["approvals"]}
+    w = web._state["w"]
+    for s in ch["statements"]:
+        b = bound[s["statement_hash"]]
+        assert b["status"] == "bound"
+        for o in b["orders"]:
+            assert f"consent:{s['statement_hash'][:16]}" in w.ledger.txs[o["escrow_tx"]]["Memo"]
+    again = c.post(f"/api/p/{HERO}/consents/approve", json={"entries": entries, "assertion": a}, headers=me)
+    assert again.status_code == 403

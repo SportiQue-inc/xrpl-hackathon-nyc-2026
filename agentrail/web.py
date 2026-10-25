@@ -279,6 +279,41 @@ def participant_challenge(pid: str, rid: int, body: ItemsBody = ItemsBody()):
     return _call(study.approval_challenge, pid, rid, body.clean())
 
 
+class ConsentMark(Strict):
+    kind: str = Field(pattern=r"^(research|third_party|sensitive|international)$")
+    text_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class BatchEntry(Strict):
+    request: int
+    items: list[str] = Field(max_length=20)
+    consents: list[ConsentMark] = Field(default_factory=list, max_length=8)
+
+    def clean(self):
+        if [i for i in self.items if not re.match(ITEM, i)]:
+            raise HTTPException(422, "unknown item names")
+        return {"request": self.request, "items": list(self.items), "consents": [c.model_dump() for c in self.consents]}
+
+
+class BatchBody(Strict):
+    entries: list[BatchEntry] = Field(min_length=1, max_length=10)
+    assertion: PasskeyAssertion | None = None
+
+
+@app.post("/api/p/{pid}/consents/challenge")
+def participant_batch_challenge(pid: str, body: BatchBody):
+    """Statements for several requests with their separate consents, and one WebAuthn challenge over all."""
+    return _call(study.batch_challenge, pid, [e.clean() for e in body.entries])
+
+
+@app.post("/api/p/{pid}/consents/approve")
+def participant_batch_approve(pid: str, body: BatchBody):
+    """One passkey assertion applies every request of the batch, each bound to its own statement."""
+    if not body.assertion:
+        raise HTTPException(403, "a passkey signature is required")
+    return _call(study.participant_approve_batch, pid, [e.clean() for e in body.entries], body.assertion.model_dump())
+
+
 @app.get("/api/p/{pid}/passkey")
 def participant_passkey(pid: str):
     return _call(lambda w: {"registered": passkey.has_passkey(w, pid), "held_by": passkey.backend(w, pid).name,

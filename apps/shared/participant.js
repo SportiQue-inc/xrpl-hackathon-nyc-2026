@@ -3,6 +3,7 @@
 
 import { engine, watchSelf } from "./api.js";
 import { createPasskey, passkeySupported, signWithPasskey } from "./passkey.js";
+import { consentPages, textHash } from "./consent.js";
 import { h, render, tag, icon, short, sum, banner, busy } from "./ui.js";
 
 const ITEM = {
@@ -19,6 +20,7 @@ const EVENT = {
   swap: "지급 통화 변환", deposit_auth: "입금 보호 설정", uniqdata_upload: "UniQdata에 저장", uniqdata_read: "UniQdata에서 읽음",
   released: "검토 후 지급", returned: "연구로 반환", clawback: "열람 권한 회수",
 };
+const CONSENT = { research: "연구 참여", third_party: "제3자 제공", sensitive: "민감정보", international: "국외 이전" };
 const itemName = (i) => ITEM[i] || i;
 const won = (x) => `${(Math.round((x || 0) * 100) / 100).toFixed(2)} XRP`;
 const weeks = (ws) => {
@@ -42,7 +44,7 @@ function txA(tx) {
 
 export function mountParticipant(root, { base = "", pid = "P-017", embedded = false, token } = {}) {
   const api = engine(base, { token });
-  const st = { p: null, view: "home", rid: null, picked: null, sheet: null, error: null, toast: null,
+  const st = { p: null, view: "home", rid: null, picked: null, sheet: null, flow: null, batch: new Set(), error: null, toast: null,
                data: undefined, from: {}, tab: "trade", details: false };
   root.classList.add("ar");
   if (embedded) root.classList.add("embedded");
@@ -57,10 +59,10 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     draw();
   }
   const watcher = watchSelf(api, pid, (v) => {
-    if (!st.sheet || st.sheet.phase !== "busy") { st.p = v; st.error = null; draw(); }
+    if ((!st.sheet || st.sheet.phase !== "busy") && !st.flow) { st.p = v; st.error = null; draw(); }
   });
 
-  const go = (view) => { st.view = view; st.sheet = null; draw(); window.scrollTo(0, 0); };
+  const go = (view) => { st.view = view; st.sheet = null; st.flow = null; draw(); window.scrollTo(0, 0); };
   const current = () => st.p.requests.find((r) => r.id === st.rid) || null;
   const openReqs = () => st.p.requests.filter((r) => r.status === "open" || r.status === "partly_open");
   const lab = (r) => (r ? r.institution.name.replace(/\s*\(synthetic\)/i, "") : "");
@@ -81,6 +83,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
           tabBtn("home", "요청", "list"), tabBtn("data", "내 데이터", "data"), tabBtn("record", "기록", "history"),
           tabBtn("pay", "지급", "wallet")),
       st.sheet ? sheetView() : null,
+      st.flow ? flowView() : null,
       st.toast && h("div", { class: "ar-toast" }, st.toast));
   }
   function tabBtn(view, label, ic) {
@@ -102,6 +105,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         : v === "review" ? reviewView() : homeView();
     }
     render(root, out);
+    if (st.flow) afterFlowDraw();
   }
 
   // ---------- 요청 목록 ----------
@@ -117,8 +121,13 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
       const sent = r.items.filter((i) => i.class === "auto");
       const state = r.status === "declined" ? tag("건너뜀", "gray") : r.status === "contributed" ? tag("승인함", "green")
         : tag("승인 대기", "amber");
-      return h("button", { class: "ar-card col ar-req", onclick: () => { st.rid = r.id; st.picked = null; go("request"); } },
-        h("div", { class: "spread" }, h("b", {}, lab(r)), state),
+      const pick = pending.includes(r) && defaultSend(r).length
+        ? h("input", { type: "checkbox", class: "ar-pick", checked: st.batch.has(r.id), "aria-label": `${lab(r)} 선택`,
+            onclick: (e) => e.stopPropagation(),
+            onchange: (e) => { e.target.checked ? st.batch.add(r.id) : st.batch.delete(r.id); draw(); } }) : null;
+      return h("div", { class: "ar-card col ar-req", role: "button", tabindex: 0,
+          onclick: () => { st.rid = r.id; st.picked = null; go("request"); } },
+        h("div", { class: "spread" }, h("div", { class: "row", style: { gap: "10px" } }, pick, h("b", {}, lab(r))), state),
         h("span", { class: "small" }, `${PURPOSE[r.purpose] || "연구"} · ${asks.map((i) => itemName(i.item)).join(", ") || "요청 항목 없음"}`),
         sent.length ? h("span", { class: "small muted" }, `${sent.map((i) => itemName(i.item)).join(", ")}은 동의 범위 안이라 에이전트가 보냈어요`) : null,
         h("span", { class: "small muted" }, `참여 지급액 최대 ${won(r.reward_xrp)}`));
@@ -133,8 +142,13 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
       done.length ? [h("h3", {}, "지난 요청"), done.map(card)] : null,
       h("button", { class: "ar-row-link", onclick: () => go("stop") }, h("span", {}, "참여 중단 · 철회"), icon("chevron", 16)),
     ];
-    return frame("연구 참여", body);
+    const chosen = pending.filter((r) => st.batch.has(r.id));
+    const foot = chosen.length ? [h("button", { class: "ar-btn primary block",
+      onclick: () => startFlow(chosen.map((r) => ({ r, send: defaultSend(r) }))) },
+      `선택한 ${chosen.length}건 동의서 보기 · ${won(sum(chosen, (r) => cellPrice(r) * sum(defaultSend(r), (i) => i.weeks.length)))}`)] : null;
+    return frame("연구 참여", body, foot);
   }
+  const defaultSend = (r) => r.items.filter((i) => i.class === "approval" && !i.sensitive);
 
   // ---------- 요청 상세와 승인 ----------
   function requestView() {
@@ -185,8 +199,8 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     let foot = null;
     if (open && credentialOk) {
       foot = [
-        h("button", { class: "ar-btn primary block", disabled: !send.length, onclick: () => openSheet(approveSheet(r, send, price)) },
-          send.length ? `승인 · ${won(price)}` : "보낼 항목을 골라 주세요"),
+        h("button", { class: "ar-btn primary block", disabled: !send.length, onclick: () => startFlow([{ r, send }]) },
+          send.length ? `동의서 보기 · ${won(price)}` : "보낼 항목을 골라 주세요"),
         h("button", { class: "ar-btn block", onclick: (e) => skip(e, r) }, "이번 회차 건너뛰기"),
       ];
     }
@@ -200,43 +214,6 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
 
   // 시트 모양과 문구는 UniQdata 앱의 동의·패스키 시트를 따릅니다(/mnt/project-files/uniqdata-consent-sheet.md):
   // 핸들, 제목, 부제, 공시 카드(아이콘 + 라벨 + 값), 패스키 안내 박스, 전체 폭 버튼 두 개.
-  function approveSheet(r, send, price) {
-    const per = cellPrice(r);
-    const sens = send.filter((i) => i.sensitive);
-    const abroad = r.international_transfer && r.international_transfer.planned ? r.international_transfer : null;
-    const itemList = h("div", { class: "col", style: { gap: "6px" } }, send.map((i) => h("div", { class: "spread" },
-      h("span", {}, itemName(i.item), " ", h("span", { class: "muted small" }, weeks(i.weeks)), i.sensitive ? [" ", tag("민감", "red")] : null),
-      h("b", { style: { whiteSpace: "nowrap" } }, won(per * i.weeks.length)))));
-    return {
-      title: abroad ? "해외 기관 연구 참여 동의" : "연구 참여 동의",
-      sub: `${lab(r)}에 아래 항목을 보내는 데 동의합니다.${sens.length ? " 민감한 건강정보가 포함되어 있어, 확인하고 동의해 주세요." : ""}`,
-      rows: [
-        { icon: "building", label: "요청 기관", value: [lab(r), " ", tag("IRB 승인 확인", "green")] },
-        { icon: "spark", label: "처리 목적", value: PURPOSE[r.purpose] || r.purpose },
-        { icon: "list", label: "보내는 항목", value: itemList },
-        { icon: "coin", label: "참여 지급액", value: [h("b", {}, won(price)), h("span", { class: "muted small" }, ` · 전달 시 ${r.payment.immediate_pct}%, 검토 후 ${r.payment.held_pct}%`)] },
-        ...(abroad ? [
-          { icon: "globe", label: "전송 대상 국가", value: (abroad.countries || []).join(", ") },
-          { icon: "server", label: "수신자", value: (abroad.recipients || []).join(", ") },
-          { icon: "gavel", label: "이전 근거", value: "이전 계약과 동등수준 보호조치, 그리고 귀하의 명시적 동의에 근거합니다." },
-        ] : []),
-        { icon: "timer", label: "보관·삭제", value: "연구 기관은 참여 번호와 동의한 항목만 받습니다. 철회하면 개인 단위 사본을 지우고 확인합니다." },
-        { icon: "shield", label: "내 권리", value: "언제든 철회할 수 있습니다. 철회해도 이미 받은 지급액은 그대로입니다." },
-        { icon: "ban", label: "동의하지 않으면", value: "이번 회차는 아무것도 보내지 않습니다. 다른 요청과 지급에는 영향이 없어요." },
-      ],
-      passkeyNote: "동의하면 패스키(생체·PIN)로 본인 확인 후, 동의 기록이 안전하게 봉인·기록됩니다.",
-      confirm: "동의하고 패스키로 인증", cancel: "보내지 않고 닫기",
-      sign: async () => {
-        const items = send.map((i) => i.item);
-        const ch = await api.challenge(pid, r.id, items);
-        return api.approve(pid, r.id, items, await signWithPasskey(ch.publicKey, pid));
-      },
-      unsigned: () => api.approve(pid, r.id, send.map((i) => i.item)),
-      done: (res) => { st.p = res; st.lastSigned = res.signed; go("done"); },
-      cancelled: "동의를 취소했어요. 아무것도 보내지 않았어요.",
-    };
-  }
-
   function revokeSheet() {
     const p = st.p;
     const locked = p.contributions.filter((c) => c.status === "escrowed");
@@ -315,6 +292,141 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
           h("button", { class: "ar-text-btn", disabled: busyNow, onclick: closeSheet }, sh.cancel || "취소"))));
   }
 
+  // ---------- 동의서: 금액·기간·기관·항목은 위에 고정, 조항은 한 장씩 끝까지 읽어야 체크돼요 ----------
+  // 여러 건을 골라도 장은 요청마다, 동의마다 따로 넘기고, 패스키 서명은 마지막에 한 번만 해요.
+  function startFlow(list) {
+    const entries = list.map(({ r, send }) => {
+      const price = cellPrice(r) * sum(send, (i) => i.weeks.length);
+      return { r, send, price, pages: consentPages(r, send, price,
+        { org: lab(r), purpose: PURPOSE[r.purpose] || r.purpose, item: itemName, weeks }) };
+    });
+    const steps = entries.flatMap((e, n) => e.pages.map((p) => ({ e, n, p, key: `${e.r.id}:${p.kind}` })));
+    st.flow = { entries, steps, idx: 0, read: new Set(), checked: new Set(), scroll: {}, phase: "read", error: null };
+    draw();
+  }
+  function closeFlow() { if (st.flow && st.flow.phase !== "busy") { st.flow = null; draw(); } }
+
+  function afterFlowDraw() {
+    const f = st.flow;
+    const box = root.querySelector(".ar-clause:not(.signing)");
+    if (!box || f.idx >= f.steps.length) return;
+    const step = f.steps[f.idx];
+    box.scrollTop = f.scroll[step.key] || 0;
+    const atEnd = () => box.scrollTop + box.clientHeight >= box.scrollHeight - 8;
+    if (!f.read.has(step.key) && atEnd()) { f.read.add(step.key); requestAnimationFrame(draw); }
+    box.addEventListener("scroll", () => {
+      f.scroll[step.key] = box.scrollTop;
+      if (!f.read.has(step.key) && atEnd()) { f.read.add(step.key); draw(); }
+    }, { passive: true });
+  }
+
+  function flowView() {
+    const f = st.flow;
+    const signing = f.idx >= f.steps.length;
+    const step = signing ? null : f.steps[f.idx];
+    const e = signing ? null : step.e;
+    const total = sum(f.entries, (x) => x.price);
+    const back = () => { if (f.phase === "busy") return; if (f.idx === 0) closeFlow(); else { f.idx -= 1; draw(); } };
+
+    const pin = signing
+      ? h("div", { class: "ar-pin" },
+          h("div", { class: "spread" }, h("span", { class: "small muted" }, `${f.entries.length}건 · 동의 ${f.steps.length}개`),
+            h("span", { class: "small muted" }, "참여 지급액 합계")),
+          h("div", { class: "spread" }, h("b", { class: "org" }, f.entries.map((x) => lab(x.r)).filter((v, i, a) => a.indexOf(v) === i).join(", ")),
+            h("b", { class: "amt" }, won(total))))
+      : h("div", { class: "ar-pin" },
+          f.entries.length > 1 ? h("div", { class: "spread small muted" }, h("span", {}, `${f.entries.length}건 중 ${step.n + 1}번째`),
+            h("span", {}, `합계 ${won(total)}`)) : null,
+          h("div", { class: "spread" }, h("b", { class: "org" }, lab(e.r)), tag("IRB 승인 확인", "green")),
+          h("div", { class: "spread", style: { alignItems: "flex-end" } },
+            h("div", { class: "col", style: { gap: "2px" } }, h("span", { class: "small muted" }, "참여 지급액"),
+              h("b", { class: "amt" }, won(e.price))),
+            h("span", { class: "small muted", style: { textAlign: "right" } },
+              `전달 시 ${e.r.payment.immediate_pct}% · 검토 후 ${e.r.payment.held_pct}%`)),
+          h("dl", { class: "ar-kv left small" },
+            h("dt", {}, "기간"), h("dd", {}, weeks(e.send.flatMap((i) => i.weeks))),
+            h("dt", {}, "항목"), h("dd", {}, e.send.map((i) => itemName(i.item)).join(", ")),
+            h("dt", {}, "목적"), h("dd", {}, PURPOSE[e.r.purpose] || e.r.purpose)));
+
+    const progress = h("div", { class: "ar-flowstep" },
+      h("div", { class: "track" }, h("span", { style: { width: `${Math.round(100 * Math.min(f.idx, f.steps.length) / f.steps.length)}%` } })),
+      h("div", { class: "spread small" },
+        h("b", {}, signing ? "서명" : step.p.title),
+        h("span", { class: "muted" }, signing ? `${f.steps.length}/${f.steps.length} 확인` : `${f.idx + 1} / ${f.steps.length}`)));
+
+    let main, foot;
+    if (!signing) {
+      const p = step.p;
+      const read = f.read.has(step.key);
+      const checked = f.checked.has(step.key);
+      main = [
+        h("div", { class: "ar-clause", tabindex: 0, "aria-label": p.title },
+          h("p", { class: "basis" }, p.basis),
+          p.sections.map(([hd, v]) => h("section", {}, h("h4", {}, hd),
+            Array.isArray(v) ? v.map((x) => h("p", {}, x)) : h("p", {}, v))),
+          h("p", { class: "end" }, "— 끝 —")),
+        h("label", { class: `ar-agree${read ? "" : " locked"}` },
+          h("input", { type: "checkbox", checked, disabled: !read,
+            onchange: (ev) => { ev.target.checked ? f.checked.add(step.key) : f.checked.delete(step.key); draw(); } }),
+          h("span", {}, p.agree, h("span", { class: "req" }, " (필수)"))),
+        !read ? h("p", { class: "tiny muted", style: { margin: "0", textAlign: "center" } }, "끝까지 읽으면 체크할 수 있어요.") : null,
+      ];
+      foot = [h("button", { class: "ar-fill", disabled: !checked, onclick: () => { f.idx += 1; draw(); } },
+        f.idx + 1 === f.steps.length ? "서명으로" : "다음")];
+    } else {
+      const pk = st.p.passkey || { registered: false };
+      main = [h("div", { class: "ar-clause signing" },
+        f.entries.map((x) => h("div", { class: "ar-signlist" },
+          h("div", { class: "spread" }, h("b", {}, lab(x.r)), h("b", {}, won(x.price))),
+          h("span", { class: "small muted" }, `${x.send.map((i) => itemName(i.item)).join(", ")} · ${weeks(x.send.flatMap((i) => i.weeks))}`),
+          x.pages.map((p) => h("div", { class: "row small" }, h("span", { class: "ok" }, icon("check", 14)), h("span", {}, p.title))))),
+        h("div", { class: "ar-pkbox" }, h("span", { class: "ic" }, icon("fingerprint", 22)),
+          h("span", {}, `패스키 서명 한 번으로 체크한 동의 ${f.steps.length}개가 각각 따로 기록됩니다. `,
+            !pk.registered && passkeySupported() ? "처음 한 번 이 기기에 패스키를 만든 뒤 인증 창이 열립니다." : "계속하면 이 기기의 패스키(생체·PIN) 인증 창이 열립니다.")),
+        f.error ? banner("red", f.error) : null)];
+      foot = [h("button", { class: "ar-fill", disabled: f.phase === "busy", onclick: signFlow },
+        icon("unlock", 18), f.phase === "busy" ? (f.step || "확인 중") : "동의하고 패스키로 인증")];
+    }
+    return h("div", { class: "ar-flow", role: "dialog", "aria-modal": "true", "aria-label": "연구 참여 동의서" },
+      h("div", { class: "bar" },
+        h("button", { class: "ar-iconbtn", style: { border: 0 }, onclick: back, "aria-label": "이전" }, icon("back")),
+        h("span", { class: "title" }, "연구 참여 동의서"),
+        h("button", { class: "ar-iconbtn", style: { border: 0 }, onclick: closeFlow, "aria-label": "닫기" }, icon("x"))),
+      pin, progress,
+      h("div", { class: "main" }, main),
+      h("div", { class: "foot" }, foot));
+  }
+
+  async function signFlow() {
+    const f = st.flow;
+    const pk = st.p.passkey || { registered: false };
+    f.phase = "busy"; f.error = null; draw();
+    try {
+      const entries = [];
+      for (const x of f.entries) {
+        entries.push({ request: x.r.id, items: x.send.map((i) => i.item),
+          consents: await Promise.all(x.pages.map(async (p) => ({ kind: p.kind, text_hash: await textHash(p.text) }))) });
+      }
+      if (!pk.registered) {
+        f.step = "패스키 만드는 중"; draw();
+        const { publicKey } = await api.passkeyOptions(pid);
+        const { prf, ...body } = await createPasskey(publicKey);
+        await api.passkeyComplete(pid, body);
+        st.p = { ...st.p, passkey: { ...pk, registered: true } };
+      }
+      f.step = "본인 확인 중"; draw();
+      const ch = await api.consentChallenge(pid, entries);
+      const res = await api.consentApprove(pid, entries, await signWithPasskey(ch.publicKey, pid));
+      st.flow = null; st.batch.clear();
+      st.p = res; st.lastBatch = res.signed_batch;
+      go("done");
+    } catch (err) {
+      f.phase = "read"; f.step = null;
+      f.error = err && err.name === "NotAllowedError" ? "인증을 취소했어요. 아무것도 보내지 않았어요." : "확인하지 못했어요. 아무것도 보내지 않았어요.";
+      draw();
+    }
+  }
+
   async function skip(e, r) {
     const res = await busy(e.target, "처리 중", () => api.decline(pid, r.id), () => toast("연결할 수 없어요. 바뀐 것은 없어요."));
     if (res) { st.p = res; toast("이번 회차를 건너뛰었어요. 아무것도 보내지 않았어요."); go("home"); }
@@ -322,21 +434,40 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
 
   // ---------- 승인 완료 ----------
   function doneView() {
-    const r = current();
-    const a = st.p.approvals.find((x) => st.lastSigned && x.statement_hash === st.lastSigned.statement_hash)
-      || st.p.approvals[st.p.approvals.length - 1];
-    if (!a) return homeView();
+    const hashes = new Set((st.lastBatch || []).map((x) => x.statement_hash));
+    const list = st.p.approvals.filter((x) => hashes.has(x.statement_hash));
+    if (!list.length && st.p.approvals.length) list.push(st.p.approvals[st.p.approvals.length - 1]);
+    if (!list.length) return homeView();
+    if (list.length > 1) return doneMany(list);
+    const a = list[0];
+    const r = st.p.requests.find((x) => x.id === a.request);
     const body = [
       h("div", { class: "ar-card col", style: { alignItems: "center", textAlign: "center", padding: "28px 16px" } },
         h("span", { class: "ar-okmark" }, icon("check", 28)),
-        h("h2", {}, "승인했어요"),
+        h("h2", {}, "동의했어요"),
         h("p", { class: "small muted" }, `${lab(r)}에 ${a.statement.items.map(itemName).join(", ")} · ${weeks(Object.keys(a.statement.weeks).map(Number))}`)),
       h("div", { class: "ar-card col" },
         h("div", { class: "spread" }, h("span", { class: "small muted" }, "참여 지급액 예치"), h("b", {}, won(a.statement.price_drops / 1e6))),
         a.orders.map((o) => h("div", { class: "spread small" }, h("span", {}, `${o.weeks.join(", ")}주 차 · ${o.items.map(itemName).join(", ")}`), txA(o.escrow)))),
       h("button", { class: "ar-btn block", onclick: () => { st.tab = "trade"; go("record"); } }, "기록에서 보기"),
     ];
-    return frame("승인 완료", body, null, { back: () => go("home") });
+    return frame("동의 완료", body, null, { back: () => go("home") });
+  }
+
+  function doneMany(list) {
+    const reqName = (a) => lab(st.p.requests.find((r) => r.id === a.request));
+    const body = [
+      h("div", { class: "ar-card col", style: { alignItems: "center", textAlign: "center", padding: "28px 16px" } },
+        h("span", { class: "ar-okmark" }, icon("check", 28)),
+        h("h2", {}, `${list.length}건에 동의했어요`),
+        h("p", { class: "small muted" }, "패스키 서명 한 번으로, 요청마다 동의가 따로 기록됐어요.")),
+      list.map((a) => h("div", { class: "ar-card col" },
+        h("div", { class: "spread" }, h("b", {}, reqName(a)), h("b", {}, won(a.statement.price_drops / 1e6))),
+        h("span", { class: "small muted" }, `${a.statement.items.map(itemName).join(", ")} · 동의 ${(a.statement.consents || []).length}개`),
+        a.orders.map((o) => h("div", { class: "spread small" }, h("span", {}, `${o.weeks.join(", ")}주 차 예치`), txA(o.escrow))))),
+      h("button", { class: "ar-btn block", onclick: () => { st.tab = "trade"; go("record"); } }, "기록에서 보기"),
+    ];
+    return frame("동의 완료", body, null, { back: () => go("home") });
   }
 
   // ---------- 내 데이터 ----------
@@ -391,6 +522,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
           h("dt", {}, "항목"), h("dd", {}, a.statement.items.map(itemName).join(", ")),
           h("dt", {}, "기간"), h("dd", {}, weeks(Object.keys(a.statement.weeks).map(Number))),
           h("dt", {}, "금액"), h("dd", {}, won(a.statement.price_drops / 1e6)),
+          (a.statement.consents || []).length ? [h("dt", {}, "개별 동의"), h("dd", {}, a.statement.consents.map((c) => CONSENT[c.kind] || c.kind).join(" · "))] : null,
           h("dt", {}, "서명 해시"), h("dd", {}, h("span", { class: "ar-hash" }, short(a.statement_hash, 8, 6))),
           a.consent_hash ? [h("dt", {}, "UniQdata 동의"), h("dd", {}, h("span", { class: "ar-hash" }, short(a.consent_hash, 8, 6)))] : null),
         a.orders.map((o) => h("div", { class: "spread small" }, h("span", {}, `예치 · ${o.weeks.join(", ")}주 차`), txA(o.escrow)))))

@@ -283,6 +283,64 @@ def verify_withdrawal(w, pid: str, assertion: dict) -> dict:
             "statement_hash": row["statement_hash"], "credential_id": cred}
 
 
+def begin_batch(w, pid: str, entries: list[tuple[int, dict]]) -> dict:
+    """Several requests, each with its own statement and separate consents, signed by one passkey prompt.
+    The challenge is the hash of the batch; each request keeps its own statement and statement hash."""
+    batch = {"kind": "research_consent_batch", "statements": [s for _, s in entries],
+             "nonce": secrets.token_hex(8), "issued_at": int(time.time())}
+    bh = sha256_hex(canonical(batch))
+    b = backend(w, pid)
+    opts, consent_id, consent_hash = b.approval_options(pid, batch, bh)
+    out = []
+    for rid, stmt in entries:
+        sh = sha256_hex(canonical(stmt))
+        _open(w.store, pid, "approve", rid, {**stmt, "batch_hash": bh}, sh, opts["challenge"], b.name,
+              consent_id, consent_hash)
+        out.append({"request": rid, "statement": stmt, "statement_hash": sh})
+    return {"batch_hash": bh, "statements": out, "uniqdata_consent_id": consent_id, "consent_hash": consent_hash,
+            "held_by": b.name, "publicKey": opts}
+
+
+def verify_batch(w, pid: str, items_by_request: dict[int, list[str]], assertion: dict) -> dict[int, dict]:
+    """One assertion over the open batch. Every request of the batch must be answered with exactly the
+    items it was signed for. Rows end 'signed'; each is set 'verified' just before its approval is applied."""
+    challenge = _client_data(assertion["clientDataJson"], "webauthn.get")["challenge"]
+    rows = w.store.q("SELECT * FROM passkey_challenges WHERE person_id=? AND purpose='approve' AND challenge=? "
+                     "AND status='open'", pid, challenge)
+    if not rows:
+        raise PermissionError("no open challenge matches this signature (used, replaced or never issued)")
+    if any(r["expires_at"] < time.time() for r in rows):
+        raise PermissionError("the challenge expired; ask for a new one")
+    if {r["request_id"] for r in rows} != set(items_by_request):
+        raise PermissionError("the signature covers other requests")
+    for r in rows:
+        if sorted(items_by_request[r["request_id"]]) != json.loads(r["statement"])["items"]:
+            raise PermissionError("the signed statement covers other items")
+    cred = backend(w, pid).approve(pid, rows[0], assertion)
+    now = time.time()
+    with w.store.tx() as c:
+        c.execute("UPDATE passkey_challenges SET status='signed', credential_id=?, signed_at=? WHERE person_id=? AND "
+                  "purpose='approve' AND challenge=? AND status='open'", (cred, now, pid, challenge))
+    out = {}
+    for r in rows:
+        stmt = json.loads(r["statement"])
+        w.store.log(pid, "passkey_signed", f"{pid} signed request {r['request_id']} with their passkey (statement "
+                    f"{r['statement_hash'][:12]}, batch {stmt.get('batch_hash', '')[:12]})",
+                    {"request": r["request_id"], "statement_hash": r["statement_hash"], "batch_hash": stmt.get("batch_hash"),
+                     "consent_hash": r["consent_hash"], "credential": cred[:16], "items": stmt["items"],
+                     "consents": [c["kind"] for c in stmt.get("consents") or []], "verified_by": r["backend"]})
+        out[r["request_id"]] = {"uniqdata_consent_id": r["uniqdata_consent_id"], "consent_hash": r["consent_hash"],
+                                "statement_hash": r["statement_hash"], "batch_hash": stmt.get("batch_hash"),
+                                "credential_id": cred}
+    return out
+
+
+def mark_verified(store, pid: str, statement_hash: str):
+    with store.tx() as c:
+        c.execute("UPDATE passkey_challenges SET status='verified' WHERE person_id=? AND statement_hash=? AND "
+                  "status='signed'", (pid, statement_hash))
+
+
 def memo_tag(store, seller: str) -> str:
     """`|consent:<hash16>` for an order created while its seller's signed approval is being applied."""
     r = store.one("SELECT statement_hash FROM passkey_challenges WHERE person_id=? AND purpose='approve' AND "
@@ -305,7 +363,7 @@ def approvals(store, pid: str) -> list[dict]:
              "status": r["status"], "verified_by": r["backend"], "credential": (r["credential_id"] or "")[:16],
              "orders": json.loads(r["orders"] or "[]"), "signed_at": r["signed_at"]}
             for r in store.q("SELECT * FROM passkey_challenges WHERE person_id=? AND purpose='approve' AND "
-                             "status IN ('verified','bound') ORDER BY id", pid)]
+                             "status IN ('signed','verified','bound') ORDER BY id", pid)]
 
 
 # ---------- checks ----------

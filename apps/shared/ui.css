@@ -328,3 +328,37 @@ a.ar-hash { color: var(--ar-brand); }
 @keyframes ar-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .ar-sheet, .ar-sheet-wrap { animation: none; } }
 .ar-item.row { flex-direction: row; align-items: center; gap: 12px; cursor: pointer; }
+
+/* ---------- consent document: pinned terms on top, one clause page at a time ---------- */
+.ar-flow { --uq-primary: #005FFF; --uq-text: #0F172A; --uq-sub: #64748B; --uq-border: #E2E8F0; --uq-low: #F1F5F9;
+  position: fixed; inset: 0; z-index: 60; background: #fff; color: var(--uq-text); display: flex; flex-direction: column;
+  max-width: 480px; margin: 0 auto; font-family: Pretendard, "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", Roboto, sans-serif; }
+.ar-flow .bar { height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-bottom: 1px solid var(--uq-border); flex: none; }
+.ar-flow .bar .title { flex: 1; font-weight: 700; font-size: 16px; }
+.ar-pin { flex: none; padding: 14px 20px 12px; background: var(--uq-low); display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--uq-border); }
+.ar-pin .org { font-size: 16px; }
+.ar-pin .amt { font-size: 26px; line-height: 1.1; font-weight: 800; color: var(--uq-primary); letter-spacing: -.3px; }
+.ar-pin .ar-kv { margin: 0; row-gap: 2px; }
+.ar-flowstep { flex: none; padding: 12px 20px 8px; display: flex; flex-direction: column; gap: 8px; }
+.ar-flowstep .track { height: 4px; background: var(--uq-border); border-radius: 999px; overflow: hidden; }
+.ar-flowstep .track span { display: block; height: 100%; background: var(--uq-primary); transition: width .2s; }
+.ar-flow .main { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 0 20px 8px; }
+.ar-clause { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--uq-border); border-radius: 14px; padding: 14px 16px;
+  font-size: 14px; line-height: 1.6; -webkit-overflow-scrolling: touch; }
+.ar-clause .basis { font-size: 12px; color: var(--uq-sub); margin: 0 0 8px; }
+.ar-clause section { margin: 0 0 14px; }
+.ar-clause h4 { font-size: 14px; font-weight: 700; margin: 0 0 4px; }
+.ar-clause p { margin: 0 0 4px; }
+.ar-clause .end { text-align: center; color: var(--uq-sub); font-size: 12px; margin-top: 8px; }
+.ar-clause.signing { border: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.ar-signlist { border: 1px solid var(--uq-border); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.ar-signlist .ok { color: #059669; display: inline-flex; }
+.ar-agree { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: var(--uq-low);
+  font-size: 14px; font-weight: 600; line-height: 1.45; cursor: pointer; flex: none; }
+.ar-agree input { width: 22px; height: 22px; margin: 0; accent-color: var(--uq-primary); flex: none; }
+.ar-agree.locked { opacity: .5; cursor: default; }
+.ar-agree .req { color: var(--uq-primary); font-weight: 600; }
+.ar-flow .foot { flex: none; padding: 10px 20px calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--uq-border); }
+.ar-flow .ar-pkbox { margin: 0; }
+.ar-pick { width: 20px; height: 20px; margin: 0; accent-color: var(--ar-brand); }
+.ar-req[role=button] { cursor: pointer; text-align: left; }
