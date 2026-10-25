@@ -24,6 +24,8 @@ decision, at prices the market set inside the owners' floors and budgets
 ([who sets the price](docs/AGENT_MARKET.md#who-sets-the-price-agentrailmarketpricingpy)); 6 offers whose delivery did
 not match the certified rows were refused before payment, and 4 deliveries failed the buyer's check
 after opening and were recorded as refund claims. `python scripts/export_network.py` replays it as a node network.
+A separate run with LLM agents on the UniQdata roster made 120 trades, 85 of them settled; its numbers
+are a different run and are not mixed with the rule-based figures above.
 
 ![One Act 1 trade: need and offer book, check before paying, owner's rules, EscrowCreate, sealed push, EscrowFinish reveals K, bundle opens](docs/img/agentrail-flow.png)
 
@@ -37,8 +39,9 @@ are hard to find, and genes cannot be taken back once they leak.
 
 **Act 2: the same rail with a sensitive-data layer (healthcare).** The person's agent reads every
 study posting and shows the person only the ones that fit; until the person says yes, no lab knows
-the person exists. Consent is per item and per institution, signed once with a passkey; genomic data
-needs the passkey every time. A tampered week fails before payment and gets nothing; a week that fits
+the person exists. Consent is per item and per institution, signed once with a passkey and reused only within the
+scope already approved; anything outside that scope asks again, and genomic data, CT and MRI need a
+fresh passkey yes every time. A tampered week fails before payment and gets nothing; a week that fits
 pays on XRPL and hands over the key; withdrawal pulls the licence back on the ledger. In the
 synthetic run, owner actions drop from 11,600 column approvals to 233 passkey approvals
 ([docs/CATALOG.md](docs/CATALOG.md)).
@@ -95,7 +98,7 @@ Only what exists in this repository. Testnet links are from the runs listed in s
 | ③ | Per-round salt inside the sealed bundle: the hash on the ledger cannot be matched by guessing values | `engine.place_order` | off ledger by design (`test_ledger_hash_is_salted_per_round`) |
 | ③ | Ethics-review credential with expiry, withdrawn with `CredentialDelete` | `ledger/xrpl_extras.py`, `scenario.py` | [CredentialCreate](https://testnet.xrpl.org/transactions/58656AB4E6ABEC47BAA92F90C3F304B8959D1FDAE03AE6ED193FA2D98CBD1A37), [CredentialAccept](https://testnet.xrpl.org/transactions/FC7710C97C3783157778952291A28B2322E2FD65DBBDB5B52F4662DF9D514218) |
 | ③ | Pay on the continuity curve: 50% of a verified week at key reveal, rising with each consecutive week; the rest in its own escrow, released after review | `payout.py` | [holdback EscrowCreate](https://testnet.xrpl.org/transactions/E77702780035D4AB75770C11EAECE6A6273DF3EEE58E659A941F62C814CBA166) |
-| ③ | Sub-projects under one institution: one relationship with a lab covers many sub-projects; each sub-project's scope and the relationship's consents are read again on every access, so a narrower scope or a paused consent applies at once; in-scope requests run automatically, anything outside scope or T3 goes to the person; no new contract per sub-project | `subprojects.py`, `web.py` (`/api/institution/subprojects`, `/api/p/{pid}/relationship`) | same escrow path, memo carries `sub:<id>` (`tests/test_subprojects.py`) |
+| ③ | Sub-projects under one institution: one relationship with a lab covers many sub-projects, within the scope the person already approved; each sub-project's scope and the relationship's consents are read again on every access, so a narrower scope or a paused consent applies at once; in-scope requests run automatically, anything outside scope or T3 goes to the person; no new contract per sub-project inside that scope | `subprojects.py`, `web.py` (`/api/institution/subprojects`, `/api/p/{pid}/relationship`) | same escrow path, memo carries `sub:<id>` (`tests/test_subprojects.py`) |
 | ③ | T3 (genomic variants, CT, MRI) starts from UniQdata intake: each record goes in through UniQdata's DataQ write path; with UniQdata connected, a T3 dataset is offered only when the person's intake holds a matching record, and it carries that record hash and DataQ result as provenance; only a synthetic summary is stored, never an image or a genome | `scripts/uniqdata_intake_t3.py`, `uniqdata_live.feed_market`, `scripts/t3_testnet_check.py` | `LEDGER=testnet python scripts/t3_testnet_check.py` prints explorer links per type |
 
 ## 2. Proof: layer 3 on health research. How we solved the hard boundaries
