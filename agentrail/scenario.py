@@ -122,6 +122,11 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
                                      SellerPolicy(pid, ["*"], ["commercial_training", "evaluation"],
                                                   excluded_fields=excluded), engine))
     engine.set_mandate(BuyerMandate("org_robodev", 50 * XRP, 25 * XRP, ["commercial_training"]))
+    from .mandate import MandateChain
+    chain = MandateChain("org_robodev")
+    chain.payees, chain.ceiling_drops = [pid for pid, _, _, _ in specs], 100 * XRP
+    engine.mandate_chains["org_robodev"] = chain
+    chain.issue_from(store.one("SELECT * FROM mandates WHERE buyer_id='org_robodev'"), store)
     w.robot_buyer = BuyerAgent("org_robodev", engine)
     w.limits = OwnerLimits(purposes=["commercial_training"], budget_cap_drops=50 * XRP,
                            allow_sensitive_fields=False, max_missing_rate_ceiling=0.05,
@@ -177,6 +182,9 @@ def top_up(w: World, buyer_id: str, amount_xrp: float, signers: list[str], treas
     m = w.store.one("SELECT * FROM mandates WHERE buyer_id=?", buyer_id)
     w.engine.set_mandate(BuyerMandate(buyer_id, m["total_drops"] + int(amount_xrp * XRP),
                                       m["per_order_limit_drops"], json.loads(m["purposes"])))
+    chain = w.engine.mandate_chains.get(buyer_id)
+    if chain is not None:      # the owner signs the new budget for the agent
+        chain.issue_from(w.store.one("SELECT * FROM mandates WHERE buyer_id=?", buyer_id), w.store)
     w.store.log(buyer_id, "top_up", f"owner + compliance co-signed a {amount_xrp:g} XRP treasury top-up; "
                 f"mandate now {(m['total_drops'] / XRP) + amount_xrp:g} XRP",
                 {"tx_hash": h, "url": w.ledger.explorer_url(h)})

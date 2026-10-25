@@ -92,6 +92,7 @@ class Engine:
         self.ledger = ledger
         self.inbox = inbox or Inbox()
         self.policies: dict[str, object] = {}   # seller/person id -> policy with evaluate()
+        self.mandate_chains: dict[str, object] = {}   # buyer id -> mandate.MandateChain (owner-signed delegation)
         self.box_keys: dict[str, PrivateKey] = {}
         self.relay: str | None = None   # submits EscrowFinish for contributors whose keys we do not hold
 
@@ -188,6 +189,15 @@ class Engine:
                 c.execute("UPDATE payments SET cancel_after=? WHERE order_id=?",
                           (self.ledger.now() + req.escrow_window_s, oid))
             c.execute("INSERT INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "pay", "pending"))
+            chain = self.mandate_chains.get(req.buyer_id)
+            if chain is not None and chain.l2:
+                # The agent signs this one order under the owner's delegation (Verifiable Intent L3).
+                from .mandate import presentation_hash
+                l3 = chain.sign_order({"content_hash": content_hash, "invoice_id": order_key.upper(),
+                                       "amount_drops": req.price_drops, "payee_id": req.payee_id,
+                                       "order_id": oid, "purpose": req.purpose})
+                c.execute("INSERT INTO mandate_actions (order_id,l1,l2,l3,hash) VALUES (?,?,?,?,?)",
+                          (oid, chain.l1, chain.l2, l3, presentation_hash(l3)))
             self.store.log(req.buyer_id, "order",
                            f"order {oid}: {req.product_id} [{', '.join(req.granted)}] "
                            f"{req.price_drops / 1e6:g} XRP reserved", {"order_id": oid, "slot": req.slot})
@@ -236,6 +246,26 @@ class Engine:
         return pol.evaluate(buyer_id=o["buyer_id"], purpose=o["purpose"], fields=scope["granted"],
                             price_drops=o["price_drops"], week=week, for_delivery=for_delivery)
 
+    def _mandate_check(self, o, p) -> tuple[bool, str, str]:
+        """Verify the owner-signed delegation chain for this order right before money moves."""
+        chain = self.mandate_chains.get(o["buyer_id"])
+        if chain is None:
+            return True, "", ""
+        a = self.store.one("SELECT * FROM mandate_actions WHERE order_id=?", o["id"])
+        if a is None:
+            return False, "no signed order for this payment", ""
+        from .mandate import verify
+        m = self.store.one("SELECT spent_drops, reserved_drops FROM mandates WHERE buyer_id=?", o["buyer_id"])
+        ok, why = verify(a["l1"], a["l2"], a["l3"], chain.issuer_pub,
+                         {"content_hash": o["content_hash"], "invoice_id": p["invoice_id"],
+                          "amount_drops": p["amount_drops"], "payee_id": o["payee_id"], "order_id": o["id"],
+                          "purpose": o["purpose"]},
+                         m["spent_drops"] + m["reserved_drops"] - o["price_drops"])
+        with self.store.tx() as c:
+            c.execute("UPDATE mandate_actions SET verdict=?, reason=? WHERE order_id=?",
+                      ("ok" if ok else "refused", why, o["id"]))
+        return ok, why, a["hash"]
+
     def _release(self, c, o, status: str, note: str):
         c.execute("UPDATE orders SET status=?, note=? WHERE id=?", (status, note, o["id"]))
         c.execute("UPDATE mandates SET reserved_drops=reserved_drops-? WHERE buyer_id=?",
@@ -254,9 +284,15 @@ class Engine:
                     self._release(c, o, "blocked", d.reason)
                     self.store.log("engine", "blocked", f"order {oid} blocked before payment: {d.reason}")
                 return False
+            ok, why, mh = self._mandate_check(o, p)
+            if not ok:
+                with self.store.tx() as c:
+                    self._release(c, o, "blocked", f"mandate check failed: {why}")
+                    self.store.log("engine", "blocked", f"order {oid} blocked before payment: mandate check failed: {why}")
+                return False
             buyer_addr = self.party(o["buyer_id"])["address"]
             pv = json.loads(o["policy_snapshot"]).get("version", "")
-            memo = f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}"
+            memo = f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}" + (f"|mandate:{mh}" if mh else "")
             prep = self.ledger.prepare_payment(buyer_addr, p["payee_address"], p["amount_drops"],
                                                p["invoice_id"], memo)
             # Persist the signed tx BEFORE submitting: a lost response is then recoverable by hash.
@@ -388,9 +424,16 @@ class Engine:
                     self._release(c, o, "blocked", d.reason)
                     self.store.log("engine", "blocked", f"order {oid} blocked before escrow: {d.reason}")
                 return False
+        ok, why, mh = (self._mandate_check(o, p) if p["tx_hash"] is None else
+                       (True, "", (self.store.one("SELECT hash FROM mandate_actions WHERE order_id=?", oid) or {"hash": ""})["hash"]))
+        if not ok:
+            with self.store.tx() as c:
+                self._release(c, o, "blocked", f"mandate check failed: {why}")
+                self.store.log("engine", "blocked", f"order {oid} blocked before escrow: mandate check failed: {why}")
+            return False
         buyer_addr = self.party(o["buyer_id"])["address"]
         pv = json.loads(o["policy_snapshot"]).get("version", "")
-        memo = f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}"
+        memo = f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}" + (f"|mandate:{mh}" if mh else "")
         h, st = self._send(oid, "create", lambda: self.ledger.prepare_escrow_create(
             buyer_addr, p["payee_address"], p["amount_drops"], p["condition"], p["cancel_after"], memo))
         if not st.validated:

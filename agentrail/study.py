@@ -76,6 +76,10 @@ def ensure(w) -> StudyState:
         w.engine.add_party(CLINIC, "Clinic records export (synthetic source institution)", "organization",
                            w.ledger.new_account(CLINIC))
     w.engine.set_mandate(BuyerMandate(LAB, 0, 3 * XRP, ["sleep_research"]))
+    from .mandate import MandateChain
+    chain = MandateChain(LAB)          # the PI signs the agent's delegation when the budget is approved
+    chain.payees, chain.ceiling_drops = sorted(w.cohort_people), 100 * XRP
+    w.engine.mandate_chains[LAB] = chain
     w.study = s
     _kyb(w)
     return s
