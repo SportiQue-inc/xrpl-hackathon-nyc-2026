@@ -46,7 +46,7 @@
       <li><h3>Add a project inside the approved scope <span class="tag blue">New</span></h3><dl><dt>Principle</dt><dd>One institutional relationship can cover several projects only within the scope already approved.</dd><dt>Apply</dt><dd>In the study console, create a follow-up with fatigue.survey and heart_rate.daily. Compare it with an outside-scope request.</dd><dt>Watch</dt><dd>The routing summary separates handled inside scope, back to the person, and blocked. Each payment carries a project reference.</dd><dt>Result</dt><dd>Approved work can proceed without a new contract each time. A new purpose, field or period needs another decision.</dd></dl></li>
       <li><h3>Inspect the contribution and opened data</h3><dl><dt>Principle</dt><dd>An approval, payment and usable data each need their own evidence.</dd><dt>Apply</dt><dd>Open a participant's payment history and the matching research contribution. Choose Open bundle after payment release.</dd><dt>Watch</dt><dd>Check the item, period, amount, project, release receipt and “Opened · contents match what was sent.”</dd><dt>Result</dt><dd>The person can trace the contribution; the researcher can verify the delivered contents.</dd></dl></li>
     </ol>
-    <div class="actions"><a class="btn primary launch" href="/apps/live/">Open the study console →</a><a class="btn launch" id="me" href="/apps/live/me.html">Open your participant view →</a></div>
+    <div class="actions"><a class="btn primary launch" href="/apps/live/">Open the study console →</a><a class="btn launch" id="contribution" href="/participant">Review a contribution request →</a><a class="btn launch" id="me" href="/apps/live/me.html">Open your scope and history →</a></div>
     <p id="mePid" class="caption">This browser keeps one synthetic participant for the walkthrough.</p>
     <details><summary>Where this belongs in the existing products</summary><p><strong>UniQdata → Research contribution:</strong> agent settings, approved consent scope, requests waiting for the person's decision, contribution and payment history. <strong>UniQLab:</strong> study requirements, budget approval, project routing and received data. The updated Research contribution tab has been checked in a local UniQdata simulator build. Its public rollout is pending. The sandbox above is available now.</p></details>
   </section>
@@ -65,6 +65,7 @@
     try { localStorage.setItem("ar-pid", pid); } catch {}
   }
   document.getElementById("me").href = `/apps/live/me.html?pid=${pid}`;
+  document.getElementById("contribution").href = `/participant?pid=${pid}`;
   document.getElementById("mePid").textContent += ` You are ${pid}.`;
   const has = () => { try { return !!localStorage.getItem("ar-code"); } catch { return false; } };
   const q = new URLSearchParams(location.search).get("code");
