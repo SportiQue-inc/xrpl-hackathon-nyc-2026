@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { createRail, createStore, parsePools, refuse } from '../rail-server.mjs';
+import { adoptUnsettled, createRail, createStore, parsePools, refuse, settleReceipts } from '../rail-server.mjs';
 
 async function start(env, pay) {
   const store = createStore(mkdtempSync(join(tmpdir(), 'rail-')));
@@ -70,4 +70,40 @@ test('a failed payment stays pending and resumes with the same ref', async () =>
     assert.equal(store.spent.vault, 30000n);   // charged once
     assert.equal(calls, 2);
   } finally { server.close(); }
+});
+
+test('paid claims get their published receipt later, also refs paid before this', async () => {
+  const pay = async (job) => ({ ok: true, ref: job.ref, amount_rlusd: '0.007', claim_id: job.ref === 'a' ? '0xAA' : '0xBB', settlement: 'scheduled' });
+  const { server, store, base, post } = await start({ AP4M_RAIL_TOKEN: 't', AP4M_POOLS: 'vault:1' }, pay);
+  try {
+    await post({ ref: 'a', amount_micro: 7000, pool: 'vault' });
+    store.put('old', { ok: true, status: 'paid', ref: 'old', claim_id: '0xCC', receipt_url: null, settle_error: 'Unexpected token <' });
+    assert.deepEqual(store.unsettled(), { '0xaa': 'a' });
+    assert.equal(adoptUnsettled(store), 1);
+    const d = '0x' + 'd'.repeat(64);
+    const pages = { '0xaa': JSON.stringify({ receipts: [`https://svc/public/evidence/claims/0xaa/${d}.json`] }), '0xcc': JSON.stringify({ urls: [`/public/evidence/claims/0xcc/${d}.json`] }) };
+    const asked = [];
+    const fetchText = async (url) => { asked.push(url); return pages[url.split('/').pop()] ?? ''; };
+    assert.equal(await settleReceipts({ apiUrl: 'https://svc' }, store, () => {}, fetchText), 2);
+    const got = await (await fetch(`${base}/pay/a`, { headers: { Authorization: 'Bearer t' } })).json();
+    assert.equal(got.receipt_url, `https://svc/public/evidence/claims/0xaa/${d}.json`);
+    assert.equal(store.get('old').receipt_url, `https://svc/public/evidence/claims/0xcc/${d}.json`);
+    assert.deepEqual(store.unsettled(), {});
+    assert.equal(await settleReceipts({ apiUrl: 'https://svc' }, store, () => {}, fetchText), 0);
+    assert.equal(asked.length, 2);
+  } finally {
+    server.close();
+  }
+});
+
+test('a retry reuses the resource URL the first attempt bound its Merchant store to', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { priorResourceUrl } = await import('../rail-server.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'merchant-'));
+  assert.equal(priorResourceUrl(dir), null);
+  const db = new DatabaseSync(join(dir, 'merchant.sqlite'));
+  db.exec('CREATE TABLE identity (id INTEGER PRIMARY KEY CHECK(id=1), value TEXT NOT NULL) STRICT');
+  db.prepare('INSERT INTO identity VALUES (1, ?)').run(JSON.stringify({ schemaId: 'x', resourceUrl: 'http://127.0.0.1:41234/resource' }));
+  db.close();
+  assert.equal(priorResourceUrl(dir), 'http://127.0.0.1:41234/resource');
 });

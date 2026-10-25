@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Vault Market</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"><link rel="stylesheet" href="/static/ui.css"></head><body>
+<div class="top"><span class="brand">Data Vault Market</span><span class="small" id="accountName">Loading vault…</span><nav aria-label="Main navigation"><a href="https://agentrail-try-production.up.railway.app/apps/try/index.html">Home</a><a href="/">Market</a><a href="/vault">My DB</a><a href="/assets">Assets</a><a href="/demo">Demo</a><a href="/report">Report</a></nav><span class="tag" id="ledgerTag"></span><span id="modelTag" hidden></span></div>
+<div class="banner" id="banner" hidden></div>
+<div class="top filters"><div class="seg" role="group" aria-label="Data category" id="domTabs"></div></div>
+<main class="app market-app">
+<section class="col side left"><header><div><h1>Sell your data</h1><p class="muted small">Offers that fit your records and terms</p></div></header><div class="scroll" id="sellnow"></div></section>
+<section class="col activity"><header><div><h1>Market activity</h1><p class="muted small">Individual negotiations and verified settlements</p></div><span class="tag">Live</span></header><div class="scroll"><div id="ledger"></div><section id="agentQueue" class="mine-panel" aria-live="polite"></section><details class="history mine-panel"><summary>Your trade history</summary><div id="mine"></div></details></div></section>
+<section class="col side right"><header><h1>Your agent</h1><button id="agentBtn" type="button" aria-expanded="false">Settings</button></header><div class="scroll"><div class="chatbox" id="chat" data-open="1"></div></div></section>
+</main><dialog id="agentDlg" class="agent-dlg"><div class="dlg"><div class="row"><h2>Agent settings</h2><button type="button" id="agentClose">Close</button></div><div id="agents"></div></div></dialog><dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script src="/static/common.js"></script><script src="/static/tour.js"></script><script>
+let DOMAIN=null, DATA=null, ACC=null, refreshing=false, firstFeed=true, currentContract=null, detailBusy=false;
+const seenTrades=new Map(), recentTrades=new Map();
+const stateLabel = (s) => ({refunded:'Escrow returned to buyer',queued:'Queued',waiting:'Waiting for a buyer',negotiating:'Negotiating',settling:'Settling on ledger',settled:'Settled',rejected:'Not sold',blocked:'Blocked by your terms',interrupted:'Recovery pending','recovery review':'Needs review','awaiting buyer':'Waiting for buyer approval'}[s] || s);
+function tradeRow(c, own=false) {
+  const sold=c.status==='settled', overview=typeof c.overview==='string'?JSON.parse(c.overview||'null'):c.overview;
+  const mine=ME&&(c.seller===ME||c.buyer===ME);
+  return `<article class="tx ${sold?'settled':''} ${mine?'mine':''} ${(recentTrades.get(c.id)||0)>Date.now()?'trade-new':''}"><button type="button" data-c="${c.id}"><div class="trade-data"><b>${esc(META.kinds[c.kind].label)}${mine?` <span class="you-tag">${sold?(c.seller===ME?'You sold':'You bought'):(c.seller===ME?'Your offer':'Your request')}</span>`:''}</b><div class="what">C${c.id} · ${hhmm(c.created)}${c.items?` · ${c.items} file${c.items===1?'':'s'}`:''}${overview?.records?` · ${overview.records} records`:''}${sold&&c.rail==='AP4M'?' · <span class="you-tag">paid on Mastercard AP4M</span>':''}${!sold?` · ${esc(relabel(c.reason||stateLabel(c.status)))}`:''}</div></div><span class="amt ${sold?'success':['rejected','blocked'].includes(c.status)?'failure':'pending'}">${sold?micro(c.drops,c.asset):esc(stateLabel(c.status))}</span></button></article>`;
+}
+async function refresh() {
+  if (refreshing || !META) return;
+  refreshing=true;
+  try {
+    [DATA,ACC,META]=await Promise.all([api(`/api/market?account=${ME||''}${DOMAIN?'&domain='+DOMAIN:''}`),ME?api(`/api/account/${ME}`):Promise.resolve(null),api('/api/meta')]);
+    $('domTabs').innerHTML=[['','All data'],...DATA.domains.map(d=>[d.kind,d.label])].map(([k,l])=>`<button data-k="${k}" aria-pressed="${(DOMAIN||'')===k}">${esc(l)}</button>`).join('');
+    $('domTabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{DOMAIN=b.dataset.k||null;refresh();});
+    if(ACC)memberBalance(ACC);
+    $('agentBtn').disabled=!ME;
+    $('sellnow').innerHTML=!ME?`<div class="empty"><h2>Your own vault</h2><p>Sign in to see offers for your data and instruct your agent.</p><button class="primary" id="sellSignIn">Sign in to sell</button></div>`:DATA.sell_now.map(p=>`<article class="card offer"><div class="row"><h3>${esc(META.kinds[p.kind].label)}</h3><strong class="price">${xrp(p.expected)}</strong></div><p class="muted small">${esc(p.buyer_name)} · ${esc(p.purpose)}</p><div class="offer-facts"><span>Your minimum <b>${xrp(p.floor)}</b></span><span>Buyer budget <b>${xrp(p.max)}</b></span><span>${p.listed+p.private} available files</span></div><button class="${p.interested?'':'primary'}" data-sell="${p.id}">${p.interested?'View / retry request':'Ask agent to sell'}</button></article>`).join('')||`<div class="empty"><h3>No matching offers yet</h3><p>Upload records in My DB. Your agent will check new requests against your minimum and permitted purposes.</p><a href="/vault">Open My DB →</a></div>`;
+    $('sellSignIn')?.addEventListener('click',authDlg);
+    $('sellnow').querySelectorAll('[data-sell]').forEach(b=>b.onclick=()=>queueSale(+b.dataset.sell));
+    for(const c of DATA.contracts){if(!firstFeed&&seenTrades.get(c.id)!==c.status)recentTrades.set(c.id,Date.now()+5000);seenTrades.set(c.id,c.status);}firstFeed=false;
+    const active=DATA.contracts.filter(c=>['negotiating','settling','awaiting buyer'].includes(c.status)),history=DATA.contracts.filter(c=>!active.includes(c));
+    $('ledger').innerHTML=`<section class="live-sessions"><h2>In progress · ${active.length}</h2><p class="small muted">One negotiation at a time. Messages update while the agents work.</p>${active.map(c=>tradeRow(c)).join('')||'<p class="small muted">Waiting for the next negotiation.</p>'}</section><h2 class="history-heading">Recent outcomes</h2>${history.map(c=>tradeRow(c)).join('')||'<div class="empty">The first outcome will appear here.</div>'}`;
+    const qs=ACC?.agent_queue||[];
+    $('agentQueue').innerHTML=ME?`<div class="queue-title"><h2>Requests & history</h2><span class="small muted">${qs.filter(q=>!['settled','rejected','blocked','refunded'].includes(q.contract_status||q.status)).length} active</span></div>`+qs.map(q=>{const st=q.contract_status||q.status;return `<article class="queue-item ${st==='settled'?'done':''} ${q.contract?'clickable':''}" ${q.contract?`data-card="${q.contract}" tabindex="0" role="button"`:''}><div class="row"><b>${esc(META.kinds[q.kind].label)}</b><span class="tag ${st==='settled'?'green':''}">${esc(stateLabel(st))}</span></div><p class="small muted">${esc(relabel(q.contract_reason||q.reason)||'Your instruction is saved.')}</p><div class="row small"><time>R${q.id} · ${hhmm(q.created)}</time>${q.contract?`<button data-c="${q.contract}">C${q.contract} →</button>`:''}</div></article>`;}).join('')+(qs.length?'':'<p class="small muted">No instructions yet. Choose an offer or tell your agent what to sell.</p>'):'';
+    $('mine').innerHTML=(ACC?.trades||[]).map(c=>tradeRow(c,true)).join('')||'<p class="small muted">No completed trades yet.</p>';
+    document.querySelectorAll('[data-c]').forEach(b=>b.onclick=(e)=>{e.stopPropagation();openContract(+b.dataset.c).catch(showError);});
+    document.querySelectorAll('[data-card]').forEach(b=>{b.onclick=()=>openContract(+b.dataset.card).catch(showError);b.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();b.click();}};});
+    chatBox($('chat'),ACC||{chat:[]});renderAgents();$('banner').hidden=true;
+  } catch(err) {showError(err);} finally {refreshing=false;}
+}
+$('agentBtn').onclick=()=>{if(!canAct())return;renderAgents(true);$('agentDlg').showModal();};$('agentClose').onclick=()=>$('agentDlg').close();
+function renderAgents(force=false) {
+  if (!ACC) return;
+  if (!force && $("agentDlg").open) return;   // don't redraw while the owner is editing
+  const a = ACC.account, s = a.sell_agent, b = a.buy_agent, u = META.unit_xrp||.01, fmt = v => String(+Number(v).toFixed(6)), dp = u < 0.01 ? 6 : 2, top = v => u < 0.01 ? +(v * 3).toFixed(6) : Math.max(5, Math.ceil(v * 3));
+  const slider = (id, label, value, max, hint='') => `<div class="slide"><div class="row"><label for="${id}">${esc(label)}</label><b id="${id}-v">${fmt(value)} ${esc(assetLabel())}</b></div><input type="range" id="${id}" min="0" max="${Math.max(max, value)}" step="any" value="${value}" data-orig="${value}">${hint?`<span class="small muted">${hint}</span>`:''}</div>`;
+  $("agents").innerHTML = `<section class="set"><h3>When a buyer asks</h3><div class="seg" role="radiogroup"><button type="button" data-mode="auto" class="${s.mode!=='ask'?'on':''}">Sell on its own</button><button type="button" data-mode="ask" class="${s.mode==='ask'?'on':''}">Ask me first</button></div>
+    <p class="small muted">Either way, your agent never goes below the minimums and never sells for the blocked purposes.</p></section>
+    <section class="set"><h3>How firm on price</h3><div class="slide"><div class="row"><label for="firm">Lowest price vs the usual market price</label><b id="firm-v"></b></div><input type="range" id="firm" min="50" max="200" step="5" value="${Math.round(100*Object.entries(META.kinds).reduce((t,[k,v])=>t+(s.min?.[k]??v.price)/v.price,0)/Object.keys(META.kinds).length/5)*5}"><span class="small muted">Lower sells more often, higher holds out for better deals.</span></div>
+    <details class="per-kind"><summary class="small">Set each data type separately</summary>${Object.entries(META.kinds).map(([k, v]) => { const val=+((s.min?.[k] ?? v.price)*u).toFixed(dp); return slider('min-'+k, v.label, val, top(v.price*u)); }).join("")}</details></section>
+    <section class="set"><h3>Never sell for</h3><div class="chips">${[...new Set(['insurance pricing','advertising','aggregation and resale',...(s.blocks||[])])].map(x=>`<button type="button" class="chip ${(s.blocks||[]).includes(x)?'on':''}" data-block="${esc(x)}">${esc(x)}</button>`).join('')}</div></section>
+    <section class="set"><h3>Buying</h3>${slider('limit','Buys on its own up to',+(b.auto_limit*u).toFixed(dp),u < 0.01 ? top(b.auto_limit*u) : 50,'Above this, your agent asks you first. Records you already own are never bought again.')}</section>
+    <div class="row"><span class="small muted" id="saved">Model: ${esc(META.model)} · ${esc(assetLabel())} on ${esc(META.ledger)}</span><button class="primary" type="button" id="save">Save</button></div>`;
+  $("agents").querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { r.dataset.dirty = '1'; $(r.id+'-v').textContent = `${fmt(r.value)} ${assetLabel()}`; });
+  $("agents").querySelectorAll('.chip').forEach(x => x.onclick = () => x.classList.toggle('on'));
+  const firm=()=>{$('firm-v').textContent=$('firm').value+'%';};firm();
+  $('firm').oninput=()=>{firm();Object.entries(META.kinds).forEach(([k,v])=>{const r=$('min-'+k);r.value=(v.price*u*$('firm').value/100).toFixed(u < 0.01 ? 6 : 1);r.dataset.dirty='1';$(r.id+'-v').textContent=`${fmt(r.value)} ${assetLabel()}`;});};
+  $("agents").querySelectorAll('[data-mode]').forEach(x => x.onclick = () => $("agents").querySelectorAll('[data-mode]').forEach(y => y.classList.toggle('on', y===x)));
+  $("save").onclick = async () => { try {
+    if (!canAct()) return;
+    const min = {}; Object.keys(META.kinds).forEach((k) => { const r = $("min-" + k); min[k] = r.dataset.dirty ? +r.value/u : (s.min?.[k] ?? META.kinds[k].price); });
+    await post(`/api/account/${ME}/settings`, { sell_agent: { mode: $("agents").querySelector('[data-mode].on').dataset.mode, min, blocks: [...$("agents").querySelectorAll('.chip.on')].map(x => x.dataset.block) },
+      buy_agent: { auto_limit: $("limit").dataset.dirty ? +$("limit").value/u : b.auto_limit } });
+    $("saved").textContent = "Saved. Your agent uses this from the next negotiation.";
+    ACC = await api('/api/account/'+ME);
+  } catch(err) {showError(err);} };
+}
+
+async function openContract(id, updating=false) {
+  if(detailBusy)return;detailBusy=true;
+  try {
+  const opened=updating?[...$('dlgBody').querySelectorAll('details')].map(e=>e.open):[],scroll=$('dlgBody').scrollTop;
+  const d=await api(`/api/contract/${id}`), c=d.contract, t=c.trace||{}, asset=c.asset||'XRP';
+  const ap4m=d.txs.filter(x=>x.type==='AP4M VoucherRedeemed'), finishes=[...d.txs.filter(x=>x.type.startsWith('EscrowFinish')&&x.result==='tesSUCCESS'),...ap4m];
+  const total=finishes.reduce((sum,x)=>sum+(x.drops||0),0);
+  const model=[...new Set(d.messages.map(m=>m.by).filter(x=>x&&x!=='rules'))];
+  const price=(units)=>micro(units*(c.unit_micro||10000),asset);
+  const overview=c.overview;
+  $('dlgBody').innerHTML=`<header class="contract-head"><div><span class="eyebrow">${esc(c.reference||`C${c.id}`)} · ${esc(META.kinds[c.kind].label)}</span><h1>${esc(META.kinds[c.kind].label)}</h1><p class="muted small">${esc(d.posting?.purpose||'')}</p><code class="small muted">${esc(c.ledger_memo||`vaultmarket/contract/${c.id}`)}</code></div><button id="close" aria-label="Close contract">Close</button></header>
+  ${(()=>{const sold=c.status==='settled',links=d.txs.filter(x=>x.url&&/^(Escrow(Create|Finish)|AP4M|RLUSD forward)/.test(x.type)), receipts=[...new Set((t.protocol||[]).map(x=>x.receipt_url).filter(Boolean))];
+    const steps=(t.protocol||[]), short=(n)=>n.replace(/\s*\(.*\)$/,'');
+    const grouped=[];steps.forEach(x=>{const n=short(x.protocol),g=grouped.find(y=>y.name===n);if(g){g.n++;g.ok=g.ok&&x.ok;}else grouped.push({ok:x.ok,name:n,n:1,detail:relabel(x.detail||'')});});   // one line per kind of check
+    const checks=[...grouped.map(g=>({...g,name:g.n>1?`${g.name} (${g.n} files)`:g.name})),
+      ...(c.total!=null&&d.posting?.max!=null?[{ok:c.total<=d.posting.max,name:`Price ${price(c.total)} within budget ${price(d.posting.max)}`,detail:''}]:[])];
+    return `<p class="receipt-purpose"><b>Deal receipt.</b> ${esc(c.buyer_name||'A buyer')} ${sold?'bought':'asked for'} ${esc(META.kinds[c.kind].label.toLowerCase())} from ${esc(c.seller_name||'a seller')}${d.posting?.purpose?` for ${esc(d.posting.purpose)}`:''}${sold&&total?`, paid ${micro(total,asset)}, ${ap4m.length?'paid on Mastercard AP4M (XRPL EVM Testnet)':'proven on XRPL'}`:''}.</p>
+  <div class="settlement-summary"><span class="tag ${sold?'green':''}">${esc(stateLabel(c.status))}</span><strong class="${sold?'success':''}">${total?micro(total,asset):'No payout'}</strong></div>
+  ${links.length?`<div class="receipt-tx">${links.map(x=>`<a href="${x.url}" target="_blank" rel="noopener"><b>${esc(x.type.startsWith('EscrowCreate')?'Payment locked':x.type.startsWith('EscrowFinish')?'Payment released':x.type==='AP4M VoucherRedeemed'?'Paid on AP4M, key released':x.type.startsWith('RLUSD forward')?'Forwarded to the seller':x.type)}</b><span class="small muted">${esc(x.type)} · ${esc((x.hash||'').slice(0,10))}… ↗</span></a>`).join('')}${receipts.map((u,i)=>`<a href="${esc(u)}" target="_blank" rel="noopener"><b>AP4M receipt${receipts.length>1?` ${i+1}`:''}</b><span class="small muted">verifiable claim receipt ↗</span></a>`).join('')}</div>`:''}
+  ${!sold?`<p class="notice">${esc(relabel(c.reason||stateLabel(c.status)))}</p>`:''}
+  ${checks.length?`<section class="receipt-checks"><h2>Checks</h2><ul>${checks.map(x=>`<li class="${x.ok?'ok':'no'}"><span>${x.ok?'✓':'✗'}</span><div>${esc(x.name)}${x.detail?`<details><summary class="small muted">details</summary><p class="small muted">${esc(x.detail)}</p></details>`:''}</div></li>`).join('')}</ul></section>`:''}
+  <section class="data-overview"><h2>What was sold</h2><div class="overview-grid">${[
+    overview?['Files / records',`${overview.files} files · ${overview.records} records`]:c.items?['Files',`${c.items}`]:null,
+    overview?.start?['Period',`${esc(overview.start)}${overview.end!==overview.start?` → ${esc(overview.end)}`:''}`]:null,
+    d.posting?.purpose?['Purpose',esc(d.posting.purpose)]:null,
+    c.total!=null?['Agreed price',price(c.total)]:null].filter(Boolean).map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join('')}</div></section>
+  <details class="conversation" open><summary>Negotiation · ${d.messages.length} messages</summary><div class="talk short-talk">${d.messages.map(m=>`<article class="say ${m.side}"><span class="who">${esc(m.name)}</span><div class="bubble">${esc(relabel(m.text))}</div>${m.thinking?`<details><summary>Reason</summary><p>${esc(m.thinking)}</p></details>`:''}</article>`).join('')||'<p class="small muted">No negotiation messages were stored.</p>'}</div></details>`;})()}
+  <details class="audit"><summary>Decision details</summary><p class="small muted">Buyer opening ${price(d.posting?.offer||0)} · maximum ${price(d.posting?.max||0)}</p><ol>${(t.buyer_trace||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>${(t.seller_trace||[]).map(x=>`<p class="small">${esc(d.messages.find(m=>m.speaker===x.seller)?.name||x.seller)} · ${x.verdict==='agree'?'Accepted terms':x.verdict==='decline'?'No sale: price or purpose did not fit':esc(x.verdict)}${x.price?` · asked ${price(x.price)}`:''}</p>`).join('')}</details>
+  <details class="audit" ${c.status==='interrupted'||c.status==='recovery review'?'open':''}><summary>All ledger transactions</summary><p class="small muted">Amounts below are the gross transfer. Network fees are separate.</p>${d.txs.map(x=>`<div class="receipt"><div><b>${esc(x.reference)} · ${esc(x.type)}</b><p class="small muted">${x.receipt?.destination?`Destination ${esc(x.receipt.destination)}`:`${esc(x.src_name)} · ${esc(x.dst_name)}`} · ${esc(x.result)}</p></div><span class="${x.type.startsWith('EscrowFinish')&&x.result==='tesSUCCESS'?'success':''}">${x.receipt?.gross_amount!=null?amount(x.receipt.gross_amount,x.asset||asset):x.receipt?(x.receipt.validated&&x.receipt.result!=='tesSUCCESS'?'No transfer':'Amount unverified'):micro(x.drops,x.asset||asset)}</span>${x.receipt?`<p class="small muted">Ledger ${x.receipt.ledger_index||"pending"} · ${x.receipt.validated?"validated":"unverified"} · network fee ${x.receipt.fee_xrp} XRP</p>`:""}${x.url?`<a class="small mono" href="${x.url}" target="_blank" rel="noopener">${esc(x.hash)} ↗</a>`:''}</div>`).join('')}${(t.protocol||[]).map(x=>`<p class="small"><b>${esc(x.protocol)}</b> · ${x.ok?'Verified':'Not verified'}<br><span class="muted">${esc(relabel(x.detail))}</span></p>`).join('')}</details>`;
+  currentContract=['negotiating','settling','awaiting buyer'].includes(c.status)?id:null;
+  if(updating){$('dlgBody').querySelectorAll('details').forEach((e,i)=>e.open=opened[i]||false);$('dlgBody').scrollTop=scroll;}
+  $('close').onclick=()=>{$('dlg').close();currentContract=null;};if(!$('dlg').open)$('dlg').showModal();
+  } finally {detailBusy=false;}
+}
+setInterval(()=>{if(currentContract&&$('dlg').open&&!document.hidden)openContract(currentContract,true).catch(showError);},3000);
+topbar('market').then(async()=>{await refresh();const id=Number(new URLSearchParams(location.search).get('contract'));if(Number.isInteger(id)&&id>0)await openContract(id);}).catch(showError);live();
+</script></body></html>
