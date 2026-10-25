@@ -6,9 +6,14 @@ Track: **Agentic Finance**. Everything in this repository was built during the h
 
 ## 1. What AgentRail is: three stacked layers
 
-A sleep study stalls on three missing weeks, because every exchange between a lab, a hospital and a
-person is a separate months-long contract and no one lets an agent pay. AgentRail is the rail that
-removes that.
+**The problem.** Agents are starting to transact for institutions and for people. Today's rails
+cannot enforce who an agent acts for, how far it may go, or on what terms, and the more sensitive the
+data, the more every deal stalls. A sleep study that loses three weeks of surveys still waits months
+for contracts to fill the gap.
+
+**The structure.** AgentRail stacks three layers on XRPL. We prove the hardest one, sensitive data,
+on health research (sections 2-4); layers 1 and 2 run unchanged in any industry (section 8,
+[Expansion](#expansion-layers-1-and-2-in-any-industry): robotics, B2B, market).
 
 ```
 ③ Sensitive data layer (proven on health research)
@@ -59,7 +64,7 @@ Only what exists in this repository. Testnet links are from the runs listed in s
 | ③ | Ethics-review credential with expiry, withdrawn with `CredentialDelete` | `ledger/xrpl_extras.py`, `scenario.py` | [CredentialCreate](https://testnet.xrpl.org/transactions/58656AB4E6ABEC47BAA92F90C3F304B8959D1FDAE03AE6ED193FA2D98CBD1A37), [CredentialAccept](https://testnet.xrpl.org/transactions/FC7710C97C3783157778952291A28B2322E2FD65DBBDB5B52F4662DF9D514218) |
 | ③ | 20% holdback per round in its own escrow, released after review | `payout.py` | [holdback EscrowCreate](https://testnet.xrpl.org/transactions/E77702780035D4AB75770C11EAECE6A6273DF3EEE58E659A941F62C814CBA166) |
 
-## 2. How we solved the hard boundaries
+## 2. Proof: layer 3 on health research. How we solved the hard boundaries
 
 Each row: the problem, our answer, where code or the ledger enforces it, the moment in the demo,
 and the evidence. `POST /api/run/boundaries` runs every check and returns the evidence with tx links
@@ -189,6 +194,26 @@ on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 | Bonus: QuickNode, x402 | QuickNode: every standalone check submitted and confirmed through a QuickNode Testnet endpoint (table in section 4). x402: every clinic export is a real HTTP 402 -> 200 exchange (`export_fees[].http`), settled by T54 on Testnet; the study view counts fees per settler (`settlement.export_fee_rails`) | section 4 |
 
 ## 8. Potential and market
+
+### Expansion: layers 1 and 2 in any industry
+
+Layers 1 and 2 do not depend on health data. Scene A runs them alone: a robot developer's agent closes
+its evaluation gaps by buying lidar and IMU episodes from two other companies (B2B). The seller's
+licence terms replace personal consent; schema matching, budget limits, the owner-signed delegation,
+the multi-signed treasury top-up and settlement on XRPL are the same code as the health run
+(`scenario.scene_a`, `POST /api/run/a`; Testnet payments in section 1.1).
+
+Market size, directional only (definitions differ by several times between sources):
+
+| Ring | Size | Source |
+|---|---|---|
+| Agent-mediated B2B purchases | about $15T by 2028 | Gartner (secondary) |
+| Agentic commerce, global | $3-5T by 2030 | McKinsey |
+| **Beachhead: person-level longitudinal health research** | SAM about $2.5B (estimate) | [docs/MARKET.md](docs/MARKET.md) |
+
+Health research is the first market because it is the hardest boundary; other industries need only a
+lighter consent layer.
+
 
 ### Why this matters now
 
