@@ -22,7 +22,9 @@ function append(el, kids) {
   }
 }
 
-export const xrp = (n) => `${(Math.round((n || 0) * 100) / 100).toFixed(2)} RLUSD`;
+// Amounts settle in a test token that stands in for RLUSD (agentrail/units.py); shown as RLUSD everywhere.
+export const UNIT = "RLUSD";
+export const xrp = (n) => `${(Math.round((n || 0) * 100) / 100).toFixed(2)} ${UNIT}`;
 export const short = (s, a = 4, b = 4) => (s && s.length > a + b + 1 ? `${s.slice(0, a)}…${b ? s.slice(-b) : ""}` : s || "");
 export const sum = (xs, f = (x) => x) => xs.reduce((a, x) => a + (f(x) || 0), 0);
 export const weeksLabel = (ws) => {
@@ -85,7 +87,6 @@ const ICONS = {
   building: '<path d="M4 21V5l8-2v18M12 8l8 2v11M4 21h16M8 8h.01M8 12h.01M8 16h.01M16 13h.01M16 17h.01"/>',
 };
 // Participation payment unit shown on the participant pages.
-export const UNIT = "RLUSD";
 
 export function icon(name, size = 18) {
   const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -207,6 +208,21 @@ export function render(el, ...kids) {
 
 export function banner(tone, ...kids) {
   return h("div", { class: `ar-banner ${tone}` }, ...kids);
+}
+
+// A public demo deploy answers only visitors with the access code; ask for it in place of an error.
+export function codeGate(what = "your agent") {
+  const input = h("input", { type: "password", placeholder: "Access code", class: "ar-input",
+    style: { flex: "1", font: "inherit", border: "1px solid #d0d5dd", borderRadius: "10px", padding: "10px 12px" } });
+  const submit = (e) => {
+    e.preventDefault();
+    const u = new URL(location.href);
+    u.searchParams.set("code", input.value.trim());
+    location.href = u.toString();
+  };
+  return h("form", { class: "col", style: { gap: "10px" }, onsubmit: submit },
+    banner("blue", `Enter the demo access code to reach ${what}.`),
+    h("div", { class: "row", style: { gap: "8px" } }, input, h("button", { class: "ar-btn primary", type: "submit" }, "Continue")));
 }
 
 // Run an engine call with a busy state on a button; returns the result or null on error.

@@ -6,8 +6,10 @@
 import { engine, watch } from "./api.js";
 import {
   h, render, tag, icon, xrp, short, sum, ago, day, ledgerDay, weeksLabel, txLink, openReceipt, banner, busy, WEEK_STATE,
-  holdbackState, SIGNAL, UNIT,
+  holdbackState, SIGNAL, UNIT, codeGate,
 } from "./ui.js";
+
+const OPENED = new Map();   // order_id -> opened bundle result, kept across poll re-renders
 
 const LIVE_STUDY = "Sleep and fatigue study (synthetic)";
 const SAMPLE_STUDIES = [
@@ -209,7 +211,9 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
   // ---------- pages ----------
   function draw() {
     let page;
-    if (st.error && !st.s) {
+    if (st.error && !st.s && st.error.status === 403) {
+      page = h("div", { class: "col" }, codeGate("the study"));
+    } else if (st.error && !st.s) {
       page = h("div", { class: "col" }, banner("red", "Could not reach the engine. ", h("button", { class: "ar-link", onclick: load }, "Retry")),
         h("span", { class: "tiny muted" }, String(st.error.message || st.error)));
     } else if (!st.s) {
@@ -496,7 +500,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
               const ws = WEEK_STATE[c.cancel && c.cancel.tx ? "refunded" : c.status] || { label: c.status, tone: "gray" };
               const t = c.finish && c.finish.tx ? c.finish : c.cancel && c.cancel.tx ? c.cancel : c.escrow;
               const kind = t === c.finish ? "EscrowFinish" : t === c.cancel ? "EscrowCancel" : "EscrowCreate";
-              const out = h("span", { class: "tiny muted" });
+              const out = h("span", { class: "tiny muted" }, OPENED.get(c.order_id) || "");
               return h("tr", {}, h("td", {}, `W${c.weeks.join(", ")}`), h("td", {}, xrp(c.amount_xrp)), h("td", {}, tag(ws.label, ws.tone)),
                 h("td", {}, txLink(t, { kind, amount: c.amount_xrp, title: kind === "EscrowFinish" ? `Week ${c.weeks.join(", ")} participation payment released` : undefined })),
                 h("td", {}, c.status === "delivered" && !r.withdrawn ? h("button", { class: "ar-link small", onclick: async (e) => {
@@ -577,7 +581,11 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
     };
     const goal = h("textarea", { class: "ar-textarea", placeholder: "Raise power to 0.8 for fatigue vs sleep, weeks 3–5" }, st.goal || s.goal || "");
     const msg = h("div");
-    const err = (e) => render(msg, banner("red", "The engine did not answer. ", h("span", { class: "tiny" }, e.message)));
+    const err = (e) => {
+      if (e.status === 409 && /already approved/.test(e.detail || "")) { load(); return render(msg, banner("blue", "This round's budget is already approved by both signers. Send it, or set a new goal for a new round.")); }
+      if (e.status === 403 && /reset/.test(e.message)) return render(msg, banner("blue", "The shared sandbox can't be reset from the browser. Set a new goal to start a new round."));
+      render(msg, banner("red", "The engine did not answer. ", h("span", { class: "tiny" }, e.message)));
+    };
     return h("div", { class: "col", style: { gap: "16px" } },
       h("div", { class: "ar-pagehead" },
         h("div", {}, h("h1", {}, "Rounds"), h("p", { class: "sub" }, `${LIVE_STUDY} · propose, approve and send a participation round`)),
@@ -589,7 +597,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
           goal,
           h("div", { class: "spread" },
             h("span", { class: "small muted" }, `Power ${s.heatmap.power_before ?? s.heatmap.power} → target ${s.power_target} · ${s.heatmap.complete_pairs} of ${s.heatmap.total} pairs`),
-            h("button", { class: "ar-btn primary", disabled: status === "approved" || status === "sent", onclick: async (e) => {
+            h("button", { class: "ar-btn primary", disabled: status === "approved", title: status === "sent" ? "Propose the next round" : undefined, onclick: async (e) => {
               st.goal = goal.value;
               const r = await busy(e.target, "The agent is reading the coverage table", () => api.setGoal(goal.value), err);
               if (r) { st.lastApprove = null; load(); }

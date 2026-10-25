@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from . import units
 
+import hmac
 import json
 import os
 import re
@@ -13,7 +14,7 @@ from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -850,10 +851,25 @@ def _local(request: Request):
         raise HTTPException(403, "the demo harness answers on localhost only")
 
 
+def _local_or_code(request: Request, sub: str):
+    """The demo devices answer on localhost, or to a visitor who sends the access code set in
+    AGENTRAIL_SANDBOX_CODE (at least 8 characters). The operator (reset, scene runner) stays local.
+    One code can act as both co-signers, so it only counts on the mock ledger (unless
+    AGENTRAIL_SANDBOX_ALLOW_TESTNET=1) and never in prod."""
+    code = os.environ.get("AGENTRAIL_SANDBOX_CODE", "")
+    sent = request.headers.get("x-sandbox-code", "")
+    if (request.client.host if request.client else "") in LOCAL:
+        return
+    sandbox = is_dev() and (world().ledger.name == "mock" or os.environ.get("AGENTRAIL_SANDBOX_ALLOW_TESTNET") == "1")
+    if sandbox and len(code) >= 8 and sub != "operator" and hmac.compare_digest(sent.encode(), code.encode()):
+        return
+    raise HTTPException(403, "access code required")
+
+
 @app.post("/api/dev/login/{sub}")
 def dev_login(sub: str, request: Request):
     """The simulated device of `sub` answers a challenge, exactly as a real device would."""
-    _local(request)
+    _local_or_code(request, sub)
     sec = world().security
     d = sec.devices.get(sub)
     if d is None:
@@ -866,7 +882,7 @@ def dev_login(sub: str, request: Request):
 def dev_sign_approval(sub: str, aid: int, request: Request):
     """What the approver's phone would return after showing the approval; posting it still needs
     that approver's own token at /api/study/approvals/{aid}/signatures."""
-    _local(request)
+    _local_or_code(request, sub)
     sec = world().security
     d = next((x for x in sec.approvers.values() if x.sub == sub), None)
     if d is None:
@@ -920,8 +936,36 @@ def console_page():
     return _page("apps", "researcher", "index.html")
 
 
+@app.get("/api/public/live")
+def public_live(after: int = 0):
+    """Read-only view for visitors without the access code: structure, cohort and the ledger log
+    (synthetic study, study pseudonyms only where the engine already uses them)."""
+    from . import subprojects
+
+    def view(w):
+        s = study.study_view(w)
+        e = study.events(w, after)
+        ev = [x for x in e["events"] if x["kind"] != "access"]
+        return {"study": {k: s["study"][k] for k in ("id", "name", "ledger", "protocol")},
+                "heatmap": s["heatmap"], "settlement": s["settlement"], "spec_status": s["spec_status"],
+                "institution": subprojects.of(w).institution(), "events": ev, "last": e["last"]}
+    return _call(view)
+
+
+@app.get("/try")
+def try_it(request: Request):
+    """Entry for visitors: pick researcher (UniQLab live view), participant (UniQdata) or the before/after story."""
+    return RedirectResponse(f"/apps/try/index.html{'?' + request.url.query if request.url.query else ''}")
+
+
+@app.get("/demo")
+def before_after_demo(request: Request):
+    """Before/after stage: UniQLab and UniQdata side by side, today's flow and the flow with agents."""
+    return RedirectResponse(f"/apps/demo/index.html{'?' + request.url.query if request.url.query else ''}")
+
+
 if (Path(__file__).parent.parent / "apps").is_dir():
-    app.mount("/apps", StaticFiles(directory=Path(__file__).parent.parent / "apps"), name="apps")
+    app.mount("/apps", StaticFiles(directory=Path(__file__).parent.parent / "apps", html=True), name="apps")
 
 
 @app.get("/")

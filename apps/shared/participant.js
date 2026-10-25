@@ -4,7 +4,10 @@
 import { engine, watchSelf } from "./api.js";
 import { createPasskey, passkeySupported, signWithPasskey } from "./passkey.js";
 import { consentPages, textHash } from "./consent.js";
-import { h, render, tag, icon, short, sum, banner, busy, UNIT } from "./ui.js";
+import {
+  h, render, tag, icon, xrp, short, sum, day, ledgerDay, weeksLabel, txLink, banner, busy, WEEK_STATE, holdbackState,
+  ITEM_CLASS, SIGNAL, codeGate, UNIT,
+} from "./ui.js";
 
 const ITEM = {
   "heart_rate.daily": "안정시 심박", "fatigue.survey": "피로 설문", "blood_pressure.daily": "혈압(진료 기록)",
@@ -106,7 +109,9 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
 
   function draw() {
     let out;
-    if (st.error && !st.p) {
+    if (st.error && !st.p && st.error.status === 403) {
+      out = frame("연구 참여", [codeGate("your agent")]);
+    } else if (st.error && !st.p) {
       out = frame("연구 참여", [banner("red", "연결할 수 없어요. ", h("button", { class: "ar-link", onclick: load }, "다시 시도"))]);
     } else if (!st.p) {
       out = frame("연구 참여", [1, 2].map(() => h("div", { class: "ar-skel", style: { height: "120px" } })));

@@ -25,6 +25,10 @@ class SecurityHeaders(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         resp = await call_next(request)
         h = resp.headers
+        if request.url.path.startswith("/apps/demo/"):
+            # The before/after stage frames its own two static pages (no data); same origin only.
+            h.setdefault("X-Frame-Options", "SAMEORIGIN")
+            h.setdefault("Content-Security-Policy", CSP.replace("frame-ancestors 'none'", "frame-ancestors 'self'"))
         h.setdefault("X-Content-Type-Options", "nosniff")
         h.setdefault("X-Frame-Options", "DENY")
         h.setdefault("Referrer-Policy", "no-referrer")
