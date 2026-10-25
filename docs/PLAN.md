@@ -5,7 +5,7 @@ Owner: **E** = engine thread (Claude), **X** = XRPL checks thread, **D** = danie
 
 ## Pitch
 
-Not big data, but one person's whole record. A study's research agent asks people to take part;
+When a study stalls on missing data, the person's own agent fills the gap. A study's research agent asks people to take part;
 each person's agent gathers their own records on one time axis and contributes only what they
 agreed to. **The LLM proposes, code verifies, the ledger enforces.** We solved the hardest
 boundary first (consent, re-identification, withdrawal on person-level health records); the robot
