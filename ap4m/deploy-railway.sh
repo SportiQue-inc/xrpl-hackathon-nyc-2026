@@ -25,9 +25,11 @@ railway variables --service "$RAIL" --skip-deploys \
   --set "MERCHANT_PAYOUT=$(v MERCHANT_PAYOUT)" \
   --set "TEAM_NAME=SportiQue" --set "AP4M_API_URL=https://hackathon.ap4m.build" \
   --set "AP4M_CHANNEL_CAP=10" --set "AP4M_POOLS=vault:5,research:5" \
-  --set "AP4M_RAIL_TOKEN=$TOKEN" >/dev/null
+  --set "AP4M_STATE_DIR=/data" --set "AP4M_RAIL_TOKEN=$TOKEN" >/dev/null
+# a channel already open (AP4M_CHANNEL_ID set on the service) is reused; without the /data volume a redeploy would
+# forget it and try to open another one, which the unassigned deposit may not cover.
 echo "variables set on $RAIL (values not shown)"
-railway volume add --service "$RAIL" --mount-path /data >/dev/null 2>&1 || echo "volume: already attached or add it in the dashboard (mount /data)"
+railway volume --service "$RAIL" add --mount-path /data >/dev/null 2>&1 || echo "volume: already attached or add it in the dashboard (mount /data)"
 railway up ap4m --path-as-root --service "$RAIL" --detach
 DOMAIN="${AP4M_RAIL_URL:-}"; [ -n "$DOMAIN" ] || DOMAIN="$(railway domain --service "$RAIL" 2>/dev/null | grep -Eo 'https://[A-Za-z0-9.-]+' | head -1)"
 [ -n "$DOMAIN" ] || { echo "Create a public domain for $RAIL in the dashboard, then: AP4M_RAIL_URL=https://... $0" >&2; exit 1; }
