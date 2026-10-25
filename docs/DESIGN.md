@@ -176,14 +176,37 @@ Per-study identity: `S-` + sha256(study, person)[:8]; day shift = sha256(study, 
 kept only by the personal agent. Two quasi-identifiers in one request are refused by the compliance
 layer before consent is read.
 
-## 7. Open items
+## 7. Participant rules for the live service **[open]** (designed, not in the demo)
+
+The demo pays one escrow per round. The live service adds these rules; code decides, people
+confirm, the LLM never judges.
+
+1. Decline, pause and withdrawal events are never inputs to any score, priority or payout decision
+   (enforced by a test).
+2. Penalties apply only to fraud (fabricated data, duplicate accounts, someone else's device or
+   data) and to missing an accepted round. Code detects signals; `fraud_confirmed` needs a human
+   reviewer (`reviewer_id`) and a notice-and-response period.
+3. Two-part round payment: 80% paid on contribution (Payment); 20% held per round in an Escrow
+   (FinishAfter 7 days, up to 14 more if fraud is suspected, CancelAfter later than that). Passing
+   review or time running out releases it by default; only `fraud_confirmed` stops it.
+4. After withdrawal, held parts that passed review or timed out are still paid; if withdrawal
+   destroyed the data before review, the round counts as passed.
+5. A completion bonus is a separate escrow and returns to the institution on withdrawal.
+6. Money already paid is never taken back on chain; fraud only creates a `repayment_claim` record.
+   Trust levels stay off chain and never go into a Credential or memo.
+
+Consent text: "You can always stop. Declining or withdrawing never affects future study requests,
+priority or compensation."
+
+## 8. Open items
 
 - **[done]** Key-reveal escrow (PREIMAGE-SHA-256) so the reward releases with the key.
 - **[open]** RLUSD instead of XRP (needs trust lines and test RLUSD).
 - **[done]** LLM (GPT by default) proposes gaps, schema mappings and licence readings; code
   verifies and can only narrow; answers recorded and replayed; rules when no key.
-- **[open]** Retention / deletion of delivered copies after revoke: contract + audit,
-  not technically enforceable.
+- **[done]** Deletion of person-level copies after revoke: deletion request and the study's
+  confirmation are recorded as events (receipt hash); the provision contract makes it binding.
+  Deleting a copy cannot be proven technically; contract + audit.
 - **[open]** Who pays account reserve for new personal accounts.
 - **[open]** Production key custody for personal vaults; here keys are in memory.
 - **[open]** Multi-holder products (one query spanning many people) and k-anonymity
