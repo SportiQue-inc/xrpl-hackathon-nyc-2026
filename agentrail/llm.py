@@ -5,7 +5,7 @@ raw data (only item names, prices, reasons) and its output is never parsed back 
 a decision, so it cannot widen a permission or raise a limit.
 
   LLM_PROVIDER   openai (default when OPENAI_API_KEY is set) | anthropic | none
-  OPENAI_API_KEY, OPENAI_MODEL       (default gpt-4o-mini)
+  OPENAI_API_KEY, OPENAI_MODEL       (default gpt-4.1-mini)
   ANTHROPIC_API_KEY, ANTHROPIC_MODEL (default claude-opus-5-5)
   LLM_RECORD=1   save every JSON proposal to fixtures/llm_cache.json
   LLM_PROVIDER=replay   answer proposals from that file only (recorded runs, for a stable video)
@@ -71,9 +71,9 @@ class Voice:
             if p == "openai":
                 from openai import OpenAI
                 self._client = OpenAI(timeout=self.timeout, max_retries=0)
-                # o3-mini has the widest per-minute limit on the team's project (150 RPM, 1M TPM);
-                # gpt-4o-mini and most others are 10 RPM there.
-                self.model = os.environ.get("OPENAI_MODEL", "o3-mini")
+                # gpt-4.1-mini answers on the current key (o3-mini returns model_not_found); set
+                # OPENAI_MODEL to use another chat model.
+                self.model = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
             elif p == "anthropic":
                 import anthropic
                 self._client = anthropic.Anthropic(timeout=self.timeout, max_retries=0)
