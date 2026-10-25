@@ -347,7 +347,9 @@ class Market:
         cid = self.s.insert("contracts", posting=w["id"], buyer=w["buyer"], kind=w["kind"], seller=seller_id, status="negotiating", asset=self.rail.symbol(), unit_micro=config.MICRO_PER_UNIT)
         if queue_id:
             self.s.x("UPDATE sale_queue SET status='negotiating',contract=?,updated=? WHERE id=?", (cid,time.time(),queue_id))
-        say = lambda who, side, text, thinking="", by="": self.s.insert("messages", contract=cid, speaker=who, side=side, text=text, thinking=json.dumps({"t": thinking, "by": by}))
+        def say(who, side, text, thinking="", by=""):
+            self.s.insert("messages", contract=cid, speaker=who, side=side, text=text, thinking=json.dumps({"t": thinking, "by": by}))
+            self.events += 1
         op = agents.buyer_open(buyer["name"], w, len(owned))
         say(w["buyer"], "buyer", op["message"], op["thinking"], op["by"])
         trace = {"asset": self.rail.symbol(), "unit_micro": config.MICRO_PER_UNIT, "buyer_trace": [op["thinking"]], "seller_trace": [], "verdicts": {"sellers": {}}, "tx": [], "protocol": [], "model": llm.model_name()}
@@ -493,6 +495,7 @@ class Market:
     def settle(self, cid: int, w: dict, verified: list, trace: dict, total: float):
         buyer_id = w["buyer"]
         self.s.x("UPDATE contracts SET status='settling', total=? WHERE id=?", (total, cid))
+        self.events += 1
         legs, plain = [], {}
         for a, fs, price in verified:
             recs = [json.loads(f["clean"]) for f in fs]

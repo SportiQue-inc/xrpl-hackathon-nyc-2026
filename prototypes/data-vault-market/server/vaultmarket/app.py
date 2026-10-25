@@ -206,6 +206,18 @@ def _trade_summaries(contracts, account):
     return contracts
 
 
+def _agent_styles():
+    receipts=M.s.q("SELECT src,COALESCE(asset,'XRP') asset,COUNT(DISTINCT contract) sales,SUM(drops) micro FROM txs WHERE type LIKE 'EscrowFinish%' AND result='tesSUCCESS' GROUP BY src,asset")
+    styles=[]
+    for row in M.s.q("SELECT id FROM accounts WHERE id NOT LIKE 'u-%'"):
+        a=M.acct(row['id']);rules=a['sell_agent'];mins=rules.get('min',{})
+        ratio=sum(mins.get(k,v['price'])/v['price'] for k,v in KINDS.items())/len(KINDS)
+        style='Approval first' if rules.get('mode')=='ask' else 'Price firm' if ratio>=1 else 'Flexible pricing'
+        rs=[r for r in receipts if r['src']==a['id']]
+        styles.append({'id':a['id'],'name':a['name'],'style':style,'blocked_purposes':rules.get('blocks',[]),'sales':sum(r['sales'] for r in rs),'income':[{'asset':r['asset'],'amount':r['micro']/1e6} for r in rs]})
+    return sorted(styles,key=lambda a:(-a['sales'],a['name']))
+
+
 @app.get("/api/market")
 def market(request: Request, account: str = "", domain: str | None = None):
     if config.PUBLIC:
@@ -225,7 +237,7 @@ def market(request: Request, account: str = "", domain: str | None = None):
     postings = s.q(f"SELECT p.*, a.name AS buyer_name, a.verified, (SELECT COUNT(*) FROM interests i WHERE i.posting = p.id) AS interest, "
                    f"(SELECT COUNT(*) FROM interests i WHERE i.posting = p.id AND i.account = ?) AS mine "
                    f"FROM postings p JOIN accounts a ON a.id = p.buyer WHERE p.status = 'open' AND p.kind IN ({ph}) ORDER BY interest DESC, p.offer DESC", (account, *kinds))
-    contracts = s.q(f"SELECT id, posting, buyer, seller, kind, status, reason, total, items, sellers, created, asset, unit_micro, overview FROM contracts WHERE status != 'negotiating' AND kind IN ({ph}) ORDER BY id DESC LIMIT 60", tuple(kinds))
+    contracts = s.q(f"SELECT id, posting, buyer, seller, kind, status, reason, total, items, sellers, created, asset, unit_micro, overview FROM contracts WHERE kind IN ({ph}) ORDER BY id DESC LIMIT 60", tuple(kinds))
     contracts=[c for c in contracts if _can_view_contract(c,account)]
     _trade_summaries(contracts, account)
     people = s.q("SELECT COUNT(*) n, SUM(online) o FROM accounts")[0]
@@ -243,7 +255,7 @@ def market(request: Request, account: str = "", domain: str | None = None):
                          "volume": round(s.stat("volume"), 1), "xrp": round(s.stat("drops") / 1e6, 4), "uploads": s.stat("uploads"),
                          "blocked": s.stat("blocked"), "cleaned": s.stat("cleaned"), "fees": round(s.stat("fees"), 1),
                          "txs": s.one("SELECT COUNT(*) n FROM txs")["n"]},
-            "domains": sorted(doms, key=lambda d: -(d["listed"] + 5 * d["settled"])), "postings": postings, "contracts": contracts, "listings": listings, "sell_now": _sell_now(account), "prices": {k: M.quote(k) for k in KINDS}, "events": M.events}
+            "agent_styles": _agent_styles(), "domains": sorted(doms, key=lambda d: -(d["listed"] + 5 * d["settled"])), "postings": postings, "contracts": contracts, "listings": listings, "sell_now": _sell_now(account), "prices": {k: M.quote(k) for k in KINDS}, "events": M.events}
 
 
 def _sell_now(aid: str) -> list[dict]:

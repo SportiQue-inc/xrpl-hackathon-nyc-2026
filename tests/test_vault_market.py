@@ -380,7 +380,7 @@ def test_member_negotiation_history_is_private_to_the_participants(market, monke
     monkeypatch.setattr(web, 'M', market)
     monkeypatch.setattr(config, 'PUBLIC', True)
     for aid in ('u-owner','u-other'):
-        market.s.insert('accounts', id=aid, name=aid, type='person')
+        market.s.insert('accounts', id=aid, name=aid, type='person', sell_agent={'mode':'ask','min':{},'blocks':[]}, buy_agent={'auto_limit':10})
         market.s.insert('users', username=aid, account=aid)
         market.s.insert('sessions', token=aid, username=aid)
     cid=market.s.insert('contracts',posting=market.test_post,buyer='u-owner',seller=seller,sellers=['seller'],kind='sleep_log',status='rejected',trace={})
@@ -392,3 +392,33 @@ def test_member_negotiation_history_is_private_to_the_participants(market, monke
     client.cookies.set(web.COOKIE,'u-owner')
     assert client.get(f'/api/contract/{cid}').status_code==200
     assert cid in [c['id'] for c in client.get('/api/market').json()['contracts']]
+
+
+def test_negotiation_progress_is_visible_before_settlement(market, monkeypatch):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web, agents
+    monkeypatch.setattr(web,'M',market);monkeypatch.setattr(config,'PUBLIC',False)
+    market.s.x("UPDATE files SET status='listed' WHERE id=?",(market.test_file,))
+    market.s.insert('interests',account='seller',posting=market.test_post)
+    reply=agents.seller_reply
+    def observe(*args):
+        active=TestClient(web.app).get('/api/market').json()['contracts']
+        assert any(c['status']=='negotiating' for c in active)
+        assert market.events>0
+        return reply(*args)
+    monkeypatch.setattr(agents,'seller_reply',observe)
+    market.negotiate(market.s.one('SELECT * FROM postings WHERE id=?',(market.test_post,)))
+
+
+def test_agent_comparison_uses_ledger_amounts_and_excludes_real_members(market, monkeypatch):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web,'M',market);monkeypatch.setattr(config,'PUBLIC',False)
+    market.s.insert('accounts',id='u-private',name='private',type='person',sell_agent={'mode':'ask','min':{},'blocks':[]})
+    cid=market.s.insert('contracts',buyer='buyer',seller='seller',kind='sleep_log',status='settled',sellers=['seller'])
+    market.s.insert('txs',contract=cid,type='EscrowFinish (key released)',src='seller',dst='buyer',drops=80000,asset='XRP',result='tesSUCCESS')
+    market.s.insert('txs',contract=cid,type='EscrowCreate',src='buyer',dst='seller',drops=80000,asset='XRP',result='tesSUCCESS')
+    styles=TestClient(web.app).get('/api/market').json()['agent_styles']
+    assert not any(a['id'].startswith('u-') for a in styles)
+    seller=next(a for a in styles if a['id']=='seller')
+    assert seller['sales']==1 and seller['income']==[{'asset':'XRP','amount':.08}]

@@ -152,3 +152,7 @@ dialog label input { display: block; width: 100%; margin-top: 3px; }
 @media(max-width:1150px) { .vault-app { grid-template-columns:1fr; }.vault-app .right { order:1; }.vault-app .left { order:2; } }
 
 .sample-options>summary,.pending-approvals>summary { cursor:pointer;color:var(--muted);font-size:12px;padding:8px 0; }.sample-options>.acts { margin-top:10px; }.pending-approvals { padding:0 12px;border-bottom:1px solid var(--line);max-height:240px;overflow:auto; }.pending-approvals>.msg { margin:8px 0; }
+
+.failure { color:var(--danger,#ff6868); }.pending { color:#d8ad59; }.live-sessions { padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:14px; }.live-sessions>p { margin:8px 0; }.history-heading { margin:18px 0 4px; }
+#agentStyles>summary { cursor:pointer;font-size:12px;padding:10px 0; }#agentStyles>p { margin-bottom:10px; }.styles-table { max-height:340px;overflow:auto; }.styles-table table { width:100%;border-collapse:collapse;font-size:12px; }.styles-table th,.styles-table td { text-align:left;padding:9px 6px;border-bottom:1px solid var(--line); }.styles-table small { color:var(--muted); }
+.trade-new { animation:trade-arrived 5s ease-out; }@keyframes trade-arrived { from { background:#426cd844;box-shadow:inset 3px 0 var(--accent); } to { background:transparent;box-shadow:inset 3px 0 transparent; } }@media(prefers-reduced-motion:reduce){.trade-new{animation:none;border-left:3px solid var(--accent);}}

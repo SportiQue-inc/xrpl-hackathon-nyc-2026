@@ -62,7 +62,7 @@ function chatBox(el, data) {
     $("chatForm").onsubmit = async (e) => { e.preventDefault(); const t = $("say").value.trim(); if (!t) return; if (await tellAgent(t)) $("say").value = ""; };
   }
 }
-function live() { try { const es = new EventSource("/api/stream"); es.onmessage = () => refresh(); } catch { setInterval(refresh, 5000); } }
+function live() { try { const es = new EventSource("/api/stream"); es.onmessage = () => {if(!document.hidden)refresh();}; } catch { setInterval(refresh, 5000); } }
 
 // ---------------- members: sign up, sign in, link a personal wallet ----------------
 function memberBar() {
