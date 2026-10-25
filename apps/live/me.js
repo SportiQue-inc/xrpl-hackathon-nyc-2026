@@ -25,7 +25,7 @@ const h = (tag, props, ...kids) => {
   return el;
 };
 const tag = (t, tone = "gray") => h("span", { class: `tag ${tone}` }, t);
-const money = (n, a) => `${Number(n || 0).toFixed(2)} ${a || st.rel?.asset || ""}`.trim();
+const money = (n) => `${Number(n || 0).toFixed(2)} RLUSD`;   // test token standing in for RLUSD (footer says so)
 
 const code = () => { try { return new URLSearchParams(location.search).get("code") || localStorage.getItem("ar-code") || ""; } catch { return ""; } };
 async function call(method, path, body) {
@@ -61,7 +61,7 @@ function sheet() {
     h("div", { class: "sheet" }, h("div", { class: "grab" }),
       h("div", { class: "pin" },
         h("div", { class: "spread" }, h("span", { class: "small muted" }, `${r.institution.name} · ${r.subprojects.length} sub-projects`), tag("Pinned", "gray")),
-        h("div", { class: "amount" }, total ? `Up to ${money(total)}` : `Paid in ${r.asset} per delivered round`),
+        h("div", { class: "amount" }, total ? `Up to ${money(total)}` : "Paid in RLUSD per delivered round"),
         h("div", { class: "small muted" }, "Each sub-project pays for each round your agent delivers. 80% at delivery, 20% after review.")),
       h("div", { class: "scroll", onscroll: onScroll },
         h("div", { class: "sec" }, h("h3", {}, "One relationship with this institution"),

@@ -9,6 +9,8 @@ import {
   holdbackState, SIGNAL, codeGate,
 } from "./ui.js";
 
+const OPENED = new Map();   // order_id -> opened bundle result, kept across poll re-renders
+
 const LIVE_STUDY = "Sleep and fatigue study (synthetic)";
 const SAMPLE_STUDIES = [
   ["Metabolic drug study", "Prospective"],
@@ -170,7 +172,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
     const budget = st.s ? st.s.study.budget_xrp : 0;
     return h("div", { class: "ar-shell" },
       h("aside", { class: "ar-side" },
-        h("div", { class: "ar-logo" }, "UniQdata"),
+        h("div", { class: "ar-logo" }, "UniQLab"),
         h("label", { class: "ar-search" }, icon("search"), h("input", {
           placeholder: "Search", value: st.filters.q,
           onkeydown: (e) => { if (e.key === "Enter") { st.filters.q = e.target.value; go("#/directory"); } },
@@ -188,7 +190,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
       ),
       h("div", { class: "ar-main" },
         h("header", { class: "ar-top" },
-          h("span", { class: "ar-budget" }, `Study budget ${Math.round(budget)} XRP`),
+          h("span", { class: "ar-budget" }, `Study budget ${Math.round(budget)} RLUSD`),
           tag(st.s && st.s.study.ledger === "testnet" ? "Testnet" : "Practice ledger"),
           h("button", { class: "ar-iconbtn", "aria-label": "Notifications" }, icon("bell")),
           h("div", { class: "row" }, h("span", { class: "ar-avatar" }), h("span", { style: { fontWeight: 500 } }, "Researcher A")),
@@ -496,12 +498,12 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
               const ws = WEEK_STATE[c.cancel && c.cancel.tx ? "refunded" : c.status] || { label: c.status, tone: "gray" };
               const t = c.finish && c.finish.tx ? c.finish : c.cancel && c.cancel.tx ? c.cancel : c.escrow;
               const kind = t === c.finish ? "EscrowFinish" : t === c.cancel ? "EscrowCancel" : "EscrowCreate";
-              const out = h("span", { class: "tiny muted" });
+              const out = h("span", { class: "tiny muted" }, OPENED.get(c.order_id) || "");
               return h("tr", {}, h("td", {}, `W${c.weeks.join(", ")}`), h("td", {}, xrp(c.amount_xrp)), h("td", {}, tag(ws.label, ws.tone)),
                 h("td", {}, txLink(t, { kind, amount: c.amount_xrp, title: kind === "EscrowFinish" ? `Week ${c.weeks.join(", ")} participation payment released` : undefined })),
                 h("td", {}, c.status === "delivered" && !r.withdrawn ? h("button", { class: "ar-link small", onclick: async (e) => {
                   const b = await busy(e.target, "Opening", () => api.bundle(c.order_id), () => { out.textContent = "Could not open"; });
-                  if (b) out.textContent = b.hash_matches ? "Opened · contents match what was sent" : "Hash mismatch";
+                  if (b) { OPENED.set(c.order_id, b.hash_matches ? "Opened · contents match what was sent" : "Hash mismatch"); out.textContent = OPENED.get(c.order_id); }
                 } }, "Open bundle") : null, out));
             }))) : null),
         controls(r)),
@@ -571,7 +573,11 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
     };
     const goal = h("textarea", { class: "ar-textarea", placeholder: "Raise power to 0.8 for fatigue vs sleep, weeks 3–5" }, st.goal || s.goal || "");
     const msg = h("div");
-    const err = (e) => render(msg, banner("red", "The engine did not answer. ", h("span", { class: "tiny" }, e.message)));
+    const err = (e) => {
+      if (e.status === 409 && /already approved/.test(e.detail || "")) { load(); return render(msg, banner("blue", "This round's budget is already approved by both signers. Send it, or set a new goal for a new round.")); }
+      if (e.status === 403 && /reset/.test(e.message)) return render(msg, banner("blue", "The shared sandbox can't be reset from the browser. Set a new goal to start a new round."));
+      render(msg, banner("red", "The engine did not answer. ", h("span", { class: "tiny" }, e.message)));
+    };
     return h("div", { class: "col", style: { gap: "16px" } },
       h("div", { class: "ar-pagehead" },
         h("div", {}, h("h1", {}, "Rounds"), h("p", { class: "sub" }, `${LIVE_STUDY} · propose, approve and send a participation round`)),
@@ -583,7 +589,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
           goal,
           h("div", { class: "spread" },
             h("span", { class: "small muted" }, `Power ${s.heatmap.power_before ?? s.heatmap.power} → target ${s.power_target} · ${s.heatmap.complete_pairs} of ${s.heatmap.total} pairs`),
-            h("button", { class: "ar-btn primary", disabled: status === "approved" || status === "sent", onclick: async (e) => {
+            h("button", { class: "ar-btn primary", disabled: status === "approved", title: status === "sent" ? "Propose the next round" : undefined, onclick: async (e) => {
               st.goal = goal.value;
               const r = await busy(e.target, "The agent is reading the coverage table", () => api.setGoal(goal.value), err);
               if (r) { st.lastApprove = null; load(); }
@@ -684,7 +690,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
           h("td", {}, c.kept_weeks && c.kept_weeks.length ? weeksLabel(c.kept_weeks) : "—"))))),
       p.notes && p.notes.length ? h("p", { class: "tiny muted" }, p.notes.join(" · ")) : null,
       h("div", { class: "row", style: { gap: "16px" } },
-        h("b", {}, `${p.people} people · ${p.cells} cells · ${p.budget_xrp} XRP`),
+        h("b", {}, `${p.people} people · ${p.cells} cells · ${p.budget_xrp} RLUSD`),
         p.verdict === "rejected" ? tag("Nothing in the table supports this goal", "amber") : null),
       h("div", { class: "ar-banner blue", style: { flexDirection: "column", gap: "4px" } },
         h("span", { class: "tiny" }, "Participants will read"), h("span", {}, p.summary_for_participants)));
