@@ -13,6 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
+from . import payout
 from .agents import talk
 from .cohort import (HERO, PRIMARY, WEEKS, apply_deliveries, heatmap, infer_needs, person_gaps, power)
 from .connectors import HospitalExportSource
@@ -29,6 +30,7 @@ LABELS = {"sleep.daily": "Sleep (wearable)", "activity.daily": "Activity (wearab
           "blood_pressure.daily": "Blood pressure (clinic visit)", "birth_date": "Exact birth date",
           "zip5": "5-digit postal code", "diagnosis.rare": "Rare diagnosis"}
 HOLD_WINDOW_S = 120     # escrow deadline for a round the participant's agent has not released yet
+BONUS_DROPS = CELL_PRICE   # completion bonus offered on the followed participant's request
 
 
 @dataclass
@@ -143,12 +145,28 @@ def set_goal(w, goal: str, propose=None) -> dict:
             wk = s.needs.cells.setdefault(HERO, {}).setdefault(c["week"], [])
             if c["item"] not in wk:
                 wk.append(c["item"])
+    _plant_integrity_case(w, s)
     s.status = "draft"
     n = s.needs
     w.store.log(LAB, "spec", f"gap reading ({'LLM' if n.source == 'llm' else 'rule baseline'}, checked by code): "
                 + ("; ".join(f"{i} weeks {ws}" for i, ws in n.gaps.items()) or "no gaps")
                 + f"; {len(n.cells)} participants asked", {"hash": n.proposal_hash, "notes": n.notes})
     return study_view(w)
+
+
+def _plant_integrity_case(w, s):
+    """Synthetic test case for the integrity review: one automatic contributor's survey app returns
+    scores outside the 0-10 scale (fabricated data). Logged as a fixture, not hidden."""
+    if getattr(w, "integrity_fixture", None):
+        return
+    for pid in sorted(s.needs.cells, reverse=True):
+        c = w.store.one("SELECT automation FROM consents WHERE person_id=? AND buyer_id=?", pid, LAB)
+        if pid != HERO and c is not None and c["automation"] == "auto_all":
+            w.cohort_people[pid].vault.fabricate = True
+            w.integrity_fixture = {"person": pid, "kind": "fabricated survey scores"}
+            w.store.log("engine", "fixture", f"synthetic integrity test case: {pid}'s survey app returns scores "
+                        "outside the 0-10 scale (the review should catch it)")
+            return
 
 
 def approve(w, signers: list[str]) -> dict:
@@ -205,6 +223,9 @@ def send(w, workers: int = 8) -> dict:
         list(ex.map(w.engine.process, oids))
     for req in s.requests.values():
         _after_contribution(w, req)
+        if req["person"] == HERO:
+            payout.offer_bonus(w, LAB, req, BONUS_DROPS)
+        _settle(w, req)
     s.status = "sent"
     return study_view(w)
 
@@ -212,7 +233,10 @@ def send(w, workers: int = 8) -> dict:
 def _answer(w, req, hold_last=False) -> list[int]:
     """The participant's agent answers a request week by week; contributes what consent allows."""
     pa = w.cohort_people[req["person"]]
-    items = sorted({i for its in req["weeks"].values() for i in its})
+    ok, why = payout.may_request(w, LAB, pa.id)
+    if not ok:
+        req["status"], req["classes"] = "excluded", {i: ("blocked", why) for its in req["weeks"].values() for i in its}
+        return []
     decisions = {wk: pa.handle_request(LAB, req["purpose"], its, wk, CELL_PRICE)
                  for wk, its in sorted(req["weeks"].items())}
     if "classes" not in req:
@@ -226,6 +250,8 @@ def _answer(w, req, hold_last=False) -> list[int]:
     granted = {wk: [i for i in req["weeks"][wk] if i in d.granted] for wk, d in decisions.items() if d.ok}
     granted = {wk: its for wk, its in granted.items() if its and not _done(w, req, wk, its)}
     pending = any(d.pending for d in decisions.values())
+    if payout.auto_paused(w, LAB, pa.id) and not req.get("weeks_approved"):
+        granted, pending = {}, True      # automatic requests paused: the person answers by hand
     if not granted and not any(_done(w, req, wk, its) for wk, its in req["weeks"].items()):
         req["status"] = "open" if pending else "blocked"
         return []
@@ -236,7 +262,7 @@ def _answer(w, req, hold_last=False) -> list[int]:
         rows = pa.vault.extract(its, wk, study=LAB)
         last = hold_last and i == len(granted) - 1
         r = OrderRequest(LAB, pa.id, pa.id, "cohort.fill", f"{pa.id}|w{wk}:{'+'.join(its)}", req["purpose"],
-                         sorted(its), len(its) * CELL_PRICE, rows, decisions[wk], settle="escrow",
+                         sorted(its), payout.immediate(len(its) * CELL_PRICE), rows, decisions[wk], settle="escrow",
                          escrow_window_s=HOLD_WINDOW_S if last else 600)
         try:
             oid = w.engine.place_order(r)
@@ -321,6 +347,11 @@ def _after_contribution(w, req):
                 f"clawback on revoke)", {"tx": txs, "url": _url(w, txs[0])})
 
 
+def _settle(w, req, withdrawn=False):
+    payout.bonus_progress(w, LAB, req)
+    return payout.settle_round(w, LAB, req, withdrawn=withdrawn)
+
+
 def close_round(w) -> dict:
     """Participants' agents publish the keys of rounds they held back (end of week)."""
     s = ensure(w)
@@ -332,6 +363,7 @@ def close_round(w) -> dict:
                 o["hold"] = False
                 done.append({"order_id": o["order_id"], "status": st})
         _after_contribution(w, req)
+        _settle(w, req)
     return {"released": done, **study_view(w)}
 
 
@@ -399,15 +431,18 @@ def request_card(w, req) -> dict:
             "summary_source": s.needs.source if s.needs else "rules",
             "duo": [{"code": c, "label": DUO[c]} for c in PURPOSE_DUO.get(req["purpose"], [])],
             "items": per_item, "reward_xrp": n_cells * CELL_PRICE / XRP,
+            "payment": payout.card_terms(w.ledger),
+            "completion_bonus_xrp": BONUS_DROPS / XRP if req["person"] == HERO else None,
             "partial_data_plan": "If you withdraw, person-level copies are destroyed and only aggregate "
                                  "statistics already produced remain; the ethics board decides any other use.",
             "if_you_stop": [
                 {"kind": "decline_round", "label": "Skip this round", "effect": "Nothing is sent this time; "
-                 "your consent stays as it is."},
+                 "your consent stays as it is. It never affects future requests, priority or pay."},
                 {"kind": "pause", "label": "Stop future rounds", "effect": "No new requests run; rewards already "
                  "paid stay yours."},
                 {"kind": "revoke", "label": "Withdraw data access", "effect": "The study's licence is taken back on "
                  "the ledger, rounds not yet released are never released and their escrow returns to the study, "
+                 "held review parts of rounds you already gave are still paid, the completion bonus returns, "
                  "and the study must destroy every person-level copy it holds about you and confirm it. Aggregate "
                  "statistics already produced remain. Rewards already paid stay yours."}],
             "settlement": "escrow: the reward is locked on XRPL and released when your agent publishes the key",
@@ -471,6 +506,7 @@ def participant_view(w, pid: str) -> dict:
                     "doc_hash": c["doc_hash"], "history": [dict(h) for h in hist]} if c else None,
         "withdrawals": [x for x in s.withdrawals if x["person"] == pid],
         "export_fees": [x for x in s.export_fees if x["person"] == pid],
+        "payout": payout.view(w, LAB, pid),
     }
 
 
@@ -507,6 +543,7 @@ def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool
         o = next(x for x in req["orders"] if x["order_id"] == oid)
         w.engine.process(oid, until="finish" if o["hold"] else None)
     _after_contribution(w, req)
+    _settle(w, req)
     req["status"] = "contributed"
     return participant_view(w, pid)
 
@@ -558,7 +595,10 @@ def participant_revoke(w, pid: str) -> dict:
                 out["withheld"].append(o["order_id"])
     out["refunds"] = [{"order_id": oid, **_tx(w, w.store.one("SELECT cancel_tx FROM payments WHERE order_id=?",
                                                                 oid)["cancel_tx"])} for oid in sweep(w)["refunded"]]
+    payout.on_withdrawal(w, LAB, pid)          # completion bonus goes back; reviewed held shares stay theirs
     out["deletion"] = _destroy_person_level(w, pid)
+    for req in _requests_for(w, pid):
+        _settle(w, req, withdrawn=True)
     out["kept"] = ("consent history (every version hashed); rewards already paid stay with the participant; "
                    "aggregate statistics already produced")
     s.withdrawals.append({"person": pid, "kind": "revoke", "ts": time.time(), **out})
@@ -652,6 +692,7 @@ def study_view(w) -> dict:
         "settlement": {"paid_xrp": paid / XRP, "refunded_xrp": refunded / XRP,
                        "people_paid": len({c["person"] for c in contribs if c["status"] == "delivered"}),
                        "export_fees_xrp": sum(x["amount_xrp"] for x in s.export_fees)},
+        "payout": payout.view(w, LAB),
     }
 
 

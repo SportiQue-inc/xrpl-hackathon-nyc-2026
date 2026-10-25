@@ -78,7 +78,7 @@ class Ledger:
         raise NotImplementedError
 
     def prepare_escrow_create(self, source: str, destination: str, amount_drops: int, condition: str,
-                              cancel_after: int, memo: str) -> Prepared:
+                              cancel_after: int, memo: str, finish_after: int | None = None) -> Prepared:
         raise NotImplementedError
 
     def prepare_escrow_finish(self, submitter: str, owner: str, offer_sequence: int, condition: str,

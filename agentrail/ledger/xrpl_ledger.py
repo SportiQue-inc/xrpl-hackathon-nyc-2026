@@ -139,9 +139,10 @@ class XrplLedger(Ledger):
         signed = autofill_and_sign(tx, self.client, self.wallets[account])
         return Prepared(tx_hash=signed.get_hash(), blob=encode(signed.to_xrpl()), sequence=signed.sequence)
 
-    def prepare_escrow_create(self, source, destination, amount_drops, condition, cancel_after, memo):
+    def prepare_escrow_create(self, source, destination, amount_drops, condition, cancel_after, memo,
+                              finish_after=None):
         return self._sign(EscrowCreate(account=source, destination=destination, amount=str(amount_drops),
-                                       condition=condition, cancel_after=cancel_after,
+                                       condition=condition, cancel_after=cancel_after, finish_after=finish_after,
                                        sequence=self._next_sequence(source),
                                        memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))]), source)
 

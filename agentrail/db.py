@@ -77,6 +77,37 @@ CREATE TABLE IF NOT EXISTS mandate_actions (
   order_id INTEGER PRIMARY KEY, l1 TEXT NOT NULL, l2 TEXT NOT NULL, l3 TEXT NOT NULL, hash TEXT NOT NULL,
   verdict TEXT, reason TEXT
 );
+CREATE TABLE IF NOT EXISTS holdbacks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL,          -- round (held share) | bonus
+  study TEXT NOT NULL, person TEXT NOT NULL, request_id INTEGER NOT NULL, cells INTEGER NOT NULL,
+  amount_drops INTEGER NOT NULL, owner TEXT NOT NULL, destination TEXT NOT NULL, offer_sequence INTEGER,
+  condition TEXT, finish_after INTEGER, review_until INTEGER, cancel_after INTEGER,
+  status TEXT NOT NULL,      -- held | suspected | earned | released | withheld | returning | returned
+  order_ids TEXT NOT NULL DEFAULT '[]',                      -- the delivered weeks this held share covers
+  review TEXT, create_tx TEXT, finish_tx TEXT, cancel_tx TEXT, ts REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS review_keys (
+  holdback_id INTEGER PRIMARY KEY, key_hex TEXT NOT NULL   -- held by the review service, not the study team
+);
+CREATE TABLE IF NOT EXISTS integrity_cases (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, study TEXT NOT NULL, person TEXT NOT NULL, request_id INTEGER,
+  signals TEXT NOT NULL, status TEXT NOT NULL,                  -- suspected | confirmed | cleared
+  notified_at INTEGER, respond_by INTEGER, response TEXT, reviewer_id TEXT, decided_at INTEGER, ts REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS standing (                         -- off-ledger, internal only
+  study TEXT NOT NULL, person TEXT NOT NULL, trust TEXT NOT NULL DEFAULT 'normal',
+  missed_in_row INTEGER NOT NULL DEFAULT 0, auto_requests TEXT NOT NULL DEFAULT 'on',
+  excluded INTEGER NOT NULL DEFAULT 0, block_until INTEGER,
+  PRIMARY KEY (study, person)
+);
+CREATE TABLE IF NOT EXISTS repayment_claims (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, study TEXT NOT NULL, person TEXT NOT NULL, case_id INTEGER NOT NULL,
+  amount_drops INTEGER NOT NULL, status TEXT NOT NULL, ts REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sanctions_audit (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, study TEXT NOT NULL, person TEXT NOT NULL, action TEXT NOT NULL,
+  reason_code TEXT NOT NULL, signals TEXT, reviewer_id TEXT, notified_at INTEGER, ts REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS proposals (
   id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, scene TEXT, agent TEXT NOT NULL, task TEXT NOT NULL,
   source TEXT NOT NULL, input TEXT, proposal TEXT, verdict TEXT NOT NULL, final TEXT, notes TEXT, hash TEXT NOT NULL

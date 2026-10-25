@@ -176,10 +176,9 @@ Per-study identity: `S-` + sha256(study, person)[:8]; day shift = sha256(study, 
 kept only by the personal agent. Two quasi-identifiers in one request are refused by the compliance
 layer before consent is read.
 
-## 7. Participant rules for the live service **[open]** (designed, not in the demo)
+## 7. Participant pay and penalties **[done]** (`payout.py`, `tests/test_payout.py`)
 
-The demo pays one escrow per round. The live service adds these rules; code decides, people
-confirm, the LLM never judges.
+Code decides, people confirm, the LLM never judges.
 
 1. Decline, pause and withdrawal events are never inputs to any score, priority or payout decision
    (enforced by a test).

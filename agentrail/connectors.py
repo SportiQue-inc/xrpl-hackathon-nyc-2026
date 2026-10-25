@@ -131,6 +131,9 @@ class PersonalVaultConnector:
         self.person = person
         self.sources = sources or [WearableSource(), SurveySource(), HospitalExportSource()]
         self.by_item = {i: src for src in self.sources for i in src.items}
+        # Synthetic integrity test cases only: replay another person's series, or fabricate survey scores.
+        self.copied_from: str | None = None
+        self.fabricate = False
 
     def pseudonym(self, study: str) -> str:
         import hashlib
@@ -160,8 +163,10 @@ class PersonalVaultConnector:
             row = {"person": who, "day": day + shift}
             for it in items:
                 src = self.by_item[it]
-                rng = random.Random(f"{self.person.id}-{week}-{it}-{day}")
+                rng = random.Random(f"{self.copied_from or self.person.id}-{week}-{it}-{day}")
                 row[it] = src.read(self.person.id, it, day, rng)
+                if self.fabricate and it == "fatigue.survey" and row[it]:
+                    row[it] = {"score_0_10": 10 + rng.randint(2, 5)}
             if any(row[it] is not None for it in items):   # days with nothing requested never leave
                 rows.append(row)
         return rows

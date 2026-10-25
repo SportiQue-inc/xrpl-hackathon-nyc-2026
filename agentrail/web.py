@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from . import scenario, study
+from . import payout, scenario, study
 from .llm import voice
 
 app = FastAPI(title="AgentRail")
@@ -180,6 +180,30 @@ def study_close_round():
 @app.post("/api/study/sweep")
 def study_sweep():
     return _call(study.sweep)
+
+
+@app.post("/api/study/payout/release")
+def study_payout_release():
+    """Pay held shares whose review ended (default: pay) and return what must go back."""
+    return _call(lambda w: payout.release_due(w))
+
+
+@app.post("/api/study/cases/{case_id}/decide")
+def study_case_decide(case_id: int, body: dict = Body(default={})):
+    """body {"reviewer_id": "...", "confirm": true|false}; a named person decides, after the response period."""
+    return _call(lambda w: payout.decide(w, study.LAB, case_id, body.get("reviewer_id") or "",
+                                         bool(body.get("confirm"))))
+
+
+@app.post("/api/p/{pid}/cases/{case_id}/respond")
+def participant_case_respond(pid: str, case_id: int, body: dict = Body(default={})):
+    return _call(lambda w: payout.respond(w, study.LAB, pid, case_id, body.get("text") or ""))
+
+
+@app.post("/api/p/{pid}/resume-requests")
+def participant_resume_requests(pid: str):
+    """One tap after automatic requests were paused for missed rounds."""
+    return _call(lambda w: (payout.resume_requests(w, study.LAB, pid), study.participant_view(w, pid))[1])
 
 
 @app.get("/api/study/bundle/{oid}")

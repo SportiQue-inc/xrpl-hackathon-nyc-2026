@@ -6,6 +6,8 @@ the consent layer made lighter.
 """
 from __future__ import annotations
 
+import json
+
 from nacl.exceptions import CryptoError
 from nacl.public import PrivateKey, SealedBox
 
@@ -60,6 +62,30 @@ ISSUES = [
                "EscrowCancel refund, all with explorer links; P-017's row turns grey on the researcher heatmap.",
      "tests": ["test_revoke_before_finish_withholds_key_and_refunds_after_deadline",
                "test_pause_blocks_new_orders_but_keeps_history", "test_three_withdrawals_on_one_study"]},
+    {"id": "payment", "title": "Fair pay and penalties",
+     "problem": "Pay must not punish people for stopping, yet a study needs protection against fabricated or "
+                "copied data, and money once paid cannot be pulled back from a person's wallet.",
+     "solution": "Each round pays 80% when the contribution is confirmed and holds 20% in its own escrow for a "
+                 "short review. The default is to pay. Code looks for fraud signals (values no body or device "
+                 "produces, a series already contributed by someone else); a named reviewer decides only after "
+                 "the person was told why and could respond. Only then the held part returns to the study, the "
+                 "person is excluded for a period, and a repayment claim is recorded off the ledger. Declines, "
+                 "pauses and withdrawals are never inputs. A completion bonus sits in a separate escrow and "
+                 "returns to the study on withdrawal.",
+     "enforced": ["ledger: held share in an EscrowCreate with FinishAfter and a condition kept by the review "
+                  "service; EscrowFinish pays, EscrowCancel after CancelAfter returns it",
+                  "code: payout.decision_inputs is the only input to pay or sanction decisions; it has no "
+                  "decline, pause or withdrawal fields (tested)",
+                  "code: confirmation refused without a reviewer id or before the response period ends",
+                  "code: no on-chain recovery of paid money; trust level stays in an off-ledger table"],
+     "moment": "A synthetic participant's survey reports 12 on a 0-10 scale. The held part is frozen, the person "
+               "is told why, a reviewer confirms after the response period, and the held part goes back to the "
+               "study. P-017 withdrew, yet P-017's held part is still paid; only the completion bonus returns.",
+     "tests": ["test_round_pays_80_now_and_releases_the_held_20_by_default",
+               "test_fraud_needs_a_named_reviewer_and_the_response_period",
+               "test_withdrawal_history_is_never_an_input",
+               "test_withdrawal_still_pays_reviewed_share_and_returns_the_bonus",
+               "test_two_missed_accepted_rounds_pause_automatic_requests_only"]},
     {"id": "other_domains", "title": "Other domains are easier",
      "problem": "Does the same engine work where data is not about a person?",
      "solution": "Robot sensor data between companies (scene A) runs on the same engine with only the consent "
@@ -71,6 +97,66 @@ ISSUES = [
      "tests": ["test_scene_a_selects_b_and_c_within_budget", "test_hostile_llm_can_only_narrow",
                "test_agent_cannot_raise_its_own_budget_but_cosigned_top_up_can"]},
 ]
+
+
+def _payment_evidence(w, s):
+    import time as _t
+    from . import payout
+    fx = getattr(w, "integrity_fixture", None)
+    case = w.store.one("SELECT * FROM integrity_cases WHERE study=? AND status='suspected' ORDER BY id", LAB)
+    if case:
+        sig = json.loads(case["signals"])
+        _ev(w, "payment", f"{case['person']}: review found {sig[0]['code']} ({sig[0]['item']} week {sig[0]['week']}: "
+            f"{sig[0].get('values')}); held part frozen, participant told why", person=case["person"],
+            fixture=bool(fx))
+        r = payout.decide(w, LAB, case["id"], "", True)
+        _ev(w, "payment", "Confirm without a named reviewer: " + r["message"], result="refused")
+        r = payout.decide(w, LAB, case["id"], "reviewer-1", True)
+        if not r["ok"]:
+            _ev(w, "payment", "Confirm during the response period: " + r["message"], result="refused")
+        payout.respond(w, LAB, case["person"], case["id"], "My survey app crashed; I typed the scores myself.")
+        if w.ledger.name == "mock":
+            w.ledger.clock = max(w.ledger.clock, case["respond_by"])
+        else:
+            while w.ledger.now() < case["respond_by"]:
+                _t.sleep(2)
+        r = payout.decide(w, LAB, case["id"], "reviewer-1", True)
+        _ev(w, "payment", f"Reviewer-1 confirms after reading the response: held part withheld, excluded for "
+            f"{payout.BLOCK_DAYS} days, repayment claim {r.get('repayment_claim_xrp')} XRP recorded off the ledger "
+            "(nothing taken back on chain)", result=r.get("status"))
+    # Missed accepted rounds: a pause of automatic requests, not a penalty.
+    active = lambda pid: (w.store.one("SELECT status FROM consents WHERE person_id=? AND buyer_id=?", pid, LAB)
+                          or {"status": ""})["status"] == "active"
+    other = next((q for q in s.requests.values() if q["person"] not in (HERO, (fx or {}).get("person"))
+                  and q["status"] == "contributed" and active(q["person"])), None)
+    if other:
+        for _ in range(payout.MISSED_LIMIT):
+            n = payout.round_missed(w, LAB, other["person"], other["id"])
+        _ev(w, "payment", f"{other['person']}: {n} accepted rounds missed in a row -> automatic requests paused "
+            "(one tap resumes); priority and pay rules unchanged", person=other["person"])
+    inp = payout.decision_inputs(w.store, LAB, HERO)
+    _ev(w, "payment", f"{HERO} withdrew; what pay and sanction decisions read for {HERO}: fraud confirmed "
+        f"{inp['fraud_confirmed']}, missed rounds {inp['missed_in_row']}, excluded {inp['excluded']} "
+        "(withdrawal is not an input)", result=inp)
+    # Release what is due, return what must go back (Testnet: wait for the short windows).
+    deadline = _t.time() + 240
+    while True:
+        r = payout.release_due(w)
+        mine = [x for x in r["released"] if x["person"] == HERO]
+        for x in mine:
+            _ev(w, "payment", f"{HERO} withdrew, and the reviewed held part {x['amount_xrp']:g} XRP is still paid "
+                "(EscrowFinish)", tx=x["tx"], url=x["url"])
+        rest = [x for x in r["released"] if x["person"] != HERO]
+        if rest:
+            _ev(w, "payment", f"{len(rest)} other participants: held parts released after review "
+                f"({sum(x['amount_xrp'] for x in rest):.2f} XRP)", tx=rest[0]["tx"], url=rest[0]["url"])
+        for x in r["returned"]:
+            _ev(w, "payment", f"{x['person']}: {x['kind']} {x['amount_xrp']:g} XRP returned to the study "
+                "(EscrowCancel)", tx=x["tx"], url=x["url"])
+        open_ = [h for h in r["waiting"] if h["kind"] == "bonus" or h["person"] in (HERO, (fx or {}).get("person"))]
+        if not open_ or w.ledger.name == "mock" or _t.time() > deadline:
+            break
+        _t.sleep(5)
 
 
 def view(w) -> dict:
@@ -169,6 +255,7 @@ def run(w) -> dict:
         held = r["licence"]["held_by_study"]
         _ev(w, "withdrawal", f"Study still holds the licence after clawback: {held}", result=held)
     _ev(w, "withdrawal", "Kept: " + r["kept"])
+    _payment_evidence(w, s)
 
     # ---- other domains ----
     robo = w.store.q("SELECT o.product_id, p.tx_hash FROM orders o JOIN payments p ON p.order_id=o.id "

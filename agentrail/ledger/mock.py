@@ -63,12 +63,16 @@ class MockLedger(Ledger):
         blob = json.dumps(body, sort_keys=True)
         return Prepared(tx_hash=hashlib.sha256(blob.encode()).hexdigest().upper(), blob=blob, sequence=seq)
 
-    def prepare_escrow_create(self, source, destination, amount_drops, condition, cancel_after, memo):
-        return self._prep({"TransactionType": "EscrowCreate", "Account": source, "Destination": destination,
-                           "Amount": str(amount_drops), "Condition": condition, "CancelAfter": cancel_after,
-                           "Memo": memo})
+    def prepare_escrow_create(self, source, destination, amount_drops, condition, cancel_after, memo,
+                              finish_after=None):
+        body = {"TransactionType": "EscrowCreate", "Account": source, "Destination": destination,
+                "Amount": str(amount_drops), "Condition": condition, "CancelAfter": cancel_after, "Memo": memo}
+        if finish_after is not None:
+            body["FinishAfter"] = finish_after
+        return self._prep(body)
 
-    def prepare_escrow_finish(self, submitter, owner, offer_sequence, condition, fulfillment, memo):
+    def prepare_escrow_finish(self, submitter, owner, offer_sequence, condition, fulfillment, memo,
+                              destination=None):
         return self._prep({"TransactionType": "EscrowFinish", "Account": submitter, "Owner": owner,
                            "OfferSequence": offer_sequence, "Condition": condition, "Fulfillment": fulfillment,
                            "Memo": memo})
@@ -94,7 +98,7 @@ class MockLedger(Ledger):
             return "tecNO_TARGET"
         if t == "EscrowFinish":
             from .conditions import condition_hex, key_from_fulfillment
-            if self.clock >= e["CancelAfter"]:
+            if self.clock >= e["CancelAfter"] or self.clock < e.get("FinishAfter", 0):
                 return "tecNO_PERMISSION"
             try:
                 ok = condition_hex(key_from_fulfillment(body["Fulfillment"])) == e["Condition"] == body["Condition"]

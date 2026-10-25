@@ -168,6 +168,48 @@ deadline; on Testnet call it again after the deadline (2 minutes). Refund escrow
 ledger: `{"ok": true, "rows": [...], "bundle_hash": "...", "hash_matches": true, "key_from": {"tx", "url"}}`.
 Before the key is on the ledger: `{"ok": false, "message": "..."}`.
 
+## Pay in two parts, review, penalties
+
+Each round pays 80% with each week's key-reveal escrow (`amount_xrp` on contributions is that 80%).
+The other 20% of the round is held in its own escrow (`kind: "round"`) until the review ends; the
+default is to pay. A completion bonus (`kind: "bonus"`) is a separate escrow on the followed
+participant's request. Mock ledger: review 7 days, +14 days if fraud is suspected, response period
+3 days. Testnet: the same steps in seconds (`HOLDBACK_REVIEW_S`, `HOLDBACK_EXTEND_S`,
+`HOLDBACK_GRACE_S`, `HOLDBACK_RESPOND_S`, `BONUS_WINDOW_S`).
+
+Request card adds:
+```json
+"payment": {"immediate_pct": 80, "held_pct": 20, "review": "7 days", "extension_if_fraud_suspected": "14 days",
+            "text": "...", "you_can_always_stop": "Declining or withdrawing never affects ...",
+            "trust_on_ledger": "Trust information is never written to the public ledger."},
+"completion_bonus_xrp": 0.2
+```
+
+`GET /api/p/{pid}` and `GET /api/study` add `payout`:
+```json
+{"split": {"immediate_pct": 80, "held_pct": 20},
+ "holdbacks": [{"id": 3, "person": "P-017", "kind": "round|bonus", "request_id": 1, "amount_xrp": 0.04,
+                "status": "held|suspected|earned|released|withheld|returning|returned",
+                "review": "pass | signals found | pass: data destroyed on withdrawal ... | fraud confirmed",
+                "create": {"tx", "url"}, "release": {"tx", "url"} | null, "return": {"tx", "url"} | null}],
+ "cases": [{"id": 1, "person": "P-047", "signals": [{"code": "impossible_value|copied_series", "item": "...",
+            "week": 4}], "status": "suspected|confirmed|cleared", "respond_by": 0, "response": null,
+            "reviewer_id": null}],
+ "automatic_requests": "on|paused",             // participant view only; trust level is never returned
+ "repayment_claims": [{"person", "case_id", "amount_drops", "status": "recorded"}]   // console only
+}
+```
+The participant also sees `integrity_notice` lines in `/api/events` (why the part is held, by when to respond).
+
+- `POST /api/study/payout/release` -> `{"released": [...], "returned": [...], "waiting": [...]}`. On the
+  mock ledger the clock moves to the next due time (never past an undecided case's payment).
+- `POST /api/study/cases/{id}/decide` body `{"reviewer_id": "reviewer-1", "confirm": true}`. Refused
+  without a reviewer id, and refused to confirm before `respond_by`. Confirm: held part withheld
+  (returned after its deadline), excluded for 180 days, repayment claim recorded off the ledger.
+  `confirm: false` clears the case and the held part is paid.
+- `POST /api/p/{pid}/cases/{id}/respond` body `{"text": "..."}`.
+- `POST /api/p/{pid}/resume-requests`: one tap after two missed accepted rounds paused automatic requests.
+
 ## Robot scene (other domains)
 
 `POST /api/run/a-guarded` then `GET /api/state` (`orders` with tx `url`, `events`). Same engine,
