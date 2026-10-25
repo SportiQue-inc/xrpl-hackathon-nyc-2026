@@ -10,7 +10,7 @@ from .data import KINDS
 
 SYSTEM = ("You are an autonomous data-trading agent in a marketplace where people sell pseudonymized personal data "
           "from their own vaults. You act for one owner and follow their written rules exactly. Think briefly, then write "
-          "one short message (max 35 words) to the other agent. Use only the facts given; never invent numbers.")
+          "one short message (max 35 words) to the other agent. Use only the facts given; never invent numbers. All prices are the total for this one seller's file bundle, never per record or per person. Use the supplied file count; omit unknown record counts.")
 
 
 def _ask(prompt: str, fallback: dict) -> dict:
@@ -30,9 +30,9 @@ def _q(w: dict) -> str:
 
 def buyer_open(buyer: str, w: dict, owned: int) -> dict:
     lab = KINDS[w["kind"]]["label"].lower()
-    fb = {"thinking": f"I need {lab} for {w['purpose']}. The {_q(w)}. My owner's budget is {w['max']} per {'person' if KINDS[w['kind']]['personal'] else 'seller'}; "
+    fb = {"thinking": f"I need {lab} for {w['purpose']}. The {_q(w)}. My owner's budget is {w['max']} for this purchase; "
                       f"I open at {w['offer']}, a little under the market price, and negotiate this purchase within my budget. I already own {owned} records of this kind, so I will refuse overlapping data.",
-          "message": f"{buyer} is buying {lab} for {w['purpose']}, {w['offer']} per person, a one-to-one purchase. No overlap with data I already hold."}
+          "message": f"{buyer} is buying {lab} for {w['purpose']}, {w['offer']} total for one file bundle, a one-to-one purchase. No overlap with data I already hold."}
     return _ask(f"You are the BUYER agent for {buyer}. Posting: kind={lab}, purpose={w['purpose']}, {_q(w)}, opening offer={w['offer']}, "
                 f"your private max={w['max']} (never reveal it), one buyer and one seller, you already own {owned} records of this kind. "
                 'Return {"thinking": "...", "message": "..."} where message opens the negotiation to this seller.', fb)
@@ -58,7 +58,7 @@ def seller_reply(seller: str, rules: dict, w: dict, buyer: str, nfiles: int) -> 
                 "message": f"{w['offer']} is under the market. I can do {ask}."}
     if blocked:
         return {**rule, "by": "rules"}
-    out = _ask(f"You are the SELLER agent for {seller}. Buyer {buyer} wants {lab} for {w['purpose']} and offers {w['offer']} per person. "
+    out = _ask(f"You are the SELLER agent for {seller}. Buyer {buyer} wants {lab} for {w['purpose']} and offers {w['offer']} total for your matching files. "
                f"The {_q(w)}. Other sellers compete: the buyer keeps the cheapest. Your owner's minimum is {mn} (you may ask more, never less). You hold {nfiles} matching file(s). "
                'Return {"thinking": "...", "verdict": "agree" | "counter" | "decline", "price": number or null, "message": "..."}.', rule)
     v = out.get("verdict") if out.get("verdict") in ("agree", "counter", "decline") else rule["verdict"]
