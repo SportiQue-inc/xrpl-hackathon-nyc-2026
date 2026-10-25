@@ -172,6 +172,10 @@ class Relationships:
             settled.append({"order_id": oid, "person": o["seller_id"], "status": st, "amount": o["price_drops"] / 1e6,
                             "asset": units.UNIT, "escrow_create": pm["tx_hash"], "escrow_finish": pm["finish_tx"],
                             "url": self.w.ledger.explorer_url(pm["finish_tx"]) if pm["finish_tx"] else None})
+            if st == "delivered":
+                # Sensitive consent authorizes this delivery, never a later round.
+                sp.allowed[o["seller_id"]] = [item for item in sp.allowed.get(o["seller_id"], [])
+                                              if _tier(item) not in T3_TIERS]
         return {"subproject": sid, "round": sp.rounds, "settled": settled, "stopped": stopped}
 
     def payouts(self, sid: str, pid: str | None = None) -> list[dict]:

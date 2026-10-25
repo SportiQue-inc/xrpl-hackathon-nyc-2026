@@ -54,6 +54,25 @@ def test_send_contributes_auto_items_and_raises_power(w):
     assert all(c["status"] == "delivered" for c in v["contributions"])
 
 
+def test_repeating_send_keeps_the_same_requests_and_payments(w):
+    first = sent(w)
+    requests = len(w.study.requests)
+    payments = len(w.store.q("SELECT * FROM payments"))
+    again = study.send(w)
+    assert again["spec_status"] == first["spec_status"] == "sent"
+    assert len(w.study.requests) == requests
+    assert len(w.store.q("SELECT * FROM payments")) == payments
+
+
+def test_repeating_an_approved_goal_does_not_reset_its_budget_approval(w):
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    approvals = len(w.store.q("SELECT * FROM approvals"))
+    budget = study.study_view(w)["study"]["budget_xrp"]
+    assert study.set_goal(w, "", capable_needs)["spec_status"] == "approved"
+    assert len(w.store.q("SELECT * FROM approvals")) == approvals
+    assert study.study_view(w)["study"]["budget_xrp"] == budget
+
+
 def test_participant_card_classifies_items_and_shows_ledger_badge(w):
     sent(w)
     card = study.participant_view(w, HERO)["requests"][0]

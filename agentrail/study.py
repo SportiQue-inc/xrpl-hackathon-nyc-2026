@@ -149,6 +149,7 @@ def direct_payment_attempt(w, payer: str, pid: str, amount_drops: int = XRP) -> 
 
 def set_goal(w, goal: str, propose=None) -> dict:
     s = ensure(w)
+    previous_needs = s.needs
     from .scenario import ETHICS_CREDENTIAL
     w.store.scene = "H"
     s.goal = goal or "Bring the primary analysis back to 80% power before the interim report."
@@ -165,7 +166,11 @@ def set_goal(w, goal: str, propose=None) -> dict:
             if c["item"] not in wk:
                 wk.append(c["item"])
     _plant_integrity_case(w, s)
-    s.status = "draft"
+    same_spec = (previous_needs is not None
+                 and s.needs.proposal_hash == previous_needs.proposal_hash
+                 and s.needs.budget_drops == previous_needs.budget_drops)
+    if not same_spec or s.status not in ("approved", "sent"):
+        s.status = "draft"
     n = s.needs
     w.store.log(LAB, "spec", f"gap reading ({'LLM' if n.source == 'llm' else 'rule baseline'}, checked by code): "
                 + ("; ".join(f"{i} weeks {ws}" for i, ws in n.gaps.items()) or "no gaps")
@@ -235,6 +240,8 @@ def _classify(d, items):
 
 def send(w, workers: int = 8) -> dict:
     s = ensure(w)
+    if s.status == "sent":
+        return study_view(w)
     if s.status not in ("approved", "sent"):
         return {"ok": False, "message": "spec not approved"}
     if not s.irb_approval.strip():
