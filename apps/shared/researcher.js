@@ -175,7 +175,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
     const budget = st.s ? st.s.study.budget_xrp : 0;
     return h("div", { class: "ar-shell ew" },
       h("aside", { class: "ar-side ew-side" },
-        h("div", { class: "ew-logo" }, "UniQdata"),
+        h("div", { class: "ew-logo" }, "UniQLab"),
         h("label", { class: "ew-search" }, icon("search", 20), h("input", {
           placeholder: "Search", value: st.filters.q,
           onkeydown: (e) => { if (e.key === "Enter") { st.filters.q = e.target.value; go("#/directory"); } },
