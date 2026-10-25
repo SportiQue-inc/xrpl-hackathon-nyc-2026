@@ -38,3 +38,4 @@ ap4m/state/
 runs/
 .uniqdata_roster.json*
 .participant_wallets.json
+.contract_keys.json

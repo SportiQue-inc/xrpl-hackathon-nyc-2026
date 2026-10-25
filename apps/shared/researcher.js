@@ -169,9 +169,9 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
   function shell(content) {
     if (embedded) return h("div", { class: "ar-content" }, content);
     const pg = st.route.page;
-    const active = pg === "p" || pg === "directory" ? "directory" : pg === "rounds" ? "rounds" : pg === "study" ? "study" : pg === "subprojects" ? "subprojects" : "overview";
+    const active = pg === "p" || pg === "directory" ? "directory" : pg === "rounds" ? "rounds" : pg === "study" ? "study" : pg === "subprojects" ? "subprojects" : pg === "evidence" ? "evidence" : "overview";
     const nav = (key, ic, label) => h("a", { class: `ew-nav${active === key ? " on" : ""}`, href: `#/${key}` }, icon(ic, 20), h("span", { class: "lbl" }, label));
-    const crumb = { overview: "Overview", directory: pg === "p" ? "Participant detail" : "Directory", rounds: "Rounds", subprojects: "Sub-projects", study: "Study details" }[active];
+    const crumb = { overview: "Overview", directory: pg === "p" ? "Participant detail" : "Directory", rounds: "Rounds", subprojects: "Sub-projects", evidence: "Evidence", study: "Study details" }[active];
     const budget = st.s ? st.s.study.budget_xrp : 0;
     return h("div", { class: "ar-shell ew" },
       h("aside", { class: "ar-side ew-side" },
@@ -182,7 +182,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
         })),
         h("div", { class: "ew-navs" },
           h("p", { class: "ew-cap" }, "RESEARCHER WORKSPACE"),
-          nav("overview", "home", "Overview"), nav("directory", "users", "Directory"), nav("rounds", "layers", "Rounds"), nav("subprojects", "building", "Sub-projects"), nav("study", "list", "Study details")),
+          nav("overview", "home", "Overview"), nav("directory", "users", "Directory"), nav("rounds", "layers", "Rounds"), nav("subprojects", "building", "Sub-projects"), nav("evidence", "shield", "Evidence"), h("a", { class: "ew-nav", href: "/apps/contracts/post.html", target: "_blank", rel: "noopener" }, icon("gavel", 20), h("span", { class: "lbl" }, "Contracts ↗")), nav("study", "list", "Study details")),
         h("div", { class: "ew-div" }),
         h("div", { class: "ew-study" }, h("span", { class: "n" }, "Sleep and fatigue"), h("span", { class: "s" }, "Synthetic · live"),
           h("span", { class: "i" }, st.s ? st.s.study.irb : ""))),
@@ -221,7 +221,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
     } else {
       const p = st.route.page;
       page = p === "directory" ? directory() : p === "p" ? detail(st.route.id) : p === "rounds" ? rounds()
-        : p === "study" ? studyDetails() : p === "subprojects" ? subprojects() : overview();
+        : p === "study" ? studyDetails() : p === "subprojects" ? subprojects() : p === "evidence" ? evidence() : overview();
     }
     const scroll = window.scrollY;
     render(root, shell(page));
@@ -257,7 +257,10 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
         h("input", { class: "ar-input", name: "items", value: "fatigue.survey, heart_rate.daily", "aria-label": "Data types" }),
         h("input", { class: "ar-input", name: "budget", type: "number", value: "20", "aria-label": `Budget (${UNIT})` }),
         h("input", { class: "ar-input", name: "weeks", type: "number", value: "4", "aria-label": "Weeks" })),
-      h("input", { type: "hidden", name: "purpose", value: (I.scope.purposes || ["sleep_research"])[0] }),
+      h("label", { class: "row small", style: { gap: "8px" } }, "Purpose",
+        h("select", { class: "ar-input", name: "purpose", style: { width: "auto" }, onchange: (e) => { sp.purpose = e.target.value; } },
+          (I.scope.purposes || ["sleep_research"]).map((x) => h("option", { value: x, selected: sp.purpose === x }, `${x} (approved)`)),
+          h("option", { value: "product_marketing", selected: sp.purpose === "product_marketing" }, "product_marketing (new purpose, same data)"))),
       h("div", { class: "row" }, h("button", { class: "ar-btn primary", type: "submit" }, "Create sub-project"),
         h("span", { class: "small muted" }, "Data types, budget (", UNIT, ") and weeks. Each person's agent routes it against the scope that person approved.")));
     const count = (k) => (sp.routing ? sp.routing.routing.filter((r) => r.decision === k).length : 0);
@@ -265,9 +268,11 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
       h("h3", {}, `${sp.routing.name}: routed by each person's agent`),
       h("div", { class: "row", style: { gap: "8px", flexWrap: "wrap" } },
         tag(`${count("auto")} handled inside scope`, "green"), tag(`${count("ask")} back to the person`, "amber"), tag(`${count("blocked")} blocked`, "gray")),
-      h("p", { class: "small muted" }, "Inside scope settles with no new contract. Outside scope, and MRI, CT or genomic data, go back to the person. No relationship, a pause or a withdrawal blocks it."));
+      h("p", { class: "small muted" }, sp.routing.purpose && !(I.scope.purposes || []).includes(sp.routing.purpose)
+        ? `New purpose "${sp.routing.purpose}": the same data types no longer trade automatically. Every person's agent stops and asks the person again.`
+        : "Inside scope settles with no new contract. Outside scope, items a person left out, and MRI, CT or genomic data, go back to the person. No relationship, a pause or a withdrawal blocks it."));
     const rows = I.subprojects.map((x) => h("tr", {},
-      h("td", {}, h("b", {}, x.name), h("div", { class: "tiny muted" }, x.data_types.join(", "))),
+      h("td", {}, h("b", {}, x.name), h("div", { class: "tiny muted" }, `${x.purpose} · ${x.data_types.join(", ")}`)),
       h("td", {}, `${x.budget} ${UNIT}`), h("td", {}, `${x.rounds || 0}`), h("td", {}, xrp(x.paid)),
       h("td", {}, h("button", { class: "ar-btn sm", onclick: async (e) => {
         const r = await busy(e.target, "Agents deliver, escrow settles", () => api.runSubproject(x.id),
@@ -291,6 +296,58 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
         h("table", { class: "ar-table" }, h("thead", {}, h("tr", {}, ["Sub-project", "Round", "Person", "Amount", "Ledger"].map((t) => h("th", {}, t)))),
           h("tbody", {}, sp.settled.map((y) => h("tr", {}, h("td", {}, y.sub), h("td", {}, `${y.round}`), h("td", {}, y.person),
             h("td", {}, xrp(y.amount)), h("td", {}, txLink({ tx: y.escrow_finish || y.escrow_create, url: y.url }, { kind: y.escrow_finish ? "EscrowFinish" : "EscrowCreate", amount: y.amount }))))))) : null);
+  }
+
+  // ---------- evidence: one trade from the budget signature to the blocked delivery after withdrawal ----------
+  const ev = { p: null, loading: false, msg: null };
+  async function loadProof() {
+    if (ev.loading) return;
+    ev.loading = true;
+    try { ev.p = await api.proof(); ev.msg = null; } catch (e) { ev.msg = banner("red", "Could not read the evidence. ", h("span", { class: "tiny" }, e.message)); }
+    ev.loading = false;
+    draw();
+  }
+  const PLAIN = [
+    [/^budget co-signed/, "Institution budget approved by two signers"],
+    [/^person's consent/, "Person's consent in force (version and document hash)"],
+    [/^EscrowCreate validated/, "Payment locked on the ledger (EscrowCreate)"],
+    [/^bundle hash in the EscrowCreate memo/, "Data bundle hash written into the escrow memo"],
+    [/^contract hash in the memo/, "Contract hash written into the escrow memo"],
+    [/^EscrowFinish validated/, "Delivered: EscrowFinish reveals the key K"],
+    [/^SHA-256\(K\)/, "The revealed key matches the escrow condition"],
+    [/^opened bundle hashes/, "Opened data hashes to the bundle hash in the memo"],
+  ];
+  const plain = (s) => (PLAIN.find(([re]) => re.test(s)) || [null, s])[1];
+  function evidence() {
+    if (!ev.p && !ev.loading && !ev.msg) loadProof();
+    if (!ev.p) return h("div", { class: "col" }, ev.msg || h("div", { class: "ar-skel", style: { height: "240px" } }));
+    const t = ev.p.paid_trade || {}, rf = ev.p.refused_before_payment, wd = ev.p.withdrawal;
+    const steps = (t.steps || []).map((s, i) => h("li", { class: "row", style: { gap: "10px", alignItems: "flex-start", padding: "8px 0", borderTop: i ? "1px solid var(--ar-line, #e5e7eb)" : "none" } },
+      tag(s.ok ? "✓" : "✗", s.ok ? "green" : "red"),
+      h("div", { class: "grow" }, h("b", {}, plain(s.step)), h("div", { class: "tiny muted" }, s.step, s.detail ? ` · ${s.detail}` : "")),
+      s.tx ? txLink({ tx: s.tx, url: s.url }, { kind: plain(s.step) }) : null));
+    return h("div", { class: "col", style: { gap: "16px" } },
+      h("div", { class: "ar-pagehead" }, h("div", {}, h("h1", {}, "Evidence of one trade"),
+        h("p", { class: "sub" }, `Who approved the budget, who consented to what, what was delivered, paid and blocked · ${ev.p.ledger} ledger`)),
+        h("button", { class: "ar-btn", onclick: () => { ev.p = null; loadProof(); } }, "Refresh")),
+      ev.msg,
+      h("div", { class: "ar-card" },
+        h("div", { class: "spread" }, h("h2", {}, t.order ? `Order ${t.order} · ${t.seller || ""}` : "No paid trade yet"),
+          t.order ? tag(t.ok ? "Every link holds" : "A link failed", t.ok ? "green" : "red") : null),
+        t.order ? h("p", { class: "tiny muted" }, `Consent ${short(t.consent_hash || "", 10, 6)} · bundle ${short(t.bundle_hash || "", 10, 6)}${t.contract ? ` · contract ${short(t.contract, 10, 6)}` : ""}`)
+          : h("p", { class: "small muted" }, "Approve the budget, then let a person approve a request. The first delivered round shows here."),
+        h("ol", { style: { listStyle: "none", padding: 0, margin: 0 } }, steps),
+        t.limits ? h("p", { class: "tiny muted" }, `Limit: ${t.limits}.`) : null),
+      h("div", { class: "ar-card" }, h("h2", {}, "Refused before payment"),
+        rf ? h("p", { class: "small" }, `${rf.provider} · window ${rf.window}: ${rf.signals.map((x) => x.code).join(", ")}. Nothing was locked or paid.`)
+          : h("p", { class: "small muted" }, "None in this run.")),
+      h("div", { class: "ar-card" }, h("h2", {}, "After withdrawal"),
+        wd ? h("div", { class: "col", style: { gap: "6px" } },
+          h("p", { class: "small" }, `${wd.person} withdrew. The study's licence was taken back on the ledger.`, " ", wd.clawback_tx ? txLink({ tx: wd.clawback_tx, url: wd.clawback_url }, { kind: "Clawback" }) : null),
+          wd.next_deliveries.length ? wd.next_deliveries.map((d) => h("p", { class: "small" }, tag("blocked", "red"), ` Order ${d.order}: key not released · ${d.status}${d.why ? ` · ${d.why}` : ""}`))
+            : h("p", { class: "small muted" }, "No round was still waiting."),
+          h("p", { class: "tiny muted" }, "Rounds already delivered cannot be recalled. Keys not yet released stay with the person's agent, and the locked payment goes back to the study."))
+          : h("p", { class: "small muted" }, "No withdrawal in this run.")));
   }
 
   function skeleton() {

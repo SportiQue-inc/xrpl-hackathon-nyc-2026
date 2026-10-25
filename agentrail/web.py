@@ -10,7 +10,7 @@ import os
 import re
 import threading
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -158,6 +158,8 @@ def reset(ledger: Literal["mock", "testnet"] | None = None):
         kind = ledger or default
         _state["w"] = scenario.build_world(kind, os.environ.get("AGENTRAIL_DB", ":memory:"))
         _state["results"] = {}
+        if "lane" in _state:      # research contracts outlive the demo world; their keys move to the new authority
+            _state["lane"].enrol_all(_state["w"].security.authority)
     return {"ok": True, "ledger": kind}
 
 
@@ -715,6 +717,7 @@ class SubProjectBody(Strict):
 
 class RelationshipConsentBody(Strict):
     institution: str = Field(default=study.LAB, pattern=ID)
+    items: list[Annotated[str, Field(pattern=r"^[a-z0-9_.]{1,60}$")]] | None = Field(default=None, max_length=40)
 
 
 class SubProjectDecisionBody(Strict):
@@ -754,7 +757,7 @@ def participant_relationship(pid: str):
 
 @app.post("/api/p/{pid}/relationship/consent")
 def participant_relationship_consent(pid: str, body: RelationshipConsentBody):
-    return _rel(lambda r: {"ok": True, "consented": r.consent(pid), **r.relationship(pid)})
+    return _rel(lambda r: {"ok": True, "consented": r.consent(pid, body.items), **r.relationship(pid)})
 
 
 @app.post("/api/p/{pid}/subprojects/{sid}/decision")
@@ -839,6 +842,175 @@ def audit_verify():
 @app.post("/api/ops/audit/anchor")
 def audit_anchor():
     return _call(audit.anchor)
+
+
+# ---------- research contracts: posted by a researcher, joined by people (agentrail/research_contracts.py) ----------
+
+def lane():
+    if "lane" not in _state:
+        from .research_contracts import Lane
+        with _lock:
+            if "lane" not in _state:
+                _state["lane"] = Lane()
+                _state["lane"].enrol_all(_authority())
+    return _state["lane"]
+
+
+def _lcall(fn, *a):
+    from .research_contracts import ContractError
+    try:
+        return fn(lane(), *a)
+    except KeyError as e:
+        raise HTTPException(404, f"not found: {e}")
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    except ContractError as e:
+        raise HTTPException(422, str(e))
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+
+
+HEX64 = r"^[0-9a-f]{64}$"
+SIG = r"^[0-9a-f]{128}$"
+
+
+class ContractTerms(Strict):
+    title: str = Field(min_length=1, max_length=120)
+    institution: str = Field(min_length=1, max_length=120)
+    irb_approval: str = Field(min_length=1, max_length=60)
+    purpose: str = Field(pattern=r"^[a-z_]{1,40}$")
+    items: list[str] = Field(min_length=1, max_length=10)
+    weeks: tuple[int, int]
+    price_per_item_drops: int = Field(gt=0, le=1_000_000_000)
+    budget_drops: int = Field(gt=0, le=100_000_000_000)
+    capacity: int = Field(default=60, ge=1, le=500)
+    summary: str = Field(default="", max_length=600)
+
+
+class ContractPost(Strict):
+    terms: ContractTerms
+    researcher_key: str = Field(pattern=HEX64)
+
+
+class JoinStart(Strict):
+    invite_code: str = Field(min_length=8, max_length=64)
+    public_key: str = Field(pattern=HEX64)
+    items: list[str] = Field(default_factory=list, max_length=10)
+    automation: Literal["confirm_each", "auto_standard", "auto_all"] = "confirm_each"
+    uniqdata_account: str | None = Field(default=None, pattern=ID)
+
+
+class JoinComplete(Strict):
+    pid: str = Field(pattern=ID)
+    signature: str = Field(pattern=SIG)
+    # a test account without a UniQdata account: store generated test readings for these weeks (labelled so)
+    generate_test_weeks: list[int] = Field(default_factory=list, max_length=52)
+
+
+class RoundBody(Strict):
+    week: int = Field(ge=1, le=52)
+
+
+class RecordIn(Strict):
+    item: str = Field(pattern=ITEM)
+    day: int = Field(ge=1, le=366)
+    value: dict
+
+
+class RecordsBody(Strict):
+    records: list[RecordIn] = Field(default_factory=list, max_length=2000)
+    generate_test_weeks: list[int] = Field(default_factory=list, max_length=52)
+
+
+class SignedItems(Strict):
+    items: list[str] = Field(default_factory=list, max_length=10)
+    signature: str = Field(pattern=SIG)
+
+
+class Signed(Strict):
+    signature: str = Field(pattern=SIG)
+
+
+def _posting_code(request: Request):
+    """Posting a contract creates ledger accounts and a budget: localhost, or the code in
+    AGENTRAIL_POSTING_CODE (at least 8 characters)."""
+    code = os.environ.get("AGENTRAIL_POSTING_CODE", "")
+    if (request.client.host if request.client else "") in LOCAL:
+        return
+    if len(code) >= 8 and hmac.compare_digest(request.headers.get("x-posting-code", "").encode(), code.encode()):
+        return
+    raise HTTPException(403, "posting code required")
+
+
+@app.get("/api/contracts")
+def contracts_list():
+    return _lcall(lambda L: {"contracts": L.list()})
+
+
+@app.post("/api/contracts")
+def contracts_post(body: ContractPost, request: Request):
+    _posting_code(request)
+    def post(L):
+        out = L.create(body.terms.model_dump(), body.researcher_key)
+        L.enrol_all(_authority())              # the researcher signs in with the key they posted
+        return out
+    return _lcall(post)
+
+
+@app.get("/api/contracts/{cid}")
+def contracts_get(cid: str):
+    return _lcall(lambda L: L.public(cid))
+
+
+@app.post("/api/contracts/{cid}/join/start")
+def contracts_join_start(cid: str, body: JoinStart):
+    return _lcall(lambda L: L.join_start(cid, body.invite_code, body.public_key, body.items, body.automation,
+                                         body.uniqdata_account))
+
+
+@app.post("/api/contracts/{cid}/join/complete")
+def contracts_join_complete(cid: str, body: JoinComplete):
+    def complete(L):
+        out = L.join_complete(cid, body.pid, body.signature, _authority())
+        if body.generate_test_weeks:
+            L.store_records(body.pid, None, body.generate_test_weeks)
+        return out
+    return _lcall(complete)
+
+
+@app.get("/api/contracts/{cid}/console")
+def contracts_console(cid: str):
+    return _lcall(lambda L: L.console(cid))
+
+
+@app.post("/api/contracts/{cid}/rounds")
+def contracts_round(cid: str, body: RoundBody):
+    return _lcall(lambda L: L.run_round(cid, body.week))
+
+
+@app.post("/api/contracts/{cid}/close")
+def contracts_close(cid: str):
+    return _lcall(lambda L: L.close(cid))
+
+
+@app.get("/api/p/{pid}/contracts")
+def member_contracts(pid: str):
+    return _lcall(lambda L: L.member_view(pid))
+
+
+@app.post("/api/p/{pid}/contracts/records")
+def member_records(pid: str, body: RecordsBody):
+    return _lcall(lambda L: L.store_records(pid, [r.model_dump() for r in body.records], body.generate_test_weeks))
+
+
+@app.post("/api/p/{pid}/contracts/{cid}/requests/{rid}/approve")
+def member_approve(pid: str, cid: str, rid: int, body: SignedItems):
+    return _lcall(lambda L: L.approve(pid, cid, rid, body.items, body.signature))
+
+
+@app.post("/api/p/{pid}/contracts/{cid}/withdraw")
+def member_withdraw(pid: str, cid: str, body: Signed):
+    return _lcall(lambda L: L.withdraw(pid, cid, body.signature))
 
 
 # ---------- demo harness (AGENTRAIL_ENV=dev only; rbac returns 404 in prod) ----------

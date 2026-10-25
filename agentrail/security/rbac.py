@@ -3,7 +3,8 @@ is closed until someone writes down who may use it (a test fails if any route ha
 
 Roles
   participant  their own requests, consent, preview, withdrawals (scope = their participant id)
-  researcher   the study's console: goal, requests, rounds, sealed bundles (scope = study id)
+  researcher   the study's console: goal, requests, rounds, sealed bundles (scope = study id, or one
+               research contract id for the contract routes)
   approver     signs treasury approvals for that study (scope = study id, attrs.signer)
   reviewer     decides integrity cases for that study, under their own name
   operator     runs the service: dashboard state, audit verification and anchoring, demo harness;
@@ -106,6 +107,20 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/api/ops/audit/verify"): Rule((O, R), "study"),
     ("POST", "/api/ops/audit/anchor"): Rule((O,)),
     ("GET", "/api/state"): Rule((O,)),
+    # research contracts (agentrail/research_contracts.py): posting needs the posting code, joining the
+    # invite code and the joiner's own signature; the researcher's token is scoped to one contract
+    ("GET", "/api/contracts"): Rule(public=True),
+    ("POST", "/api/contracts"): Rule(public=True),
+    ("GET", "/api/contracts/{cid}"): Rule(public=True),
+    ("POST", "/api/contracts/{cid}/join/start"): Rule(public=True),
+    ("POST", "/api/contracts/{cid}/join/complete"): Rule(public=True),
+    ("GET", "/api/contracts/{cid}/console"): Rule((R, O), "contract"),
+    ("POST", "/api/contracts/{cid}/rounds"): Rule((R,), "contract"),
+    ("POST", "/api/contracts/{cid}/close"): Rule((R,), "contract"),
+    ("GET", "/api/p/{pid}/contracts"): SELF,
+    ("POST", "/api/p/{pid}/contracts/records"): SELF,
+    ("POST", "/api/p/{pid}/contracts/{cid}/requests/{rid}/approve"): SELF,
+    ("POST", "/api/p/{pid}/contracts/{cid}/withdraw"): SELF,
     # demo harness: runs every party in one process; off when AGENTRAIL_ENV=prod
     ("POST", "/api/reset"): Rule((O,), dev_only=True),
     ("POST", "/api/run/{scene}"): Rule((O,), dev_only=True),
@@ -166,5 +181,7 @@ def check(request: Request, authority) -> dict | None:
         raise HTTPException(403, "participants can act only on their own record")
     if rule.scope == "study" and claims["role"] != "operator" and claims["scope"] != STUDY:
         raise HTTPException(403, "this token is for another study")
+    if rule.scope == "contract" and claims["role"] != "operator" and claims["scope"] != request.path_params.get("cid"):
+        raise HTTPException(403, "this token is for another contract")
     request.state.claims = claims
     return claims

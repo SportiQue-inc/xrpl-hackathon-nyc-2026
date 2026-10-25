@@ -66,6 +66,7 @@ export function engine(base = "", { token, sandboxCode = storedSandboxCode() } =
     study: () => get("/api/study"),
     // Person -> institution -> sub-projects (agentrail/subprojects.py)
     institution: () => get("/api/institution"),
+    proof: () => get("/api/proof"),
     createSubproject: (b) => post("/api/institution/subprojects", b),
     runSubproject: (sid) => post(`/api/institution/subprojects/${encodeURIComponent(sid)}/run`, {}),
     setGoal: (goal) => post("/api/study/goal", { goal }),

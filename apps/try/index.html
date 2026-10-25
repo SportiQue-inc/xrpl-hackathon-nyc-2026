@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AgentRail — from a personal data vault to an agent trade</title>
+<title>AgentRail — one engine, two uses</title>
 <link rel="stylesheet" href="/apps/demo/demo.css">
 <link rel="stylesheet" href="/apps/try/hub.css">
 </head>
@@ -11,53 +11,115 @@
 <main class="wrap">
   <header class="hero">
     <p class="eyebrow">SportiQue · XRPL Hackathon NYC 2026</p>
-    <h1>Your data. Your rules.<br><b>Agents do the work.</b></h1>
-    <p class="lead">SportiQue builds a personal health-data network where each person stores, uses and shares their own records — and can see who used them, for what purpose, and what they received.</p>
-    <p>It starts with <strong>UniQdata</strong>, the person's data vault. People collect and review their records, use them for themselves, and choose what to share. <strong>UniQLab</strong> is one downstream use: a research workspace that receives only the scope a person has approved.</p>
-    <p>For this hackathon, we built <strong>AgentRail</strong>: agents find missing data, check a sample, negotiate within owner-set limits, and connect payment release to the key that opens the agreed data. The person keeps control of new and sensitive requests.</p>
-    <div class="new"><span class="tag blue">Built for this hackathon</span><p>Agent negotiation · sample checks before payment · payment-to-key handoff · approved-scope routing · two-person budget approval.</p></div>
+    <h1>One engine. Two uses.<br><b>Please try both.</b></h1>
+    <p class="lead">AgentRail lets agents exchange data only inside the rules set by whoever owns it, and settles each deal on XRPL so that releasing the payment releases the key to the data.</p>
+    <div class="engine" aria-label="The same four building blocks power both uses">
+      <span class="engine-label">Same engine underneath</span>
+      <ol class="prims">
+        <li><i>1</i>Owner's rules</li>
+        <li><i>2</i>Agents negotiate</li>
+        <li><i>3</i>Escrow → key reveal</li>
+        <li><i>4</i>Receipt &amp; withdrawal</li>
+      </ol>
+    </div>
   </header>
-  <section aria-labelledby="choose">
-    <p class="eyebrow">Choose one of two tracks</p>
-    <h2 id="choose">Understand the rule. Apply it. Inspect the result.</h2>
-    <div class="tracks">
-      <a class="track" href="#trading"><span class="number">01</span><h3>Agent trading</h3><p>Follow one buyer and one data owner from a missing field to an opened data bundle.</p><span class="go">Start the trading walkthrough →</span></a>
-      <a class="track" href="#healthcare"><span class="number">02</span><h3>Healthcare</h3><p>Follow a person's approved scope into a research request, a human decision and its contribution history.</p><span class="go">Start the healthcare walkthrough →</span></a>
+
+  <section class="tracks" aria-label="The two uses">
+    <article class="track">
+      <span class="number">01</span><h2>B2B data trading</h2>
+      <p>Companies exchange data through agents. No per-deal contract, no paying blind.</p>
+      <div class="lit"><span>Owner's rules</span><span>Agents negotiate</span><span>Escrow → key</span><span>Receipt</span></div>
+      <div class="actions">
+        <a class="btn primary" href="https://data-vault-market-production.up.railway.app/" target="_blank" rel="noopener">Open the data market ↗</a>
+        <a class="btn" href="/apps/live/" target="_blank" rel="noopener">Live transaction log ↗</a>
+        <a class="go" href="#trading">How it works ↓</a>
+      </div>
+    </article>
+    <article class="track">
+      <span class="number">02</span><h2>Health research consent</h2>
+      <p>A person approves a study's scope once. Their agent handles each request inside it, and anything new comes back to them.</p>
+      <div class="lit"><span>Owner's rules</span><span>Agents negotiate</span><span>Escrow → key</span><span>Receipt &amp; withdrawal</span></div>
+      <div class="actions">
+        <a class="btn primary" data-pid-href="/apps/live/me.html?pid={pid}" href="/apps/live/me.html" target="_blank" rel="noopener">Participant: approve scope ↗</a>
+        <a class="btn" href="/console" target="_blank" rel="noopener">Researcher console ↗</a>
+        <a class="btn" href="/console#/evidence" target="_blank" rel="noopener">Evidence of one trade ↗</a>
+        <a class="btn" href="/apps/contracts/post.html" target="_blank" rel="noopener">Post a real research contract ↗</a>
+        <a class="go" href="#healthcare">How it works ↓</a>
+      </div>
+    </article>
+  </section>
+
+  <section id="trading" class="walkthrough" aria-labelledby="trading-title">
+    <p class="eyebrow">01 · B2B data trading</p>
+    <h2 id="trading-title">Why a B2B data deal is slow today, and what agents change</h2>
+    <div class="ba" data-ba>
+      <div class="ba-head"><span>Before</span><span>With AgentRail</span></div>
+      <div class="ba-row"><p class="was">Sourcing data by hand, deal by deal</p><p class="now">The buyer's agent posts the exact gap; matching offers come to it</p></div>
+      <div class="ba-row"><p class="was">An NDA and a contract for every deal</p><p class="now">Agents negotiate inside limits each owner set once</p></div>
+      <div class="ba-row"><p class="was">No way to check quality before paying</p><p class="now">A sample is checked before any money is locked</p></div>
+      <div class="ba-row"><p class="was">Slow settlement, no audit trail</p><p class="now">Payment and data key move in one XRPL escrow, with receipts</p></div>
+    </div>
+    <div class="flow" data-flow>
+      <ol class="nodes" role="tablist" aria-label="Trading flow">
+        <li><button role="tab" data-step="0">Gap posted</button></li>
+        <li><button role="tab" data-step="1">Agents negotiate</button></li>
+        <li><button role="tab" data-step="2">Sample checked</button></li>
+        <li><button role="tab" data-step="3">Escrow locked</button></li>
+        <li><button role="tab" data-step="4">Key revealed</button></li>
+      </ol>
+      <div class="stage">
+        <div class="pane" data-pane="0"><div class="mock"><small>Illustration</small><b>Buyer agent</b><span>Needs one field · one period · a quality level</span><span class="pill">Matching offers arrive</span></div><div class="cap"><p>The buyer asks for one specific missing field, period and quality.</p><span class="fix">Removes: manual sourcing</span><a class="btn primary" href="https://data-vault-market-production.up.railway.app/" target="_blank" rel="noopener">See it live ↗</a></div></div>
+        <div class="pane" data-pane="1"><div class="mock"><small>Illustration</small><b>Offer → counter → agreed</b><span>Buyer agent offers · owner agent counters</span><span class="pill">Never below the owner's minimum</span></div><div class="cap"><p>One buyer agent and one owner agent negotiate each deal inside the owner's limits.</p><span class="fix">Removes: per-deal contracts</span><a class="btn primary" href="https://data-vault-market-production.up.railway.app/" target="_blank" rel="noopener">See a deal ↗</a></div></div>
+        <div class="pane" data-pane="2"><div class="mock"><small>Illustration</small><b>Sample check</b><span>Fields, period and format</span><span class="pill ok">Pass, or a plain reason to stop</span></div><div class="cap"><p>Quality and permission are checked before funds are committed. A failed sample stops the payment.</p><span class="fix">Removes: paying blind</span><a class="btn primary" href="https://data-vault-market-production.up.railway.app/" target="_blank" rel="noopener">See it live ↗</a></div></div>
+        <div class="pane" data-pane="3"><img src="/apps/try/shots/t-livelog.jpg" alt="Live transaction log with escrow rows" loading="lazy"><div class="cap"><p>The agreed amount is locked in an XRPL escrow whose condition is the hash of the data key.</p><span class="fix">Removes: slow settlement</span><a class="btn primary" href="/apps/live/" target="_blank" rel="noopener">Open the live log ↗</a></div></div>
+        <div class="pane" data-pane="4"><img src="/apps/try/shots/t-livelog.jpg" alt="Live transaction log" loading="lazy"><div class="cap"><p>Releasing the escrow publishes the key. The buyer opens the bundle, and its hash matches the escrow memo.</p><span class="fix">Removes: no audit trail</span><a class="btn primary" href="/apps/live/" target="_blank" rel="noopener">Open the live log ↗</a></div></div>
+      </div>
     </div>
   </section>
-  <section id="trading" class="walkthrough" aria-labelledby="trading-title">
-    <p class="eyebrow">01 · Agent trading</p><h2 id="trading-title">A trade is a chain of checks, not a vote.</h2>
-    <p>The owner sets the minimum acceptable price. The buyer sets a budget. Inside those limits, one buyer agent negotiates with one owner agent for each deal.</p>
-    <ol class="steps">
-      <li><h3>Find the gap and compare offers <span class="tag blue">New</span></h3><dl><dt>Principle</dt><dd>Ask for a specific missing field, period and quality level.</dd><dt>Apply</dt><dd>Open the vault. Inspect an agent recommendation and then one deal in Market activity.</dd><dt>Watch</dt><dd>The buyer's need, matching offers and the selected owner's data appear together.</dd><dt>Result</dt><dd>You can explain why that owner was selected, rather than counting votes.</dd></dl></li>
-      <li><h3>Check a sample, then negotiate <span class="tag blue">New</span></h3><dl><dt>Principle</dt><dd>Quality and permission checks happen before funds are committed.</dd><dt>Apply</dt><dd>Open a deal's negotiation and protocol steps.</dd><dt>Watch</dt><dd>One offer, one counter-offer and the sample checks lead to an agreement or a plain-language reason to stop.</dd><dt>Result</dt><dd>The agreed amount is the actual deal amount. A failed sample stops the payment path.</dd></dl></li>
-      <li><h3>Release payment and open the bundle <span class="tag blue">New</span></h3><dl><dt>Principle</dt><dd>A conditional escrow locks funds. Its release publishes the fulfillment used to recover the data key.</dd><dt>Apply</dt><dd>Inspect the paired EscrowCreate and EscrowFinish, then open the purchased bundle in My DB.</dd><dt>Watch</dt><dd>The same escrow owner and sequence connect the two receipts. The delivered records retain their source and deal history.</dd><dt>Result</dt><dd>A payment receipt and readable data are two distinct outcomes; inspect both.</dd></dl></li>
-    </ol>
-    <a class="btn primary launch" href="https://data-vault-market-production.up.railway.app/">Open the agent trading vault →</a>
-    <p class="caption">Synthetic trading sandbox · XRPL Testnet · app-issued test USD. This is a test token, not official RLUSD.</p>
-  </section>
+
   <section id="healthcare" class="walkthrough" aria-labelledby="health-title">
-    <p class="eyebrow">02 · Healthcare</p><h2 id="health-title">One person controls the scope. Each request keeps its own record.</h2>
-    <p>In UniQdata, the person controls their records and research contribution. In UniQLab, the researcher defines a study and asks only for the data it needs. AgentRail demonstrates how those requests can be routed and settled.</p>
-    <div class="note blue"><strong>Demo boundary:</strong> the hands-on screens below run the AgentRail engine with synthetic people, demo signing keys and a practice ledger. They demonstrate the workflow; opening them does not prove deployment inside the existing UniQdata or UniQLab products.</div>
-    <ol class="steps">
-      <li><h3>Researcher: define the study and co-sign its budget <span class="tag blue">New</span></h3><dl><dt>Principle</dt><dd>Two people, each on their own device, release a study's budget. Budget approval is spending authority only; it never authorizes anyone's data.</dd><dt>Apply</dt><dd>Open the UniQLab study console. In Rounds, describe the data gap and choose Propose, then ask both signers.</dd><dt>Watch</dt><dd>One signature leaves the budget locked. Two release it in a multi-signed payment.</dd><dt>Result</dt><dd>The study can pay for data, and still has no data until people agree.</dd></dl></li>
-      <li><h3>Person: approve the scope once <span class="tag blue">New</span></h3><dl><dt>Principle</dt><dd>The person approves an institution, purpose, fields and period. Each consent document is read to the end before it can be checked; one signature covers the set, and each consent keeps its own record.</dd><dt>Apply</dt><dd>Open your scope and history. Review the institution's scope, read each document to the end and agree.</dd><dt>Watch</dt><dd>One relationship with the institution appears, with its sub-projects underneath.</dd><dt>Result</dt><dd>Requests inside this scope can be handled by the person's agent. MRI, CT and genomic data are never included.</dd></dl></li>
-      <li><h3>Person: decide what falls outside the scope <span class="tag blue">New</span></h3><dl><dt>Principle</dt><dd>Automation applies only within the scope already approved. A new field or purpose, and MRI, CT or genomic data, always come back to the person.</dd><dt>Apply</dt><dd>Open a contribution request. Read the requested fields and purpose; allow it or choose “Not this one.”</dd><dt>Watch</dt><dd>The request becomes allowed or blocked, and the study's routing shows the same outcome.</dd><dt>Result</dt><dd>A refusal blocks that request. It is not permission for another sub-project or data type.</dd></dl></li>
-      <li><h3>Researcher: add a sub-project inside the approved scope <span class="tag blue">New</span></h3><dl><dt>Principle</dt><dd>One institutional relationship covers several sub-projects only within the scope already approved.</dd><dt>Apply</dt><dd>In the study console, open Sub-projects and create one with fatigue.survey and heart_rate.daily. Compare it with one that adds an outside-scope field.</dd><dt>Watch</dt><dd>The routing summary separates handled inside scope, back to the person, and blocked. Each payment carries the sub-project reference.</dd><dt>Result</dt><dd>Approved work proceeds without a new contract each time. A new purpose, field or period needs another decision.</dd></dl></li>
-      <li><h3>Inspect the contribution and opened data</h3><dl><dt>Principle</dt><dd>An approval, a payment and usable data each need their own evidence.</dd><dt>Apply</dt><dd>Open a participant's payment history and the matching research contribution. Choose Open bundle after payment release.</dd><dt>Watch</dt><dd>Check the item, period, amount, sub-project, release receipt and “Opened · contents match what was sent.” The share paid at release follows a continuity curve: 50% for a first week, 10 points more for each consecutive week, up to 90%; the rest is paid after review.</dd><dt>Result</dt><dd>The person can trace the contribution; the researcher can verify the delivered contents.</dd></dl></li>
-      <li><h3>Person: stop or withdraw</h3><dl><dt>Principle</dt><dd>The person can step back at three levels, and nothing already paid is taken back.</dd><dt>Apply</dt><dd>In the participant view, open Stop or withdraw and pick one: skip this round, stop future requests, or withdraw access.</dd><dt>Watch</dt><dd>Skipping sends nothing this round. Stopping keeps past data but no new requests. Withdrawing revokes the data licence and returns unreleased escrows; the study's row turns gray.</dd><dt>Result</dt><dd>Amounts already received and shares still in review stay with the person.</dd></dl></li>
-    </ol>
-    <div class="actions"><a class="btn primary launch" id="console" href="/console">Open the UniQLab study console →</a><a class="btn launch" id="contribution" href="/participant">Review a contribution request →</a><a class="btn launch" id="me" href="/apps/live/me.html">Open your scope and history →</a></div>
-    <p id="mePid" class="caption">This browser keeps one synthetic participant for the walkthrough.</p>
-    <p class="caption">Amounts are shown in <span data-unit>RLUSD</span>. <span data-unit-note>Testnet: test USD stands in for RLUSD.</span> The live transaction log stays at <a href="/apps/live/">/apps/live</a>.</p>
-    <details><summary>Where this belongs in the existing products</summary><p><strong>UniQdata → Research contribution:</strong> agent settings, approved consent scope, requests waiting for the person's decision, contribution and payment history. <strong>UniQLab:</strong> study requirements, budget approval, project routing and received data. The updated Research contribution tab has been checked in a local UniQdata simulator build. Its public rollout is pending. The sandbox above is available now.</p></details>
+    <p class="eyebrow">02 · Health research consent</p>
+    <h2 id="health-title">Why research data is slow to share today, and what changes</h2>
+    <div class="ba" data-ba>
+      <div class="ba-head"><span>Before</span><span>With AgentRail</span></div>
+      <div class="ba-row"><p class="was">A new consent form for every study request</p><p class="now">Approve one institution's scope once</p></div>
+      <div class="ba-row"><p class="was">A manual contract and weeks of delay</p><p class="now">Requests inside the scope route automatically</p></div>
+      <div class="ba-row"><p class="was">New uses slip through on old consent</p><p class="now">A new purpose or field comes back to the person</p></div>
+      <div class="ba-row"><p class="was">People lose track of what they shared</p><p class="now">Each contribution has a receipt and can be withdrawn</p></div>
+    </div>
+    <div class="flow" data-flow>
+      <ol class="nodes" role="tablist" aria-label="Health research flow">
+        <li><button role="tab" data-step="0">Budget co-signed</button></li>
+        <li><button role="tab" data-step="1">Scope approved once</button></li>
+        <li><button role="tab" data-step="2">Person decides</button></li>
+        <li><button role="tab" data-step="3">New purpose bounces</button></li>
+        <li><button role="tab" data-step="4">One-trade receipt</button></li>
+        <li><button role="tab" data-step="5">Withdraw</button></li>
+      </ol>
+      <div class="stage">
+        <div class="pane" data-pane="0"><img src="/apps/try/shots/h1-budget.jpg" alt="Researcher console, rounds and budget" loading="lazy"><div class="cap"><p>Two people release the study budget. It is spending authority only, never permission for anyone's data.</p><span class="fix">The institution's half of "two approvals, one trade"</span><a class="btn primary" href="/console#/rounds" target="_blank" rel="noopener">Open the console ↗</a></div></div>
+        <div class="pane" data-pane="1"><img src="/apps/try/shots/h2-scope.jpg" alt="Participant consent sheet" loading="lazy"><div class="cap"><p>The person reads each document to the end and agrees once. They can untick data types.</p><span class="fix">Removes: a consent form per request</span><a class="btn primary" data-pid-href="/apps/live/me.html?pid={pid}" href="/apps/live/me.html" target="_blank" rel="noopener">Approve a scope ↗</a></div></div>
+        <div class="pane" data-pane="2"><img src="/apps/try/shots/h3-outside.jpg" alt="Participant request with items to approve" loading="lazy"><div class="cap"><p>Inside the scope, the agent sends. Anything else needs the person's OK, item by item.</p><span class="fix">Removes: contracts and delay</span><a class="btn primary" data-pid-href="/participant?pid={pid}" href="/participant" target="_blank" rel="noopener">Open a request ↗</a></div></div>
+        <div class="pane" data-pane="3"><img src="/apps/try/shots/h4-subproject.jpg" alt="Sub-project routed back to people for a new purpose" loading="lazy"><div class="cap"><p>Same institution, same data, new purpose: automatic trading stops and every person is asked again.</p><span class="fix">Removes: silent reuse on old consent</span><a class="btn primary" href="/console#/subprojects" target="_blank" rel="noopener">Try a sub-project ↗</a></div></div>
+        <div class="pane" data-pane="4"><img src="/apps/try/shots/h5-evidence.jpg" alt="Evidence of one trade" loading="lazy"><div class="cap"><p>One order end to end: budget signers, consent hash, bundle hash in the escrow memo, EscrowFinish, opened data.</p><span class="fix">Removes: losing track of what was shared</span><a class="btn primary" href="/console#/evidence" target="_blank" rel="noopener">Open the evidence ↗</a></div></div>
+        <div class="pane" data-pane="5"><img src="/apps/try/shots/h6-withdraw.jpg" alt="Withdrawal status" loading="lazy"><div class="cap"><p>After a withdrawal, unreleased keys stay with the person and further access is refused. Payments received stay theirs.</p><span class="fix">Delivered rounds cannot be recalled; people are told before approving</span><a class="btn primary" data-pid-href="/participant?pid={pid}" href="/participant" target="_blank" rel="noopener">Try withdrawing ↗</a></div></div>
+      </div>
+    </div>
   </section>
-  <section class="access" aria-labelledby="access-title"><h2 id="access-title">Run the hands-on sandbox</h2>
-    <form id="codeForm"><label for="code">Judge access code</label><div class="actions"><input id="code" type="password" autocomplete="off" placeholder="Access code"><button class="btn">Save code</button></div><p id="codeState" role="status" aria-live="polite"></p></form>
-    <p class="caption">The judge link saves the supplied code in this browser. Sandbox signatures use server-held demo keys. One visitor can play both budget approvers here; this does not demonstrate two independent key holders or a physical passkey.</p>
+
+  <section class="cta" aria-labelledby="cta-title">
+    <h2 id="cta-title">Try it now</h2>
+    <p>Start as the researcher, then switch to the participant. Both screens share one engine and one ledger.</p>
+    <div class="actions">
+      <a class="btn primary big" href="/console" target="_blank" rel="noopener">Run it yourself ▶</a>
+      <a class="btn big" data-pid-href="/apps/live/me.html?pid={pid}" href="/apps/live/me.html" target="_blank" rel="noopener">As the participant ▶</a>
+      <a class="btn big" href="/apps/contracts/post.html" target="_blank" rel="noopener">Run a real contract ▶</a>
+    </div>
+    <p id="mePid" class="caption">This browser plays one synthetic participant.</p>
+    <form id="codeForm" hidden><label for="code">Access code</label><div class="actions"><input id="code" type="password" autocomplete="off" placeholder="From your judge link"><button class="btn">Save</button></div><p id="codeState" role="status" aria-live="polite"></p></form>
   </section>
-  <footer><p><strong>Keep the evidence separate.</strong> The selected LLM replay uses a simulated ledger. The reproducible rule baseline is a separate run with a different measure; see its source evidence.</p><a href="/demo?mode=after">View the illustrative before/after story</a><span> · </span><a href="https://github.com/SportiQue-inc/xrpl-hackathon-nyc-2026#readme">Read the source and Testnet evidence</a></footer>
+
+  <footer><p>Synthetic people, demo signing keys and a practice ledger; XRPL Testnet runs are documented in the source. Amounts in <span data-unit>RLUSD</span> (<span data-unit-note>Testnet: test USD stands in for RLUSD.</span>) Not a deployment inside UniQdata or UniQLab. Data market panels marked Illustration are drawings; open the market for a real deal.</p><a href="https://github.com/SportiQue-inc/xrpl-hackathon-nyc-2026#readme" target="_blank" rel="noopener">Source and Testnet evidence</a></footer>
 </main>
 <script type="module">
   import { UNIT, UNIT_NOTE } from "/apps/shared/ui.js";
@@ -72,18 +134,49 @@
     pid = `P-${String(n).padStart(3, "0")}`;
     try { localStorage.setItem("ar-pid", pid); } catch {}
   }
-  document.getElementById("me").href = `/apps/live/me.html?pid=${pid}`;
-  document.getElementById("contribution").href = `/participant?pid=${pid}`;
+  document.querySelectorAll("[data-pid-href]").forEach((a) => { a.href = a.dataset.pidHref.replace("{pid}", pid); });
   document.getElementById("mePid").textContent += ` You are ${pid}.`;
-  const has = () => { try { return !!localStorage.getItem("ar-code"); } catch { return false; } };
+
+  // The judge link carries the access code and saves it here; the form shows only when none is saved.
   const q = new URLSearchParams(location.search).get("code");
   if (q) { try { localStorage.setItem("ar-code", q); } catch {} }
-  document.getElementById("codeState").textContent = has() ? "Code saved: you can run it." : "";
-  document.getElementById("codeForm").onsubmit = (e) => {
+  const has = () => { try { return !!localStorage.getItem("ar-code"); } catch { return false; } };
+  const form = document.getElementById("codeForm");
+  form.hidden = has();
+  form.onsubmit = (e) => {
     e.preventDefault();
     try { localStorage.setItem("ar-code", document.getElementById("code").value); } catch {}
-    document.getElementById("codeState").textContent = "Code saved: you can run it.";
+    document.getElementById("codeState").textContent = "Saved. You can run it.";
   };
+
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Before → after: each row turns over once the block scrolls into view.
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: 0.35 });
+  document.querySelectorAll("[data-ba]").forEach((b) => (still ? b.classList.add("in") : io.observe(b)));
+
+  // The engine strip lights each building block in turn, and the track chips with it.
+  const prims = [...document.querySelectorAll(".prims li")], lit = [...document.querySelectorAll(".lit")];
+  const light = (i) => { prims.forEach((p, k) => p.classList.toggle("on", k === i)); lit.forEach((l) => [...l.children].forEach((c, k) => c.classList.toggle("on", k === i))); };
+  if (still) { prims.forEach((p) => p.classList.add("on")); lit.forEach((l) => [...l.children].forEach((c) => c.classList.add("on"))); }
+  else { let pi = 0; light(0); setInterval(() => { pi = (pi + 1) % prims.length; light(pi); }, 1400); }
+
+  // Each flow plays step by step while on screen; a click picks a step and stops the autoplay.
+  document.querySelectorAll("[data-flow]").forEach((f) => {
+    const tabs = [...f.querySelectorAll("[data-step]")], panes = [...f.querySelectorAll("[data-pane]")];
+    let cur = 0, timer = null, manual = false;
+    const show = (i) => {
+      cur = i;
+      tabs.forEach((t, k) => { t.parentElement.classList.toggle("done", k < i); t.parentElement.classList.toggle("on", k === i); t.setAttribute("aria-selected", String(k === i)); });
+      panes.forEach((p, k) => p.classList.toggle("on", k === i));
+      f.style.setProperty("--p", tabs.length > 1 ? i / (tabs.length - 1) : 1);
+    };
+    const play = () => { if (!still && !manual && !timer) timer = setInterval(() => show((cur + 1) % tabs.length), 3200); };
+    const stop = () => { clearInterval(timer); timer = null; };
+    tabs.forEach((t, k) => t.addEventListener("click", () => { manual = true; stop(); show(k); }));
+    new IntersectionObserver(([e]) => (e.isIntersecting ? play() : stop()), { threshold: 0.4 }).observe(f);
+    show(0);
+  });
 </script>
 </body>
 </html>

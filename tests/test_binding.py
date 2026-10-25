@@ -73,3 +73,10 @@ def test_engine_order_key_alone_does_not_open_the_data():
 def test_proof_names_a_paid_trade(w):
     p = binding.proof(w)
     assert p["paid_trade"]["ok"] and "Proof of one trade" in binding.summary(p)
+
+
+def test_proof_starts_with_the_budget_and_the_consent(w):
+    t = binding.proof(w)["paid_trade"]
+    budget, consent = t["steps"][:2]
+    assert budget["step"] == "budget co-signed by 2 approvers" and budget["ok"] and budget["tx"]
+    assert consent["step"] == "person's consent in force" and consent["ok"] and len(t["consent_hash"]) == 64
