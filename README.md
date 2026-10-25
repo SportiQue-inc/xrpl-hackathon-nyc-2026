@@ -241,8 +241,8 @@ turns engine results into the records those products already store, without call
 |---|---|---|
 | Separate consents: third-party provision, sensitive data | Consent lanes `research_participation`, `sensitive_health_collection` | International transfer has no UniQdata lane: a granted one blocks the hand-off |
 | Revoke | New `privacy_epoch`; queued commands from older epochs superseded; withdrawal deletion audit | Pause holds new commands only; declining a round touches nothing |
-| Rewards after revoke | Paid and pending research rewards are kept | Rounds not delivered at revoke are refunded to the study by the escrow, so they map to `not_earned`, never to kept pending rewards |
-| EscrowFinish of a delivered round | One `payout_receipt` per payout intent | `receipt_ref_hash` = SHA-256 of the XRPL tx hash; amounts in drops (`amount_minor`, currency `XRP`) |
+| Rewards after revoke | Paid and pending research rewards are kept | Rounds not delivered at revoke are refunded to the study by the escrow, so they map to `not_earned`, never to kept pending rewards. The held 20% of delivered rounds maps to `pending` (paid when review ends); the completion bonus returns, so `not_earned`. An unknown status is reported as unmapped, never as earned |
+| EscrowFinish of a delivered round, of a released held part or bonus | One `payout_receipt` per payout intent | `receipt_ref_hash` = SHA-256 of the XRPL tx hash; amounts in drops (`amount_minor`, currency `XRP`) |
 
 More: [docs/API.md](docs/API.md), [docs/PLAN.md](docs/PLAN.md), [docs/DESIGN.md](docs/DESIGN.md),
 [docs/DEMO_SCOPE.md](docs/DEMO_SCOPE.md).
