@@ -223,3 +223,17 @@ def test_with_uniqdata_only_the_passkey_registered_on_the_page_approves(c):
                json={"items": ["fatigue.survey"], "assertion": key.get(ch["publicKey"])}, headers=me)
     assert r.status_code == 200, r.text
     assert r.json()["signed"]["consent_hash"] == "ab" * 32 and uq.approved == [("c-1", b64u(key.cred))]
+
+
+def test_with_a_passkey_withdrawal_needs_a_signature(c):
+    me = login(c, HERO)
+    key = registered(c, me)
+    assert c.post(f"/api/p/{HERO}/revoke", headers=me).status_code == 403
+    assert c.get(f"/api/p/{HERO}", headers=me).json()["consent"]["status"] != "revoked"
+    ch = c.post(f"/api/p/{HERO}/revoke/challenge", headers=me).json()
+    assert ch["statement"]["kind"] == "research_withdrawal"
+    r = c.post(f"/api/p/{HERO}/revoke", json={"assertion": key.get(ch["publicKey"])}, headers=me)
+    assert r.status_code == 200, r.text
+    v = c.get(f"/api/p/{HERO}", headers=me).json()
+    assert v["consent"]["status"] == "revoked"
+    assert any(e["kind"] == "passkey_signed" and e["statement_hash"] == ch["statement_hash"] for e in v["audit"])

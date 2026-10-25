@@ -294,3 +294,28 @@ a.ar-hash { color: var(--ar-brand); }
 .ar-grid.k3 { grid-template-columns: repeat(3, 1fr); }
 .ar-vline .e .d.amber { background: #fbbf24; }
 .ar .ar-btn .ar-svg, .ar .ar-btn svg { vertical-align: -3px; }
+
+/* ---------- signing sheet: one sheet for every signature ---------- */
+.ar-sheet-wrap { position: fixed; inset: 0; z-index: 50; background: rgba(17,24,39,.42); display: flex; align-items: flex-end;
+  justify-content: center; animation: ar-fade .18s ease-out; }
+.ar-sheet { width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; background: var(--ar-surface);
+  border-radius: 20px 20px 0 0; padding: 8px 20px calc(20px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 -12px 40px rgba(17,24,39,.18); animation: ar-up .24s cubic-bezier(.2,.8,.2,1); }
+.ar-sheet .grab { width: 40px; height: 4px; border-radius: 4px; background: var(--ar-border); margin: 4px auto 2px; }
+.ar-sheet .top { display: flex; gap: 12px; align-items: center; }
+.ar-sheet .top .t { font-size: 18px; }
+.ar-sheet-ic { width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0; display: grid; place-items: center;
+  background: var(--ar-brand-weak); color: var(--ar-brand); }
+.ar-sheet-ic.danger { background: var(--ar-red-bg); color: var(--ar-red); }
+.ar-sheet-sec { font-size: 12px; font-weight: 600; color: var(--ar-text-2); letter-spacing: .3px; margin-bottom: -6px; }
+.ar-sheet-rows { border: 1px solid var(--ar-border); border-radius: var(--ar-radius); padding: 0 14px; }
+.ar-sheet-rows > .row { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--ar-border); }
+.ar-sheet-rows > .row:first-child { border-top: 0; }
+.ar-sheet-rows .v { font-weight: 600; white-space: nowrap; }
+.ar-sheet-sum { background: var(--ar-row); border-radius: var(--ar-radius); padding: 12px 14px; margin: 0; }
+@keyframes ar-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes ar-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ar-sheet, .ar-sheet-wrap { animation: none; } }
+.ar-item.row { flex-direction: row; align-items: center; gap: 12px; cursor: pointer; }
+.ar-sheet .ar-btn { height: 48px; font-size: 15px; font-weight: 600; }
+.ar-sheet .ar-btn.danger { background: var(--ar-red); border-color: var(--ar-red); color: #fff; }

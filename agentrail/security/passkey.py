@@ -250,6 +250,39 @@ def verify_approval(w, pid: str, rid: int, items: list[str], assertion: dict) ->
             "statement_hash": row["statement_hash"], "credential_id": cred}
 
 
+def withdrawal_statement(w, pid: str, pseudonym: str, study: str, licence: str | None, held: list[dict]) -> dict:
+    return {"kind": "research_withdrawal", "participant": pseudonym, "study": study, "licence": licence,
+            "held_rounds": held, "ledger": w.ledger.name, "nonce": secrets.token_hex(8), "issued_at": int(time.time())}
+
+
+def begin_withdrawal(w, pid: str, stmt: dict) -> dict:
+    sh = sha256_hex(canonical(stmt))
+    b = backend(w, pid)
+    opts, consent_id, consent_hash = b.approval_options(pid, stmt, sh)
+    _open(w.store, pid, "revoke", None, stmt, sh, opts["challenge"], b.name, consent_id, consent_hash)
+    return {"statement": stmt, "statement_hash": sh, "uniqdata_consent_id": consent_id,
+            "consent_hash": consent_hash, "held_by": b.name, "publicKey": opts}
+
+
+def verify_withdrawal(w, pid: str, assertion: dict) -> dict:
+    """The same checks as an approval, for the open withdrawal statement."""
+    row = w.store.one("SELECT * FROM passkey_challenges WHERE person_id=? AND purpose='revoke' AND status='open' "
+                      "ORDER BY id DESC LIMIT 1", pid)
+    if row is None:
+        raise PermissionError("no open withdrawal challenge; ask for a new one")
+    row = _take(w.store, pid, "revoke", challenge=row["challenge"])
+    cred = backend(w, pid).approve(pid, row, assertion)
+    with w.store.tx() as c:
+        c.execute("UPDATE passkey_challenges SET status='verified', credential_id=?, signed_at=? WHERE id=?",
+                  (cred, time.time(), row["id"]))
+    w.store.log(pid, "passkey_signed", f"{pid} signed their withdrawal with their passkey (statement "
+                f"{row['statement_hash'][:12]})", {"purpose": "revoke", "statement_hash": row["statement_hash"],
+                                                   "consent_hash": row["consent_hash"], "credential": cred[:16],
+                                                   "verified_by": row["backend"]})
+    return {"uniqdata_consent_id": row["uniqdata_consent_id"], "consent_hash": row["consent_hash"],
+            "statement_hash": row["statement_hash"], "credential_id": cred}
+
+
 def memo_tag(store, seller: str) -> str:
     """`|consent:<hash16>` for an order created while its seller's signed approval is being applied."""
     r = store.one("SELECT statement_hash FROM passkey_challenges WHERE person_id=? AND purpose='approve' AND "

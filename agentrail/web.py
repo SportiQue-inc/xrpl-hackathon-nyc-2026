@@ -310,9 +310,20 @@ def participant_resume(pid: str):
     return _call(study.participant_pause, pid, True)
 
 
+class RevokeBody(Strict):
+    assertion: PasskeyAssertion | None = None
+
+
+@app.post("/api/p/{pid}/revoke/challenge")
+def participant_revoke_challenge(pid: str):
+    """The withdrawal statement and the WebAuthn options to sign it with."""
+    return _call(study.withdrawal_challenge, pid)
+
+
 @app.post("/api/p/{pid}/revoke")
-def participant_revoke(pid: str):
-    return _call(study.participant_revoke, pid)
+def participant_revoke(pid: str, body: RevokeBody = RevokeBody()):
+    """With a registered passkey, the body must carry the assertion over the withdrawal statement."""
+    return _call(study.participant_revoke, pid, assertion=body.assertion.model_dump() if body.assertion else None)
 
 
 @app.get("/api/study")

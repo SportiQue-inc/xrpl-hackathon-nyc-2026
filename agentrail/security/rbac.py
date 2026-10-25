@@ -47,6 +47,7 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("POST", "/api/p/{pid}/pause"): SELF,
     ("POST", "/api/p/{pid}/resume"): SELF,
     ("POST", "/api/p/{pid}/revoke"): SELF,
+    ("POST", "/api/p/{pid}/revoke/challenge"): SELF,
     ("POST", "/api/p/{pid}/consent"): SELF,
     ("POST", "/api/p/{pid}/cases/{case_id}/respond"): SELF,
     ("POST", "/api/p/{pid}/resume-requests"): SELF,

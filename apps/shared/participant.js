@@ -42,8 +42,8 @@ function txA(tx) {
 
 export function mountParticipant(root, { base = "", pid = "P-017", embedded = false, token } = {}) {
   const api = engine(base, { token });
-  const st = { p: null, view: "home", rid: null, picked: null, sensitiveOk: false, sign: null, error: null, toast: null,
-               data: undefined, from: {}, tab: "trade", confirmWithdraw: false, details: false };
+  const st = { p: null, view: "home", rid: null, picked: null, sheet: null, error: null, toast: null,
+               data: undefined, from: {}, tab: "trade", details: false };
   root.classList.add("ar");
   if (embedded) root.classList.add("embedded");
 
@@ -57,10 +57,10 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     draw();
   }
   const watcher = watchSelf(api, pid, (v) => {
-    if (!st.sign) { st.p = v; st.error = null; draw(); }
+    if (!st.sheet || st.sheet.phase !== "busy") { st.p = v; st.error = null; draw(); }
   });
 
-  const go = (view) => { st.view = view; st.confirmWithdraw = false; draw(); window.scrollTo(0, 0); };
+  const go = (view) => { st.view = view; st.sheet = null; draw(); window.scrollTo(0, 0); };
   const current = () => st.p.requests.find((r) => r.id === st.rid) || null;
   const openReqs = () => st.p.requests.filter((r) => r.status === "open" || r.status === "partly_open");
   const lab = (r) => (r ? r.institution.name.replace(/\s*\(synthetic\)/i, "") : "");
@@ -80,6 +80,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         : h("nav", { class: "ar-tabs four" },
           tabBtn("home", "요청", "list"), tabBtn("data", "내 데이터", "data"), tabBtn("record", "기록", "history"),
           tabBtn("pay", "지급", "wallet")),
+      st.sheet ? sheetView() : null,
       st.toast && h("div", { class: "ar-toast" }, st.toast));
   }
   function tabBtn(view, label, ic) {
@@ -142,25 +143,22 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     const open = r.status === "open" || r.status === "partly_open";
     if (!st.picked || st.picked.rid !== r.id) {
       st.picked = { rid: r.id, items: new Set(r.items.filter((i) => i.class === "approval" && !i.sensitive).map((i) => i.item)) };
-      st.sensitiveOk = false;
     }
     const picked = st.picked.items;
     const asks = r.items.filter((i) => i.class === "approval");
     const blocked = r.items.filter((i) => i.class === "blocked");
     const credentialOk = r.institution.badges.some((b) => b.kind === "ethics_review" && b.on_ledger);
-    const send = asks.filter((i) => picked.has(i.item) && (!i.sensitive || st.sensitiveOk));
+    const send = asks.filter((i) => picked.has(i.item));
     const price = cellPrice(r) * sum(send, (i) => i.weeks.length);
     const allWeeks = send.flatMap((i) => i.weeks);
     const pk = st.p.passkey || { registered: false };
 
-    const statement = h("div", { class: "ar-card col ar-statement" },
-      h("span", { class: "small muted" }, "승인하는 내용"),
+    const head = h("div", { class: "ar-card col ar-statement" },
+      h("div", { class: "spread" }, h("b", {}, lab(r)), credentialOk ? tag("IRB 승인 확인", "green") : tag("IRB 확인 안 됨", "red")),
       h("dl", { class: "ar-kv left" },
-        h("dt", {}, "요청 기관"), h("dd", {}, lab(r), " ", credentialOk ? tag("IRB 승인 확인", "green") : tag("IRB 확인 안 됨", "red")),
         h("dt", {}, "목적"), h("dd", {}, PURPOSE[r.purpose] || r.purpose),
-        h("dt", {}, "항목"), h("dd", {}, send.map((i) => itemName(i.item)).join(", ") || "선택한 항목 없음"),
-        h("dt", {}, "기간"), h("dd", {}, weeks(allWeeks) || "—"),
-        h("dt", {}, "참여 지급액"), h("dd", {}, h("b", {}, won(price)), h("span", { class: "small muted" }, ` · 전달 시 ${r.payment.immediate_pct}%, 검토 후 ${r.payment.held_pct}%`))));
+        h("dt", {}, "기간"), h("dd", {}, weeks(asks.flatMap((i) => i.weeks)) || "—"),
+        h("dt", {}, "참여 지급액"), h("dd", {}, `최대 ${won(r.reward_xrp)}`)));
 
     const items = asks.map((i) => h("label", { class: "ar-item row", style: { alignItems: "center" } },
       h("input", { type: "checkbox", checked: picked.has(i.item), disabled: !open || !credentialOk,
@@ -168,16 +166,12 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
       h("div", { class: "grow col", style: { gap: "2px" } }, h("b", {}, itemName(i.item)),
         h("span", { class: "small muted" }, `${weeks(i.weeks)} · ${SOURCE[i.source] || i.source || ""}`)),
       i.sensitive ? tag("민감 정보", "red") : null));
-    const sensitive = asks.filter((i) => i.sensitive && picked.has(i.item));
 
     const body = [
       !credentialOk ? banner("red", "이 기관의 IRB 승인을 원장에서 확인할 수 없어 승인할 수 없어요.") : null,
-      statement,
+      head,
       h("h3", {}, "보낼 항목"),
       items,
-      sensitive.length ? h("label", { class: "ar-item row", style: { alignItems: "center" } },
-        h("input", { type: "checkbox", checked: st.sensitiveOk, onchange: (e) => { st.sensitiveOk = e.target.checked; draw(); } }),
-        h("span", { class: "small" }, `${sensitive.map((i) => itemName(i.item)).join(", ")}은 민감 정보예요. 이 연구에 보내는 데 따로 동의해요.`)) : null,
       blocked.length ? h("p", { class: "small muted" }, `${blocked.map((i) => itemName(i.item)).join(", ")}은 허용한 목적 밖이라 보내지 않아요.`) : null,
       h("button", { class: "ar-link small", style: { alignSelf: "flex-start" }, onclick: () => { st.details = !st.details; draw(); } },
         st.details ? "자세히 접기" : "자세히"),
@@ -187,52 +181,130 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         h("p", {}, "언제든 철회할 수 있어요. 철회하면 아직 전달되지 않은 회차는 멈추고 예치금은 연구로 돌아가요. 이미 받은 지급액은 그대로예요."),
         h("p", {}, r.international_transfer && r.international_transfer.planned ? "국외 이전이 예정되어 있어 별도 동의가 필요해요." : "국외 이전은 없어요."),
         h("p", { class: "muted" }, "접근 기록은 2년, 권한 변경 기록은 3년 보관해요.")) : null,
-      st.sign && st.sign.error ? banner("red", st.sign.error) : null,
     ];
     let foot = null;
     if (open && credentialOk) {
-      const primary = !pk.registered
-        ? h("button", { class: "ar-btn primary block", disabled: !passkeySupported(), onclick: (e) => register(e) },
-          icon("key", 16), " 이 기기에 패스키 만들기")
-        : h("button", { class: "ar-btn primary block", disabled: !send.length, onclick: (e) => approve(e, r, send.map((i) => i.item)) },
-          icon("key", 16), send.length ? ` 패스키로 승인 · ${won(price)}` : " 보낼 항목을 골라 주세요");
       foot = [
-        !pk.registered ? h("p", { class: "tiny muted", style: { margin: "0 0 4px" } }, "승인은 본인 기기의 패스키로만 할 수 있어요. 처음 한 번 만들어 주세요.") : null,
-        primary,
+        h("button", { class: "ar-btn primary block", disabled: !send.length, onclick: () => openSheet(approveSheet(r, send, price)) },
+          send.length ? `승인 · ${won(price)}` : "보낼 항목을 골라 주세요"),
         h("button", { class: "ar-btn block", onclick: (e) => skip(e, r) }, "이번 회차 건너뛰기"),
       ];
     }
     return frame(lab(r), body, foot, { back: () => go("home") });
   }
 
-  async function register(e) {
-    st.sign = null;
-    const res = await busy(e.target, "패스키 만드는 중", async () => {
-      const { publicKey } = await api.passkeyOptions(pid);
-      const { prf, ...body } = await createPasskey(publicKey);
-      st.prf = prf;
-      return api.passkeyComplete(pid, body);
-    }, (err) => { st.sign = { error: err.name === "NotAllowedError" ? "패스키 만들기를 취소했어요." : "패스키를 만들지 못했어요." }; });
-    if (res) {
-      st.p = await api.participant(pid);
-      toast(st.prf === false ? "패스키를 만들었어요. 이 기기에서는 보낼 데이터를 이 브라우저의 키로 잠가요."
-        : "패스키를 만들었어요. 이제 승인할 수 있어요.");
-    }
-    draw();
+  // ---------- 동의 시트: 서명이 필요한 곳은 모두 이 시트 하나로 확인합니다 ----------
+  // 승인, 민감 정보 동의, 철회, 패스키 만들기. 패스키가 없으면 같은 시트에서 먼저 만들고 이어서 서명해요.
+  function openSheet(spec) { st.sheet = { ...spec, phase: "review", error: null }; draw(); }
+  function closeSheet() { if (st.sheet && st.sheet.phase !== "busy") { st.sheet = null; draw(); } }
+
+  function approveSheet(r, send, price) {
+    const per = cellPrice(r);
+    const sens = send.filter((i) => i.sensitive);
+    return {
+      title: "연구 참여 승인", org: lab(r), badge: tag("IRB 승인 확인", "green"),
+      rows: send.map((i) => ({ name: itemName(i.item), sub: `${weeks(i.weeks)} · ${SOURCE[i.source] || i.source || ""}`,
+                               value: won(per * i.weeks.length), sensitive: !!i.sensitive })),
+      summary: [["목적", PURPOSE[r.purpose] || r.purpose], ["기간", weeks(send.flatMap((i) => i.weeks))],
+                ["참여 지급액", h("b", {}, won(price))]],
+      note: sens.length ? `${sens.map((i) => itemName(i.item)).join(", ")}은 민감 정보예요. 이 서명으로 별도 동의까지 해요.`
+        : `전달될 때 ${r.payment.immediate_pct}%, 검토 후 ${r.payment.held_pct}%가 지급돼요.`,
+      confirm: "패스키로 승인",
+      sign: async () => {
+        const items = send.map((i) => i.item);
+        const ch = await api.challenge(pid, r.id, items);
+        return api.approve(pid, r.id, items, await signWithPasskey(ch.publicKey, pid));
+      },
+      unsigned: () => api.approve(pid, r.id, send.map((i) => i.item)),
+      done: (res) => { st.p = res; st.lastSigned = res.signed; go("done"); },
+      cancelled: "승인을 취소했어요. 아무것도 보내지 않았어요.",
+    };
   }
 
-  async function approve(e, r, items) {
-    st.sign = { pending: true };
-    const res = await busy(e.target, "본인 확인 중", async () => {
-      const ch = await api.challenge(pid, r.id, items);
-      const assertion = await signWithPasskey(ch.publicKey, pid);
-      return api.approve(pid, r.id, items, assertion);
-    }, (err) => {
-      st.sign = { error: err.name === "NotAllowedError" ? "승인을 취소했어요. 아무것도 보내지 않았어요."
-        : "승인하지 못했어요. 아무것도 보내지 않았어요." };
-    });
-    if (res) { st.p = res; st.sign = null; st.lastSigned = res.signed; go("done"); return; }
-    draw();
+  function revokeSheet() {
+    const p = st.p;
+    const locked = p.contributions.filter((c) => c.status === "escrowed");
+    const kept = sum(p.contributions.filter((c) => c.status === "delivered"), (c) => c.amount_xrp);
+    const r = p.requests[p.requests.length - 1];
+    return {
+      title: "이 연구에서 철회", org: r ? lab(r) : "", danger: true,
+      rows: [
+        { name: "열람 권한 회수", sub: "원장에서 바로 회수해요" },
+        locked.length ? { name: "예치금 반환", sub: `아직 전달 전인 ${locked.length}회차`, value: won(sum(locked, (c) => c.amount_xrp)) } : null,
+        { name: "사본 삭제 확인", sub: "연구 기관이 개인 단위 사본을 지워요" },
+        { name: "받은 지급액", sub: "그대로 유지돼요", value: won(kept) },
+      ].filter(Boolean),
+      summary: [["시점", "지금 바로"]],
+      note: "이미 만들어진 집계 통계만 남아요. 다시 참여하려면 새로 동의해야 해요.",
+      confirm: "패스키로 철회",
+      sign: async () => {
+        const ch = await api.revokeChallenge(pid);
+        return api.revoke(pid, await signWithPasskey(ch.publicKey, pid));
+      },
+      unsigned: () => api.revoke(pid),
+      done: (res) => { st.p = res; draw(); },
+      cancelled: "철회를 취소했어요. 바뀐 것은 없어요.",
+    };
+  }
+
+  async function confirmSheet() {
+    const sh = st.sheet;
+    const pk = st.p.passkey || { registered: false };
+    sh.phase = "busy"; sh.error = null; draw();
+    try {
+      let res;
+      if (!pk.registered && !passkeySupported()) res = await sh.unsigned();
+      else {
+        if (!pk.registered) {
+          sh.step = "패스키 만드는 중";
+          draw();
+          const { publicKey } = await api.passkeyOptions(pid);
+          const { prf, ...body } = await createPasskey(publicKey);
+          await api.passkeyComplete(pid, body);
+          st.p = { ...st.p, passkey: { ...pk, registered: true } };
+        }
+        sh.step = "본인 확인 중";
+        draw();
+        res = await sh.sign();
+      }
+      st.sheet = null;
+      sh.done(res);
+    } catch (err) {
+      sh.phase = "review"; sh.step = null;
+      sh.error = err && err.name === "NotAllowedError" ? sh.cancelled : "확인하지 못했어요. 아무것도 바뀌지 않았어요.";
+      draw();
+    }
+  }
+
+  function sheetView() {
+    const sh = st.sheet;
+    const pk = st.p.passkey || { registered: false };
+    const busyNow = sh.phase === "busy";
+    const firstTime = !pk.registered && passkeySupported();
+    return h("div", { class: "ar-sheet-wrap", onclick: (e) => { if (e.target === e.currentTarget) closeSheet(); } },
+      h("div", { class: "ar-sheet", role: "dialog", "aria-modal": "true", "aria-label": sh.title },
+        h("div", { class: "grab" }),
+        h("div", { class: "top" },
+          h("span", { class: `ar-sheet-ic${sh.danger ? " danger" : ""}` }, icon("key", 22)),
+          h("div", { class: "col", style: { gap: "2px", minWidth: 0 } },
+            h("b", { class: "t" }, sh.title),
+            h("span", { class: "small muted" }, sh.org, sh.badge ? " " : null, sh.badge || null))),
+        h("div", { class: "ar-sheet-sec" }, "내역"),
+        h("div", { class: "ar-sheet-rows" }, sh.rows.map((x) => h("div", { class: "row" },
+          h("div", { class: "grow col", style: { gap: "2px", minWidth: 0 } },
+            h("span", {}, x.name, x.sensitive ? [" ", tag("민감 정보", "red")] : null),
+            x.sub ? h("span", { class: "small muted" }, x.sub) : null),
+          x.value ? h("span", { class: "v" }, x.value) : null))),
+        sh.summary && sh.summary.length ? h("dl", { class: "ar-kv left ar-sheet-sum" },
+          sh.summary.map(([k, v]) => [h("dt", {}, k), h("dd", {}, v)])) : null,
+        h("p", { class: "small muted", style: { margin: 0 } }, sh.note),
+        sh.error ? banner("red", sh.error) : null,
+        h("div", { class: "col", style: { gap: "8px" } },
+          h("button", { class: `ar-btn ${sh.danger ? "danger" : "primary"} block`, disabled: busyNow, onclick: confirmSheet },
+            icon("key", 16), " ", busyNow ? (sh.step || "확인 중") : sh.confirm),
+          h("button", { class: "ar-btn block", disabled: busyNow, onclick: closeSheet }, "취소")),
+        h("p", { class: "tiny muted", style: { margin: 0, textAlign: "center" } },
+          firstTime ? "처음 한 번 이 기기에 패스키를 만들고 이어서 확인해요." : "Touch ID나 기기 잠금으로 확인해요.")));
   }
 
   async function skip(e, r) {
@@ -396,7 +468,6 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     const revoked = p.consent && p.consent.status === "revoked";
     const rv = [...p.withdrawals].reverse().find((x) => x.kind === "revoke");
     if (revoked && rv) return withdrawnView(rv);
-    const locked = p.contributions.filter((c) => c.status === "escrowed");
     const option = (title, desc, btn) => h("div", { class: "ar-card col" }, h("b", {}, title), h("span", { class: "small muted" }, desc), btn);
     const body = [
       option(paused ? "새 요청 다시 받기" : "새 요청 멈추기", "이미 보낸 데이터와 받은 지급액은 그대로예요. 언제든 다시 받을 수 있어요.",
@@ -405,19 +476,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
           if (res) { st.p = res; toast(paused ? "새 요청을 다시 받아요." : "새 요청을 멈췄어요."); draw(); }
         } }, paused ? "다시 받기" : "멈추기")),
       option("이 연구에서 철회", "연구 기관의 열람 권한을 원장에서 회수하고, 아직 전달되지 않은 회차는 멈춰요. 이미 받은 지급액은 그대로예요.",
-        st.confirmWithdraw
-          ? h("div", { class: "col", style: { gap: "8px" } },
-            h("ul", { class: "small", style: { margin: 0, paddingLeft: "18px" } },
-              h("li", {}, "열람 권한을 원장에서 회수해요."),
-              locked.length ? h("li", {}, `예치된 ${locked.length}회차 ${won(sum(locked, (c) => c.amount_xrp))}는 연구로 돌아가요.`) : null,
-              h("li", {}, "연구 기관은 개인 단위 사본을 지우고 확인해야 해요."),
-              h("li", {}, "이미 만들어진 집계 통계만 남아요.")),
-            h("button", { class: "ar-btn danger block", onclick: async (e) => {
-              const res = await busy(e.target, "원장에서 확인 중", () => api.revoke(pid), () => toast("원장 확인이 늦어지고 있어요. 철회는 기록됐고 다시 시도해요."));
-              if (res) { st.p = res; draw(); }
-            } }, "철회하기"),
-            h("button", { class: "ar-btn block", onclick: () => { st.confirmWithdraw = false; draw(); } }, "취소"))
-          : h("button", { class: "ar-btn danger", onclick: () => { st.confirmWithdraw = true; draw(); } }, "철회")),
+        h("button", { class: "ar-btn danger", onclick: () => openSheet(revokeSheet()) }, "철회")),
     ];
     return frame("참여 중단 · 철회", body, null, { back: () => go("home") });
   }

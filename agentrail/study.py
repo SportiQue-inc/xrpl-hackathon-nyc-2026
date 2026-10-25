@@ -778,11 +778,27 @@ def participant_pause(w, pid: str, resume: bool = False) -> dict:
     return participant_view(w, pid)
 
 
-def participant_revoke(w, pid: str) -> dict:
+def withdrawal_challenge(w, pid: str) -> dict:
+    """The withdrawal statement the participant signs with their passkey, and the WebAuthn options for it."""
+    s = ensure(w)
+    pa = w.cohort_people[pid]
+    lic = s.licences.get(pid)
+    held = [{"order_id": o["order_id"], "weeks": o.get("weeks")} for req in _requests_for(w, pid)
+            for o in req["orders"] if o.get("hold")]
+    stmt = passkey.withdrawal_statement(w, pid, pa.vault.pseudonym(LAB), LAB,
+                                        lic["mpt_id"] if lic and not lic["clawback"] else None, held)
+    return passkey.begin_withdrawal(w, pid, stmt)
+
+
+def participant_revoke(w, pid: str, assertion: dict | None = None) -> dict:
     """Withdrawal 3: revoke data access consent. Licence clawed back, held rounds withheld and
     refunded to the study after the deadline, consent history kept. Delivered rounds cannot be recalled."""
     s = ensure(w)
     pa = w.cohort_people[pid]
+    if _has_passkeys(w) and passkey.has_passkey(w, pid):
+        if not assertion:
+            raise PermissionError("this participant withdraws with their passkey; ask for a challenge first")
+        passkey.verify_withdrawal(w, pid, assertion)
     out = {"clawback": None, "withheld": [], "refunds": []}
     lic = s.licences.get(pid)
     if lic and not lic["clawback"]:
