@@ -16,7 +16,6 @@ import json
 import os
 import sys
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 
 from cryptography.hazmat.primitives import hashes, serialization
@@ -69,7 +68,25 @@ class Rail:
         p = self.led._sign(cls(account=account, sequence=self.led._next_sequence(account), **kw), account)
         return self._submit(p)
 
-    def setup_token(self, holders: dict[str, float]) -> None:
+    def _issuer_wallet(self, funder: str) -> str:
+        """The issuer is a fresh wallet funded by a Payment from an already-funded account, not by the
+        faucet (which rate-limits right after 50 wallets reconnect). Its seed is kept with the others."""
+        from xrpl.wallet import Wallet
+        label = "vm/issuer"
+        if label in self.led._labels:
+            w = Wallet.from_seed(self.led._labels[label])
+            self.led.wallets[w.classic_address] = w
+            return w.classic_address
+        w = Wallet.create()
+        r = self._submit(self.led.prepare_payment(funder, w.classic_address, 30_000_000, "0" * 64, "vaultmarket/issuer"))
+        if not r["ok"]:
+            raise RuntimeError(f"funding the issuer: {r['result']}")
+        self.led._labels[label] = w.seed
+        self.led._save()
+        self.led.wallets[w.classic_address] = w
+        return w.classic_address
+
+    def setup_token(self, holders: dict[str, float], funder: str) -> None:
         """Issuer wallet with DefaultRipple + AllowTrustLineLocking (needed for token escrow), a trust line
         from every account, and a starting balance. Then one probe escrow; if the ledger refuses it, the
         market settles in XRP and says why. holders: address -> starting test USD."""
@@ -83,14 +100,7 @@ class Rail:
         state_file = os.path.join(config.DATA_DIR, "token.local.json")
         st = json.load(open(state_file)) if os.path.exists(state_file) else {"lines": []}
         try:
-            for attempt in range(8):        # the faucet rate-limits right after funding 50 wallets
-                try:
-                    self.issuer = self.ensure_account("issuer")
-                    break
-                except Exception:
-                    if attempt == 7:
-                        raise
-                    time.sleep(20 * (attempt + 1))
+            self.issuer = self._issuer_wallet(funder)
             if not st.get("flags"):
                 for flag in (AccountSetAsfFlag.ASF_DEFAULT_RIPPLE, AccountSetAsfFlag.ASF_ALLOW_TRUSTLINE_LOCKING):
                     r = self._send(AccountSet, self.issuer, set_flag=flag)

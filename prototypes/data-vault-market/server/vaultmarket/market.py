@@ -109,7 +109,7 @@ class Market:
         for a in self.s.q("SELECT id, type FROM accounts"):
             if a["id"] in self.addr:
                 holders[self.addr[a["id"]]] = 20000 if a["type"] == "org" else 300
-        self.rail.setup_token(holders)
+        self.rail.setup_token(holders, funder=self.addr.get("coop-broker") or self.platform)
         self.asset_ready = True
         self._bal.clear(); self.events += 1
 
