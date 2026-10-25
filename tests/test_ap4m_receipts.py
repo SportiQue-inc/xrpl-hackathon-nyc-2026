@@ -32,6 +32,7 @@ def test_decodes_the_deployed_voucher_redeemed_log():
     e = ap.decode_voucher_redeemed(LOG)
     assert e["ledger"] == ap.PAYMENT_LEDGER and e["channel_id"] == CHANNEL and e["claim_id"] == CLAIM
     assert e["amount_rlusd"] == "0.01" and e["cumulative_rlusd"] == "0.04"
+    assert e["payout"] == "0xc46d99faae8482f3876f49cae56b9f09057ce2b8"
 
 
 def test_match_and_mismatch():

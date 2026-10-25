@@ -103,3 +103,11 @@ transaction hashes, and the on-chain payout balance change before claiming AP4M 
 - `vendor/`: files downloaded unchanged from `https://hackathon.ap4m.build/sdk/` (`ap4m-hackathon-sdk.cjs` is a
   copy of `ap4m-hackathon-sdk.js` so it loads in this ESM package, as the SDK README says)
 - `AGENTS.md`: the SDK's instructions for coding agents
+
+## Live run on 2026-10-25
+
+`receipts/run-2026-10-25T14-59-45-563Z.json` is the record of the first live run (no keys in it). The agent paid
+3 exports at 0.05 RLUSD and refused the 0.50 RLUSD one. All 3 receipts passed `verify-receipt.mjs` (`verified: true`),
+and the payout wallet `0x7BA2…4160` went from 0 to 0.15 RLUSD. The engine serves it at `GET /api/public/ap4m`
+(`?verify=1` re-checks each VoucherRedeemed on an XRPL EVM RPC node), and `/console#/evidence` and `/try` show it.
+Node may need `NODE_OPTIONS=--network-family-autoselection-attempt-timeout=1000` on IPv6-flaky networks.

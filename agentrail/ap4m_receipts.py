@@ -58,7 +58,7 @@ def decode_voucher_redeemed(log: dict) -> dict | None:
         return None
     word = lambda i: data[i * 64:(i + 1) * 64]   # noqa: E731
     return {"ledger": str(log.get("address", "")).lower(), "channel_id": topics[1], "claim_id": topics[2],
-            "agent": "0x" + word(1)[24:], "payout": "0x" + word(4)[24:],
+            "agent": "0x" + word(1)[24:], "payout": "0x" + word(3)[24:], "submitter": "0x" + word(4)[24:],
             "amount_rlusd": _rlusd(int(word(7), 16)), "cumulative_rlusd": _rlusd(int(word(6), 16))}
 
 
@@ -99,6 +99,8 @@ def _tx(h: str | None) -> dict | None:
 def summarize(rec: dict) -> dict:
     """Public view of one run record: what was paid, what was refused, the settlement and its receipt."""
     ch = rec.get("channel") or {}
+    st = rec.get("settlement") or {}
+    receipt_of = {(x.get("claim_id") or "").lower(): x.get("receipt_url") for x in st.get("receipts") or []}
     paid, refused = [], []
     for c in rec.get("calls") or []:
         offer = c.get("offer") or {}
@@ -108,12 +110,12 @@ def summarize(rec: dict) -> dict:
                          "price_rlusd": offer.get("price_rlusd"), "reason": c.get("reason"),
                          "claim_id": c.get("claim_id"), "package_sha256": c.get("package_sha256"),
                          "package_hash_ok": c.get("package_hash_ok"), **(_tx(c.get("voucher_redeemed_tx")) or {}),
+                         "receipt_url": receipt_of.get((c.get("claim_id") or "").lower()),
                          "expect": {"channel_id": ch.get("channel_id"), "claim_id": c.get("claim_id"),
                                     "amount_rlusd": ev.get("amount_rlusd") or offer.get("price_rlusd")}})
         elif c.get("decision") == "refuse":
             refused.append({"package": offer.get("package_id"), "price_rlusd": offer.get("price_rlusd"),
                             "reason": c.get("reason")})
-    st = rec.get("settlement") or {}
     return {"run_id": rec.get("run_id"), "finished_at": rec.get("finished_at"), "task": rec.get("task"),
             "agent": rec.get("agent"), "policy": rec.get("policy"),
             "channel": {"channel_id": ch.get("channel_id"), "cap_rlusd": ch.get("cap_rlusd"),

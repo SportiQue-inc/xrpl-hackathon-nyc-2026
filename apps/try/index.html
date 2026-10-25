@@ -197,7 +197,7 @@
       const r = (v.runs || [])[0];
       if (!r) { apBox.innerHTML = '<p class="caption">No live AP4M run recorded yet.</p>'; return; }
       apBtn.hidden = false;
-      const rows = r.paid.map((p) => `<li><b>Week ${esc(p.week)} · ${esc(p.price_rlusd)} RLUSD</b> <a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(cut(p.tx))} ↗</a> <span class="${p.onchain?.status === "verified" ? "ok" : "warn"}">${esc(p.onchain ? apMark[p.onchain.status] || p.onchain.status : "paid")}</span></li>`)
+      const rows = r.paid.map((p) => `<li><b>Week ${esc(p.week)} · ${esc(p.price_rlusd)} RLUSD</b> <a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(cut(p.tx))} ↗</a> ${p.receipt_url ? `<a href="${esc(p.receipt_url)}" target="_blank" rel="noopener">receipt ↗</a> ` : ""}<span class="${p.onchain?.status === "verified" ? "ok" : "warn"}">${esc(p.onchain ? apMark[p.onchain.status] || p.onchain.status : "paid")}</span></li>`)
         .concat(r.refused.map((x) => `<li><b>Refused · ${esc(x.price_rlusd)} RLUSD</b> ${esc(x.reason)}. Nothing paid.</li>`)).join("");
       const st = r.settlement, pb = r.payout_balance;
       apBox.innerHTML = `<p class="caption">Channel ${esc(cut(r.channel.channel_id))} · cap ${esc(r.channel.cap_rlusd)} RLUSD · total paid ${esc(r.total_paid_rlusd)} RLUSD</p><ul>${rows}</ul>`
