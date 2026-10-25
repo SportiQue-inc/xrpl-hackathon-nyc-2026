@@ -437,3 +437,14 @@ def test_demo_compares_the_same_window_without_mixing_assets(market, monkeypatch
     assert len(a['receipts'])==2 and all(d['start']<=r['at']<=d['end'] for r in a['receipts'])
     assert client.get('/api/demo?minutes=-1').status_code==400
     assert client.get('/demo').status_code==200
+
+
+def test_settlement_uses_the_agreed_exact_micro_amount(market, monkeypatch):
+    from vaultmarket import agents
+    monkeypatch.setattr(config,'MICRO_PER_UNIT',1000000)
+    market.rail.asset='USD'
+    market.s.x("UPDATE files SET status='listed' WHERE id=?",(market.test_file,))
+    market.s.insert('interests',account='seller',posting=market.test_post)
+    monkeypatch.setattr(agents,'seller_reply',lambda *a:{'verdict':'agree','price':2.01,'message':'Agreed','thinking':'Owner terms fit','by':'rules'})
+    cid=market.negotiate(market.s.one('SELECT * FROM postings WHERE id=?',(market.test_post,)))
+    assert market.s.one('SELECT drops FROM escrows WHERE contract=?',(cid,))['drops']==2010000

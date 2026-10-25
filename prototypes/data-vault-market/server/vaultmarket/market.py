@@ -191,7 +191,7 @@ class Market:
         if not held:
             return {"error": "nothing to clean"}
         account, name, body, sc = held
-        fee_drops = int(sc["fee"] * config.MICRO_PER_UNIT)
+        fee_drops = round(sc["fee"] * config.MICRO_PER_UNIT)
         tx = self._fee(account, fee_drops, f"cleaning {name}")
         fid = self.add_file(account, sc["kind"], name, intake.clean(sc["kind"], body), listed=listed, source=body.get("device_serial", "upload"),
                             cleaned=True, checks=["schema", "value ranges", "duplicates", "identifiers removed"] + sc["issues"])
@@ -503,7 +503,7 @@ class Market:
             sealed, K = self.rail.seal(buyer_id, clear)
             trace["protocol"].append({"protocol": "Sealed delivery (AES-256-GCM, key wrapped with X25519 + HKDF-SHA256)", "who": a, "ok": True, "tx": None,
                                       "detail": f"{len(clear)} bytes sealed to the buyer's X25519 key; bundle SHA-256 {hashlib.sha256(clear).hexdigest()[:16]}…; content key K stays with the seller's agent"})
-            legs.append({"seller": a, "seller_addr": self.addr[a], "dst_addr": self.acct(a).get("payout") if self.rail.has_line(self.acct(a).get("payout") or "") else None, "drops": int(price * config.MICRO_PER_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
+            legs.append({"seller": a, "seller_addr": self.addr[a], "dst_addr": self.acct(a).get("payout") if self.rail.has_line(self.acct(a).get("payout") or "") else None, "drops": round(price * config.MICRO_PER_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
             plain[a] = clear
         self.s.x("UPDATE contracts SET trace=?,sellers=? WHERE id=?", (json.dumps(trace),json.dumps([l["seller"] for l in legs]),cid))
         eids = {}
