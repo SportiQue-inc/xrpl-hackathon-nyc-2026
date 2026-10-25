@@ -133,7 +133,8 @@ def test_trust_and_case_details_never_reach_the_ledger(w):
     payout.decide(w, LAB, case["id"], "reviewer-1", True)
     payout.release_due(w)
     import json
-    memos = " ".join(json.dumps(t) for t in w.ledger.txs.values()).lower()
+    memos = " ".join(json.dumps({k: v for k, v in t.items() if k != "TransactionType"})
+                     for t in w.ledger.txs.values()).lower()
     for word in ("trust", "fraud", "restricted", "impossible", "reviewer"):
         assert word not in memos
     assert "trust" not in payout.view(w, LAB, case["person"])

@@ -20,6 +20,7 @@ from .cohort import (HERO, PRIMARY, WEEKS, apply_deliveries, heatmap, infer_need
 from .connectors import HospitalExportSource
 from .engine import BudgetExceeded, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
 from .ledger.licence import licence_metadata
+from .ledger.amm_terms import SLIPPAGE, STABLE_CODE, STABLE_ISSUER, STABLE_LABEL
 from .policy import DUO, PURPOSE_DUO, BuyerMandate
 
 XRP = 1_000_000
@@ -52,6 +53,8 @@ class StudyState:
     signers: dict = field(default_factory=dict)        # name -> address
     # Required at registration: no budget is approved and no request goes out without it.
     irb_approval: str = ""
+    payout_currency: dict = field(default_factory=dict)   # pid -> "XRP" | "stable" (participant's choice)
+    swaps: list = field(default_factory=list)              # stablecoin conversions done by participants' agents
 
 
 def _url(w, h):
@@ -71,6 +74,9 @@ def ensure(w) -> StudyState:
         build_cohort(w)
     s = StudyState()
     s.irb_approval = os.environ.get("STUDY_IRB_APPROVAL", "DEMO-IRB-0000 (synthetic demo value)")
+    for pid in os.environ.get("PAYOUT_STABLE_FOR", HERO).split(","):     # demo: P-017 holds a stablecoin
+        if pid.strip():
+            s.payout_currency[pid.strip()] = "stable"
     hm = heatmap(w, w.coverage, LAB)
     s.power_before, s.pairs_before = hm["power"], hm["complete_pairs"]
     sec = getattr(w, "security", None)
@@ -241,7 +247,10 @@ def send(w, workers: int = 8) -> dict:
         req = {"id": rid, "person": pid, "study": LAB, "purpose": s.needs.purpose, "weeks": weeks,
                "status": "open", "created": time.time(), "orders": []}
         s.requests[rid] = req
-        oids += _answer(w, req)
+        got = _answer(w, req)
+        if len(got) > 1 and not any(o.get("hold") for o in req["orders"]):
+            w.engine.escrow_create_batch(got)      # all of this person's weeks, or none
+        oids += got
     with ThreadPoolExecutor(workers) as ex:
         list(ex.map(w.engine.process, oids))
     for req in s.requests.values():
@@ -342,6 +351,44 @@ def _export_fee(w, pa, items):
                 {"tx_hash": prep.tx_hash, "url": _url(w, prep.tx_hash)})
 
 
+def set_payout_currency(w, pid: str, currency: str) -> dict:
+    """The participant picks how they want to hold what they earn: XRP, or a stablecoin their own agent
+    swaps into through an AMM pool right after each payment."""
+    if currency not in ("XRP", "stable"):
+        raise ValueError("currency must be XRP or stable")
+    if pid not in w.cohort_people:
+        raise KeyError(pid)
+    ensure(w).payout_currency[pid] = currency
+    return {"person": pid, "payout_currency": currency, "stablecoin": STABLE_LABEL}
+
+
+def _swap_paid(w, pid: str, delivered: list):
+    """After escrows pay out in XRP, the participant's agent converts exactly that amount."""
+    s = w.study
+    if s.payout_currency.get(pid) != "stable" or not hasattr(w.ledger, "swap_to_stable"):
+        return
+    addr = w.engine.party(pid)["address"]
+    done = {o for x in s.swaps for o in x["orders"]}
+    todo = [o["order_id"] for o in delivered if o["order_id"] not in done]
+    if not todo or not w.ledger.can_sign(addr):
+        return
+    drops = sum(w.store.one("SELECT price_drops FROM orders WHERE id=?", o)["price_drops"] for o in todo)
+    try:
+        tl = w.ledger.ensure_trustline(addr, STABLE_CODE, STABLE_ISSUER)
+        r = w.ledger.swap_to_stable(addr, drops, STABLE_CODE, STABLE_ISSUER)
+    except Exception as e:
+        w.store.log(pid, "error", f"stablecoin swap failed ({e}); payment stays in XRP")
+        return
+    s.swaps.append({"person": pid, "orders": todo, "xrp": drops / XRP, "trustline_tx": tl, **r,
+                    "url": _url(w, r.get("tx"))})
+    if r["ok"]:
+        w.store.log(pid, "swap", f"{pid}'s agent swapped the {drops / XRP:g} XRP it was paid into {r['delivered']} "
+                    f"{STABLE_LABEL} through the AMM pool (minimum set {int(SLIPPAGE * 100)}% under spot)",
+                    {"tx_hash": r["tx"], "url": _url(w, r["tx"])})
+    else:
+        w.store.log(pid, "swap", f"{pid}: swap refused ({r['result']}); payment stays in XRP")
+
+
 def _after_contribution(w, req):
     """First delivered contribution -> the participant's agent issues the study a data licence (MPT)."""
     s = w.study
@@ -350,6 +397,7 @@ def _after_contribution(w, req):
                                                           o["order_id"])["status"] == "delivered"]
     apply_deliveries(w, w.coverage, [{"order_id": o["order_id"], "person": pid, "cells": {o["week"]: o["items"]}}
                                      for o in delivered])
+    _swap_paid(w, pid, delivered)
     if not delivered or pid in s.licences:
         return
     addr, lab = w.engine.party(pid)["address"], w.engine.party(LAB)["address"]
@@ -771,7 +819,12 @@ def study_view(w) -> dict:
         "licences": {k: {"mpt_id": v["mpt_id"], "clawed_back": bool(v["clawback"])} for k, v in s.licences.items()},
         "settlement": {"paid_xrp": paid / XRP, "refunded_xrp": refunded / XRP,
                        "people_paid": len({c["pseudonym"] for c in contribs if c["status"] == "delivered"}),
-                       "export_fees_xrp": sum(x["amount_xrp"] for x in s.export_fees)},
+                       "export_fees_xrp": sum(x["amount_xrp"] for x in s.export_fees),
+                       "export_fee_rails": {r: sum(1 for x in s.export_fees if x["rail"] == r)
+                                            for r in sorted({x["rail"] for x in s.export_fees})},
+                       "batches": len(w.store.q("SELECT id FROM events WHERE kind='batch'")),
+                       "stablecoin_swaps": [{k: x.get(k) for k in ("ok", "xrp", "delivered", "tx", "url", "result")}
+                                            for x in s.swaps]},
         "payout": payout.view(w, LAB),
     }
 

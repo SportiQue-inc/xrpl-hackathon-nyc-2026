@@ -255,3 +255,12 @@ consent layer replaced by seller licence terms.
 Each order of a buyer with an owner-signed mandate has a row in `mandate_actions` (L1, L2, L3, hash,
 verdict). Events of kind `mandate` show when the owner signs; a refused order's note starts with
 `mandate check failed:`. The memo of its escrow or payment ends with `|mandate:<hash>`.
+
+
+## Payout currency
+
+`POST /api/p/{pid}/payout-currency` body `{"currency": "XRP" | "stable"}` (the participant only).
+With `stable`, after each payment the participant's own agent swaps exactly what it was paid into the
+configured stablecoin through the XRP/stablecoin AMM pool (`PAYOUT_STABLE_ISSUER`, `PAYOUT_STABLE_CODE`;
+default the Testnet RLUSD issuer). The study view's `settlement` shows `stablecoin_swaps`,
+`export_fee_rails` (count per rail: `x402`, `direct`) and `batches` (rounds escrowed in one Batch).

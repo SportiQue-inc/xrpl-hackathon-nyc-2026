@@ -26,6 +26,8 @@ class MockLedger(Ledger):
         self.submit_calls = 0
         self.credentials: set[tuple[str, str, str]] = set()
         self.cred_expiry: dict[tuple[str, str, str], int | None] = {}
+        self.trustlines: set[tuple[str, str, str]] = set()
+        self.ious: dict[tuple[str, str, str], float] = {}
         self.signer_lists: dict[str, tuple[list[str], int]] = {}
         self.master_disabled: set[str] = set()
         self.deposit_auth: set[str] = set()
@@ -78,6 +80,55 @@ class MockLedger(Ledger):
                            "OfferSequence": offer_sequence, "Condition": condition, "Fulfillment": fulfillment,
                            "Memo": memo})
 
+    def prepare_escrow_batch(self, source, legs):
+        """Batch (ALL_OR_NOTHING) of EscrowCreates from one account. legs: dicts with destination,
+        amount_drops, condition, cancel_after, memo. Returns (outer, inner hashes, inner sequences)."""
+        with self.lock:
+            seq = self.sequences.setdefault(source, 1)
+            self.sequences[source] = seq + 1 + len(legs)
+        inner = [{"TransactionType": "EscrowCreate", "Account": source, "Destination": l["destination"],
+                  "Amount": str(l["amount_drops"]), "Condition": l["condition"], "CancelAfter": l["cancel_after"],
+                  "Memo": l["memo"], "Sequence": seq + 1 + i, "InnerBatch": True} for i, l in enumerate(legs)]
+        hashes = [hashlib.sha256(json.dumps(b, sort_keys=True).encode()).hexdigest().upper() for b in inner]
+        blob = json.dumps({"TransactionType": "Batch", "Account": source, "Sequence": seq, "Flags": "ALL_OR_NOTHING",
+                           "RawTransactions": inner}, sort_keys=True)
+        outer = Prepared(tx_hash=hashlib.sha256(blob.encode()).hexdigest().upper(), blob=blob, sequence=seq)
+        return outer, hashes, [b["Sequence"] for b in inner]
+
+    def _apply_batch(self, body: dict) -> str:
+        inner = body["RawTransactions"]
+        if sum(int(b["Amount"]) for b in inner) > self.balances.get(body["Account"], 0):
+            return "tesSUCCESS"          # the outer tx applies; with ALL_OR_NOTHING no inner tx does
+        for b in inner:
+            self.ledger_index += 1
+            h = hashlib.sha256(json.dumps(b, sort_keys=True).encode()).hexdigest().upper()
+            self.txs[h] = {**b, "result": self._apply_escrow(b), "ledger_index": self.ledger_index}
+        return "tesSUCCESS"
+
+    # ---------- stablecoin payout through an AMM (fixed demo pool) ----------
+
+    MOCK_STABLE_PER_XRP = 0.5
+
+    def stable_price(self, code, issuer):
+        return self.MOCK_STABLE_PER_XRP
+
+    def ensure_trustline(self, account, code, issuer):
+        if (account, code, issuer) in self.trustlines:
+            return None
+        self.trustlines.add((account, code, issuer))
+        return self._fake_tx("TrustSet", Account=account)
+
+    def swap_to_stable(self, account, drops, code, issuer):
+        if (account, code, issuer) not in self.trustlines:
+            return {"ok": False, "result": "tecPATH_DRY"}
+        if self.balances.get(account, 0) < drops:
+            return {"ok": False, "result": "tecUNFUNDED_PAYMENT"}
+        got = drops / 1e6 * self.MOCK_STABLE_PER_XRP * 0.997          # pool fee
+        self.balances[account] -= drops
+        self.ious[(account, code, issuer)] = self.ious.get((account, code, issuer), 0.0) + got
+        h = self._fake_tx("Payment", Account=account, Destination=account, SendMax=str(drops))
+        return {"ok": True, "result": "tesSUCCESS", "tx": h, "delivered": f"{got:.6f}", "spot": self.MOCK_STABLE_PER_XRP}
+
     def prepare_escrow_cancel(self, submitter, owner, offer_sequence):
         return self._prep({"TransactionType": "EscrowCancel", "Account": submitter, "Owner": owner,
                            "OfferSequence": offer_sequence})
@@ -124,8 +175,8 @@ class MockLedger(Ledger):
             if prepared.tx_hash not in self.txs and json.loads(prepared.blob)["TransactionType"] != "Payment":
                 body = json.loads(prepared.blob)
                 self.ledger_index += 1
-                self.txs[prepared.tx_hash] = {**body, "result": self._apply_escrow(body),
-                                              "ledger_index": self.ledger_index}
+                apply = self._apply_batch if body["TransactionType"] == "Batch" else self._apply_escrow
+                self.txs[prepared.tx_hash] = {**body, "result": apply(body), "ledger_index": self.ledger_index}
             elif prepared.tx_hash not in self.txs:  # resubmitting the same blob is a no-op
                 body = json.loads(prepared.blob)
                 amt = int(body["Amount"])

@@ -161,6 +161,26 @@ class XrplLedger(Ledger):
                                        sequence=self._next_sequence(source),
                                        memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))]), source)
 
+    def prepare_escrow_batch(self, source, legs):
+        """Batch (XLS-56, ALL_OR_NOTHING) of EscrowCreates from one account: every leg is created in the
+        same ledger or none is. Returns (outer, inner hashes, inner sequences)."""
+        from xrpl.models.transactions import Batch, BatchFlag
+        from xrpl.models.transactions.transaction import Transaction
+        with self._seq_lock:
+            self._seq.pop(source, None)          # autofill reads the account's sequence; resync after
+        tx = Batch(account=source, flags=BatchFlag.TF_ALL_OR_NOTHING, raw_transactions=[
+            EscrowCreate(account=source, destination=l["destination"], amount=str(l["amount_drops"]),
+                         condition=l["condition"], cancel_after=l["cancel_after"],
+                         memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(l["memo"]))])
+            for l in legs])
+        signed = autofill_and_sign(tx, self.client, self.wallets[source])
+        raws = [r.get("RawTransaction", r) for r in signed.to_xrpl().get("RawTransactions", [])]
+        inner = [Transaction.from_xrpl(r) for r in raws]
+        with self._seq_lock:
+            self._seq[source] = max(t.sequence for t in inner) + 1
+        return (Prepared(tx_hash=signed.get_hash(), blob=encode(signed.to_xrpl()), sequence=signed.sequence),
+                [t.get_hash() for t in inner], [t.sequence for t in inner])
+
     def prepare_escrow_finish(self, submitter, owner, offer_sequence, condition, fulfillment, memo,
                               destination: str | None = None):
         # DepositAuth gates EscrowFinish (not EscrowCreate) when someone other than the

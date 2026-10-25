@@ -355,6 +355,16 @@ def participant_resume_requests(pid: str):
     return _call(lambda w: (payout.resume_requests(w, study.LAB, pid), study.participant_view(w, pid))[1])
 
 
+class PayoutCurrency(BaseModel):
+    currency: str          # "XRP" or "stable"
+
+
+@app.post("/api/p/{pid}/payout-currency")
+def participant_payout_currency(pid: str, body: PayoutCurrency):
+    """How the participant wants to hold what they earn; a stablecoin is swapped by their own agent."""
+    return _call(study.set_payout_currency, pid, body.currency)
+
+
 @app.get("/api/study/bundle/{oid}")
 def study_bundle(oid: int, use: str = "sleep_research"):
     return _call(study.open_bundle, oid, use)
