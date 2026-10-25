@@ -12,9 +12,11 @@ from typing import Literal
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import payout, scenario, study
+from . import uniqdata_port as port
 from .llm import voice
 from .security import audit, consent as signed_consent, cosign, rbac
 from .security.auth import AuthError
@@ -368,10 +370,50 @@ def participant_payout_currency(pid: str, body: PayoutCurrency):
     return _call(study.set_payout_currency, pid, body.currency)
 
 
+@app.get("/api/p/{pid}/uniqdata")
+def participant_uniqdata(pid: str, project: str = "project-sleeplab", privacy_epoch: int = Query(0, ge=0)):
+    """The participant's engine records in the shapes UniQdata and UniQLab store (uniqdata_port)."""
+    def records(w):
+        v = study.participant_view(w, pid)
+        c = w.store.one("SELECT doc FROM consents WHERE person_id=? AND buyer_id=?", pid, study.LAB)
+        try:
+            grants, unmapped = (port.consent_grants(json.loads(c["doc"]), project) if c else []), None
+        except port.UnmappedConsent as e:
+            grants, unmapped = [], str(e)
+        rev = next((x for x in reversed(w.study.withdrawals) if x["person"] == pid and x["kind"] == "revoke"), None)
+        return {"project_id": project, "participant_number": v["person"]["study_pseudonym"],
+                "consent_grants": grants, "unmapped_consent": unmapped,
+                "payout_receipts": port.payout_receipts(v["contributions"], w.ledger.name, v["payout"]["holdbacks"]),
+                "withdrawal": port.withdrawal_record({**rev, **v}, project, privacy_epoch) if rev else None}
+    return _call(records)
+
+
 @app.get("/api/study/dispute/{tx_hash}")
 def study_dispute(tx_hash: str):
     """From one ledger tx back to the signed chain that authorized it (Verifiable Intent)."""
     return _call(study.dispute, tx_hash)
+
+
+@app.post("/api/contract/round")
+def contract_round(providers: int = Query(default=14, ge=2, le=40), target: int = Query(default=8, ge=1, le=100)):
+    """The study's agent buys per-column data under negotiated contracts, checked as it arrives."""
+    from .contract import onledger
+    with _lock:
+        return onledger.run(world(), providers, target, model=_forecast_model())
+
+
+@app.get("/api/contract/projection")
+def contract_projection():
+    """Live projection of the round (usable so far, expected final with a 90% band, power, risks)."""
+    from .contract import onledger
+    return onledger.view(world())
+
+
+def _forecast_model():
+    if "forecast" not in _state:
+        from .contract import measure
+        _state["forecast"] = measure.train()[0]
+    return _state["forecast"]
 
 
 @app.get("/api/engine/check")
@@ -511,6 +553,10 @@ def participant_page():
 @app.get("/console")
 def console_page():
     return _page("apps", "researcher", "index.html")
+
+
+if (Path(__file__).parent.parent / "apps").is_dir():
+    app.mount("/apps", StaticFiles(directory=Path(__file__).parent.parent / "apps"), name="apps")
 
 
 @app.get("/")
