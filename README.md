@@ -160,7 +160,7 @@ on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 | Wearables | 611M devices shipped in 2025; ~2% of trials use wearables; remote studies retain participants a median of 5.5 days | People contribute the data their devices already collect; compensation adds ~22 days of retention |
 | People | $0 from intermediary deals; $25 per visit | Paid each round; own the licence; can stop or revoke at any time |
 
-Sources for every figure (derived and secondary figures are marked there): [docs/MARKET_THESIS.md](docs/MARKET_THESIS.md) and [docs/MARKET.md](docs/MARKET.md).
+Sources for every figure (derived and secondary figures are marked there): [docs/MARKET.md](docs/MARKET.md); earlier notes in [docs/MARKET_NOTES.md](docs/MARKET_NOTES.md).
 
 ### Market detail
 
@@ -222,18 +222,50 @@ The dashboard at `/` shows the boundary tabs and the event log.
 `OPENAI_MODEL`, `XRPL_RPC_URL`, `PAYMENT_RAIL`, `LLM_SAY`. Testnet wallets come from the faucet
 and are kept only in `wallets.local.json` (git-ignored).
 
-## 10. Safety, privacy, limits
+## 10. Security design
 
-- All people, institutions, records and amounts are **synthetic**. XRPL Testnet only.
-- The service does not hold anyone's funds: the study escrows rewards to each participant's
-  account; secrets stay in `.env` / `wallets.local.json` (git-ignored).
-- Raw records never go to an LLM or on-chain. The LLM sees coverage counts, item names and the
-  protocol; bundles are sealed to the study's key and the operator cannot open them.
-- Re-identification risk is reduced (minimization, per-study pseudonyms and date shifts,
-  quasi-identifier rule), not eliminated; delivered rounds cannot be recalled, and the person is
-  told so before approving.
-- Unknown state never becomes "allowed": an unreadable consent store holds the round.
-- Not a medical device; no diagnosis.
+**Ledger enforces, code verifies, the LLM only proposes.** Each control below names the layer that
+enforces it.
+
+| Threat | Control | Enforced by | Evidence |
+|---|---|---|---|
+| An agent raises its own budget | Study treasury: SignerList (PI + compliance, quorum 2), master key disabled. Each signer approves separately; one approval per spec | XRPL | `tefBAD_QUORUM` single signer; co-signed top-up tx |
+| An agent spends beyond what the owner signed | Owner-signed delegation (Verifiable Intent L1 -> L2 -> L3, ES256). Checked right before every payment and escrow: per-payment max, total, purpose, payee, expiry. The signed ceiling never rises by itself | code | `tests/test_mandate.py` |
+| Paying twice | Order key is idempotent; signed blob and hash stored before submit; lost response -> look up by hash and resubmit the same blob; validated ledger checked for destination, amount, InvoiceID and Condition; sequence re-read after any autofilled tx | code + XRPL | `test_lost_response_*`, recovery tests |
+| Data without payment, or payment without data | Bundle sealed to the study's key, then locked with K; escrow condition = SHA-256(K); the participant's agent publishes K in EscrowFinish to get paid, and the study reads K from the ledger | XRPL | EscrowCreate/Finish tx |
+| Delivery after consent changes | Before K is published, code re-checks revocation, the study's licence MPT, the verified-organization and ethics credentials on the ledger, the prohibited-purpose list and the consented period. A revoke is final; only a newly signed consent reopens supply | code + XRPL | `test_clawed_back_licence_alone_stops_the_key`, `test_compliance_runs_again_before_delivery`, `test_revoked_consent_cannot_be_flipped_back` |
+| Onward transfer of the licence | MPT supply 1, RequireAuth, no CanTransfer, CanClawback | XRPL | `tecNO_AUTH` tx, Clawback tx |
+| Unverified organizations | VERIFIED_ORG credential; DepositAuth + DepositPreauth by credential on the participant's account | XRPL | `tecNO_PERMISSION` tx |
+| Linking a person across studies | Per-study pseudonym and date shift = HMAC with a secret only the person's agent holds; the researcher console shows pseudonyms only | code | `test_pseudonym_differs_per_study`, `test_pseudonym_needs_the_vault_secret` |
+| Re-identification by combination | Two or more quasi-identifiers are never released together | code | `test_quasi_identifier_combination_is_never_released` |
+| Someone acting for another person | API calls carry a role token (participant, researcher, each signer); a participant can act only on their own requests (role tokens being added; own-request check in place) | code | `test_a_participant_cannot_answer_someone_elses_request` |
+| Cross-site requests | Every call needs an `Authorization` header, so browsers force a CORS preflight, which the server does not allow (being added) | code | |
+| LLM manipulation | Proposals are JSON, schema-checked, stored with hashes, and recomputed from the coverage table. Budget, purpose and sensitive fields are clamped to the owner's limits. Licence readings are ANDed with the seller's own terms. The LLM never sees record values, and its output never widens money or permission | code | `test_hostile_llm_can_only_narrow`, `test_hostile_llm_cannot_widen_the_study` |
+| Secrets in the repository | `.env`, seeds and `wallets.local.json` are git-ignored (0600); the history has no keys; signed blobs and hashes only in the DB | repo | |
+
+**What goes on-chain:** order id, bundle hash, consent or terms hash, and the licence MPT with the
+study as a hash. No health values, names, study topics or consent text.
+
+### Limits of this demo (read before judging)
+
+- **One process holds every party's keys.** The study, both treasury signers, the participants'
+  agents and the operator run in one server. So anyone with that server's database could open
+  bundles without the ledger step. In production, K is created and kept on the participant's phone,
+  the study's box key lives in the institution's KMS, and each signer signs on their own device
+  (XRPL multisign). The ledger rules shown here do not change.
+- **Authentication:** role tokens are being added; they are demo tokens, not accounts. In production it is the UniQdata (participant) and
+  UniQLab (researcher) login, behind a gateway with rate limits.
+- **Destruction on withdrawal** removes the study's person-level copies held by this demo. K stays
+  public on the ledger for rounds already delivered; without the bundle copy it opens nothing.
+  Delivered rounds cannot be recalled, and the person is told so before approving.
+- **On-chain payments are visible.** Amounts and addresses are public, so participation can be
+  inferred from the ledger. Production uses per-study addresses or a payout service.
+- **The event log is append-only but not hash-chained** (proposals and consent versions are hashed
+  one by one).
+- **The LLM summary on the request card is labelled as an AI summary.** The binding terms are the
+  DUO codes, items, weeks and recipient listed under it.
+- All data, people and institutions are synthetic. XRPL Testnet only. Not a medical device.
+- Raw records never go to an LLM or on-chain; an unreadable consent store holds the round. Not a medical device; no diagnosis.
 
 ## 11. Legal basis (summary)
 

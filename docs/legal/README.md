@@ -54,3 +54,9 @@ Implemented in `agentrail/payout.py`, tested in `tests/test_payout.py`:
    only. Trust levels stay off the ledger.
 7. Two missed accepted rounds in a row pause automatic requests (one tap resumes); priority and pay
    rules do not change.
+
+## More in this folder
+
+- [verified-articles-kr.md](verified-articles-kr.md): Korean articles checked against the preserved original texts
+- [verified-articles-us.md](verified-articles-us.md): US rules checked against the original texts
+- [payment-and-penalty-policy.md](payment-and-penalty-policy.md): penalty scope, holdback and consent wording (Korean; [미검증] marks kept)
