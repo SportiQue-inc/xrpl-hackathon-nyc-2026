@@ -149,3 +149,11 @@ def test_api_drives_both_pages_on_one_engine():
     assert c.get(f"/api/study/bundle/{oid}").json()["hash_matches"]
     r = c.post(f"/api/p/{HERO}/revoke").json()
     assert r["clawback"] and r["refunds"]
+
+
+def test_unverified_institution_gets_no_answer_and_its_direct_payment_is_refused(w):
+    w.engine.add_party("org_x", "Unverified", "organization", w.ledger.new_account("org_x"))
+    d = w.cohort_people[HERO].handle_request("org_x", "sleep_research", ["sleep.daily"], 6, study.CELL_PRICE)
+    assert d.status == DENY and "verified-organization" in d.reason
+    assert study.direct_payment_attempt(w, "org_x", HERO)["result"] == "tecNO_PERMISSION"
+    assert study.direct_payment_attempt(w, LAB, HERO)["result"] == "tesSUCCESS"

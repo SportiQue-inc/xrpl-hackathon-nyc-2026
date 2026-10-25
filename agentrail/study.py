@@ -77,7 +77,47 @@ def ensure(w) -> StudyState:
                            w.ledger.new_account(CLINIC))
     w.engine.set_mandate(BuyerMandate(LAB, 0, 3 * XRP, ["sleep_research"]))
     w.study = s
+    _kyb(w)
     return s
+
+
+REGISTRY = "org_registry"
+VERIFIED_ORG = "VERIFIED_ORG"
+
+
+def _kyb(w):
+    """A registry issues VERIFIED_ORG to the lab. Every participant's agent requires it before it
+    answers a request (escrow route); the followed participant's account also accepts direct
+    payments only from verified organizations (DepositAuth + DepositPreauth by credential)."""
+    e, L = w.engine, w.ledger
+    if REGISTRY not in {r["id"] for r in w.store.q("SELECT id FROM parties")}:
+        e.add_party(REGISTRY, "Organization registry (synthetic)", "organization", L.new_account(REGISTRY))
+    reg, lab = e.party(REGISTRY)["address"], e.party(LAB)["address"]
+    txs = L.issue_credential(reg, lab, VERIFIED_ORG)
+    w.kyb_tx = txs[-1] if txs else None
+    w.store.log(REGISTRY, "credential", f"issued XRPL Credential {VERIFIED_ORG} to {LAB} (accepted on ledger)",
+                {"tx": txs, "url": _url(w, w.kyb_tx)})
+    check = lambda buyer: L.has_credential(e.party(buyer)["address"], reg, VERIFIED_ORG)
+    for pa in w.cohort_people.values():
+        pa.policy.compliance.verified_check = check
+    hero = e.party(HERO)["address"]
+    if L.can_sign(hero) and hasattr(L, "require_credential_deposits"):
+        txs = L.require_credential_deposits(hero, reg, VERIFIED_ORG)
+        w.store.log(HERO, "deposit_auth", f"{HERO}'s account accepts direct payments only from organizations "
+                    f"holding {VERIFIED_ORG} (DepositAuth + DepositPreauth)", {"tx": txs, "url": _url(w, txs[-1]) if txs else None})
+
+
+def direct_payment_attempt(w, payer: str, pid: str, amount_drops: int = XRP) -> dict:
+    """An organization tries to pay a participant directly, outside any request. The ledger decides."""
+    src, dst = w.engine.party(payer)["address"], w.engine.party(pid)["address"]
+    inv = hashlib.sha256(f"direct|{payer}|{pid}|{time.time()}".encode()).hexdigest().upper()
+    prep = w.ledger.prepare_payment(src, dst, amount_drops, inv, "unsolicited payment")
+    w.ledger.submit(prep)
+    st = w.ledger.wait_validated(prep.tx_hash)
+    w.store.log(payer, "refused" if not st.success else "paid",
+                f"{payer} pays {pid} directly: ledger result {st.result}", {"tx_hash": prep.tx_hash,
+                                                                           "url": _url(w, prep.tx_hash)})
+    return {"result": st.result, **_tx(w, prep.tx_hash)}
 
 
 # ---------------- research side ----------------

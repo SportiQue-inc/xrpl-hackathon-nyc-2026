@@ -83,8 +83,8 @@ class MockLedger(Ledger):
             amt = int(body["Amount"])
             if self.balances.get(body["Account"], 0) < amt:
                 return "tecUNFUNDED"
-            if body["Destination"] in self.deposit_auth and not self._preauthorized(body):
-                return "tecNO_PERMISSION"
+            # As on XRPL: EscrowCreate is not gated by the destination's DepositAuth (no CredentialIDs field).
+            # The escrow route's verified-organization check is the personal agent's, before it publishes the key.
             self.balances[body["Account"]] -= amt
             self.escrows[(body["Account"], body["Sequence"])] = dict(body)
             return "tesSUCCESS"

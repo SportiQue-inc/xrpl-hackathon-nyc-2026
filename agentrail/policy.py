@@ -122,6 +122,8 @@ class ComplianceRules:
     ethics_approved_buyers: list[str] = field(default_factory=list)
     # preferred: look the approval up on the ledger (XRPL Credential issued by an ethics board)
     credential_check: object = None
+    # buyer_id -> bool: the institution holds a verified-organization Credential on the ledger
+    verified_check: object = None
 
     def ethics_approved(self, buyer_id: str) -> bool:
         if buyer_id in self.ethics_approved_buyers:
@@ -132,6 +134,8 @@ class ComplianceRules:
         """Returns (fields allowed to proceed, denial reason or None)."""
         if purpose in self.prohibited_purposes:
             return [], f"purpose '{purpose}' is prohibited by the compliance layer"
+        if self.verified_check and not self.verified_check(buyer_id):
+            return [], "institution has no verified-organization Credential on the ledger"
         quasi = [f for f in fields if f in QUASI_IDENTIFIERS]
         if len(quasi) >= 2:
             return [], ("re-identification risk: " + " + ".join(QUASI_IDENTIFIERS[q] for q in quasi)

@@ -24,7 +24,9 @@ ISSUES = [
      "enforced": ["code: PersonalConsentPolicy.evaluate (agentrail/policy.py) on order and again before the key "
                   "is published", "code: compliance layer refuses prohibited purposes before consent is read",
                   "ledger: consent version hash in every escrow memo",
-                  "ledger: ethics-review Credential checked before sensitive items"],
+                  "ledger: ethics-review Credential checked before sensitive items",
+                  "ledger: verified-organization Credential checked before any answer; direct payments from "
+                  "unverified organizations refused by DepositAuth + DepositPreauth (tecNO_PERMISSION)"],
      "moment": "The same lab sends a second request for a commercial product. Its DUO codes drop NCU, so the "
                "person's agent stops it at 'needs your approval'. Nothing is sent and no escrow is created.",
      "tests": ["test_items_outside_consent_wait_for_person_even_at_higher_price",
@@ -98,6 +100,16 @@ def run(w) -> dict:
         + " without NCU): " + d.status, result=d.status, reason=d.reason, sent=False)
     d = pa.handle_request("org_adtech", "marketing_profiling", ["sleep.daily"], 6, study.CELL_PRICE)
     _ev(w, "consent", f"Ad network, prohibited purpose: {d.status}", result=d.status, reason=d.reason, sent=False)
+    if "org_unverified" not in {r["id"] for r in w.store.q("SELECT id FROM parties")}:
+        w.engine.add_party("org_unverified", "Unverified lab (synthetic)", "organization",
+                           w.ledger.new_account("org_unverified"))
+    d = pa.handle_request("org_unverified", "sleep_research", ["sleep.daily"], 6, study.CELL_PRICE)
+    _ev(w, "consent", f"Lab without a verified-organization Credential asks: {d.status}", result=d.status,
+        reason=d.reason, sent=False)
+    if w.ledger.can_sign(w.engine.party(HERO)["address"]):
+        r = study.direct_payment_attempt(w, "org_unverified", HERO)
+        _ev(w, "consent", f"Same lab pays {HERO} directly, outside any request: ledger says {r['result']}",
+            result=r["result"], tx=r["tx"], url=r["url"])
     d = pa.handle_request(LAB, "sleep_research", ["sleep.daily"], 11, study.CELL_PRICE)
     _ev(w, "consent", f"Week 11, outside the consented period: {d.status}", result=d.status, reason=d.reason)
     o = w.store.one("SELECT o.id, o.policy_snapshot, p.tx_hash FROM orders o JOIN payments p ON p.order_id=o.id "
