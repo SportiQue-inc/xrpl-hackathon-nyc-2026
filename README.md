@@ -131,7 +131,7 @@ on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 |---|---|---|
 | Agentic Finance: escrow, multi-signing, on-chain credentials | all three are in the main flow, not side demos | section 4 tx links |
 | Idea | research on one person's whole record, contributed by that person's agent; the counterpart is a person, not a dataset | sections 1-2 |
-| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, 80% now and 20% held for review, idempotent payments and recovery, 80 tests | `tests/`, sections 4 and 6 |
+| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, 80% now and 20% held for review, idempotent payments and recovery, 89 tests | `tests/`, sections 4 and 6 |
 | Demo | phone request -> contribution -> researcher heatmap fills -> revoke -> clawback and refund, all with explorer links | section 9 |
 | Potential | small, frequent contributions that cards and 80-day agreements cannot carry | section 8 |
 | Bonus: QuickNode, x402 | `XRPL_RPC_URL`; `PAYMENT_RAIL=x402` | section 4 |
@@ -189,12 +189,16 @@ Sources and the full model: [docs/MARKET.md](docs/MARKET.md).
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env                     # optional: OPENAI_API_KEY=... (never committed)
-python -m pytest -q                      # 80 tests on the mock ledger
+python -m pytest -q                      # 89 tests on the mock ledger
 python scripts/run_health_demo.py        # whole health study, mock ledger, JSON summary
 LEDGER=testnet python scripts/run_health_demo.py   # same on XRPL Testnet (faucet wallets)
 LEDGER=testnet python -m agentrail.scenario        # robot scene A, cohort round, failure scene
 uvicorn agentrail.web:app --reload       # API + dashboard at http://127.0.0.1:8000
 ```
+
+The participant app and researcher console pages are built separately on top of
+[docs/API.md](docs/API.md); `/participant` and `/console` return 404 until those pages are added.
+The dashboard at `/` shows the boundary tabs and the event log.
 
 `.env`: `LLM_PROVIDER` (`openai` | `anthropic` | `replay` | `none`), `OPENAI_API_KEY`,
 `OPENAI_MODEL`, `XRPL_RPC_URL`, `PAYMENT_RAIL`, `LLM_SAY`. Testnet wallets come from the faucet
@@ -225,6 +229,23 @@ and are kept only in `wallets.local.json` (git-ignored).
 - **IRB**: approval and exemption are decided by the IRB (Bioethics Act Art. 15; 45 CFR 46.112). An XRPL Credential only shows the issuer's attestation.
 - **Participation compensation**: paid per round by the institution through Escrow and never taken back after withdrawal; Clawback applies only to the licence token. 20% of each round is held for a short review and paid by default; it is withheld only when a named reviewer confirms fraud after notice and a chance to respond. Declining or withdrawing never affects future requests, priority or compensation. The platform holds no keys or funds.
 - **Records**: access logs are kept 2 years and permission-change logs 3 years; no personal data, study names or conditions go on the ledger.
+
+### Legal requirements -> product rules
+
+We reflected legal requirements in the design; we do not claim compliance. Full table in English and
+Korean, with the payment and penalty rules: [docs/legal/README.md](docs/legal/README.md).
+
+| What the law requires | The product rule we built | Basis |
+|---|---|---|
+| Separate consent for health data, kept apart from other consents | Separate consents for sensitive data, third-party provision and international transfer, each hashed and tied to the signature | Korea PIPA Arts. 22, 23; 45 CFR 46.116 |
+| No use beyond the consented scope | Code checks recipient, purpose, items and period on every round and again before the key is published; the LLM cannot widen it | PIPA Art. 17 |
+| Researchers must not identify the person | Per-study participant number and minimum items only; the link stays with the person's agent; risky item combinations refused | PIPA Arts. 28-2 to 28-5; HIPAA 164.514 (reference) |
+| Withdraw at any time, without penalty | Three withdrawal options; key release stops at once; the institution is asked to destroy person-level copies and its confirmation is recorded; withdrawal history is never an input to pay or priority (tested) | PIPA Art. 37; Bioethics Act Art. 16; 45 CFR 46.116(b)(8) |
+| Access from abroad is an international transfer | Countries, recipients, purpose, items and retention disclosed; separate consent; records stay in the person's country | PIPA Art. 28-8 |
+| The IRB decides approval | Agents never create approval; an XRPL Credential only shows the issuer's attestation | Bioethics Act Art. 15; 45 CFR 46.112 |
+| Compensation accrues with participation, without undue inducement | Per-round escrow: 80% on contribution, 20% after a short review, paid by default; paid money is never taken back on chain | Bioethics Act Art. 16(1)5; FDA 2018 payment guidance |
+| Holding others' funds needs a licence | The institution signs its own payments; the platform holds no keys or funds | Korea AML Act (VASP); FinCEN FIN-2019-G001 |
+| No personal data on a public ledger | Only payment and licence state and hashes on chain; no health values, study names or conditions | PIPC blockchain guideline (2026) |
 
 ## 12. Where this goes (production targets)
 
