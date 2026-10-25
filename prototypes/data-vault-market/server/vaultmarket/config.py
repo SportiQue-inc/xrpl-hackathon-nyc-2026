@@ -1,0 +1,34 @@
+"""Settings, all from the environment (see .env.example)."""
+from __future__ import annotations
+
+import os
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _load_dotenv():
+    for path in (os.path.join(ROOT, ".env"), os.path.join(ROOT, "..", "..", "..", ".env")):
+        if os.path.exists(path):
+            for line in open(path):
+                line = line.split("#", 1)[0].strip()
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip())
+
+
+_load_dotenv()
+
+DB_PATH = os.environ.get("VM_DB", os.path.join(ROOT, "vaultmarket.db"))
+LEDGER = os.environ.get("VM_LEDGER", "testnet")            # testnet | mock (tests only; the UI says so)
+WALLETS = os.environ.get("VM_WALLETS", os.path.join(ROOT, "wallets.local.json"))
+AGENTS = int(os.environ.get("VM_AGENTS", "50"))
+TICK_SECONDS = float(os.environ.get("VM_TICK_SECONDS", "15"))   # one negotiation round per tick
+DROPS_PER_XRP_UNIT = int(os.environ.get("VM_DROPS_PER_UNIT", "10000"))  # 1 price unit = 0.01 XRP on the ledger
+K_MIN = 5
+
+LLM_PROVIDER = os.environ.get("VM_LLM_PROVIDER") or os.environ.get("LLM_PROVIDER") or (
+    "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "openai" if os.environ.get("OPENAI_API_KEY") else "none")
+ANTHROPIC_MODEL = os.environ.get("VM_ANTHROPIC_MODEL", "claude-haiku-5-5")
+OPENAI_MODEL = os.environ.get("VM_OPENAI_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+LLM_RPM = int(os.environ.get("VM_LLM_RPM", "20"))                 # calls per minute, all agents together
+LLM_DAILY_CALLS = int(os.environ.get("VM_LLM_DAILY_CALLS", "3000"))

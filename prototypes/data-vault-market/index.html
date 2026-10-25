@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: top bar with the demo account switcher; buyer demand on the left, the shared ledger in the middle (agent chat opens over it), my DB sorted by type on the right. Dark first; gray plus one blue. */
+/* Layout: top bar (demo account switcher); buyer demand left; market overview and shared ledger in the middle (agent chat opens over it); my DB as agent-made bundles right. Dark first; gray plus one blue. */
 :root {
   --bg: #0f1115; --side: #14171d; --panel: #1a1e26; --ink: #e8eaf0; --muted: #9aa1ad; --line: #2a2f3a;
   --accent: #5b8cff; --accent-ink: #0b1020; --accent-soft: #1b2540; --bad: #f87171; --bad-soft: #3a1c1c; --code: #11141a;
@@ -27,7 +27,8 @@ html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--body); display: flex; flex-direction: column; }
 h1, h2, h3, p { margin: 0; }
 h1 { font-size: 15px; font-weight: 700; }
-h2 { font-size: 12px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+h2 { font-size: 11.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+h3 { font-size: 13.5px; font-weight: 600; }
 .muted { color: var(--muted); }
 .small { font-size: 12.5px; }
 .mono { font-family: var(--mono); font-size: 11.5px; }
@@ -39,14 +40,14 @@ h2 { font-size: 12px; font-weight: 600; letter-spacing: .07em; text-transform: u
 select, input[type="text"] { font: 14px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; min-width: 0; }
 .bal { font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.app { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr) 340px; }
+.app { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px minmax(0, 1fr) 360px; }
 .col { min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .col > header { padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
 .scroll { overflow-y: auto; padding: 12px 16px 20px; display: grid; align-content: start; gap: 8px; flex: 1; min-height: 0; }
 .left, .right { background: var(--side); }
 .left { border-right: 1px solid var(--line); }
 .right { border-left: 1px solid var(--line); }
-@media (max-width: 1100px) {
+@media (max-width: 1150px) {
   body { height: auto; display: block; }
   .app { grid-template-columns: minmax(0, 1fr); }
   .left, .right { border: 0; border-bottom: 1px solid var(--line); }
@@ -55,15 +56,18 @@ select, input[type="text"] { font: 14px var(--body); color: var(--ink); backgrou
   .center { order: -1; min-height: 70vh; }
 }
 
-button { font: 600 13.5px var(--body); border-radius: 9px; padding: 7px 13px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+button { font: 600 13px var(--body); border-radius: 9px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink); }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 button.danger { color: var(--bad); border-color: var(--bad); }
 button:disabled { opacity: .45; cursor: default; }
-button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--bad); color: var(--bg); font-size: 11px; line-height: 18px; text-align: center; }
 .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: var(--code); color: var(--muted); white-space: nowrap; }
 .tag.blue { background: var(--accent-soft); color: var(--accent); }
 .tag.red { background: var(--bad-soft); color: var(--bad); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; font-weight: 500; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
 /* demand list */
 .want { border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; background: var(--panel); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; }
@@ -73,9 +77,17 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .want .sub { grid-column: 1 / -1; }
 .want .price { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 
+/* overview */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.kpi { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--panel); }
+.kpi b { display: block; font-size: 19px; font-variant-numeric: tabular-nums; }
+.kpi span { font-size: 12px; color: var(--muted); }
+.dom { display: grid; grid-template-columns: 11em minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; font-size: 12.5px; }
+.bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.dom .n { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 /* ledger */
-.stats { display: flex; gap: 20px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
-.stats b { display: block; font-size: 18px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .tx { border-bottom: 1px solid var(--line); }
 .tx > button { width: 100%; display: grid; grid-template-columns: 4.8em minmax(0, 1fr) auto; gap: 10px; text-align: left; border: 0; border-radius: 6px; padding: 8px 6px; font-weight: 400; align-items: baseline; }
 .tx > button:hover { background: var(--panel); }
@@ -83,12 +95,21 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .tx time { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
 .tx .what { color: var(--muted); font-size: 12px; }
 .tx .amt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.detail { margin: 0 6px 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; font-size: 12.5px; }
-.detail dt { color: var(--muted); }
-.detail dd { margin: 0; overflow-wrap: anywhere; }
+.tx.rej .amt { color: var(--bad); }
 @media (prefers-reduced-motion: no-preference) { .tx.new > button { animation: flash 1.2s ease-out; } @keyframes flash { from { background: var(--accent-soft); } } }
+.contract { margin: 0 6px 12px; display: grid; gap: 10px; }
+.sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 700px) { .sides { grid-template-columns: minmax(0, 1fr); } }
+.side { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 10px 12px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.side header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.side ol { margin: 0; padding-left: 18px; font-size: 12.5px; display: grid; gap: 3px; }
+.sellers { display: grid; gap: 0; font-size: 12px; max-height: 210px; overflow-y: auto; }
+.sellers div { display: grid; grid-template-columns: 6.5em 4.5em minmax(0, 1fr); gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.y { color: var(--accent); font-weight: 600; } .n { color: var(--bad); font-weight: 600; }
+.settle { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 12px; font-size: 12.5px; }
+.settle dt { color: var(--muted); } .settle dd { margin: 0; overflow-wrap: anywhere; }
 
-/* chat drawer over the ledger */
+/* chat drawer */
 .drawer { position: absolute; inset: 0 0 0 auto; width: min(420px, 100%); background: var(--side); border-left: 1px solid var(--line); box-shadow: -12px 0 30px rgb(0 0 0 / .25); display: flex; flex-direction: column; z-index: 5; }
 .drawer[hidden] { display: none; }
 .settings { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 10px; align-items: center; font-size: 12.5px; padding: 0 16px 10px; border-bottom: 1px solid var(--line); }
@@ -97,7 +118,7 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .msg.me { justify-self: end; background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 4px; }
 .msg.ai { justify-self: start; background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
 .msg ul { margin: 0; padding-left: 18px; }
-.msg .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; }
 .composer { border-top: 1px solid var(--line); padding: 10px 16px 14px; display: grid; gap: 8px; }
 .composer form { display: flex; gap: 8px; }
 .composer input { flex: 1; }
@@ -105,15 +126,19 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .chip { font: 500 12px var(--body); border-radius: 999px; padding: 4px 10px; }
 
 /* my DB */
-.group { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
-.group > header { display: flex; justify-content: space-between; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
-.file { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--line); }
-.file:last-child { border-bottom: 0; }
+.intake { border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px; background: var(--accent-soft); display: grid; gap: 8px; font-size: 13px; }
+.intake.block { border-color: var(--bad); background: var(--bad-soft); }
+.bundle { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 10px 12px; display: grid; gap: 6px; }
+.bundle .head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.bundle .exp { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nego { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.nego b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.file { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
 .file .name { font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; }
 .file .meta { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); }
 .switch { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .switch input { accent-color: var(--accent); width: 15px; height: 15px; }
-details summary { cursor: pointer; }
+details summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
 pre { margin: 6px 0 0; background: var(--code); border-radius: 8px; padding: 8px; overflow-x: auto; font: 11px/1.45 var(--mono); max-height: 180px; color: var(--ink); }
 </style>
 </head>
@@ -130,15 +155,19 @@ pre { margin: 6px 0 0; background: var(--code); border-radius: 8px; padding: 8px
     <div class="scroll" id="wanted"></div>
   </section>
 
-  <section class="col center" aria-labelledby="h-ledger">
+  <section class="col center" aria-labelledby="h-market">
     <header>
-      <div><h1 id="h-ledger">Shared ledger</h1><p class="muted small">Every settled trade: who paid whom, how much, for what. Tap a line for details.</p></div>
+      <h1 id="h-market">Market</h1>
       <div style="display:flex;gap:8px"><button id="pause" type="button">Pause</button><button id="openChat" class="primary" type="button">Ask my agent<span id="badge"></span></button></div>
     </header>
     <div class="scroll">
-      <div class="stats" id="stats"></div>
+      <div class="kpis" id="kpis"></div>
+      <h2>By domain</h2>
+      <div class="dom" id="domains"></div>
+      <h2 style="margin-top:6px">Shared ledger</h2>
+      <p class="muted small">Every contract the agents negotiated, settled or rejected. Tap one to see how each side decided.</p>
       <div id="ledger"></div>
-      <p class="muted small">Simulated ledger. Payment and the key that opens the data are released in the same step (escrow with a SHA-256 condition, the same flow the hackathon engine runs on XRPL Testnet). Personal data is only ever sold in lots of at least 5 people.</p>
+      <p class="muted small">Simulated ledger. Payment and the key that opens the data are released in the same step (escrow with a SHA-256 condition, the flow the hackathon engine runs on XRPL Testnet). Personal data is only sold in lots of at least 5 people. Agent decisions here follow each account's written rules; an LLM can write the reasoning, and code still checks it.</p>
     </div>
     <aside class="drawer" id="drawer" hidden aria-labelledby="h-chat">
       <header style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px 10px"><h1 id="h-chat">My agent</h1><button id="closeChat" type="button">Close</button></header>
@@ -158,7 +187,13 @@ pre { margin: 6px 0 0; background: var(--code); border-radius: 8px; padding: 8px
   </section>
 
   <section class="col right" aria-labelledby="h-db">
-    <header><h1 id="h-db">My DB</h1><span class="mono muted" id="ownerId"></span></header>
+    <header>
+      <div><h1 id="h-db">My DB</h1><span class="mono muted" id="ownerId"></span></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="seg" role="group" aria-label="Sort my bundles"><button type="button" id="byDomain" aria-pressed="true">By domain</button><button type="button" id="byDemand" aria-pressed="false">By demand</button></div>
+        <button type="button" id="upload">Upload</button>
+      </div>
+    </header>
     <div class="scroll" id="db"></div>
   </section>
 </div>
@@ -174,42 +209,46 @@ const pretty = (o) => JSON.stringify(o, null, 1).replace(/\[\s*(-?[\d.]+),\s*(-?
 const hexToBytes = (h) => Uint8Array.from(h.match(/../g), (x) => parseInt(x, 16));
 const now = () => new Date().toTimeString().slice(0, 8);
 const short = (h, n = 10) => h.slice(0, n) + "…";
-let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const r1 = (x) => Math.round(x * 10) / 10;
+let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 const pick = (a) => a[Math.floor(rnd() * a.length)];
+const shuffle = (a) => a.map((x) => [rnd(), x]).sort((p, q) => p[0] - q[0]).map((p) => p[1]);
 const K_MIN = 5; // smallest group any lot of personal data may describe
 
 const KINDS = {
-  gps_track: { label: "Running GPS tracks", re: /run|gps|track|러닝|달리기|경로|운동/i, price: 12, personal: true },
-  sleep_log: { label: "Sleep logs", re: /sleep|수면|잠/i, price: 8, personal: true },
-  purchase_receipts: { label: "Purchase receipts", re: /receipt|purchase|영수증|구매내역|소비/i, price: 3, personal: true },
-  audio: { label: "Voice memos", re: /voice|audio|memo|음성|녹음/i, price: 6, personal: true },
-  air: { label: "Air-quality sensor data", re: /air|sensor|공기|대기|센서|미세먼지/i, price: 4, personal: false },
-  id_document: { label: "Identity documents", re: /passport|id card|여권|신분증/i, price: 0, personal: true },
+  gps_track: { label: "Running GPS tracks", domain: "Mobility and fitness", re: /run|gps|track|러닝|달리기|경로|운동/i, price: 12, personal: true, ext: "gpx" },
+  sleep_log: { label: "Sleep logs", domain: "Sleep and health", re: /sleep|수면|잠/i, price: 8, personal: true, ext: "csv" },
+  purchase_receipts: { label: "Purchase receipts", domain: "Shopping", re: /receipt|purchase|영수증|구매내역|소비/i, price: 3, personal: true, ext: "json" },
+  audio: { label: "Voice memos", domain: "Voice", re: /voice|audio|memo|음성|녹음/i, price: 6, personal: true, ext: "m4a" },
+  air: { label: "Air-quality sensor data", domain: "Environment", re: /air|sensor|공기|대기|센서|미세먼지/i, price: 4, personal: false, ext: "csv" },
+  id_document: { label: "Identity documents", domain: "Identity", re: /passport|id card|여권|신분증/i, price: 0, personal: true, ext: "jpg" },
 };
 const label = (k) => KINDS[k]?.label || k;
+const TRADED = ["gps_track", "sleep_log", "purchase_receipts", "audio", "air"];
 
-// ---------- demo accounts, preloaded ----------
-const PEOPLE = ["Dana", "Minho", "Sora", "Jae", "Lina", "Omar", "Priya", "Ken", "Ana", "Tomas"];
+// ---------- 50 demo accounts, preloaded ----------
+const NAMES = ["Dana", "Minho", "Sora", "Jae", "Lina", "Omar", "Priya", "Ken", "Ana", "Tomas", "Yuki", "Bilal", "Mei", "Chris", "Nadia", "Leo", "Hana", "Ravi", "Sofia", "Ivan", "Zoe", "Kofi", "Elif", "Mateo", "Aisha",
+  "Noah", "Jin", "Lucia", "Sam", "Amara", "Theo", "Rin", "Diego", "Maya", "Ola", "Ethan", "Seo-yeon", "Farah", "Jonas", "Bo", "Tara", "Ugo", "Wen"];
 const ORGS = [
-  { name: "Atlas Maps", buys: "gps_track", balance: 2000 },
-  { name: "Restwell App", buys: "sleep_log", balance: 1200 },
-  { name: "Murmur Speech Lab", buys: "audio", balance: 900 },
-  { name: "Northwind Grocers", buys: "purchase_receipts", balance: 800 },
-  { name: "City Health Dept", buys: "air", balance: 600 },
-  { name: "Kite Robotics", buys: "gps_track", balance: 1500, sells: "air" },
+  { name: "Atlas Maps", buys: "gps_track", offer: 11, max: 14, purpose: "route-safety model", lot: 8, balance: 3000 },
+  { name: "Restwell App", buys: "sleep_log", offer: 7, max: 9, purpose: "sleep coaching feature", lot: 7, balance: 2000 },
+  { name: "Murmur Speech Lab", buys: "audio", offer: 5, max: 7, purpose: "speech model training", lot: 6, balance: 1500 },
+  { name: "Northwind Grocers", buys: "purchase_receipts", offer: 2, max: 3.5, purpose: "basket research", lot: 8, balance: 1200 },
+  { name: "Orbit Insure R&D", buys: "sleep_log", offer: 9, max: 12, purpose: "insurance pricing", lot: 6, balance: 2500 },
+  { name: "City Health Dept", buys: "air", offer: 4, max: 5, purpose: "pollution alerts", lot: 2, balance: 900 },
+  { name: "Kite Robotics", buys: "gps_track", offer: 9, max: 11, purpose: "delivery robot routing", lot: 6, balance: 2000, sells: "air" },
 ];
 const DIRECT = ["owner_name", "email", "device_serial", "card_last4", "passport_no", "dob"];
 function rawFor(kind, who, i) {
-  const base = { owner_name: who + " Demo", email: who.toLowerCase() + "@example.com" };
+  const base = { owner_name: who + " Demo", email: who.toLowerCase().replace(/\W/g, "") + "@example.com" };
   if (kind === "gps_track") { const lat = 40.70 + rnd() * 0.05, lng = -74.0 + rnd() * 0.05, pts = []; for (let j = 0; j < 10; j++) pts.push([+(lat + j * 0.002).toFixed(5), +(lng + Math.sin(j) * 0.0018).toFixed(5)]);
-    return { ...base, device_serial: "GRM-" + Math.floor(rnd() * 99999), start: `2026-10-${String(1 + i * 3).padStart(2, "0")}T06:${10 + i}:44-04:00`, distance_km: +(4 + rnd() * 8).toFixed(1), points: pts }; }
-  if (kind === "sleep_log") return { ...base, device_serial: "RING-" + Math.floor(rnd() * 99999), nights: [["2026-10-06", +(5.5 + rnd() * 3).toFixed(1), 52 + Math.floor(rnd() * 15)], ["2026-10-07", +(5.5 + rnd() * 3).toFixed(1), 52 + Math.floor(rnd() * 15)]] };
-  if (kind === "purchase_receipts") return { ...base, card_last4: String(1000 + Math.floor(rnd() * 8999)), items: [["grocery", +(20 + rnd() * 80).toFixed(2)], ["pharmacy", +(5 + rnd() * 30).toFixed(2)]] };
+    return { ...base, device_serial: "GRM-" + Math.floor(rnd() * 99999), start: `2026-10-${String(1 + (i % 9) * 3).padStart(2, "0")}T06:${10 + i}:44-04:00`, distance_km: r1(4 + rnd() * 8), points: pts }; }
+  if (kind === "sleep_log") return { ...base, device_serial: "RING-" + Math.floor(rnd() * 99999), nights: [["2026-10-06", r1(5.5 + rnd() * 3), 52 + Math.floor(rnd() * 15)], ["2026-10-07", r1(5.5 + rnd() * 3), 52 + Math.floor(rnd() * 15)]] };
+  if (kind === "purchase_receipts") return { ...base, card_last4: String(1000 + Math.floor(rnd() * 8999)), items: [["grocery", r1(20 + rnd() * 80)], ["pharmacy", r1(5 + rnd() * 30)]] };
   if (kind === "audio") return { ...base, seconds: 20 + Math.floor(rnd() * 60), transcript: "private note" };
   if (kind === "air") return { sensor: "s_" + Math.floor(rnd() * 9999), site: "Brooklyn grid " + i, pm25: [9, 14, 11].map((x) => x + Math.floor(rnd() * 5)) };
   return { ...base, passport_no: "M" + Math.floor(rnd() * 99999999), dob: "1990-01-01" };
 }
-const EXT = { gps_track: "gpx", sleep_log: "csv", purchase_receipts: "json", audio: "m4a", air: "csv", id_document: "jpg" };
 function pseudonymize(raw) {
   const out = {};
   for (const [k, v] of Object.entries(raw)) if (!DIRECT.includes(k)) out[k] = v;
@@ -219,79 +258,134 @@ function pseudonymize(raw) {
   return out;
 }
 
-const S = { accounts: {}, me: "dana", wanted: [], ledger: [], open: null, paused: false, volume: 0, busy: false, chat: {}, pending: {} };
-let seq = 0;
+// Files waiting to be uploaded from the signed-in person's phone. The intake agent screens each one.
+const MY_QUEUE = [
+  { name: "run_2026-10-20.gpx", kind: "gps_track", verdict: "clean", fee: 0.2, why: "the route starts at a home address; I can trim the first and last 400 m" },
+  { name: "health_checkup_2026.pdf", kind: "sleep_log", verdict: "block", why: "it holds a diagnosis and a doctor's notes. Health records cannot go on the open board; they need a per-use consent flow" },
+  { name: "sleep_raw_export.zip", kind: "sleep_log", verdict: "clean", fee: 0.5, why: "duplicate nights and gaps from a device reset; cleaning merges duplicates and drops broken nights" },
+  { name: "kids_soccer_photos.zip", kind: "audio", verdict: "block", why: "it shows children. Data about minors is never sold here" },
+  { name: "receipts_nov.json", kind: "purchase_receipts", verdict: "ok", why: "clean and complete" },
+];
 
-async function makeAccount(id, name, type, balance, files, trust) {
+const S = { accounts: {}, me: "dana", wanted: [], contracts: [], open: null, paused: false, busy: false, chat: {}, pending: {}, view: "domain", intake: null, queue: 0,
+  m: { uploads: 0, blocked: 0, cleaned: 0, fees: 0, volume: 0, settled: 0, rejected: 0 }, dom: {} };
+TRADED.forEach((k) => (S.dom[k] = { trades: 0, xrp: 0, rejected: 0 }));
+let seq = 0;
+const acct = (id) => S.accounts[id];
+const me = () => acct(S.me);
+const st = (a, k) => (a.stats[k] ||= { offers: 0, agreed: 0, rejected: 0, earned: 0 });
+
+async function makeAccount(id, name, type, balance, files, extra) {
   const vault = await crypto.subtle.importKey("raw", crypto.getRandomValues(new Uint8Array(32)), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const ecdh = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]);
   const source = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
-  const a = { id, name, type, balance, trust, vault, ecdh, files: [] };
+  const a = { id, name, type, balance, vault, ecdh, source, files: [], stats: {}, online: rnd() < 0.6, ...extra };
   a.pid = "vlt_" + hex(await crypto.subtle.sign("HMAC", vault, enc.encode("owner"))).slice(0, 10);
-  for (const f of files) {
-    const h = await sha256(JSON.stringify(f.raw));
-    f.prov = { hash: h, sig: await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, source.privateKey, enc.encode(h)), pub: source.publicKey };
-    f.sold = 0; f.id = ++seq;
-    if (f.sell) f.clean = pseudonymize(f.raw);
-    a.files.push(f);
+  S.accounts[id] = a; S.chat[id] = [];
+  for (const f of files) await addFile(a, f);
+}
+async function addFile(a, f) {
+  const h = await sha256(JSON.stringify(f.raw));
+  f.prov = { hash: h, sig: await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, a.source.privateKey, enc.encode(h)), pub: a.source.publicKey };
+  f.sold = 0; f.id = ++seq;
+  if (f.sell) f.clean = pseudonymize(f.raw);
+  a.files.push(f);
+}
+function personFiles(n) {
+  const files = [];
+  const counts = { gps_track: Math.floor(rnd() * 5), sleep_log: Math.floor(rnd() * 3), purchase_receipts: Math.floor(rnd() * 3), audio: Math.floor(rnd() * 2), id_document: rnd() < 0.3 ? 1 : 0 };
+  if (n === "Dana") Object.assign(counts, { gps_track: 3, sleep_log: 2, purchase_receipts: 1, audio: 1, id_document: 1 });
+  for (const [k, c] of Object.entries(counts)) for (let j = 0; j < c; j++) {
+    const sell = k !== "id_document" && (n === "Dana" ? k === "gps_track" || k === "sleep_log" : rnd() < 0.75);
+    files.push({ name: `${k === "gps_track" ? "run" : k}_${j + 1}.${KINDS[k].ext}`, kind: k, raw: rawFor(k, n, j), sell });
   }
-  S.accounts[id] = a;
-  S.chat[id] = [];
+  return files;
+}
+function personRules(n) {
+  const min = {}; TRADED.forEach((k) => (min[k] = r1(KINDS[k].price * (0.6 + rnd() * 0.7))));
+  const blocks = []; if (rnd() < 0.55) blocks.push("insurance pricing"); if (rnd() < 0.2) blocks.push("speech model training");
+  if (n === "Dana") { Object.assign(min, { gps_track: 10, sleep_log: 7, purchase_receipts: 2, audio: 5 }); blocks.splice(0, blocks.length, "insurance pricing"); }
+  return { min, blocks };
 }
 
 async function init() {
-  for (const [i, n] of PEOPLE.entries()) {
-    const files = [];
-    const counts = { gps_track: 1 + Math.floor(rnd() * 4), sleep_log: Math.floor(rnd() * 3), purchase_receipts: Math.floor(rnd() * 2), audio: Math.floor(rnd() * 2), id_document: rnd() < 0.4 ? 1 : 0 };
-    for (const [k, c] of Object.entries(counts)) for (let j = 0; j < c; j++) {
-      const sell = k !== "id_document" && (n === "Dana" ? k !== "audio" && k !== "purchase_receipts" : rnd() < 0.7);
-      files.push({ name: `${k === "gps_track" ? "run" : k}_${j + 1}.${EXT[k]}`, kind: k, raw: rawFor(k, n, j), sell });
-    }
-    await makeAccount(n.toLowerCase(), n, "person", 20 + Math.floor(rnd() * 60), files, +(0.75 + rnd() * 0.2).toFixed(2));
-  }
-  await makeAccount("bulk", "Anon bulk seller", "person", 5, Array.from({ length: 4 }, (_, j) => ({ name: `scraped_sleep_${j + 1}.csv`, kind: "sleep_log", raw: rawFor("sleep_log", "Bulk", j), sell: true, unsigned: true })), 0.3);
+  for (const n of NAMES) await makeAccount(n.toLowerCase(), n, "person", Math.floor(20 + rnd() * 60), personFiles(n), { trust: r1(0.72 + rnd() * 0.25), rules: personRules(n) });
+  await makeAccount("bulk", "Anon bulk seller", "person", 5, Array.from({ length: 4 }, (_, j) => ({ name: `scraped_sleep_${j + 1}.csv`, kind: "sleep_log", raw: rawFor("sleep_log", "Bulk", j), sell: true })), { trust: 0.3, rules: { min: { sleep_log: 1 }, blocks: [] } });
   for (const o of ORGS) {
+    const id = o.name.toLowerCase().replace(/\W+/g, "-");
     const files = o.sells ? Array.from({ length: 6 }, (_, j) => ({ name: `air_grid_${j + 1}.csv`, kind: "air", raw: rawFor("air", o.name, j), sell: true })) : [];
-    await makeAccount(o.name.toLowerCase().replace(/\W+/g, "-"), o.name, "org", o.balance, files, 0.95);
-    S.wanted.push({ id: ++seq, by: o.name.toLowerCase().replace(/\W+/g, "-"), kind: o.buys, price: KINDS[o.buys].price, min: K_MIN, note: noteFor(o.buys) });
+    await makeAccount(id, o.name, "org", o.balance, files, { trust: 0.95, verified: true, rules: { min: { air: 3.5 }, blocks: [] } });
+    S.wanted.push({ id: ++seq, by: id, kind: o.buys, offer: o.offer, max: o.max, purpose: o.purpose, lot: o.lot, minTrust: 0.7, agreed: 0, rejected: 0 });
   }
-  S.wanted.push({ id: ++seq, by: "sora", kind: "air", price: 4, min: 1, note: "for a neighbourhood running map" });
+  S.wanted.push({ id: ++seq, by: "sora", kind: "air", offer: 4, max: 5, purpose: "neighbourhood running map", lot: 1, minTrust: 0.7, agreed: 0, rejected: 0, once: true });
   $("acct").innerHTML = Object.values(S.accounts).filter((a) => a.id !== "bulk").map((a) => `<option value="${a.id}">${esc(a.name)}${a.type === "org" ? " (company)" : ""}</option>`).join("");
-  for (const a of Object.values(S.accounts)) say(a.id, "ai", `Hi ${esc(a.name)}. Tell me what you want to sell or what data you need. I post it to the board, find the other side, and settle it. I buy on my own up to the limit above; I never sell without your OK.`, null, true);
-  for (let i = 0; i < 5; i++) await tick(true);
+  for (const a of Object.values(S.accounts)) say(a.id, "ai", `Hi ${esc(a.name)}. Tell me what you want to sell or what data you need. I sort your DB into bundles, post to the board, negotiate with other agents and settle. I buy on my own up to the limit above; I never sell without your OK.`, null, true);
+  for (let i = 0; i < 8; i++) await tick(true);
   render();
-  setInterval(async () => { if (!S.paused) { await tick(); render(); } }, 3500);
+  setInterval(async () => { if (!S.paused) { await tick(); render(); } }, 3000);
 }
-function noteFor(k) { return { gps_track: "route-safety model, no resale", sleep_log: "sleep coaching feature", audio: "speech model training", purchase_receipts: "basket research", air: "pollution alerts" }[k]; }
-const acct = (id) => S.accounts[id];
-const me = () => acct(S.me);
+const DIVIDER = 0;
 
-// ---------- matching and settlement ----------
-function supply(kind, excludeId, minTrust = 0) {
-  return Object.values(S.accounts).filter((a) => a.id !== excludeId && a.trust >= minTrust)
+// ---------- agents negotiate ----------
+function supply(kind, excludeId) {
+  return Object.values(S.accounts).filter((a) => a.id !== excludeId)
     .map((a) => ({ a, files: a.files.filter((f) => f.kind === kind && f.sell && !f.bought) })).filter((x) => x.files.length);
 }
 
-// One lot: buyer pays each seller; each seller's share is sealed with its own key K, wrapped to the buyer's key,
-// escrowed under SHA-256(K) and released with K. Source signatures are checked before any payment.
-async function settle(want, sellers, opts = {}) {
-  const buyer = acct(want.by), each = want.price, total = each * sellers.length;
-  if (buyer.balance < total) return null;
-  const parts = [];
-  for (const s of sellers) {
-    for (const f of s.files) if (!f.unsigned && !(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, f.prov.pub, f.prov.sig, enc.encode(f.prov.hash)))) return null;
-    const pseudo = "p_" + hex(await crypto.subtle.sign("HMAC", s.a.vault, enc.encode("deal:" + want.id + ":" + seq))).slice(0, 10);
-    const bundle = { buyer: buyer.name, purpose: want.note, contributor: pseudo, records: s.files.map((f) => f.clean) };
-    parts.push({ s, pseudo, ...(await sealedTrade(bundle, buyer.ecdh)) });
+// A seller agent decides from its owner's written rules only.
+function sellerDecide(a, w) {
+  const min = a.rules?.min?.[w.kind] ?? KINDS[w.kind].price;
+  if (a.rules?.blocks?.includes(w.purpose)) return { verdict: "reject", reason: `owner does not sell for ${w.purpose}` };
+  if (w.offer >= min) return { verdict: "agree", price: w.offer, reason: `offer ${w.offer} ≥ owner's minimum ${min}` };
+  if (min <= w.max) return { verdict: "agree", price: min, reason: `countered at ${min}; within buyer's max ${w.max}` };
+  return { verdict: "reject", reason: `owner's minimum ${min} is above buyer's max ${w.max}` };
+}
+
+// Plan one contract for a request: the buyer agent screens sellers, each seller agent answers, the buyer checks the lot.
+function plan(w, opts = {}) {
+  const buyer = acct(w.by), personal = KINDS[w.kind].personal;
+  const bt = [`Need ${label(w.kind).toLowerCase()} for ${w.purpose}; offer ${w.offer} XRP${personal ? " per person" : " per seller"}, up to ${w.max}.`];
+  const pool = supply(w.kind, w.by);
+  const trusted = pool.filter((x) => x.a.trust >= w.minTrust);
+  bt.push(`Found ${pool.length} DBs with matching files for sale${pool.length - trusted.length ? `; skipped ${pool.length - trusted.length} below trust ${w.minTrust}` : ""}.`);
+  const asked = shuffle(trusted.filter((x) => x.a.id !== S.me || opts.withMe)).slice(0, Math.min(12, w.lot + 4));
+  if (opts.withMe && !asked.some((x) => x.a.id === S.me)) { const mine = trusted.find((x) => x.a.id === S.me); if (mine) asked.unshift(mine); }
+  const st = asked.map((x) => ({ x, ...(x.a.id === S.me && opts.withMe ? { verdict: "agree", price: w.offer, reason: "owner tapped OK" } : sellerDecide(x.a, w)) }));
+  const agreed = st.filter((s) => s.verdict === "agree").slice(0, w.lot);
+  const need = personal ? K_MIN : 1;
+  let status = "settled", reason = "";
+  const total = r1(agreed.reduce((t, s) => t + s.price, 0));
+  if (agreed.length < need) { status = "rejected"; reason = personal ? `only ${agreed.length} agreed; a lot needs ${K_MIN} people` : "no seller agreed"; }
+  else if (total > buyer.balance) { status = "rejected"; reason = `lot costs ${total} XRP, buyer has ${r1(buyer.balance)}`; }
+  bt.push(`Asked ${asked.length} seller agents: ${st.filter((s) => s.verdict === "agree").length} agreed, ${st.filter((s) => s.verdict === "reject").length} declined.`);
+  bt.push(status === "settled" ? `Lot of ${agreed.length} at ${total} XRP total is within budget. Agree.` : `${reason[0].toUpperCase() + reason.slice(1)}. Reject.`);
+  return { w, buyer, st, agreed, status, reason, total, bt };
+}
+
+// Commit a plan: settled lots are sealed, escrowed and paid; rejected ones are recorded with both sides' reasons.
+async function commit(p, opts = {}) {
+  const { w, buyer } = p, c = { id: ++seq, time: now(), buyer: buyer.id, kind: w.kind, purpose: w.purpose, offer: w.offer, status: p.status, reason: p.reason,
+    buyer_trace: p.bt, seller_trace: p.st.map((s) => ({ id: s.x.a.id, verdict: s.verdict, reason: s.reason, price: s.price })), fresh: !opts.silent };
+  for (const s of p.st) { const k = st(s.x.a, w.kind); k.offers++; s.verdict === "agree" ? k.agreed++ : k.rejected++; }
+  if (p.status === "settled") {
+    const parts = [];
+    for (const s of p.agreed) {
+      for (const f of s.x.files) if (!(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, f.prov.pub, f.prov.sig, enc.encode(f.prov.hash)))) { c.status = "rejected"; c.reason = "a source signature failed"; }
+      const pseudo = "p_" + hex(await crypto.subtle.sign("HMAC", s.x.a.vault, enc.encode("deal:" + c.id))).slice(0, 10);
+      parts.push({ s, pseudo, ...(await sealedTrade({ buyer: buyer.name, purpose: w.purpose, contributor: pseudo, records: s.x.files.map((f) => f.clean) }, buyer.ecdh)) });
+    }
+    if (c.status === "settled") {
+      buyer.balance = r1(buyer.balance - p.total);
+      for (const pt of parts) { pt.s.x.a.balance = r1(pt.s.x.a.balance + pt.s.price); pt.s.x.files.forEach((f) => f.sold++); st(pt.s.x.a, w.kind).earned = r1(st(pt.s.x.a, w.kind).earned + pt.s.price); }
+      c.items = parts.reduce((t, pt) => t + pt.s.x.files.length, 0); c.sellers = parts.map((pt) => pt.s.x.a.id); c.pseudos = Object.fromEntries(parts.map((pt) => [pt.s.x.a.id, pt.pseudo]));
+      c.total = p.total; c.cond = parts[0].condition; c.key = parts[0].fulfillment; c.bytes = parts.reduce((t, pt) => t + pt.bytes, 0); c.ok = parts.every((pt) => pt.matches);
+      buyer.files.unshift({ id: ++seq, name: `${w.kind}_lot_${c.id}.sealed`, kind: w.kind, bought: true, from: KINDS[w.kind].personal ? `${parts.length} people` : parts.map((pt) => pt.s.x.a.name).join(", "), clean: parts[0].clear.records[0], items: c.items });
+      S.m.volume = r1(S.m.volume + p.total); S.m.settled++; S.dom[w.kind].trades++; S.dom[w.kind].xrp = r1(S.dom[w.kind].xrp + p.total); w.agreed++;
+    }
   }
-  buyer.balance -= total;
-  for (const p of parts) { p.s.a.balance += each; p.s.files.forEach((f) => f.sold++); }
-  const n = parts.reduce((t, p) => t + p.s.files.length, 0);
-  buyer.files.unshift({ id: ++seq, name: `${want.kind}_lot_${want.id}.sealed`, kind: want.kind, bought: true, from: KINDS[want.kind].personal ? `${parts.length} people` : parts.map((p) => p.s.a.name).join(", "), clean: parts[0].clear.records[0], items: n });
-  const tx = { id: ++seq, time: now(), buyer: buyer.id, sellers: parts.map((p) => p.s.a.id), pseudos: parts.map((p) => p.pseudo), kind: want.kind, each, total, items: n, note: want.note,
-    cond: parts[0].condition, key: parts[0].fulfillment, bytes: parts.reduce((t, p) => t + p.bytes, 0), ok: parts.every((p) => p.matches), fresh: !opts.silent };
-  S.ledger.unshift(tx); S.ledger = S.ledger.slice(0, 60); S.volume += total;
-  return tx;
+  if (c.status === "rejected") { S.m.rejected++; S.dom[w.kind].rejected++; w.rejected++; }
+  S.contracts.unshift(c); S.contracts = S.contracts.slice(0, 80);
+  return c;
 }
 
 async function sealedTrade(bundle, buyerKey) {
@@ -313,26 +407,31 @@ async function sealedTrade(bundle, buyerKey) {
   return { bytes: sealed.byteLength, matches: (await sha256(out)) === want, clear: JSON.parse(out), condition, fulfillment };
 }
 
-// The rest of the market: demo accounts' agents fill open requests under their standing rules.
-// The signed-in person is never sold automatically: their agent asks first.
+// ---------- the market keeps moving ----------
 async function tick(silent) {
   if (S.busy) return; S.busy = true;
   try {
+    for (let i = 0; i < 3; i++) { const a = pick(Object.values(S.accounts)); if (a.id !== S.me) a.online = !a.online; }
+    me().online = true;
+    if (rnd() < 0.5) await otherUpload();
     const open = S.wanted.filter((w) => w.by !== S.me);
-    if (!open.length) return;
     const w = pick(open);
-    const personal = KINDS[w.kind].personal;
-    const pool = supply(w.kind, w.by, 0.7);
-    const mine = pool.find((x) => x.a.id === S.me);
-    const others = pool.filter((x) => x.a.id !== S.me && !(S.pending[S.me]?.want === w));
-    if (mine && !S.pending[S.me] && others.length >= K_MIN - 1) propose(w, mine);
-    const lot = others.sort(() => rnd() - 0.5).slice(0, personal ? Math.min(others.length, 5 + Math.floor(rnd() * 4)) : 2);
-    if (personal && lot.length < K_MIN) return;
-    if (await settle(w, lot, { silent })) {
-      if (acct(w.by).type === "person") S.wanted = S.wanted.filter((x) => x !== w);
-    }
-    if (rnd() < 0.15) { const p = pick(Object.values(S.accounts).filter((a) => a.type === "person" && a.id !== S.me && a.id !== "bulk")); S.wanted.push({ id: ++seq, by: p.id, kind: "air", price: 4, min: 1, note: "personal project" }); }
+    if (!w) return;
+    const mine = supply(w.kind, w.by).find((x) => x.a.id === S.me);
+    if (mine && !S.pending[S.me] && me().trust >= w.minTrust) propose(w, mine);
+    const c = await commit(plan(w), { silent });
+    if (w.once && c.status === "settled") S.wanted = S.wanted.filter((x) => x !== w);
+    if (rnd() < 0.12) { const p = pick(Object.values(S.accounts).filter((a) => a.type === "person" && a.id !== S.me && a.id !== "bulk")); S.wanted.push({ id: ++seq, by: p.id, kind: "air", offer: 4, max: 5, purpose: "personal project", lot: 1, minTrust: 0.7, agreed: 0, rejected: 0, once: true }); }
   } finally { S.busy = false; }
+}
+async function otherUpload() {
+  const a = pick(Object.values(S.accounts).filter((x) => x.type === "person" && x.id !== S.me && x.id !== "bulk"));
+  const k = pick(["gps_track", "gps_track", "sleep_log", "purchase_receipts", "audio"]);
+  S.m.uploads++;
+  const roll = rnd();
+  if (roll < 0.1) { S.m.blocked++; return; }
+  if (roll < 0.3) { S.m.cleaned++; S.m.fees = r1(S.m.fees + 0.3); a.balance = r1(a.balance - 0.3); }
+  await addFile(a, { name: `${k === "gps_track" ? "run" : k}_${a.files.length + 1}.${KINDS[k].ext}`, kind: k, raw: rawFor(k, a.name, a.files.length), sell: rnd() < 0.8 });
 }
 
 // ---------- my agent ----------
@@ -340,21 +439,19 @@ function say(id, from, html, actions, quiet) { S.chat[id].push({ from, html, act
 const CHIPS = ["Sell my running tracks", "I need sleep data from 5+ people", "Buy air-quality sensor data", "Sell my passport"];
 
 function propose(w, mine) {
-  const b = acct(w.by);
+  const b = acct(w.by), d = sellerDecide(me(), w);
   S.pending[S.me] = { want: w };
-  say(S.me, "ai", `<b>${esc(b.name)}</b> wants ${label(w.kind).toLowerCase()} at <b>${w.price} XRP</b> per person (${esc(w.note)}). You have ${mine.files.length} pseudonymized file(s) for sale. I can sell them inside a lot of at least ${K_MIN} people; the buyer sees you only as a one-time id. Sell?`,
-    [{ t: `OK, sell for ${w.price} XRP`, primary: true, run: () => sellMine(w) }, { t: "Not now", run: () => { S.pending[S.me] = { want: w, declined: true }; say(S.me, "ai", "Okay, nothing sold. Your files stay listed."); } }], true);
+  const view = d.verdict === "agree" ? `Your rules say yes (${esc(d.reason)}).` : `Your rules say no: ${esc(d.reason)}.`;
+  say(S.me, "ai", `<b>${esc(b.name)}</b> wants ${label(w.kind).toLowerCase()} for ${esc(w.purpose)}, offering <b>${w.offer} XRP</b> per person. Your bundle has ${mine.files.length} pseudonymized file(s). ${view} It would be sold inside a lot of at least ${K_MIN} people. Sell?`,
+    [{ t: `OK, sell for ${w.offer} XRP`, primary: true, run: () => sellMine(w) }, { t: "Not now", run: () => { S.pending[S.me] = { want: w, declined: true }; say(S.me, "ai", "Okay, nothing sold. Your bundle stays listed."); } }], true);
 }
-
 async function sellMine(w) {
-  const pool = supply(w.kind, w.by, 0.7);
-  const mine = pool.find((x) => x.a.id === S.me), others = pool.filter((x) => x.a.id !== S.me).slice(0, K_MIN + 1);
   delete S.pending[S.me];
-  if (!mine) return say(S.me, "ai", "Your files are no longer marked for sale, so nothing was sold.");
-  if (KINDS[w.kind].personal && others.length < K_MIN - 1) return say(S.me, "ai", "Not enough other people to form a lot right now. Nothing was sold.");
-  const tx = await settle(w, [mine, ...others]);
-  if (!tx) return say(S.me, "ai", "The buyer could not pay or a source signature failed, so nothing was sold.");
-  say(S.me, "ai", `Sold in a lot of ${tx.sellers.length} people. <b>+${w.price} XRP</b>.<ul><li>${esc(acct(w.by).name)} locked the payment first</li><li>Your files went to them sealed, readable only by them and only after payment</li><li>Signatures checked, then the payment released the key</li><li>Fingerprint ${tx.ok ? "matches" : "does not match"}</li></ul>`);
+  const p = plan(w, { withMe: true });
+  if (!p.agreed.some((s) => s.x.a.id === S.me)) return say(S.me, "ai", "Your files are no longer marked for sale, so nothing was sold.");
+  const c = await commit(p);
+  if (c.status !== "settled") return say(S.me, "ai", `The contract was rejected: ${esc(c.reason)}. Nothing was sold.`);
+  say(S.me, "ai", `Sold in a lot of ${c.sellers.length} people. <b>+${w.offer} XRP</b>.<ul><li>${esc(acct(w.by).name)} locked the payment first</li><li>Your files went to them sealed, readable only after payment</li><li>Signatures checked, then the payment released the key</li><li>Fingerprint ${c.ok ? "matches" : "does not match"}</li></ul>`);
 }
 
 async function handle(text) {
@@ -370,75 +467,146 @@ async function handle(text) {
     if (!files.length) return say(id, "ai", `You have no ${label(kind).toLowerCase()} in your DB.`);
     files.forEach((f) => markSell(f, true));
     const w = S.wanted.find((x) => x.kind === kind && x.by !== id);
-    say(id, "ai", `I pseudonymized ${files.length} file(s) and marked them for sale. Names, emails, device serials and exact times are removed; routes lose their start and end.${w ? "" : " No buyer is asking for this yet; I will tell you when one does."}`);
-    if (w) propose(w, { a: me(), files }), render();
+    say(id, "ai", `I pseudonymized ${files.length} file(s) and put them in your ${KINDS[kind].domain.toLowerCase()} bundle for sale.${w ? "" : " No buyer is asking for this yet; I will tell you when one does."}`);
+    if (w) { propose(w, { a: me(), files }); render(); }
     return;
   }
   if (!isBuy) return say(id, "ai", `Do you want to sell your ${label(kind).toLowerCase()} or buy some?`);
   if (kind === "id_document") return say(id, "ai", "Identity documents are not traded here.");
-  const minTrust = +$("trust").value, limit = +$("autonomy").value;
-  const all = supply(kind, id, 0), ok = supply(kind, id, minTrust);
-  const skipped = all.filter((x) => !ok.some((y) => y.a.id === x.a.id));
-  const price = maxPrice || KINDS[kind].price;
-  const w = { id: ++seq, by: id, kind, price, min: KINDS[kind].personal ? K_MIN : 1, note: "posted by " + me().name + "'s agent" };
+  const offer = maxPrice || KINDS[kind].price;
+  const w = { id: ++seq, by: id, kind, offer, max: r1(offer * 1.25), purpose: "posted by " + me().name + "'s agent", lot: KINDS[kind].personal ? 6 : 2, minTrust: +$("trust").value, agreed: 0, rejected: 0, once: true };
   S.wanted.unshift(w);
-  const lot = ok.slice(0, KINDS[kind].personal ? 6 : 2), total = price * lot.length;
-  let t = `I posted your request on the board at ${price} XRP per ${KINDS[kind].personal ? "person" : "seller"} and found ${all.length} seller(s).`;
-  if (skipped.length) t += ` I skipped ${skipped.length} below your trust setting (${skipped.map((x) => `${esc(x.a.name)}, trust ${x.a.trust}${x.files.some((f) => f.unsigned) ? ", unsigned" : ""}`).join("; ")}).`;
-  if (KINDS[kind].personal && lot.length < K_MIN) return say(id, "ai", t + ` Only ${lot.length} trusted people have it for sale; I need ${K_MIN}. Your request stays on the board.`);
-  const go = async () => { const tx = await settle(w, lot); S.wanted = S.wanted.filter((x) => x !== w); say(id, "ai", tx ? `Bought ${tx.items} file(s) from ${tx.sellers.length} ${KINDS[kind].personal ? "people" : tx.sellers.length === 1 ? "seller" : "sellers"} for <b>${tx.total} XRP</b>. It arrived sealed to your key; the payment released the key and I opened it. It is in your DB.` : "Not enough balance, so nothing was bought."); };
-  if (total > me().balance) return say(id, "ai", t + ` It would cost ${total} XRP and you have ${me().balance}. Your request stays on the board.`);
-  if (total <= limit) { say(id, "ai", t + ` ${total} XRP is within your ${limit} XRP limit, so I am buying now.`); return go(); }
-  say(id, "ai", t + ` Total ${total} XRP is above what I may spend alone. Buy?`, [{ t: `Buy for ${total} XRP`, primary: true, run: go }, { t: "Skip", run: () => say(id, "ai", "Skipped. Your request stays on the board.") }]);
+  const p = plan(w), limit = +$("autonomy").value;
+  const intro = `I posted your request (${offer} XRP, up to ${w.max}). ${p.bt.slice(1, 3).join(" ")}`;
+  if (p.status !== "settled") { say(id, "ai", `${intro} ${esc(p.reason)}, so I did not buy. Your request stays on the board.`); return; }
+  const go = async () => { const c = await commit(p); if (c.status === "settled") S.wanted = S.wanted.filter((x) => x !== w); say(id, "ai", c.status === "settled" ? `Bought ${c.items} file(s) from ${c.sellers.length} ${KINDS[kind].personal ? "people" : c.sellers.length === 1 ? "seller" : "sellers"} for <b>${c.total} XRP</b>. It arrived sealed to your key; the payment released the key and I opened it.` : `Rejected: ${esc(c.reason)}.`); };
+  if (p.total <= limit) { say(id, "ai", `${intro} ${p.total} XRP is within your ${limit} XRP limit, so I am buying now.`); return go(); }
+  say(id, "ai", `${intro} Total ${p.total} XRP is above what I may spend alone. Buy?`, [{ t: `Buy for ${p.total} XRP`, primary: true, run: go }, { t: "Skip", run: () => say(id, "ai", "Skipped. Your request stays on the board.") }]);
 }
-
 function markSell(f, on) { if (f.bought || f.kind === "id_document") return; f.sell = on; f.clean = on ? pseudonymize(f.raw) : null; }
+
+// ---------- upload with the intake filter ----------
+function startUpload() {
+  if (S.me !== "dana") { S.intake = { done: true, html: "Demo uploads are set up for Dana. Switch to Dana to try the intake filter." }; return render(); }
+  if (S.queue >= MY_QUEUE.length) { S.intake = { done: true, html: "No more files waiting on your phone." }; return render(); }
+  const q = MY_QUEUE[S.queue++];
+  S.m.uploads++;
+  if (q.verdict === "block") { S.m.blocked++; S.intake = { q, block: true, html: `<b>${esc(q.name)}</b> was not uploaded: ${esc(q.why)}.` }; }
+  else if (q.verdict === "clean") S.intake = { q, html: `<b>${esc(q.name)}</b> needs cleaning before it can be sold: ${esc(q.why)}. Cleaning fee <b>${q.fee} XRP</b>.`, acts: true };
+  else { acceptUpload(q, false); S.intake = { q, done: true, html: `<b>${esc(q.name)}</b> passed the check (${esc(q.why)}). It is in your ${KINDS[q.kind].domain.toLowerCase()} bundle, private until you mark it for sale.` }; }
+  render();
+}
+async function acceptUpload(q, cleaned) {
+  if (cleaned) { me().balance = r1(me().balance - q.fee); S.m.cleaned++; S.m.fees = r1(S.m.fees + q.fee); }
+  await addFile(me(), { name: q.name, kind: q.kind, raw: rawFor(q.kind, me().name, me().files.length), sell: cleaned });
+  render();
+}
 
 // ---------- rendering ----------
 function render() {
   const m = me();
   $("acct").value = S.me;
-  $("bal").textContent = m.balance + " XRP";
+  $("bal").textContent = r1(m.balance) + " XRP";
   $("ownerId").textContent = m.pid;
   const pend = S.pending[S.me] && !S.pending[S.me].declined;
   $("badge").innerHTML = pend && $("drawer").hidden ? '<span class="badge">1</span>' : "";
+  renderDemand(); renderMarket(); renderDB(); renderChat();
+}
 
-  // demand list
-  const myKinds = new Set(m.files.filter((f) => f.sell).map((f) => f.kind));
-  $("wanted").innerHTML = S.wanted.map((w) => { const b = acct(w.by); return `<div class="want ${w.by === S.me ? "mine" : ""} ${myKinds.has(w.kind) && w.by !== S.me ? "fit" : ""}">
-    <div><b>${label(w.kind)}</b><div class="who">${w.by === S.me ? "your request" : esc(b.name)}${b.type === "org" ? ' <span class="tag blue">verified</span>' : ""}</div></div>
-    <div class="price">${w.price} XRP<div class="who">per ${KINDS[w.kind].personal ? "person" : "seller"}</div></div>
-    <div class="sub">${esc(w.note)}${KINDS[w.kind].personal ? ` · lots of ${w.min}+ people` : ""}${myKinds.has(w.kind) && w.by !== S.me ? " · you have this for sale" : ""}</div></div>`; }).join("");
+function lotReady(w) { const p = plan(w); return p.agreed.length; }
 
-  // ledger
-  $("stats").innerHTML = `<span><b>${S.ledger.length}</b>trades</span><span><b>${S.volume.toLocaleString()} XRP</b>paid to sellers</span><span><b>${Object.values(S.accounts).filter((a) => a.type === "person").length}</b>people's DBs</span><span><b>${S.wanted.length}</b>open requests</span>`;
-  $("ledger").innerHTML = S.ledger.map((t) => {
-    const b = acct(t.buyer), mineTx = t.buyer === S.me || t.sellers.includes(S.me), personal = KINDS[t.kind].personal;
-    const to = personal ? `${t.sellers.length} people${t.sellers.includes(S.me) ? " incl. you" : ""}` : t.sellers.map((s) => acct(s).name).join(", ");
-    const open = S.open === t.id;
-    return `<div class="tx ${mineTx ? "mine" : ""} ${t.fresh ? "new" : ""}"><button type="button" data-tx="${t.id}" aria-expanded="${open}"><time>${t.time}</time>
-      <div><b>${t.buyer === S.me ? "You" : esc(b.name)}</b> → <b>${esc(to)}</b><div class="what">${label(t.kind)} · ${t.items} files · ${t.each} XRP each</div></div><span class="amt">${t.total} XRP</span></button>
-      ${open ? `<dl class="detail"><dt>Buyer</dt><dd>${esc(b.name)}</dd><dt>Sellers</dt><dd class="mono">${personal ? t.pseudos.join(" ") : esc(to)}</dd><dt>Purpose</dt><dd>${esc(t.note)}</dd>
-        <dt>Paid</dt><dd>${t.each} XRP × ${t.sellers.length} = ${t.total} XRP</dd><dt>Delivered</dt><dd>${t.items} files, ${t.bytes.toLocaleString()} bytes sealed to the buyer's key</dd>
-        <dt>Escrow condition</dt><dd class="mono">${short(t.cond, 28)}</dd><dt>Key released</dt><dd class="mono">${short(t.key, 28)}</dd>
-        <dt>Checks</dt><dd>source signatures OK · fingerprint ${t.ok ? "matches" : "does not match"}${personal ? ` · lot of ${t.sellers.length} ≥ ${K_MIN}` : ""}</dd></dl>` : ""}</div>`; }).join("");
-  S.ledger.forEach((t) => (t.fresh = false));
+function renderDemand() {
+  const myKinds = new Set(me().files.filter((f) => f.sell).map((f) => f.kind));
+  $("wanted").innerHTML = S.wanted.map((w) => { const b = acct(w.by), fit = myKinds.has(w.kind) && w.by !== S.me, personal = KINDS[w.kind].personal;
+    return `<div class="want ${w.by === S.me ? "mine" : ""} ${fit ? "fit" : ""}">
+    <div><b>${label(w.kind)}</b><div class="who">${w.by === S.me ? "your request" : esc(b.name)}${b.verified ? ' <span class="tag blue">verified</span>' : ""}</div></div>
+    <div class="price">${w.offer} XRP<div class="who">up to ${w.max}</div></div>
+    <div class="sub">${esc(w.purpose)}${personal ? ` · lots of ${K_MIN}+ people` : ""} · ${w.agreed} settled, ${w.rejected} rejected${fit ? " · you have this for sale" : ""}</div></div>`; }).join("");
+}
+
+function renderMarket() {
+  const all = Object.values(S.accounts).filter((a) => a.id !== "bulk");
+  $("kpis").innerHTML = [
+    [`${all.filter((a) => a.online).length} / ${all.length}`, "agents online"],
+    [S.m.settled, "contracts settled"], [S.m.rejected, "contracts rejected"], [S.m.volume.toLocaleString() + " XRP", "paid to sellers"],
+    [S.m.uploads, `uploads · ${S.m.blocked} blocked`], [S.m.cleaned, `cleaned · ${S.m.fees} XRP fees`],
+  ].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
+  const maxX = Math.max(1, ...TRADED.map((k) => S.dom[k].xrp));
+  $("domains").innerHTML = TRADED.map((k) => `<span>${KINDS[k].domain}</span><div class="bar"><i style="width:${(100 * S.dom[k].xrp / maxX).toFixed(1)}%"></i></div><span class="n">${S.dom[k].xrp} XRP · ${S.dom[k].trades} settled · ${S.dom[k].rejected} rejected</span>`).join("");
+
+  $("ledger").innerHTML = S.contracts.map((c) => {
+    const b = acct(c.buyer), personal = KINDS[c.kind].personal, inIt = c.buyer === S.me || c.seller_trace.some((s) => s.id === S.me);
+    const to = c.status === "settled" ? (personal ? `${c.sellers.length} people${c.sellers.includes(S.me) ? " incl. you" : ""}` : c.sellers.map((s) => acct(s).name).join(", ")) : `${c.seller_trace.length} seller agents`;
+    const open = S.open === c.id;
+    return `<div class="tx ${inIt ? "mine" : ""} ${c.status === "rejected" ? "rej" : ""} ${c.fresh ? "new" : ""}"><button type="button" data-tx="${c.id}" aria-expanded="${open}"><time>${c.time}</time>
+      <div><b>${c.buyer === S.me ? "You" : esc(b.name)}</b> → <b>${esc(to)}</b><div class="what">${label(c.kind)} · ${esc(c.purpose)}${c.status === "settled" ? ` · ${c.items} files` : ` · ${esc(c.reason)}`}</div></div>
+      <span class="amt">${c.status === "settled" ? c.total + " XRP" : "rejected"}</span></button>${open ? contractView(c) : ""}</div>`; }).join("");
+  S.contracts.forEach((c) => (c.fresh = false));
   document.querySelectorAll("[data-tx]").forEach((b) => b.onclick = () => { S.open = S.open === +b.dataset.tx ? null : +b.dataset.tx; render(); });
+}
 
-  // my DB, sorted by type
-  const groups = {};
-  for (const f of m.files) (groups[f.bought ? "bought" : f.kind] ||= []).push(f);
-  const order = ["bought", "gps_track", "sleep_log", "purchase_receipts", "audio", "air", "id_document"].filter((k) => groups[k]);
-  $("db").innerHTML = order.map((k) => { const fs = groups[k], sell = fs.filter((f) => f.sell).length;
-    return `<div class="group"><header><b>${k === "bought" ? "Bought" : label(k)}</b><span class="muted">${fs.length} file(s)${k === "bought" ? "" : k === "id_document" ? " · never sold" : ` · ${sell} for sale`}</span></header>
-    ${fs.map((f) => `<div class="file"><span class="name">${esc(f.name)}</span>
-      ${f.bought ? `<span class="tag blue">bought</span>` : f.kind === "id_document" ? `<span class="tag red">locked</span>` : `<label class="switch" for="f${f.id}"><input type="checkbox" id="f${f.id}" data-f="${f.id}" ${f.sell ? "checked" : ""}>sell</label>`}
-      <span class="meta">${f.bought ? `${f.items} files from ${esc(f.from)}` : f.sold ? `sold ${f.sold}×` : f.sell ? "listed as a pseudonymized copy" : "private"}</span>
-      ${f.clean ? `<details class="meta"><summary>${f.bought ? "What you received (sample)" : "What a buyer would see"}</summary><pre>${esc(pretty(f.clean))}</pre></details>` : ""}</div>`).join("")}</div>`; }).join("")
-    || `<p class="muted small">No files yet.</p>`;
+function contractView(c) {
+  const b = acct(c.buyer), personal = KINDS[c.kind].personal;
+  const yes = c.seller_trace.filter((s) => s.verdict === "agree").length, no = c.seller_trace.length - yes;
+  const name = (id) => id === S.me ? "you" : personal ? (c.pseudos?.[id] || "p_" + acct(id).pid.slice(4, 14)) : acct(id).name;
+  return `<div class="contract"><div class="sides">
+    <div class="side"><header><h3>Buyer agent · ${esc(b.name)}</h3><span class="tag ${c.status === "settled" ? "blue" : "red"}">${c.status === "settled" ? "agreed" : "rejected"}</span></header>
+      <ol>${c.buyer_trace.map((t) => `<li>${esc(t)}</li>`).join("")}</ol></div>
+    <div class="side"><header><h3>Seller agents</h3><span class="muted small">${yes} agreed · ${no} declined</span></header>
+      <div class="sellers">${c.seller_trace.map((s) => `<div><span class="mono">${esc(name(s.id))}</span><span class="${s.verdict === "agree" ? "y" : "n"}">${s.verdict === "agree" ? "agree" + (s.price ? " " + s.price : "") : "decline"}</span><span class="muted">${esc(s.reason)}</span></div>`).join("")}</div></div></div>
+    ${c.status === "settled" ? `<dl class="settle"><dt>Paid</dt><dd>${c.total} XRP to ${c.sellers.length} ${personal ? "people" : "sellers"}</dd><dt>Delivered</dt><dd>${c.items} files, ${c.bytes.toLocaleString()} bytes sealed to the buyer's key</dd>
+      <dt>Escrow condition</dt><dd class="mono">${short(c.cond, 28)}</dd><dt>Key released</dt><dd class="mono">${short(c.key, 28)}</dd><dt>Checks</dt><dd>source signatures OK · fingerprint ${c.ok ? "matches" : "does not match"}${personal ? ` · lot of ${c.sellers.length} ≥ ${K_MIN}` : ""}</dd></dl>`
+      : `<p class="small"><span class="n">Rejected:</span> ${esc(c.reason)}. No payment, nothing delivered.</p>`}</div>`;
+}
+
+function fileRow(f) {
+  return `<div class="file"><span class="name">${esc(f.name)}</span>
+    ${f.bought ? `<span class="tag blue">bought</span>` : f.kind === "id_document" ? `<span class="tag red">locked</span>` : `<label class="switch" for="f${f.id}"><input type="checkbox" id="f${f.id}" data-f="${f.id}" ${f.sell ? "checked" : ""}>sell</label>`}
+    <span class="meta">${f.bought ? `${f.items} files from ${esc(f.from)}` : f.sold ? `sold ${f.sold}×` : f.sell ? "listed as a pseudonymized copy" : "private"}</span>
+    ${f.clean ? `<details class="meta"><summary>${f.bought ? "What you received (sample)" : "What a buyer would see"}</summary><pre>${esc(pretty(f.clean))}</pre></details>` : ""}</div>`;
+}
+
+function renderDB() {
+  const m = me();
+  $("byDomain").setAttribute("aria-pressed", S.view === "domain"); $("byDemand").setAttribute("aria-pressed", S.view === "demand");
+  let html = "";
+  if (S.intake) {
+    const i = S.intake;
+    html += `<div class="intake ${i.block ? "block" : ""}"><div>${i.html}</div>${i.acts ? `<div class="acts"><button type="button" class="primary" id="clean">Clean it for ${i.q.fee} XRP</button><button type="button" id="keep">Keep it private</button></div>` : `<div class="acts"><button type="button" id="dismiss">OK</button></div>`}</div>`;
+  }
+  const own = m.files.filter((f) => !f.bought), bought = m.files.filter((f) => f.bought);
+  const bestOffer = (k) => Math.max(0, ...S.wanted.filter((w) => w.kind === k && w.by !== S.me).map((w) => w.offer));
+  if (S.view === "domain") {
+    const kinds = [...new Set(own.map((f) => f.kind))];
+    html += kinds.map((k) => { const fs = own.filter((f) => f.kind === k), sell = fs.filter((f) => f.sell).length, s = m.stats[k] || { offers: 0, agreed: 0, rejected: 0, earned: 0 };
+      const exp = k === "id_document" ? "never sold" : sell && bestOffer(k) ? `~${bestOffer(k)} XRP next sale` : sell ? "no buyer yet" : "not for sale";
+      return `<div class="bundle"><div class="head"><h3>${KINDS[k].domain}</h3><span class="exp">${exp}</span></div>
+        <span class="muted small">${label(k)} · ${fs.length} file(s) · ${sell} for sale</span>
+        ${k === "id_document" ? "" : `<div class="nego"><span><b>${s.offers}</b> offers</span><span><b>${s.agreed}</b> agreed</span><span><b>${s.rejected}</b> declined</span><span><b>${s.earned}</b> XRP earned</span></div>`}
+        <details><summary>Files</summary>${fs.map(fileRow).join("")}</details></div>`; }).join("");
+  } else {
+    const reqs = S.wanted.filter((w) => w.by !== S.me && own.some((f) => f.kind === w.kind && f.sell));
+    html += reqs.length ? reqs.map((w) => { const fs = own.filter((f) => f.kind === w.kind && f.sell), d = sellerDecide(m, w), ready = lotReady(w), personal = KINDS[w.kind].personal;
+      const state = d.verdict === "reject" ? `<span class="tag red">your rules decline</span>` : !personal || ready >= K_MIN - 1 ? `<span class="tag blue">lot ready</span>` : `<span class="tag">waiting for people</span>`;
+      return `<div class="bundle"><div class="head"><h3>For ${esc(acct(w.by).name)}</h3><span class="exp">${d.verdict === "agree" ? `~${d.price} XRP` : "—"}</span></div>
+        <span class="muted small">${label(w.kind)} for ${esc(w.purpose)} · ${fs.length} of your files</span>
+        <div class="nego">${state}<span><b>${ready}</b> others would join</span><span><b>${w.agreed}</b> settled</span><span><b>${w.rejected}</b> rejected</span></div>
+        <span class="muted small">${esc(d.reason)}</span>
+        ${d.verdict === "agree" ? `<div class="acts"><button type="button" data-offer="${w.id}">Offer this bundle</button></div>` : ""}</div>`; }).join("")
+      : `<p class="muted small">No open request matches what you marked for sale.</p>`;
+    const unmatched = own.filter((f) => !f.sell && f.kind !== "id_document").length;
+    if (unmatched) html += `<p class="muted small">${unmatched} private file(s) are not offered to anyone.</p>`;
+  }
+  if (bought.length) html += `<div class="bundle"><div class="head"><h3>Bought</h3><span class="muted small">${bought.length} lot(s)</span></div>${bought.map(fileRow).join("")}</div>`;
+  $("db").innerHTML = html;
   document.querySelectorAll("[data-f]").forEach((el) => el.onchange = () => { markSell(m.files.find((f) => f.id === +el.dataset.f), el.checked); render(); });
+  document.querySelectorAll("[data-offer]").forEach((b) => b.onclick = () => { const w = S.wanted.find((x) => x.id === +b.dataset.offer); const mine = supply(w.kind, w.by).find((x) => x.a.id === S.me); if (mine) { propose(w, mine); $("drawer").hidden = false; render(); } });
+  if ($("clean")) $("clean").onclick = () => { const q = S.intake.q; S.intake = { done: true, html: `Cleaned <b>${esc(q.name)}</b> for ${q.fee} XRP. It is pseudonymized and in your ${KINDS[q.kind].domain.toLowerCase()} bundle, for sale.` }; acceptUpload(q, true); };
+  if ($("keep")) $("keep").onclick = () => { const q = S.intake.q; S.intake = null; acceptUpload(q, false); };
+  if ($("dismiss")) $("dismiss").onclick = () => { S.intake = null; render(); };
+}
 
-  // chat
+function renderChat() {
   $("msgs").innerHTML = S.chat[S.me].map((c, i) => `<div class="msg ${c.from}"><div>${c.html}</div>${c.actions ? `<div class="acts">${c.actions.map((a, j) => `<button type="button" class="${a.primary ? "primary" : ""}" data-m="${i}" data-a="${j}" ${c.done ? "disabled" : ""}>${esc(a.t)}</button>`).join("")}</div>` : ""}</div>`).join("");
   document.querySelectorAll("[data-m]").forEach((b) => b.onclick = () => { const c = S.chat[S.me][+b.dataset.m]; if (c.done) return; c.done = true; c.actions[+b.dataset.a].run(); render(); });
   $("msgs").scrollTop = $("msgs").scrollHeight;
@@ -450,7 +618,10 @@ $("form").addEventListener("submit", (e) => { e.preventDefault(); const v = $("s
 $("openChat").onclick = () => { $("drawer").hidden = false; render(); $("say").focus(); };
 $("closeChat").onclick = () => { $("drawer").hidden = true; render(); };
 $("pause").onclick = () => { S.paused = !S.paused; $("pause").textContent = S.paused ? "Resume" : "Pause"; };
-$("acct").onchange = (e) => { S.me = e.target.value; render(); };
+$("acct").onchange = (e) => { S.me = e.target.value; S.intake = null; render(); };
+$("byDomain").onclick = () => { S.view = "domain"; render(); };
+$("byDemand").onclick = () => { S.view = "demand"; render(); };
+$("upload").onclick = startUpload;
 init();
 </script>
 </body>
