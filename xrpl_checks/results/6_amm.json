@@ -1,0 +1,84 @@
+{
+ "key": "6_amm",
+ "title": "AMM stablecoin payout (RLUSD / synthetic tUSD)",
+ "status": "pass",
+ "amendments": {
+  "AMM": "enabled",
+  "fixAMMv1_1": "enabled",
+  "fixAMMv1_2": "enabled"
+ },
+ "accounts": {
+  "study payer (holds XRP only)": "rEM1YZdVPwsgzSfVtEdoibsQpYVbxXfHFn",
+  "participant": "rJJJyB1pW4tMw6dcPWBpeX25Gmc6iZtSfa",
+  "participant without trust line": "rJPez2KQvJixVEpTUom6DUMsC5WmfJojq",
+  "tUSD issuer (synthetic)": "rawFRYQK6L2tXYVZCUFBPvDRtgPVpqXDPF",
+  "liquidity provider": "rLGjKkok1G45yhVCbWSpZMQUuzHyvczfYh"
+ },
+ "steps": [
+  {
+   "label": "[RLUSD] participant TrustSet to the stablecoin",
+   "kind": "setup",
+   "tx": "B8061BD488EEAE837C28CE6A7FFF2965A06FAE86978145DB3112D4593EE68EB9",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 12.9,
+   "explorer": "https://testnet.xrpl.org/transactions/B8061BD488EEAE837C28CE6A7FFF2965A06FAE86978145DB3112D4593EE68EB9",
+   "note": ""
+  },
+  {
+   "label": "[RLUSD] Payment XRP -> 1 stablecoin to participant via AMM",
+   "kind": "success",
+   "tx": "500498211E45B8A41CDF825AF76BE25450B29294112A9CB227CE40FA49B5955D",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 12.9,
+   "explorer": "https://testnet.xrpl.org/transactions/500498211E45B8A41CDF825AF76BE25450B29294112A9CB227CE40FA49B5955D",
+   "note": "delivered {'currency': '524C555344000000000000000000000000000000', 'issuer': 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV', 'value': '1'}, SendMax 18221954 drops"
+  },
+  {
+   "label": "[tUSD] participant TrustSet to the stablecoin",
+   "kind": "setup",
+   "tx": "B18BCE301B044140B863A70722781CA2951B78EEC2CF6123980BB1AB235AB696",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 11.9,
+   "explorer": "https://testnet.xrpl.org/transactions/B18BCE301B044140B863A70722781CA2951B78EEC2CF6123980BB1AB235AB696",
+   "note": ""
+  },
+  {
+   "label": "[tUSD] Payment XRP -> 5 stablecoin to participant via AMM",
+   "kind": "success",
+   "tx": "25C3510780C81A1F28F1890880B3F650D1E5D8FCC44BE50F6F9027C0670AE852",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 13.0,
+   "explorer": "https://testnet.xrpl.org/transactions/25C3510780C81A1F28F1890880B3F650D1E5D8FCC44BE50F6F9027C0670AE852",
+   "note": "delivered {'currency': 'USD', 'issuer': 'rawFRYQK6L2tXYVZCUFBPvDRtgPVpqXDPF', 'value': '5'}, SendMax 150754 drops"
+  },
+  {
+   "label": "[tUSD] same payment to a participant with no trust line",
+   "kind": "failure",
+   "tx": "A989BE91C48170ADB5CB619007EA707E7E2338E7D2A1EA45157608EC282990AA",
+   "result": "tecPATH_DRY",
+   "expect": "tecPATH_DRY",
+   "ok": true,
+   "seconds": 11.7,
+   "explorer": "https://testnet.xrpl.org/transactions/A989BE91C48170ADB5CB619007EA707E7E2338E7D2A1EA45157608EC282990AA",
+   "note": "participants must opt in to the stablecoin first (one TrustSet)"
+  }
+ ],
+ "notes": [
+  "XRP/RLUSD AMM on Testnet: account=rPn7kHwycXzS5XNj167CnKwC2t82yAAdNW amount=1454670904709 amount2={'currency': '524C555344000000000000000000000000000000', 'issuer': 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV', 'value': '119746.0161726213'} fee=501",
+  "tUSD AMM: {'account': 'r3vv6QZb5sh3hebUgCoDWj7XiB3HuCJTnp', 'amount': '40100553', 'amount2': {'currency': 'USD', 'issuer': 'rawFRYQK6L2tXYVZCUFBPvDRtgPVpqXDPF', 'value': '1995'}, 'asset2_frozen': False, 'auction_slot': {'account': 'rLGjKkok1G45yhVCbWSpZMQUuzHyvczfYh', 'discounted_fee': 30, 'expiration': '2026-10-26T03:13:10+0000', 'price': {'currency': '03930D02208264E2E40EC1B0C09E4DB96EE197B1', 'issuer': 'r3vv6QZb5sh3hebUgCoDWj7XiB3HuCJTnp', 'value': '0'}, 'time_interval': 0}, 'lp_token': {'currency': '03930D02208264E2E40EC1B0C09E4DB96EE197B1', 'issuer': 'r3vv6QZb5sh3hebUgCoDWj7XiB3HuCJTnp', 'value': '282842.712474619'}, 'trading_fee': 300, 'vote_slots': [{'account': 'rLGjKkok1G45yhVCbWSpZMQUuzHyvczfYh', 'trading_fee': 300, 'vote_weight': 100000}]}",
+  "Fallback that always works: pay XRP, or the participant's agent swaps XRP->stablecoin itself."
+ ],
+ "conclusion": "RLUSD via the Testnet XRP/RLUSD AMM works. Synthetic stablecoin via our own AMM works: payer sends XRP, participant receives USD.",
+ "blocker": null,
+ "alternative": null,
+ "total_seconds": 68.8,
+ "ran_at": "2026-10-25T03:20:06Z"
+}

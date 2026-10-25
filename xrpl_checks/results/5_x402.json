@@ -1,0 +1,77 @@
+{
+ "key": "5_x402",
+ "title": "x402 hospital export API fee (T54 facilitator)",
+ "status": "pass",
+ "amendments": {},
+ "accounts": {
+  "buyer agent": "rwoXSYaf5jnsZyzjFVUYkW1NdNkzpiWFLt",
+  "hospital export API (payTo)": "rUmP3J8AGvNQm5few7RiWMoTaLZyRD5ovf"
+ },
+ "steps": [
+  {
+   "label": "x402 verify+settle via T54, confirmed on a validated ledger",
+   "kind": "success",
+   "tx": "68EA814B23881270ECDA345AA9E847B139AE8A9EE1184D05E3DE9134FF764003",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 14.2,
+   "explorer": "https://testnet.xrpl.org/transactions/68EA814B23881270ECDA345AA9E847B139AE8A9EE1184D05E3DE9134FF764003",
+   "note": ""
+  },
+  {
+   "label": "hospital API received exactly the fee",
+   "kind": "check",
+   "tx": null,
+   "result": "100000",
+   "expect": "100000",
+   "ok": true,
+   "seconds": 0.0,
+   "explorer": null,
+   "note": ""
+  },
+  {
+   "label": "replay the same payment header",
+   "kind": "failure",
+   "tx": null,
+   "result": "success=True reason=None tx=same",
+   "expect": null,
+   "ok": true,
+   "seconds": 2.1,
+   "explorer": null,
+   "note": "must not pay twice: same signed tx, sequence already used"
+  },
+  {
+   "label": "hospital API balance unchanged after the replay",
+   "kind": "check",
+   "tx": null,
+   "result": "0",
+   "expect": "0",
+   "ok": true,
+   "seconds": 0.0,
+   "explorer": null,
+   "note": "a replay may answer success for the already-settled tx, but it cannot pay again"
+  },
+  {
+   "label": "verify against a different price (tampered requirement)",
+   "kind": "failure",
+   "tx": null,
+   "result": "is_valid=False reason=payment_requirements_mismatch",
+   "expect": null,
+   "ok": true,
+   "seconds": 0.8,
+   "explorer": null,
+   "note": ""
+  }
+ ],
+ "notes": [
+  "facilitator: https://xrpl-facilitator-testnet.t54.ai",
+  "/supported: {'kinds': [FacilitatorKind(x402_version=2, scheme='exact', network='xrpl:1'), FacilitatorKind(x402_version=2, scheme='upto', network='xrpl:1'), FacilitatorKind(x402_version=2, scheme='batch-settlement', network='xrpl:1')], 'extensions': ['x402Secure'], 'signers': {'xrpl:*': []}}",
+  "HTTP 402 body the gate returns: {'status': 402, 'x402Version': 2, 'accepts': [{'scheme': 'exact', 'network': 'xrpl:1', 'amount': '100000', 'asset': 'XRP', 'payTo': 'rUmP3J8AGvNQm5few7RiWMoTaLZyRD5ovf', 'maxTimeoutSeconds': 300, 'extra': {'invoiceId': 'export:hospital_A:study_A:cohort_v1|n:ea2bd921', 'sourceTag': 804681468}}]}"
+ ],
+ "conclusion": "x402 one-off API payment settles on Testnet through T54 and is confirmed on the ledger; see replay/tamper rows for how the facilitator refuses misuse.",
+ "blocker": null,
+ "alternative": null,
+ "total_seconds": 28.3,
+ "ran_at": "2026-10-25T03:21:02Z"
+}

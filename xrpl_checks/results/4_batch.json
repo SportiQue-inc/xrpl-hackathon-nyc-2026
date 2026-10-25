@@ -1,0 +1,125 @@
+{
+ "key": "4_batch",
+ "title": "Batch atomic multi-hospital purchase",
+ "status": "pass",
+ "amendments": {
+  "Batch": "not enabled",
+  "BatchV1_1": "enabled",
+  "fixBatchV1_2": "enabled",
+  "fixBatchInnerSigs": "not enabled"
+ },
+ "accounts": {
+  "buyer (study)": "r4tDdJmTxfxd5zoxofCdkTXMeka5J975W1",
+  "hospital_A": "rpHKR5kZVvxkbGkifMB6wxrMCzGQmPeNKX",
+  "hospital_B": "rD1tJ437vmf1w6geKCdxtMyF83TniBy4rU"
+ },
+ "steps": [
+  {
+   "label": "Batch ALL_OR_NOTHING: 2 Payments buyer -> hospital A, B",
+   "kind": "success",
+   "tx": "B9FCB1489CFBF798AE2ED2544ABBD0213FE9BB38B134007996D9BC2A485566DA",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 18.7,
+   "explorer": "https://testnet.xrpl.org/transactions/B9FCB1489CFBF798AE2ED2544ABBD0213FE9BB38B134007996D9BC2A485566DA",
+   "note": ""
+  },
+  {
+   "label": "  inner Payment #1",
+   "kind": "check",
+   "tx": "BB21262B0D35334A34D61276383B31B07D66152DE931A2118DB625EACC661EB0",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 19.9,
+   "explorer": "https://testnet.xrpl.org/transactions/BB21262B0D35334A34D61276383B31B07D66152DE931A2118DB625EACC661EB0",
+   "note": ""
+  },
+  {
+   "label": "  inner Payment #2",
+   "kind": "check",
+   "tx": "26281F9FA5090C4AA43C1A13A4D12BE57A7C0D850524474039E5B311DAEC2EA4",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 21.2,
+   "explorer": "https://testnet.xrpl.org/transactions/26281F9FA5090C4AA43C1A13A4D12BE57A7C0D850524474039E5B311DAEC2EA4",
+   "note": ""
+  },
+  {
+   "label": "Batch ALL_OR_NOTHING where payment #2 must fail",
+   "kind": "failure",
+   "tx": "43D938D2434B802D713DEF18A03F5D85E72E00390217AE8F1554A81BD92D21ED",
+   "result": "tesSUCCESS",
+   "expect": null,
+   "ok": true,
+   "seconds": 16.7,
+   "explorer": "https://testnet.xrpl.org/transactions/43D938D2434B802D713DEF18A03F5D85E72E00390217AE8F1554A81BD92D21ED",
+   "note": "outer tx is accepted; what matters is that no inner payment applied"
+  },
+  {
+   "label": "hospital A received nothing from the failed batch",
+   "kind": "check",
+   "tx": null,
+   "result": "0",
+   "expect": "0",
+   "ok": true,
+   "seconds": 0.0,
+   "explorer": null,
+   "note": ""
+  },
+  {
+   "label": "bundle EscrowCreate -> hospital A (same condition)",
+   "kind": "success",
+   "tx": "747F192965CA4E95ABC7459D1F39E0A07F772DB1EFC7D17619E1114513AEE9D8",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 14.2,
+   "explorer": "https://testnet.xrpl.org/transactions/747F192965CA4E95ABC7459D1F39E0A07F772DB1EFC7D17619E1114513AEE9D8",
+   "note": ""
+  },
+  {
+   "label": "bundle EscrowCreate -> hospital B (same condition)",
+   "kind": "success",
+   "tx": "A97E62DDC3B1F872F8C84D9F63EBA9DC648F65709BBE4881AA515051CC1A2ABA",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 11.5,
+   "explorer": "https://testnet.xrpl.org/transactions/A97E62DDC3B1F872F8C84D9F63EBA9DC648F65709BBE4881AA515051CC1A2ABA",
+   "note": ""
+  },
+  {
+   "label": "bundle EscrowFinish hospital A with the same K",
+   "kind": "success",
+   "tx": "F788F9BB3D70225E0E4E28BB80CEB23A4001CBFC6430305640CE582583222E5C",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 10.0,
+   "explorer": "https://testnet.xrpl.org/transactions/F788F9BB3D70225E0E4E28BB80CEB23A4001CBFC6430305640CE582583222E5C",
+   "note": ""
+  },
+  {
+   "label": "bundle EscrowFinish hospital B with the same K",
+   "kind": "success",
+   "tx": "823F9D0EAB3A13AEC3E898C4D8B1211B098D4BC99D7900921CB9FF1F8F839115",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 12.5,
+   "explorer": "https://testnet.xrpl.org/transactions/823F9D0EAB3A13AEC3E898C4D8B1211B098D4BC99D7900921CB9FF1F8F839115",
+   "note": ""
+  }
+ ],
+ "notes": [
+  "Escrow bundle is atomic in the sense the demo needs: until K is revealed no hospital is paid, after the deadline every leg is refundable with EscrowCancel, and once K is public every leg can be finished by anyone. It is not single-ledger atomic like Batch."
+ ],
+ "conclusion": "Batch works on Testnet (all-or-nothing verified). Escrow bundle verified as the fallback.",
+ "blocker": null,
+ "alternative": "Escrow bundle: N EscrowCreate with the same condition; one key reveal finishes all",
+ "total_seconds": 92.4,
+ "ran_at": "2026-10-25T03:17:34Z"
+}

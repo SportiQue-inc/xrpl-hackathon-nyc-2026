@@ -1,0 +1,112 @@
+{
+ "key": "3_escrow",
+ "title": "Key-reveal conditional Escrow",
+ "status": "pass",
+ "amendments": {
+  "Escrow": "not enabled",
+  "fix1571": "enabled"
+ },
+ "accounts": {
+  "buyer (study)": "rsiEbA5qp75WMLgicWGiJFUqTh7GjtksMz",
+  "payee (participant agent)": "rhdCSsphpbJi42FxkFUzqt55TVUcwirA71"
+ },
+ "steps": [
+  {
+   "label": "EscrowCreate (condition = sha256(K), CancelAfter +10 min)",
+   "kind": "success",
+   "tx": "9C698CAD2199A0B29826B5BE2F74FBD0E25CF5827380A822B47594CCA671794A",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 9.6,
+   "explorer": "https://testnet.xrpl.org/transactions/9C698CAD2199A0B29826B5BE2F74FBD0E25CF5827380A822B47594CCA671794A",
+   "note": ""
+  },
+  {
+   "label": "EscrowFinish with a wrong key",
+   "kind": "failure",
+   "tx": "498CBE2D38C449EF26B560AA55E6CEC9E68261B33AAABA03F99327023C1125A6",
+   "result": "tecCRYPTOCONDITION_ERROR",
+   "expect": "tecCRYPTOCONDITION_ERROR",
+   "ok": true,
+   "seconds": 10.1,
+   "explorer": "https://testnet.xrpl.org/transactions/498CBE2D38C449EF26B560AA55E6CEC9E68261B33AAABA03F99327023C1125A6",
+   "note": ""
+  },
+  {
+   "label": "EscrowCancel before the deadline",
+   "kind": "failure",
+   "tx": "393908CE4A7D114443A48DBF619B955BB95A4C38FDED89FCE24E995F5DE56E76",
+   "result": "tecNO_PERMISSION",
+   "expect": "tecNO_PERMISSION",
+   "ok": true,
+   "seconds": 8.7,
+   "explorer": "https://testnet.xrpl.org/transactions/393908CE4A7D114443A48DBF619B955BB95A4C38FDED89FCE24E995F5DE56E76",
+   "note": ""
+  },
+  {
+   "label": "EscrowFinish revealing K (payee paid)",
+   "kind": "success",
+   "tx": "6BD3349621853722DA29E400AB42D4B8CCA0E6CBF2A318F8D1F24C761D759C67",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 8.4,
+   "explorer": "https://testnet.xrpl.org/transactions/6BD3349621853722DA29E400AB42D4B8CCA0E6CBF2A318F8D1F24C761D759C67",
+   "note": ""
+  },
+  {
+   "label": "buyer reads K back from the validated EscrowFinish",
+   "kind": "check",
+   "tx": null,
+   "result": "True",
+   "expect": "True",
+   "ok": true,
+   "seconds": 0.0,
+   "explorer": null,
+   "note": ""
+  },
+  {
+   "label": "EscrowCreate (CancelAfter +20s)",
+   "kind": "success",
+   "tx": "94CB46B5736C44C010D1872F48E86D01ED22D552A94B0D4EB3C3EABDE7280D09",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 11.0,
+   "explorer": "https://testnet.xrpl.org/transactions/94CB46B5736C44C010D1872F48E86D01ED22D552A94B0D4EB3C3EABDE7280D09",
+   "note": ""
+  },
+  {
+   "label": "EscrowFinish after the deadline",
+   "kind": "failure",
+   "tx": "FC6318EA2DE60A4D3A3AC260CDF1D507A65B0ED8BC6F8421FBEED3321B58BD3C",
+   "result": "tecNO_PERMISSION",
+   "expect": "tecNO_PERMISSION",
+   "ok": true,
+   "seconds": 8.4,
+   "explorer": "https://testnet.xrpl.org/transactions/FC6318EA2DE60A4D3A3AC260CDF1D507A65B0ED8BC6F8421FBEED3321B58BD3C",
+   "note": ""
+  },
+  {
+   "label": "EscrowCancel after the deadline (refund)",
+   "kind": "success",
+   "tx": "1AD9F9305EBC033BC5892586C605869A3500319BC8A976DE347DA5A403226B47",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 8.4,
+   "explorer": "https://testnet.xrpl.org/transactions/1AD9F9305EBC033BC5892586C605869A3500319BC8A976DE347DA5A403226B47",
+   "note": ""
+  }
+ ],
+ "notes": [
+  "payee balance +999625 drops (escrow 1000000, minus finish fee)",
+  "buyer balance +999990 drops on cancel (escrow 1000000, minus fee)"
+ ],
+ "conclusion": "Key-reveal escrow behaves as designed: wrong key and early cancel are refused, the valid EscrowFinish puts K on the ledger, and after the deadline only EscrowCancel (refund) works.",
+ "blocker": null,
+ "alternative": null,
+ "total_seconds": 106.4,
+ "ran_at": "2026-10-25T03:09:03Z"
+}
