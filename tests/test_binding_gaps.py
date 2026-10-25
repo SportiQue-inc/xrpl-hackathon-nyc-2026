@@ -71,7 +71,6 @@ def test_engine_bundle_with_k_alone_is_still_sealed_to_the_buyer():
 
 # ---- 2. A failed or late EscrowFinish must not publish K ----
 
-@pytest.mark.xfail(strict=True, reason="gap: engine._escrow_finish submits after CancelAfter; K lands on the ledger unpaid")
 def test_late_finish_does_not_publish_k(d):
     pd, inst = d
     prep, rec, k, _, oid = pushed(pd)
@@ -103,7 +102,6 @@ def test_late_finish_today_gives_the_buyer_the_data_and_the_refund(d):
 
 # ---- 3. Contract, ciphertext and K point to the same bundle before money moves ----
 
-@pytest.mark.xfail(strict=True, reason="gap: the condition is not bound to the sealed record; the buyer pays for a bundle K cannot open")
 def test_condition_for_another_key_is_refused_or_refunded(d):
     pd, inst = d
     other = b"\7" * 32
