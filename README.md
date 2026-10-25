@@ -227,5 +227,15 @@ plugs in. The team runs two existing products that are the intended production t
 workspace). No code from them is in this repository except what is listed in
 [docs/REUSE_LOG.md](docs/REUSE_LOG.md).
 
+`agentrail/uniqdata_port.py` (written here, contract-tested in `tests/test_uniqdata_port.py`)
+turns engine results into the records those products already store, without calling them:
+
+| Engine | UniQdata / UniQLab | Difference, handled explicitly |
+|---|---|---|
+| Separate consents: third-party provision, sensitive data | Consent lanes `research_participation`, `sensitive_health_collection` | International transfer has no UniQdata lane: a granted one blocks the hand-off |
+| Revoke | New `privacy_epoch`; queued commands from older epochs superseded; withdrawal deletion audit | Pause holds new commands only; declining a round touches nothing |
+| Rewards after revoke | Paid and pending research rewards are kept | Rounds not delivered at revoke are refunded to the study by the escrow, so they map to `not_earned`, never to kept pending rewards |
+| EscrowFinish of a delivered round | One `payout_receipt` per payout intent | `receipt_ref_hash` = SHA-256 of the XRPL tx hash; amounts in drops (`amount_minor`, currency `XRP`) |
+
 More: [docs/API.md](docs/API.md), [docs/PLAN.md](docs/PLAN.md), [docs/DESIGN.md](docs/DESIGN.md),
 [docs/DEMO_SCOPE.md](docs/DEMO_SCOPE.md).
