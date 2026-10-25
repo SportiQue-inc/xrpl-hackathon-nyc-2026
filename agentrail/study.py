@@ -473,7 +473,13 @@ def request_card(w, req) -> dict:
                                                  "Any change needs your separate consent."},
             "identity": "The study gets your participant number and the items you agree to. The link between "
                         "you and that number stays with your agent, where the study cannot reach it.",
-            "records": "Access records are kept 2 years, permission changes 3 years."}
+            "records": "Access records are kept 2 years, permission changes 3 years.",
+            "other_studies": "Your data, even with identifiers removed, will not be used for other studies.",
+            "separate_consents": [
+                {"kind": "sensitive_data", "label": "Health data (sensitive)", "required": True},
+                {"kind": "third_party_provision", "label": f"Provision to {LAB}", "required": True},
+                {"kind": "international_transfer", "label": "Access from abroad", "required": False,
+                 "planned": False}]}
 
 
 def participant_view(w, pid: str) -> dict:

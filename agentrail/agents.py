@@ -476,11 +476,26 @@ def consent_document(person_id, buyer_id, purpose, items, weeks, automation, min
                     "between the person and the number stays with the person's agent, out of the recipient's reach",
         "automation": automation, "min_price_drops": min_price,
         "payment": "direct to data holder on XRPL, per contributed round",
+        # Compensation for taking part is a required item of research consent (Bioethics Act Art. 16(1)5).
+        "compensation": {
+            "per_round": "paid by the institution for each contributed round, never contingent on finishing "
+                         "the whole study (FDA 2018 guidance)",
+            "split": "80% when the contribution is confirmed; 20% held for a short review and then paid, "
+                     "also after withdrawal; unpaid only if a named reviewer confirms fraud after notice "
+                     "and a chance to respond",
+            "completion_bonus": "a separate small amount, paid when every requested week is contributed; "
+                                "returned to the institution on withdrawal",
+            "on_withdrawal": "payments already made are never taken back; declining or withdrawing never "
+                             "affects future requests, priority or compensation",
+        },
+        "other_studies": "Your data, even with identifiers removed, will not be used for other studies.",
         "withdrawal": "decline a round: nothing is sent; pause: no new rounds; revoke: no key is released for "
                       "pending rounds, the licence is clawed back, and the recipient must destroy person-level "
                       "copies and confirm; aggregate statistics already produced remain; rewards paid stay",
-        "provision_terms": ["no re-identification", "no onward transfer",
-                            "destroy person-level copies on withdrawal and confirm"],
+        "provision_terms": ["no re-identification", "no onward transfer", "no use in other studies",
+                            "destroy person-level copies on withdrawal and confirm",
+                            "security safeguards for the data received",
+                            "complaint handling and dispute resolution for the participant"],
         "records": {"access_log_retention_years": 2, "permission_change_log_retention_years": 3},
         "synthetic_demo": True,
     }
