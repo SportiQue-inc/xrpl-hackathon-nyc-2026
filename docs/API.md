@@ -185,9 +185,17 @@ paid, bundles open). A revoked participant's held round is withheld instead.
 `POST /api/study/sweep` -> `{"refunded": [order ids]}`. On the mock ledger the clock jumps past the
 deadline; on Testnet call it again after the deadline (2 minutes). Refund escrows whose deadline passed (withheld rounds).
 
-`GET /api/study/bundle/{order_id}` -> the lab opens a delivered bundle with the key read from the
-ledger: `{"ok": true, "rows": [...], "bundle_hash": "...", "hash_matches": true, "key_from": {"tx", "url"}}`.
+`GET /api/study/bundle/{order_id}?use=sleep_research` -> the lab opens a delivered bundle with the key read from the
+ledger: `{"ok": true, "rows": [...], "bundle_hash": "...", "hash_matches": true, "key_from": {"tx", "url"},
+"fulfillment_on_ledger": "A0228020…", "licence": {"mpt_id", "held": true, "duo": [...], "use"}}`.
+`fulfillment_on_ledger` is the Fulfillment field of that EscrowFinish; the bundle key is inside it.
+Every call re-reads the participant's licence on the ledger: 403 `licence_revoked: …` if the study no longer
+holds it, 403 `outside_licence: …` if `use` drops a restriction written in the licence metadata (for example
+NCU for `commercial_product_dev`). 410 if the participant withdrew and the copy was destroyed.
 Before the key is on the ledger: `{"ok": false, "message": "..."}`.
+
+A refused budget release returns the server's answer as evidence: `{"ok": false, "engine_result":
+"tefBAD_QUORUM", "ledger_response": {"engine_result", "engine_result_message", "accepted", "applied", "tx_hash"}}`.
 
 ## Pay in two parts, review, penalties
 

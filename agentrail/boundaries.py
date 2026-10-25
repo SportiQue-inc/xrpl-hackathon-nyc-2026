@@ -86,6 +86,21 @@ ISSUES = [
                "test_withdrawal_history_is_never_an_input",
                "test_withdrawal_still_pays_reviewed_share_and_returns_the_bonus",
                "test_two_missed_accepted_rounds_pause_automatic_requests_only"]},
+    {"id": "spending", "title": "Agent spending",
+     "problem": "An agent that moves money for a study must not be able to spend more than the people "
+                "responsible signed for, even if its proposal, its code or the budget table is wrong.",
+     "solution": "Two locks. Off the ledger, the principal investigator signs the agent's delegation (Verifiable "
+                 "Intent L2: per-payment and total limits, purposes, payees) and every payment is checked "
+                 "against it right before money moves. On the ledger, the study budget sits in a treasury whose "
+                 "master key is disabled; only two approvers together can release it.",
+     "enforced": ["code: engine._mandate_check verifies L1 -> L2 -> L3 before every payment and escrow",
+                  "ledger: SignerList quorum 2 on the treasury; one signature is refused (tefBAD_QUORUM)",
+                  "code: the institution's ceiling (L1) is fixed; a raised budget row cannot lift it"],
+     "moment": "One approver tries to release the budget alone: the ledger answers tefBAD_QUORUM. The agent "
+               "signs an escrow above the PI's limit: refused before anything reaches the ledger.",
+     "tests": ["test_one_signer_cannot_release_the_study_budget",
+               "test_agent_signed_order_above_the_owners_limit_is_refused",
+               "test_raised_budget_row_without_owner_signature_is_refused_by_the_engine"]},
     {"id": "other_domains", "title": "Other domains are easier",
      "problem": "Does the same engine work where data is not about a person?",
      "solution": "Robot sensor data between companies (scene A) runs on the same engine with only the consent "
@@ -97,6 +112,27 @@ ISSUES = [
      "tests": ["test_scene_a_selects_b_and_c_within_budget", "test_hostile_llm_can_only_narrow",
                "test_agent_cannot_raise_its_own_budget_but_cosigned_top_up_can"]},
 ]
+
+
+def _spending_evidence(w, s, alone):
+    from . import mandate
+    if alone and not alone.get("ok"):
+        _ev(w, "spending", f"One approver signs the budget release alone: {alone.get('engine_result')}",
+            result=alone.get("engine_result"), ledger_response=alone.get("ledger_response"))
+    if s.approval.get("tx"):
+        _ev(w, "spending", f"Both approvers co-sign on their own devices: {s.approval.get('amount_xrp')} XRP released "
+            "from the treasury", tx=s.approval["tx"], url=s.approval.get("url"))
+    chain = w.engine.mandate_chains.get(LAB)
+    m = w.store.one("SELECT per_order_limit_drops FROM mandates WHERE buyer_id=?", LAB)
+    if chain is None or not chain.l2 or m is None:
+        return
+    over = {"content_hash": "0" * 64, "invoice_id": "F" * 64, "amount_drops": m["per_order_limit_drops"] + 2 * 10**6,
+            "payee_id": HERO, "order_id": 0, "purpose": "sleep_research"}
+    ok, why = mandate.verify(chain.l1, chain.l2, chain.sign_order(over), chain.issuer_pub, over, 0)
+    _ev(w, "spending", f"The agent signs a {over['amount_drops'] / 1e6:g} XRP escrow, above the "
+        f"{m['per_order_limit_drops'] / 1e6:g} XRP per payment the PI signed: "
+        f"{'refused before the ledger' if not ok else 'passed'} ({why})", result="refused" if not ok else "ok",
+        sent=False)
 
 
 def _payment_evidence(w, s):
@@ -180,12 +216,15 @@ def run(w) -> dict:
     w.boundary_evidence = {}
     if s.status == "none":
         study.set_goal(w, "")
+    alone = None
     if s.status == "draft":
+        alone = study.approve(w, ["owner"])          # the ledger's own refusal, kept as evidence
         study.approve(w, ["owner", "compliance"])
     if s.status == "approved":
         study.send(w)
     w.store.scene = "K"
     pa = w.cohort_people[HERO]
+    _spending_evidence(w, s, alone)
 
     # ---- consent ----
     d = pa.handle_request(LAB, "commercial_product_dev", ["sleep.daily"], 6, study.CELL_PRICE)

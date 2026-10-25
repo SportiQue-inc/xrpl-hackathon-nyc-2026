@@ -55,6 +55,13 @@ class XrplLicenceMixin:
         return any(o.get("MPTokenIssuanceID", "").upper() == mpt_id.upper() and int(o.get("MPTAmount", "0")) > 0
                    for o in r.get("account_objects", []))
 
+    def licence_metadata_of(self, mpt_id: str) -> str | None:
+        """The licence terms as written on the ledger (MPTokenMetadata of the issuance)."""
+        r = self.client.request(GenericRequest(method="ledger_entry", mpt_issuance=mpt_id,
+                                               ledger_index="validated")).result
+        hx = r.get("node", {}).get("MPTokenMetadata")
+        return bytes.fromhex(hx).decode() if hx else None
+
     def clawback_licence(self, issuer: str, holder: str, mpt_id: str) -> str:
         return _check(submit_and_wait(Clawback(account=issuer, holder=holder,
                                                amount=MPTAmount(mpt_issuance_id=mpt_id, value="1")),

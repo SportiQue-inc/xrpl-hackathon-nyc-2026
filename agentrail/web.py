@@ -356,8 +356,8 @@ def participant_resume_requests(pid: str):
 
 
 @app.get("/api/study/bundle/{oid}")
-def study_bundle(oid: int):
-    return _call(study.open_bundle, oid)
+def study_bundle(oid: int, use: str = "sleep_research"):
+    return _call(study.open_bundle, oid, use)
 
 
 # ---------- login ----------

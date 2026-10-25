@@ -26,6 +26,7 @@ def sent(w):
 def test_one_signer_cannot_release_the_study_budget(w):
     r = study.approve(w, ["owner"])
     assert r == {**r, "ok": False, "engine_result": "tefBAD_QUORUM"}
+    assert r["ledger_response"]["engine_result"] == "tefBAD_QUORUM" and r["ledger_response"]["applied"] is False
     assert study.study_view(w)["study"]["budget_xrp"] == 0
 
 
@@ -246,3 +247,20 @@ def test_no_budget_or_request_without_an_ethics_approval_number():
     assert study.approve(w, ["owner", "compliance"])["ok"]
     rid = study.send(w) and next(iter(s.requests))
     assert study.participant_view(w, s.requests[rid]["person"])["requests"][0]["ethics_approval"] == "IRB-2026-001"
+
+
+def test_every_later_access_rereads_the_licence_on_the_ledger(w):
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    study.send(w)
+    rid = study.participant_view(w, HERO)["requests"][0]["id"]
+    study.participant_approve(w, HERO, rid, ["fatigue.survey", "heart_rate.daily"])
+    oid = next(o["order_id"] for o in w.study.requests[rid]["orders"]
+               if w.store.one("SELECT status FROM orders WHERE id=?", o["order_id"])["status"] == "delivered")
+    r = study.open_bundle(w, oid)
+    assert r["fulfillment_on_ledger"] and r["licence"]["held"] and "DUO:0000046" in r["licence"]["duo"]
+    with pytest.raises(PermissionError, match="outside_licence"):
+        study.open_bundle(w, oid, use="commercial_product_dev")      # NCU on the ledger refuses it
+    lic = w.study.licences[HERO]
+    w.ledger.clawback_licence(w.engine.party(HERO)["address"], w.engine.party(study.LAB)["address"], lic["mpt_id"])
+    with pytest.raises(PermissionError, match="licence_revoked"):
+        study.open_bundle(w, oid)

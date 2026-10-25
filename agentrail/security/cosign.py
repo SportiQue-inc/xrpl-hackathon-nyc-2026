@@ -174,18 +174,22 @@ def execute(w, aid: int, allow_short: bool = False) -> dict:
     sigs = st.q("SELECT * FROM approval_signatures WHERE approval_id=? ORDER BY signer_name", aid)
     if len(sigs) < QUORUM and not allow_short:
         raise ApprovalError(409, f"{len(sigs)} of {QUORUM} signatures")
+    response = None
     try:
         h = _submit(w.ledger, a, sigs)
         result = "tesSUCCESS"
+    except LedgerRefusal as e:
+        result, h, response = e.result, None, e.response
     except Exception as e:
         import re
         m = re.search(r"\b(te[cfmlr][A-Z_]+)\b", str(e))
         result, h = (m.group(1) if m else str(e)[:120]), None
     if h is None:
+        # A tef refusal never enters a ledger, so the server's answer is kept as the evidence.
         st.log("org_sleeplab", "refused", f"treasury payment for approval {aid} with {len(sigs)} signature(s) "
-               f"rejected by the ledger: {result}")
+               f"rejected by the ledger: {result}", {"ledger_response": response} if response else None)
         return {"ok": False, "engine_result": result, "signed": len(sigs), "quorum": QUORUM,
-                "message": f"rejected by the ledger: {result}"}
+                "message": f"rejected by the ledger: {result}", "ledger_response": response}
     with st.tx() as c:
         c.execute("UPDATE approvals SET status='executed', result=?, tx_hash=? WHERE id=?", (result, h, aid))
     _apply_budget(w, a, h, [x["approver_sub"] for x in sigs])
@@ -195,13 +199,34 @@ def execute(w, aid: int, allow_short: bool = False) -> dict:
 def _submit(ledger, a: dict, sigs) -> str:
     addrs = [x["signer_address"] for x in sigs]
     if ledger.name != "testnet":
-        return ledger.multisig_payment(a["treasury"], a["destination"], a["amount_drops"], addrs)
+        try:
+            return ledger.multisig_payment(a["treasury"], a["destination"], a["amount_drops"], addrs)
+        except RuntimeError as e:
+            code, _, msg = str(e).partition(": ")
+            raise LedgerRefusal(code, {"engine_result": code, "engine_result_message": msg, "accepted": False,
+                                       "applied": False, "signers": len(addrs), "ledger": ledger.name})
     from xrpl.models.transactions.transaction import Transaction
-    from xrpl.transaction import multisign, submit_and_wait
-    from ..ledger.xrpl_extras import _check
+    from xrpl.transaction import multisign
+    from xrpl.transaction import submit
     tx = Transaction.from_xrpl(a["tx_json"])
     signed = [Transaction.from_xrpl(json.loads(x["payload"])["signed_tx"]) for x in sigs]
-    return _check(submit_and_wait(multisign(tx, signed), ledger.client, autofill=False), "multisigned Payment")
+    ms = multisign(tx, signed)
+    r = submit(ms, ledger.client).result
+    if not str(r.get("engine_result", "")).startswith(("tes", "ter", "tec")):
+        raise LedgerRefusal(r.get("engine_result", "?"), {k: r.get(k) for k in (
+            "engine_result", "engine_result_code", "engine_result_message", "accepted", "applied")}
+            | {"tx_hash": r.get("tx_json", {}).get("hash"), "signers": len(signed)})
+    h = r.get("tx_json", {}).get("hash")
+    st = ledger.wait_validated(h)
+    if not (st.validated and st.success):
+        raise RuntimeError(f"multisigned Payment {st.result}")
+    return h
+
+
+class LedgerRefusal(Exception):
+    def __init__(self, result: str, response: dict):
+        super().__init__(result)
+        self.result, self.response = result, response
 
 
 def _apply_budget(w, a: dict, h: str, approvers: list[str]):

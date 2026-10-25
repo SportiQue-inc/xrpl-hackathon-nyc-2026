@@ -220,6 +220,9 @@ class MockLedger(Ledger):
     def licence_held(self, holder, mpt_id):
         return self.mpts.get(mpt_id, {}).get("holders", {}).get(holder, 0) > 0
 
+    def licence_metadata_of(self, mpt_id):
+        return self.mpts.get(mpt_id, {}).get("meta")
+
     def clawback_licence(self, issuer, holder, mpt_id):
         m = self.mpts[mpt_id]
         if m["issuer"] != issuer:

@@ -409,17 +409,39 @@ class Gone(Exception):
     """The participant withdrew and the study destroyed its copy."""
 
 
-def open_bundle(w, oid: int) -> dict:
+def licence_gate(w, pid: str, use: str) -> dict | None:
+    """Every later access re-reads the licence on the ledger: the study must still hold it, and the
+    use must keep every restriction the participant wrote into its metadata (DUO codes)."""
+    lic = ensure(w).licences.get(pid)
+    if not lic or not hasattr(w.ledger, "licence_held"):
+        return None
+    if not w.ledger.licence_held(w.engine.party(LAB)["address"], lic["mpt_id"]):
+        raise PermissionError(f"licence_revoked: {pid} clawed back the study's licence {lic['mpt_id'][:12]}…")
+    meta = json.loads(w.ledger.licence_metadata_of(lic["mpt_id"]) or "{}")
+    duo = meta.get("duo", [])
+    allowed = set(PURPOSE_DUO.get(use, []))
+    missing = [c for c in duo if c not in allowed]
+    if use not in PURPOSE_DUO or missing:
+        raise PermissionError(f"outside_licence: use '{use}' does not keep {', '.join(missing) or 'the licence terms'} "
+                              f"written in {pid}'s licence on the ledger")
+    return {"mpt_id": lic["mpt_id"], "held": True, "duo": duo, "use": use}
+
+
+def open_bundle(w, oid: int, use: str = "sleep_research") -> dict:
     o = w.store.one("SELECT * FROM orders WHERE id=?", oid)
     if o is not None and o["seller_id"] in getattr(ensure(w), "withdrawn", set()):
         raise Gone(f"order {oid}: the participant withdrew and the study's copy was destroyed")
-    p = w.store.one("SELECT finish_tx FROM payments WHERE order_id=?", oid)
+    p = w.store.one("SELECT kind, finish_tx FROM payments WHERE order_id=?", oid)
     if o is None or o["status"] != "delivered":
         return {"ok": False, "message": "not delivered: the key is not on the ledger"}
+    lic = licence_gate(w, o["seller_id"], use)
     rows = w.engine.open_bundle(LAB, oid)
+    f = w.ledger.lookup(p["finish_tx"]).fulfillment if p and p["kind"] == "escrow" else None
     return {"ok": True, "rows": rows, "bundle_hash": o["bundle_hash"],
             "hash_matches": True,      # engine.open_bundle checks the salted payload against the ledger hash
-            "key_from": _tx(w, p["finish_tx"])}
+            "key_from": _tx(w, p["finish_tx"]),
+            # The Fulfillment field of that EscrowFinish, as read from the ledger: the bundle key is inside it.
+            "fulfillment_on_ledger": f, "licence": lic}
 
 
 # ---------------- participant side ----------------
