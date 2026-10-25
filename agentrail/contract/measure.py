@@ -28,20 +28,30 @@ def world(seed: int = 0):
     return reg, issuers
 
 
-def train(seed: int = 101, n: int = 400) -> tuple[forecast.Model, dict]:
+def train(seed: int = 101, n: int = 900, calibration: str = "platt") -> tuple[forecast.Model, dict]:
+    """Fit on 50% of the synthetic histories, calibrate on 25%, report on the last 25% (seen by
+    neither). Returns the calibrated model and the numbers before and after calibration."""
     reg, issuers = world()
     pool = market.make_market(n, seed=seed)
     r = Round(requirements(), pool, reg, issuers, None, strategy="price", target=10 ** 6, drop_on_fail=False)
     r.run()
     X = [o["x"] for o in r.outcomes]
     y = [int(o["verdict"] == "pass") for o in r.outcomes]
-    Xtr, ytr, Xte, yte = forecast.split(X, y)
-    m = forecast.Model().fit(Xtr, ytr)
-    ps = [m.p(x) for x in Xte]
-    base = sum(ytr) / len(ytr)
-    return m, {"train": len(Xtr), "test": len(Xte), "pass_rate": round(base, 3),
-               "brier": forecast.brier(ps, yte), "brier_base_rate": forecast.brier([base] * len(yte), yte),
-               "reliability": forecast.reliability(ps, yte), "weights": m.explain()}
+    Xtr, ytr, Xrest, yrest = forecast.split(X, y, test=0.5)
+    k = len(Xrest) // 2
+    Xcal, ycal, Xte, yte = Xrest[:k], yrest[:k], Xrest[k:], yrest[k:]
+    base = forecast.Model().fit(Xtr, ytr)
+    cal = (forecast.Isotonic() if calibration == "isotonic" else forecast.Platt()).fit(
+        [base.p(x) for x in Xcal], ycal)
+    m = forecast.Calibrated(base, cal)
+    raw, ps = [base.p(x) for x in Xte], [m.p(x) for x in Xte]
+    rate = sum(ytr) / len(ytr)
+    return m, {"train": len(Xtr), "calibration_set": len(Xcal), "test": len(Xte), "pass_rate": round(rate, 3),
+               "calibration": calibration, "brier_base_rate": forecast.brier([rate] * len(yte), yte),
+               "brier_before": forecast.brier(raw, yte), "brier": forecast.brier(ps, yte),
+               "ece_before": forecast.ece(raw, yte), "ece": forecast.ece(ps, yte),
+               "reliability_before": forecast.reliability(raw, yte), "reliability": forecast.reliability(ps, yte),
+               "weights": base.explain()}
 
 
 def compare(model: forecast.Model, seeds=(21, 22, 23, 24, 25), n: int = 150, target: int = 40) -> dict:
