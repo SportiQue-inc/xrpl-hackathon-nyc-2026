@@ -118,7 +118,7 @@ function consentPagesEn(r, send, price, names) {
         ].filter(Boolean)],
         ["5. What the lab receives", "The lab receives a study pseudonym and the items you agree to. It does not receive your name, contact details or ID numbers. Only your own agent can link the pseudonym to you."],
         ["6. Saying no and withdrawing", [
-          "Taking part is voluntary. Saying no or stopping carries no penalty. There are three separate choices:",
+          "Taking part is voluntary. Saying no or stopping never counts against you. There are three separate choices:",
           "① Skip this round: only this request is not sent.",
           "② Stop future rounds: no new requests. Data already sent and payments stay; you can resume.",
           "③ Withdraw study access: access is revoked on the ledger and locked payments for undelivered weeks return to the study. The lab is asked to delete individual-level copies and confirms the outcome separately. Pseudonymised data or data the lab must keep by law may remain. Amounts already paid stay.",

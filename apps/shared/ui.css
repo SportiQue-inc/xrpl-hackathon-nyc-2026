@@ -495,3 +495,5 @@ button.fg-card { cursor: pointer; }
 .ew-ev .t { font-size: 11px; font-weight: 600; color: #191f28; margin: 0; } .ew-ev .d { font-size: 10px; color: #6b7684; margin: 0; }
 .ew-ev.ok { background: #eafbf3; } .ew-ev.warn { background: #fff4e6; } .ew-ev.danger { background: #feecec; } .ew-ev.brand { background: #eef4ff; } .ew-ev.gray { background: #f2f4f6; }
 .ew .fg-pill.ok { background: #eafbf3; color: #17b26a; } .ew .fg-pill.warn { background: #fff4e6; color: #f79009; }
+.ar .fg-btn { font-size: 14px; font-weight: 600; } .ar .fg-sub { font-size: 12px; font-weight: 500; }
+.ar .fg-card { font-family: inherit; }
