@@ -1,0 +1,466 @@
+{
+  "schema": "agentrail.ap4m-run.v1",
+  "run_id": "2026-10-25T14-59-45-563Z",
+  "mode": "live",
+  "network": {
+    "name": "XRPL EVM Testnet",
+    "chain_id": 1449000,
+    "note": "AP4M runs on XRPL EVM Testnet, not the XRPL ledger used by the rest of AgentRail"
+  },
+  "task": "contribute P-017 weeks 3-5 to study SLEEP-01",
+  "synthetic_data": true,
+  "policy": {
+    "per_call_cap_rlusd": "0.1",
+    "budget_rlusd": "0.2",
+    "payee_allowlist": [
+      "0x7ba281df7cc4a40159ca957a6a969b9495464160"
+    ]
+  },
+  "consent": {
+    "pseudonym": "P-017",
+    "study": "SLEEP-01",
+    "duo": "HMB",
+    "items": [
+      "resting_heart_rate_bpm",
+      "fatigue_score"
+    ],
+    "weeks": [
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  "agent": "0x586D4276933D7f7455FdE41D4eD307DA86A6BC94",
+  "channel": {
+    "channel_id": "0x2a3148992a09a344b785547a28b0f6f8d94a949c5b64ca1b296c27e80f62c414",
+    "team_id": "fd76f78c-90cf-4564-8ba8-4a98d04afffe",
+    "request_id": "0xe3963822e11636d325ddb6e6e53bf8a5c8dd48baef0295a281e5d92be866237c",
+    "request_tx": "0x2569d6a73021c43a1163ec555512a3e2669f2b5f3e51fcd301b28bf090528c29",
+    "merchant_id": "0xc2f701bb1e648ade4c1b28a0ce1e08cb04196c3700572f1e731c6f8bfef65dbc",
+    "payout": "0x7ba281df7cc4a40159ca957a6a969b9495464160",
+    "cap_wei": "200000000000000000",
+    "open_command": {
+      "cap": "200000000000000000",
+      "nonce": "0xe3963822e11636d325ddb6e6e53bf8a5c8dd48baef0295a281e5d92be866237c",
+      "payout": "0x7BA281DF7cC4A40159Ca957A6a969b9495464160",
+      "merchantId": "0xc2f701bb1e648ade4c1b28a0ce1e08cb04196c3700572f1e731c6f8bfef65dbc",
+      "validAfter": "1792939707",
+      "validBefore": "1793544262",
+      "allocationId": "0x17afd0deb2cb247f293b3c805d709fdbf6c5a61c4c06ab9b1b5f6933dbf5e2b4",
+      "merchantPspId": "0x54e87b1804dbdb7797f40df9a47552c932f4b929a4095ac3e1ede8663f1a7249",
+      "requestDigest": "0xe3963822e11636d325ddb6e6e53bf8a5c8dd48baef0295a281e5d92be866237c",
+      "reservationId": "0xd7ccfd80a41eecef49118bb8e26e7020c0dea8b1e1fc2e27d1b6c54c0fc6749a",
+      "bindingValidBefore": "1793544284"
+    },
+    "channel_status": "open",
+    "failure": null,
+    "attempts": 0,
+    "payout_id": "0x2b09bb33b65499dfb4fb26f08faa76fffb2ab4e7ea03ebacb540fed19bfc1bde",
+    "binding_tx": "0x30c78d72b01796311b5cf008897579fc348469da97472bea5286f38904c2ddb1",
+    "channel_opened_tx": "0xc2015774c462a4d4a88444b015547415eea96336df2208b01b0f68389d3a4d53",
+    "channel_closed_tx": null,
+    "payout_closed_tx": null,
+    "last_claim_id": null,
+    "last_voucher_amount": null,
+    "voucher_redeemed_tx": null,
+    "last_settled_cumulative_wei": "0",
+    "settlement_recorded_tx": null,
+    "claim_paid_tx": null,
+    "receipt_available": false,
+    "created_at": "2026-10-25T15:00:04.696Z",
+    "updated_at": "2026-10-25T15:00:29.646Z",
+    "opened_block": "9235249",
+    "opened_by_this_run": true,
+    "cap_rlusd": "0.2",
+    "redeemed_before_rlusd": "0"
+  },
+  "calls": [
+    {
+      "request": "http://127.0.0.1:4400/export/P-017/3",
+      "scripted": false,
+      "paid": true,
+      "offer": {
+        "package_id": "sleep-01-p-017-w3",
+        "pseudonym": "P-017",
+        "week": 3,
+        "items": [
+          "resting_heart_rate_bpm",
+          "fatigue_score"
+        ],
+        "purpose": {
+          "study": "SLEEP-01",
+          "duo": "HMB",
+          "description": "participation compensation for a synthetic study export"
+        },
+        "price_rlusd": "0.05",
+        "pay_to": "0x7BA281DF7cC4A40159Ca957A6a969b9495464160",
+        "network": "eip155:1449000",
+        "asset": "0x27b57a9D0b8d24EB97259c4E2279e45255e016f3",
+        "scheme": "ap4m-x402 batch-settlement (Channel + EIP-712 Voucher)",
+        "resource_url": "http://127.0.0.1:4401/resource"
+      },
+      "decision": "pay",
+      "reason": "price 0.05 <= cap 0.1, total 0.05 <= budget 0.2, payee allowlisted, purpose HMB matches consent",
+      "claim_id": "0xff6db0c50043c85b5cf92fc35480ba955bdf8040d289ad1f3b6d3956ce696201",
+      "voucher_redeemed_event": {
+        "ledger": "0xcab42800a5ecf0d253fa2581bb3334b4daefae91",
+        "channelId": "0x2a3148992a09a344b785547a28b0f6f8d94a949c5b64ca1b296c27e80f62c414",
+        "claimId": "0xff6db0c50043c85b5cf92fc35480ba955bdf8040d289ad1f3b6d3956ce696201",
+        "voucherDigest": "0xc69d3b30cd7d49f63f2a0b83cd02a0d541bf4e864367d1d967c9642e43677605",
+        "allocationId": "0x17afd0deb2cb247f293b3c805d709fdbf6c5a61c4c06ab9b1b5f6933dbf5e2b4",
+        "agent": "0x586d4276933d7f7455fde41d4ed307da86a6bc94",
+        "merchantId": "0xc2f701bb1e648ade4c1b28a0ce1e08cb04196c3700572f1e731c6f8bfef65dbc",
+        "payout": "0x7ba281df7cc4a40159ca957a6a969b9495464160",
+        "submitter": "0x7ba281df7cc4a40159ca957a6a969b9495464160",
+        "amount_rlusd": "0.05",
+        "cumulative_rlusd": "0.05"
+      },
+      "record_redemption": {
+        "status": 200,
+        "body": {
+          "recorded": true,
+          "tx_hash": "0x318db4c2ace3b95496017f46bdfea617b9e32a2d6ddd1f1ddde0e538b7b2c7a9",
+          "claim_id": "0xff6db0c50043c85b5cf92fc35480ba955bdf8040d289ad1f3b6d3956ce696201",
+          "channel_id": "0x2a3148992a09a344b785547a28b0f6f8d94a949c5b64ca1b296c27e80f62c414",
+          "cumulative_amount": "50000000000000000"
+        }
+      },
+      "voucher_redeemed_tx": "0x318db4c2ace3b95496017f46bdfea617b9e32a2d6ddd1f1ddde0e538b7b2c7a9",
+      "voucher_redeemed_link": "https://explorer.testnet.xrplevm.org/tx/0x318db4c2ace3b95496017f46bdfea617b9e32a2d6ddd1f1ddde0e538b7b2c7a9",
+      "package_sha256": "a4856fcec5fad2c533b732a2030f771c2708717bfee0245c4deafedf7acb8ba8",
+      "package_hash_ok": true,
+      "package": {
+        "date_handling": "shifted to study-relative days; no calendar dates",
+        "days": [
+          {
+            "fatigue_score": 6,
+            "resting_heart_rate_bpm": 61,
+            "study_day": 15
+          },
+          {
+            "fatigue_score": 8,
+            "resting_heart_rate_bpm": 66,
+            "study_day": 16
+          },
+          {
+            "fatigue_score": 9,
+            "resting_heart_rate_bpm": 61,
+            "study_day": 17
+          },
+          {
+            "fatigue_score": 10,
+            "resting_heart_rate_bpm": 66,
+            "study_day": 18
+          },
+          {
+            "fatigue_score": 3,
+            "resting_heart_rate_bpm": 68,
+            "study_day": 19
+          },
+          {
+            "fatigue_score": 2,
+            "resting_heart_rate_bpm": 64,
+            "study_day": 20
+          },
+          {
+            "fatigue_score": 1,
+            "resting_heart_rate_bpm": 63,
+            "study_day": 21
+          }
+        ],
+        "items": [
+          "resting_heart_rate_bpm",
+          "fatigue_score"
+        ],
+        "pseudonym": "P-017",
+        "schema": "agentrail.synthetic-export.v1",
+        "study": "SLEEP-01",
+        "synthetic": true,
+        "week": 3
+      }
+    },
+    {
+      "request": "http://127.0.0.1:4400/export/P-017/4",
+      "scripted": false,
+      "paid": true,
+      "offer": {
+        "package_id": "sleep-01-p-017-w4",
+        "pseudonym": "P-017",
+        "week": 4,
+        "items": [
+          "resting_heart_rate_bpm",
+          "fatigue_score"
+        ],
+        "purpose": {
+          "study": "SLEEP-01",
+          "duo": "HMB",
+          "description": "participation compensation for a synthetic study export"
+        },
+        "price_rlusd": "0.05",
+        "pay_to": "0x7BA281DF7cC4A40159Ca957A6a969b9495464160",
+        "network": "eip155:1449000",
+        "asset": "0x27b57a9D0b8d24EB97259c4E2279e45255e016f3",
+        "scheme": "ap4m-x402 batch-settlement (Channel + EIP-712 Voucher)",
+        "resource_url": "http://127.0.0.1:4402/resource"
+      },
+      "decision": "pay",
+      "reason": "price 0.05 <= cap 0.1, total 0.1 <= budget 0.2, payee allowlisted, purpose HMB matches consent",
+      "claim_id": "0x1afe5ad95de052daec971fcf38fdfcdae0d845d3e1c1f8e3648a3b10fdcea6c5",
+      "voucher_redeemed_event": {
+        "ledger": "0xcab42800a5ecf0d253fa2581bb3334b4daefae91",
+        "channelId": "0x2a3148992a09a344b785547a28b0f6f8d94a949c5b64ca1b296c27e80f62c414",
+        "claimId": "0x1afe5ad95de052daec971fcf38fdfcdae0d845d3e1c1f8e3648a3b10fdcea6c5",
+        "voucherDigest": "0xab66fd51d6f3ef3c251430ecd467702a3b16afb33cc8e6d8fd1d8e2673a4e7b8",
+        "allocationId": "0x17afd0deb2cb247f293b3c805d709fdbf6c5a61c4c06ab9b1b5f6933dbf5e2b4",
+        "agent": "0x586d4276933d7f7455fde41d4ed307da86a6bc94",
+        "merchantId": "0xc2f701bb1e648ade4c1b28a0ce1e08cb04196c3700572f1e731c6f8bfef65dbc",
+        "payout": "0x7ba281df7cc4a40159ca957a6a969b9495464160",
+        "submitter": "0x7ba281df7cc4a40159ca957a6a969b9495464160",
+        "amount_rlusd": "0.05",
+        "cumulative_rlusd": "0.1"
+      },
+      "record_redemption": {
+        "status": 200,
+        "body": {
+          "recorded": true,
+          "tx_hash": "0x4990ef4459b2fd171782b384950e8843cbf92f0a82c2612465a7df2457b52bb9",
+          "claim_id": "0x1afe5ad95de052daec971fcf38fdfcdae0d845d3e1c1f8e3648a3b10fdcea6c5",
+          "channel_id": "0x2a3148992a09a344b785547a28b0f6f8d94a949c5b64ca1b296c27e80f62c414",
+          "cumulative_amount": "100000000000000000"
+        }
+      },
+      "voucher_redeemed_tx": "0x4990ef4459b2fd171782b384950e8843cbf92f0a82c2612465a7df2457b52bb9",
+      "voucher_redeemed_link": "https://explorer.testnet.xrplevm.org/tx/0x4990ef4459b2fd171782b384950e8843cbf92f0a82c2612465a7df2457b52bb9",
+      "package_sha256": "76f5f4cbb2d3a4d0db6b49e6965808be29286e249e67d124b8965af2c324cdbd",
+      "package_hash_ok": true,
+      "package": {
+        "date_handling": "shifted to study-relative days; no calendar dates",
+        "days": [
+          {
+            "fatigue_score": 5,
+            "resting_heart_rate_bpm": 59,
+            "study_day": 22
+          },
+          {
+            "fatigue_score": 9,
+            "resting_heart_rate_bpm": 61,
+            "study_day": 23
+          },
+          {
+            "fatigue_score": 7,
+            "resting_heart_rate_bpm": 67,
+            "study_day": 24
+          },
+          {
+            "fatigue_score": 2,
+            "resting_heart_rate_bpm": 57,
+            "study_day": 25
+          },
+          {
+            "fatigue_score": 3,
+            "resting_heart_rate_bpm": 69,
+            "study_day": 26
+          },
+          {
+            "fatigue_score": 5,
+            "resting_heart_rate_bpm": 59,
+            "study_day": 27
+          },
+          {
+            "fatigue_score": 9,
+            "resting_heart_rate_bpm": 58,
+            "study_day": 28
+          }
+        ],
+        "items": [
+          "resting_heart_rate_bpm",
+          "fatigue_score"
+        ],
+        "pseudonym": "P-017",
+        "schema": "agentrail.synthetic-export.v1",
+        "study": "SLEEP-01",
+        "synthetic": true,
+        "week": 4
+      }
+    },
+    {
+      "request": "http://127.0.0.1:4400/export/P-017/5",
+      "scripted": false,
+      "paid": true,
+      "offer": {
+        "package_id": "sleep-01-p-017-w5",
+        "pseudonym": "P-017",
+        "week": 5,
+        "items": [
+          "resting_heart_rate_bpm",
+          "fatigue_score"
+        ],
+        "purpose": {
+          "study": "SLEEP-01",
+          "duo": "HMB",
+          "description": "participation compensation for a synthetic study export"
+        },
+        "price_rlusd": "0.05",
+        "pay_to": "0x7BA281DF7cC4A40159Ca957A6a969b9495464160",
+        "network": "eip155:1449000",
+        "asset": "0x27b57a9D0b8d24EB97259c4E2279e45255e016f3",
+        "scheme": "ap4m-x402 batch-settlement (Channel + EIP-712 Voucher)",
+        "resource_url": "http://127.0.0.1:4403/resource"
+      },
+      "decision": "pay",
+      "reason": "price 0.05 <= cap 0.1, total 0.15 <= budget 0.2, payee allowlisted, purpose HMB matches consent",
+      "claim_id": "0xe12109adbbe71fbdda33953b44becbf39e0ea323ed3b99e28a0f9ca82944d57c",
+      "voucher_redeemed_event": {
+        "ledger": "0xcab42800a5ecf0d253fa2581bb3334b4daefae91",
+        "channelId": "0x2a3148992a09a344b785547a28b0f6f8d94a949c5b64ca1b296c27e80f62c414",
+        "claimId": "0xe12109adbbe71fbdda33953b44becbf39e0ea323ed3b99e28a0f9ca82944d57c",
+        "voucherDigest": "0x75d7687d68d082af80ec81644b77fd773d44c015c0c0012aca0790cf76881fab",
+        "allocationId": "0x17afd0deb2cb247f293b3c805d709fdbf6c5a61c4c06ab9b1b5f6933dbf5e2b4",
+        "agent": "0x586d4276933d7f7455fde41d4ed307da86a6bc94",
+        "merchantId": "0xc2f701bb1e648ade4c1b28a0ce1e08cb04196c3700572f1e731c6f8bfef65dbc",
+        "payout": "0x7ba281df7cc4a40159ca957a6a969b9495464160",
+        "submitter": "0x7ba281df7cc4a40159ca957a6a969b9495464160",
+        "amount_rlusd": "0.05",
+        "cumulative_rlusd": "0.15"
+      },
+      "record_redemption": {
+        "status": 200,
+        "body": {
+          "recorded": true,
+          "tx_hash": "0x7e27a882ad4eef6e2d1f28163bcde5f9d279f3a83ba15de7d19475ff08e8c1aa",
+          "claim_id": "0xe12109adbbe71fbdda33953b44becbf39e0ea323ed3b99e28a0f9ca82944d57c",
+          "channel_id": "0x2a3148992a09a344b785547a28b0f6f8d94a949c5b64ca1b296c27e80f62c414",
+          "cumulative_amount": "150000000000000000"
+        }
+      },
+      "voucher_redeemed_tx": "0x7e27a882ad4eef6e2d1f28163bcde5f9d279f3a83ba15de7d19475ff08e8c1aa",
+      "voucher_redeemed_link": "https://explorer.testnet.xrplevm.org/tx/0x7e27a882ad4eef6e2d1f28163bcde5f9d279f3a83ba15de7d19475ff08e8c1aa",
+      "package_sha256": "acd260e0a9194eb2656f57d39721915a9b6afcf1786a0c8f6b899a5e3b23c759",
+      "package_hash_ok": true,
+      "package": {
+        "date_handling": "shifted to study-relative days; no calendar dates",
+        "days": [
+          {
+            "fatigue_score": 10,
+            "resting_heart_rate_bpm": 57,
+            "study_day": 29
+          },
+          {
+            "fatigue_score": 5,
+            "resting_heart_rate_bpm": 69,
+            "study_day": 30
+          },
+          {
+            "fatigue_score": 4,
+            "resting_heart_rate_bpm": 62,
+            "study_day": 31
+          },
+          {
+            "fatigue_score": 4,
+            "resting_heart_rate_bpm": 60,
+            "study_day": 32
+          },
+          {
+            "fatigue_score": 7,
+            "resting_heart_rate_bpm": 60,
+            "study_day": 33
+          },
+          {
+            "fatigue_score": 1,
+            "resting_heart_rate_bpm": 59,
+            "study_day": 34
+          },
+          {
+            "fatigue_score": 8,
+            "resting_heart_rate_bpm": 65,
+            "study_day": 35
+          }
+        ],
+        "items": [
+          "resting_heart_rate_bpm",
+          "fatigue_score"
+        ],
+        "pseudonym": "P-017",
+        "schema": "agentrail.synthetic-export.v1",
+        "study": "SLEEP-01",
+        "synthetic": true,
+        "week": 5
+      }
+    },
+    {
+      "request": "http://127.0.0.1:4400/export/P-017/6",
+      "scripted": true,
+      "paid": false,
+      "offer": {
+        "package_id": "sleep-01-p-017-w6",
+        "pseudonym": "P-017",
+        "week": 6,
+        "items": [
+          "resting_heart_rate_bpm",
+          "fatigue_score"
+        ],
+        "purpose": {
+          "study": "SLEEP-01",
+          "duo": "HMB",
+          "description": "participation compensation for a synthetic study export"
+        },
+        "price_rlusd": "0.50",
+        "pay_to": "0x7BA281DF7cC4A40159Ca957A6a969b9495464160",
+        "network": "eip155:1449000",
+        "asset": "0x27b57a9D0b8d24EB97259c4E2279e45255e016f3",
+        "scheme": "ap4m-x402 batch-settlement (Channel + EIP-712 Voucher)",
+        "resource_url": "http://127.0.0.1:4404/resource"
+      },
+      "decision": "refuse",
+      "reason": "price 0.5 RLUSD exceeds per-call cap 0.1 RLUSD"
+    }
+  ],
+  "settlement": {
+    "settlement_tx": "0xc675193632e48c3fe6ab48e5010b245300cd18f2a6d774c7a73c8c92762dba1e",
+    "payout_tx": "0xaece2663f7e33bc7cb5274b259428f3c60b32f69e8f020abe80faa61e5d98db7",
+    "amount_rlusd": "0.05",
+    "recipient": "0x7ba281df7cc4a40159ca957a6a969b9495464160",
+    "claim_id": "0xe12109adbbe71fbdda33953b44becbf39e0ea323ed3b99e28a0f9ca82944d57c",
+    "channel_id": "0x2a3148992a09a344b785547a28b0f6f8d94a949c5b64ca1b296c27e80f62c414",
+    "claims_settled": 3,
+    "receipt_url": "https://hackathon.ap4m.build/public/evidence/claims/0xe12109adbbe71fbdda33953b44becbf39e0ea323ed3b99e28a0f9ca82944d57c/0xc76be298c1d0eab9717de2b18f5519ceb9df3a09ab14e3a0435eeb8726ded590.json",
+    "receipts": [
+      {
+        "claim_id": "0xe12109adbbe71fbdda33953b44becbf39e0ea323ed3b99e28a0f9ca82944d57c",
+        "amount_rlusd": "0.05",
+        "receipt_url": "https://hackathon.ap4m.build/public/evidence/claims/0xe12109adbbe71fbdda33953b44becbf39e0ea323ed3b99e28a0f9ca82944d57c/0xc76be298c1d0eab9717de2b18f5519ceb9df3a09ab14e3a0435eeb8726ded590.json"
+      },
+      {
+        "claim_id": "0x1afe5ad95de052daec971fcf38fdfcdae0d845d3e1c1f8e3648a3b10fdcea6c5",
+        "amount_rlusd": "0.05",
+        "receipt_url": "https://hackathon.ap4m.build/public/evidence/claims/0x1afe5ad95de052daec971fcf38fdfcdae0d845d3e1c1f8e3648a3b10fdcea6c5/0x3157f326fcff4e6facc832cde6dc29e73f318e6b9990c55bb0398aa3d5d893a8.json"
+      },
+      {
+        "claim_id": "0xff6db0c50043c85b5cf92fc35480ba955bdf8040d289ad1f3b6d3956ce696201",
+        "amount_rlusd": "0.05",
+        "receipt_url": "https://hackathon.ap4m.build/public/evidence/claims/0xff6db0c50043c85b5cf92fc35480ba955bdf8040d289ad1f3b6d3956ce696201/0xf8bede66a69775ab6e1ac1c8fd6d23f3df099e3429c8b535970be03db5ff0994.json"
+      }
+    ],
+    "payout_link": "https://explorer.testnet.xrplevm.org/tx/0xaece2663f7e33bc7cb5274b259428f3c60b32f69e8f020abe80faa61e5d98db7",
+    "settlement_link": "https://explorer.testnet.xrplevm.org/tx/0xc675193632e48c3fe6ab48e5010b245300cd18f2a6d774c7a73c8c92762dba1e"
+  },
+  "payout_balance": {
+    "address": "0x7BA281DF7cC4A40159Ca957A6a969b9495464160",
+    "token": "0x27b57a9D0b8d24EB97259c4E2279e45255e016f3",
+    "before_rlusd": "0",
+    "after_rlusd": "0.15",
+    "delta_rlusd": "0.15",
+    "link": "https://explorer.testnet.xrplevm.org/address/0x7BA281DF7cC4A40159Ca957A6a969b9495464160"
+  },
+  "explorer_links": [
+    "https://explorer.testnet.xrplevm.org/tx/0x318db4c2ace3b95496017f46bdfea617b9e32a2d6ddd1f1ddde0e538b7b2c7a9",
+    "https://explorer.testnet.xrplevm.org/tx/0x4990ef4459b2fd171782b384950e8843cbf92f0a82c2612465a7df2457b52bb9",
+    "https://explorer.testnet.xrplevm.org/tx/0x7e27a882ad4eef6e2d1f28163bcde5f9d279f3a83ba15de7d19475ff08e8c1aa",
+    "https://explorer.testnet.xrplevm.org/tx/0xaece2663f7e33bc7cb5274b259428f3c60b32f69e8f020abe80faa61e5d98db7",
+    "https://explorer.testnet.xrplevm.org/tx/0xc675193632e48c3fe6ab48e5010b245300cd18f2a6d774c7a73c8c92762dba1e",
+    "https://explorer.testnet.xrplevm.org/address/0x7BA281DF7cC4A40159Ca957A6a969b9495464160"
+  ],
+  "total_paid_rlusd": "0.15",
+  "finished_at": "2026-10-25T15:02:49.706Z"
+}

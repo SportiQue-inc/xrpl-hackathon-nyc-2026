@@ -67,6 +67,8 @@ export function engine(base = "", { token, sandboxCode = storedSandboxCode() } =
     // Person -> institution -> sub-projects (agentrail/subprojects.py)
     institution: () => get("/api/institution"),
     proof: () => get("/api/proof"),
+    // AP4M rail (Mastercard): the agent's RLUSD payments; check=true has the engine verify each on XRPL EVM
+    ap4m: (check = false) => call("GET", `/api/public/ap4m${check ? "?verify=1" : ""}`, null, null),
     createSubproject: (b) => post("/api/institution/subprojects", b),
     runSubproject: (sid) => post(`/api/institution/subprojects/${encodeURIComponent(sid)}/run`, {}),
     setGoal: (goal) => post("/api/study/goal", { goal }),

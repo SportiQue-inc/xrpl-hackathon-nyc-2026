@@ -30,7 +30,7 @@ fi
 
 port="${MERCHANT_PORT:-}"
 if [ -z "$port" ] && [ -f .env ]; then
-  port="$(grep -E '^[[:space:]]*MERCHANT_PORT[[:space:]]*=' .env | tail -1 | sed -E 's/^[^=]*=[[:space:]]*//; s/[[:space:]]*$//')"
+  port="$( { grep -E '^[[:space:]]*MERCHANT_PORT[[:space:]]*=' .env || true; } | tail -1 | sed -E 's/^[^=]*=[[:space:]]*//; s/[[:space:]]*$//')"
 fi
 port="${port:-4400}"
 

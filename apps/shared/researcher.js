@@ -318,6 +318,43 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
     [/^opened bundle hashes/, "Opened data hashes to the bundle hash in the memo"],
   ];
   const plain = (s) => (PLAIN.find(([re]) => re.test(s)) || [null, s])[1];
+  // AP4M rail: the agent pays per export call in RLUSD through a Channel; each VoucherRedeemed is checked on chain.
+  const ap = { v: null, checking: false, msg: null };
+  async function loadAp4m(check = false) {
+    if (ap.checking) return;
+    ap.checking = check;
+    try { ap.v = await api.ap4m(check); ap.msg = null; } catch (e) { ap.v = ap.v || { runs: [] }; ap.msg = e.message; }
+    ap.checking = false;
+    draw();
+  }
+  const ONCHAIN = { verified: ["On chain ✓", "green"], mismatch: ["Does not match", "red"], failed: ["Failed on chain", "red"],
+    not_found: ["Not found", "red"], unreachable: ["RPC unreachable", "amber"] };
+  function ap4mCard() {
+    if (!ap.v && !ap.msg) { loadAp4m(); return h("div", { class: "ar-skel", style: { height: "120px" } }); }
+    const r = (ap.v.runs || [])[0];
+    const head = h("div", { class: "spread" }, h("h2", {}, "Agent payments on AP4M (Mastercard)"),
+      r ? h("button", { class: "ar-btn", disabled: ap.checking, onclick: () => loadAp4m(true) }, ap.checking ? "Checking…" : "Check on chain") : null);
+    if (!r) return h("div", { class: "ar-card" }, head,
+      h("p", { class: "small muted" }, "No live AP4M run yet. The agent opens a Channel with requestChannel(), pays each export call with a Voucher, and every redeemed Voucher shows here with its transaction."),
+      ap.msg ? h("p", { class: "tiny muted" }, ap.msg) : null);
+    const ok = r.paid.filter((p) => p.onchain?.status === "verified").length;
+    return h("div", { class: "ar-card" }, head,
+      h("p", { class: "tiny muted" }, `${ap.v.rail} · Channel ${short(r.channel.channel_id || "", 10, 6)} · cap ${r.channel.cap_rlusd ?? "?"} RLUSD · agent ${short(r.agent || "", 6, 4)} · paid ${r.total_paid_rlusd} RLUSD${r.paid.some((p) => p.onchain) ? ` · ${ok}/${r.paid.length} verified on chain` : ""}`),
+      h("ol", { style: { listStyle: "none", padding: 0, margin: 0 } },
+        r.paid.map((p, i) => h("li", { class: "row", style: { gap: "10px", alignItems: "flex-start", padding: "8px 0", borderTop: i ? "1px solid var(--ar-line, #e5e7eb)" : "none" } },
+          p.onchain ? tag(...ONCHAIN[p.onchain.status] || [p.onchain.status, "gray"]) : tag("paid", "blue"),
+          h("div", { class: "grow" }, h("b", {}, `Week ${p.week} export · ${p.price_rlusd} RLUSD`),
+            h("div", { class: "tiny muted" }, `VoucherRedeemed · claim ${short(p.claim_id || "", 10, 6)} · package sha256 ${short(p.package_sha256 || "", 8, 4)}${p.package_hash_ok ? " ✓" : ""}${p.onchain?.why ? ` · ${p.onchain.why}` : ""}`)),
+          txLink(p, { kind: "VoucherRedeemed" }),
+          p.receipt_url ? h("a", { class: "ar-link small", href: p.receipt_url, target: "_blank", rel: "noopener" }, "Receipt ↗") : null)),
+        r.refused.map((x) => h("li", { class: "row", style: { gap: "10px", padding: "8px 0", borderTop: "1px solid var(--ar-line, #e5e7eb)" } },
+          tag("refused", "red"), h("div", { class: "grow small" }, `${x.package} · ${x.price_rlusd} RLUSD: ${x.reason}. Nothing was paid.`)))),
+      r.settlement ? h("p", { class: "small" }, "Settled to the merchant payout wallet ",
+        r.payout_balance ? `(${r.payout_balance.before_rlusd} → ${r.payout_balance.after_rlusd} RLUSD) ` : "",
+        txLink(r.settlement.payout, { kind: "AP4M payout" }), " ",
+        r.settlement.receipt_url ? h("a", { class: "ar-link small", href: r.settlement.receipt_url, target: "_blank", rel: "noopener" }, "AP4M receipt ↗") : null) : null,
+      h("p", { class: "tiny muted" }, "Runs on XRPL EVM Testnet next to the XRPL escrow and key reveal above. Synthetic exports only."));
+  }
   function evidence() {
     if (!ev.p && !ev.loading && !ev.msg) loadProof();
     if (!ev.p) return h("div", { class: "col" }, ev.msg || h("div", { class: "ar-skel", style: { height: "240px" } }));
@@ -347,7 +384,8 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
           wd.next_deliveries.length ? wd.next_deliveries.map((d) => h("p", { class: "small" }, tag("blocked", "red"), ` Order ${d.order}: key not released · ${d.status}${d.why ? ` · ${d.why}` : ""}`))
             : h("p", { class: "small muted" }, "No round was still waiting."),
           h("p", { class: "tiny muted" }, "Rounds already delivered cannot be recalled. Keys not yet released stay with the person's agent, and the locked payment goes back to the study."))
-          : h("p", { class: "small muted" }, "No withdrawal in this run.")));
+          : h("p", { class: "small muted" }, "No withdrawal in this run.")),
+      ap4mCard());
   }
 
   function skeleton() {

@@ -61,6 +61,10 @@ a.btn{text-decoration:none;text-align:center;display:inline-block} .btn.big{padd
 .cap{display:flex;flex-direction:column;gap:12px;align-items:flex-start} .cap p{font-size:18px;line-height:1.45;margin:0}
 .fix{font-size:13px;font-weight:600;color:var(--green);background:var(--green-bg);padding:5px 10px;border-radius:8px}
 
+/* AP4M receipts */
+.ap4m ul{list-style:none;padding:0;margin:8px 0;display:flex;flex-direction:column;gap:8px} .ap4m li{padding:10px 14px;border:1px solid var(--border);border-radius:10px;overflow-wrap:anywhere}
+.ap4m .ok{color:var(--green);font-weight:600} .ap4m .warn{color:var(--text-2);font-weight:600}
+
 /* call to action and footnote */
 .cta{display:flex;flex-direction:column;gap:14px;align-items:flex-start;padding:32px;border-radius:20px;background:var(--brand-weak);border:1px solid var(--brand-line)}
 form{display:flex;flex-direction:column;gap:8px} input{font:inherit;padding:10px 14px;border-radius:10px;border:1px solid var(--border);min-width:230px;max-width:100%}
