@@ -10,7 +10,8 @@ from dataclasses import dataclass, field
 from .connectors import PersonalVaultConnector, RoboticsConnector
 from .llm import voice
 from .engine import BudgetExceeded, Engine, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
-from .reasoning import OwnerLimits, Spec, infer_spec, match_schema, read_licence, terms_hash
+from .reasoning import (LICENCE_SYSTEM, MATCH_SYSTEM, OwnerLimits, Spec, batch_proposer, infer_spec, licence_input,
+                        match_input, match_schema, read_licence, terms_hash)
 from .policy import (PURPOSE_DUO, ALLOW, AUTOMATION_LEVELS, DENY, HOLD, PARTIAL, SENSITIVITY, ComplianceRules,
                      Decision, PersonalConsentPolicy, SENSITIVE_FIELDS, SellerPolicy)
 
@@ -166,6 +167,16 @@ class BuyerAgent:
             self.say("report", {"status": "not_purchased"}, msg)
             return {"goal": goal.text, "candidates": [], "status": "not_purchased", "reason": msg, "orders": []}
 
+        propose = self.propose
+        if propose is None:
+            # Live LLM: one call for all schema mappings and one for all licences, not one per product.
+            batch = []
+            for s in sellers:
+                for prod in s.catalog():
+                    if set(prod["scenarios"]) & set(goal.required_scenarios):
+                        batch += [(MATCH_SYSTEM, match_input(prod, wanted, s.sample(prod["id"]))),
+                                  (LICENCE_SYSTEM, licence_input(prod))]
+            propose = batch_proposer(batch)
         cands: list[Candidate] = []
         for s in sellers:
             for prod in s.catalog():
@@ -176,7 +187,7 @@ class BuyerAgent:
                     continue
                 sample = s.sample(prod["id"])
                 # L2: field mapping proposed, then checked against the sample
-                c.mapping, rejected, _ = match_schema(st, self.id, prod, wanted, sample, self.propose)
+                c.mapping, rejected, _ = match_schema(st, self.id, prod, wanted, sample, propose)
                 lost = [f for f in goal.required_fields if f not in c.mapping]
                 if lost:
                     c.excluded = "; ".join(f"{f}: {rejected.get(f, 'no match')}" for f in lost)
@@ -197,7 +208,7 @@ class BuyerAgent:
                          + (f" ({', '.join(f'{v} = {k}' for k, v in renamed.items())})" if renamed else "")
                          + f", missing {c.quality['missing_rate']:.1%}.", to=s.id)
                 # L3: licence text read, then confirmed by the seller's own terms
-                reading, _ = read_licence(st, self.id, prod, self.propose)
+                reading, _ = read_licence(st, self.id, prod, propose)
                 c.terms, corrected = s.confirm_terms(self.id, prod["id"], reading)
                 if not c.terms.get(goal.purpose):
                     c.excluded = f"licence does not allow {goal.purpose}"

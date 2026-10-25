@@ -226,8 +226,7 @@ def rule_match(wanted: list[str], seller_fields: list[str]) -> dict:
 def match_schema(store, agent: str, product: dict, wanted: list[str], sample: list[dict],
                  propose=None) -> tuple[dict, dict, list[str]]:
     """Returns (verified mapping canonical->seller field, rejected {canonical: reason}, notes)."""
-    preview = {f: next((r.get(f) for r in sample if r.get(f) is not None), None) for f in product["fields"]}
-    inp = {"product": product["id"], "wanted": wanted, "seller_fields": product["fields"], "sample_values": preview}
+    inp = match_input(product, wanted, sample)
     raw, source = _ask(propose, MATCH_SYSTEM, inp)
     if raw is None or not isinstance(raw.get("mapping"), dict):
         raw, source = rule_match(wanted, product["fields"]), "rules"
@@ -275,7 +274,7 @@ def rule_licence(text: str) -> dict:
 
 
 def read_licence(store, agent: str, product: dict, propose=None) -> tuple[dict, str]:
-    inp = {"product": product["id"], "licence_text": product["licence_text"]}
+    inp = licence_input(product)
     raw, source = _ask(propose, LICENCE_SYSTEM, inp)
     if raw is None:
         raw, source = rule_licence(product["licence_text"]), "rules"
@@ -284,6 +283,40 @@ def read_licence(store, agent: str, product: dict, propose=None) -> tuple[dict, 
     terms["attribution"] = bool(raw.get("attribution"))
     h = record(store, agent, "read_licence", inp, raw, source, "pending_seller_confirmation", terms, [])
     return terms, h
+
+
+# ---------------- batching: one call per task for all candidates ----------------
+
+def match_input(product: dict, wanted: list[str], sample: list[dict]) -> dict:
+    preview = {f: next((r.get(f) for r in sample if r.get(f) is not None), None) for f in product["fields"]}
+    return {"product": product["id"], "wanted": wanted, "seller_fields": product["fields"], "sample_values": preview}
+
+
+def licence_input(product: dict) -> dict:
+    return {"product": product["id"], "licence_text": product["licence_text"]}
+
+
+def batch_proposer(items: list[tuple[str, dict]]):
+    """Ask once per task for every candidate (the key has a daily request limit per model), then
+    answer the per-product calls from that reply. Each answer is still checked one by one by the
+    same code as a single call; a missing or malformed answer falls back to the rule version."""
+    answers: dict[tuple[str, str], dict] = {}
+    for system in dict.fromkeys(sy for sy, _ in items):
+        inputs = [inp for sy, inp in items if sy == system]
+        if not inputs:
+            continue
+        raw, _ = voice().propose(
+            "You get several independent items under 'items'. For each item do this task: " + system
+            + " Return JSON {\"answers\": {product_id: the object for that item}}.", {"items": inputs})
+        got = raw.get("answers") if isinstance(raw, dict) else None
+        if isinstance(got, dict):
+            for inp in inputs:
+                if isinstance(got.get(inp["product"]), dict):
+                    answers[(system, inp["product"])] = got[inp["product"]]
+
+    def propose(system, inp):
+        return answers.get((system, inp.get("product")))
+    return propose
 
 
 def terms_hash(product_id: str, terms: dict, mapping: dict) -> str:

@@ -6,6 +6,7 @@ a decision, so it cannot widen a permission or raise a limit.
 
   LLM_PROVIDER   openai (default when OPENAI_API_KEY is set) | anthropic | none
   OPENAI_API_KEY, OPENAI_MODEL       (default gpt-4.1-mini)
+  OPENAI_FALLBACK_MODELS             tried in order when a model is missing or out of its daily quota
   ANTHROPIC_API_KEY, ANTHROPIC_MODEL (default claude-opus-5-5)
   LLM_RECORD=1   save every JSON proposal to fixtures/llm_cache.json
   LLM_PROVIDER=replay   answer proposals from that file only (recorded runs, for a stable video)
@@ -74,6 +75,10 @@ class Voice:
                 # gpt-4.1-mini answers on the current key (o3-mini returns model_not_found); set
                 # OPENAI_MODEL to use another chat model.
                 self.model = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+                # Limits on the team key are per model and per day, so the next model takes over.
+                self.fallbacks = [m.strip() for m in os.environ.get(
+                    "OPENAI_FALLBACK_MODELS", "gpt-5.4-mini,gpt-6-luna,gpt-5-mini").split(",")
+                    if m.strip() and m.strip() != self.model]
             elif p == "anthropic":
                 import anthropic
                 self._client = anthropic.Anthropic(timeout=self.timeout, max_retries=0)
@@ -108,23 +113,41 @@ class Voice:
         if wait:
             time.sleep(wait)
 
+    @staticmethod
+    def _model_gone(status, body: str) -> bool:
+        """This model will not answer today: missing, not allowed, or its daily quota is used up."""
+        return status in (403, 404) or "model_not_found" in body or "insufficient_quota" in body or (
+            status == 429 and ("per day" in body or "requests per day" in body or "rpd" in body))
+
     def _openai(self, **kw):
-        """One request, paced; on 429 wait for Retry-After (or a few seconds) and try twice more."""
+        """One request, paced. 429 per minute: wait for Retry-After and retry. Model missing or out
+        of its daily quota: switch to the next fallback model (same prompt, same JSON check)."""
         import time
-        if self.model.startswith(("o1", "o3", "o4", "gpt-5")):
-            kw["reasoning_effort"] = os.environ.get("LLM_REASONING", "low")
-            kw["max_completion_tokens"] = max(kw.get("max_completion_tokens", 0), 4000)
-        for attempt in range(3):
+        base = dict(kw)
+        attempt = 0
+        while True:
+            kw = dict(base)
+            if self.model.startswith(("o1", "o3", "o4", "gpt-5", "gpt-6")):
+                kw["reasoning_effort"] = os.environ.get("LLM_REASONING", "low")
+                kw["max_completion_tokens"] = max(kw.get("max_completion_tokens", 0), 4000)
             self._throttle()
             try:
                 return self._client.chat.completions.create(model=self.model, user=TAG, **kw)
             except Exception as e:
                 status = getattr(e, "status_code", None)
                 body = str(e).lower()
-                if status != 429 or "insufficient_quota" in body or attempt == 2:
+                if self._model_gone(status, body) and getattr(self, "fallbacks", None):
+                    self.model = self.fallbacks.pop(0)
+                    attempt = 0
+                    continue
+                if status == 400 and "reasoning_effort" in body and "reasoning_effort" in kw:
+                    kw.pop("reasoning_effort")      # model does not take it: same request without it
+                    return self._client.chat.completions.create(model=self.model, user=TAG, **kw)
+                attempt += 1
+                if status != 429 or attempt >= 3:
                     raise
                 ra = getattr(getattr(e, "response", None), "headers", {}).get("retry-after")
-                time.sleep(min(float(ra) if ra else 4.0 * (attempt + 1), 20))
+                time.sleep(min(float(ra) if ra else 4.0 * attempt, 20))
 
     def _ask(self, prompt: str) -> str:
         if self.provider == "openai":
