@@ -23,6 +23,25 @@ console sees the contribution -> `POST /api/run/boundaries` (or phone `revoke`) 
 Live sync: poll `GET /api/events?after=<last id>` every second; refetch the page's main GET when
 anything new arrives.
 
+## Sign-in (every call)
+
+Every `/api/*` call except the two login calls needs `Authorization: Bearer <token>`; without it
+the answer is 401, with the wrong role or another person's record 403. Who may call which route:
+`agentrail/security/rbac.py`; design: [SECURITY.md](SECURITY.md).
+
+1. `POST /api/auth/challenge {"sub": "P-017"}` -> `{"nonce", "expires_in": 120, "aud"}`
+2. The device signs `agentrail-login|agentrail-api|<sub>|<nonce>` (Ed25519, hex).
+3. `POST /api/auth/token {"sub", "nonce", "signature"}` -> `{"access_token", "expires_in": 900, "role", "scope"}`
+
+`GET /api/auth/me`, `POST /api/auth/logout`. Demo (dev mode, localhost): `POST /api/dev/login/{sub}`
+returns a token for a simulated device, e.g. `P-017`, `researcher@org_sleeplab`,
+`approver:owner@org_sleeplab`, `operator`.
+
+Treasury approval: `POST /api/study/approvals` (researcher) -> approval with the unsigned tx;
+each approver `POST /api/study/approvals/{aid}/signatures {"signer", "signed_tx"}` (XRPL multisign blob; mock ledger: `{"signer", "public_key", "signature"}`); executed when the
+quorum is met. New consent after withdrawal: `POST /api/p/{pid}/consent` with the device signature
+over the consent document hash. Audit: `GET /api/ops/audit/verify`, `POST /api/ops/audit/anchor`.
+
 ## Shared
 
 `POST /api/reset?ledger=mock|testnet` - new world (50 synthetic participants, study set up).

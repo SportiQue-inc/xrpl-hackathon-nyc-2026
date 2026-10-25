@@ -189,29 +189,58 @@ Sources and the full model: [docs/MARKET.md](docs/MARKET.md).
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env                     # optional: OPENAI_API_KEY=... (never committed)
-python -m pytest -q                      # 80 tests on the mock ledger
+python -m pytest -q                      # 111 tests on the mock ledger (25 attack tests)
 python scripts/run_health_demo.py        # whole health study, mock ledger, JSON summary
 LEDGER=testnet python scripts/run_health_demo.py   # same on XRPL Testnet (faucet wallets)
 LEDGER=testnet python -m agentrail.scenario        # robot scene A, cohort round, failure scene
 uvicorn agentrail.web:app --reload       # API + dashboard at http://127.0.0.1:8000
 ```
 
+The dashboard signs in with the demo login (`POST /api/dev/login/{sub}`, localhost and dev mode
+only). Production settings: [docs/SECURITY.md](docs/SECURITY.md#7-production-mode).
+
 `.env`: `LLM_PROVIDER` (`openai` | `anthropic` | `replay` | `none`), `OPENAI_API_KEY`,
 `OPENAI_MODEL`, `XRPL_RPC_URL`, `PAYMENT_RAIL`, `LLM_SAY`. Testnet wallets come from the faucet
 and are kept only in `wallets.local.json` (git-ignored).
 
-## 10. Safety, privacy, limits
+## 10. Security design and limits
 
-- All people, institutions, records and amounts are **synthetic**. XRPL Testnet only.
-- The service does not hold anyone's funds: the study escrows rewards to each participant's
-  account; secrets stay in `.env` / `wallets.local.json` (git-ignored).
-- Raw records never go to an LLM or on-chain. The LLM sees coverage counts, item names and the
-  protocol; bundles are sealed to the study's key and the operator cannot open them.
-- Re-identification risk is reduced (minimization, per-study pseudonyms and date shifts,
-  quasi-identifier rule), not eliminated; delivered rounds cannot be recalled, and the person is
-  told so before approving.
-- Unknown state never becomes "allowed": an unreadable consent store holds the round.
-- Not a medical device; no diagnosis.
+Full design, production settings and the attack table: [docs/SECURITY.md](docs/SECURITY.md).
+
+- **Sign-in and access**: every API call needs a 15-minute token from a device-signed login
+  (Ed25519 challenge, no passwords). Roles: participant, researcher, approver, reviewer, operator.
+  One policy table decides every route; a route without a rule is denied. A participant reaches
+  only their own record, and no other role can act for them.
+- **Keys stay with their owners**: each round's escrow key and the pseudonym / date-shift secret
+  sit in the participant's keyring; the study's decryption key sits with the institution; the
+  service relays sealed bundles and cannot open them. Treasury keys sit on each approver's device.
+- **Co-sign**: the server prepares the exact XRPL transaction with a nonce and expiry; each approver
+  signs it on their own device; the server checks every signature and the signer list, then
+  submits. One person cannot release a budget, a signature cannot be reused, and one approval per
+  study plan stops repeated top-ups.
+- **State changes**: a withdrawn participant comes back only with a new consent signed on their
+  device; reviewers decide only under their own name; withdrawal deletes the sealed copies and
+  unreleased keys.
+- **Audit**: hash-chained event log with every state-changing call and its actor; chain check
+  endpoint; chain head anchored on the ledger every 5 minutes.
+- **HTTP**: strict request bodies, exact CORS origins, rate limits, security headers, secrets only
+  from env or secret files, secrets masked in logs. `AGENTRAIL_ENV=prod` requires the token secret
+  and turns the demo harness off.
+- **Tested by attack**: 25 tests reproduce the attacks (reading health data without sign-in,
+  one-person budget release, reactivating a withdrawn person, forged tokens, log tampering, ...).
+  On the code before this layer 23 of them failed; now all pass.
+
+Data and scope: all people, institutions, records and amounts are **synthetic**; XRPL Testnet
+only. Raw records never go to an LLM or on-chain. Re-identification risk is reduced
+(minimization, per-study HMAC pseudonyms and private date offsets, quasi-identifier rule), not
+eliminated; delivered rounds cannot be recalled, and the person is told so before approving. An
+unreadable consent store holds the round. Not a medical device; no diagnosis.
+
+**Not done yet** (needed before real participants): keys in KMS / HSM (local key files today, the
+interface is in place); an external penetration test; personal agents running on the person's
+device (simulated in the service process today); enrolment from the identity provider; shared
+rate-limit and token deny-list store for more than one instance; payout review keys moved to the
+keystore; a live Testnet rerun of the co-sign path.
 
 ## 11. Legal basis (summary)
 
