@@ -22,8 +22,10 @@ function append(el, kids) {
   }
 }
 
-// Amounts settle in a test token that stands in for RLUSD (agentrail/units.py); shown as RLUSD everywhere.
-export const UNIT = "RLUSD";
+export let UNIT = "test USD";
+export function setSettlementAsset(asset) {
+  if (asset === "USD" || asset === "XRP") UNIT = asset === "USD" ? "test USD" : "Test XRP";
+}
 export const xrp = (n) => `${(Math.round((n || 0) * 100) / 100).toFixed(2)} ${UNIT}`;
 export const short = (s, a = 4, b = 4) => (s && s.length > a + b + 1 ? `${s.slice(0, a)}…${b ? s.slice(-b) : ""}` : s || "");
 export const sum = (xs, f = (x) => x) => xs.reduce((a, x) => a + (f(x) || 0), 0);

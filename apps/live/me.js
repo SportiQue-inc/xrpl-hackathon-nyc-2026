@@ -3,6 +3,7 @@
 // Consent and answers sign with the person's demo key on the server (no passkey needed to try it).
 
 import { engine, watchSelf } from "/apps/shared/api.js";
+import { UNIT, setSettlementAsset } from "/apps/shared/ui.js";
 
 const pid = new URLSearchParams(location.search).get("pid") || "P-017";
 const api = engine("", { token: async (sub) => {
@@ -25,7 +26,7 @@ const h = (tag, props, ...kids) => {
   return el;
 };
 const tag = (t, tone = "gray") => h("span", { class: `tag ${tone}` }, t);
-const money = (n) => `${Number(n || 0).toFixed(2)} RLUSD`;   // test token standing in for RLUSD (footer says so)
+const money = (n) => `${Number(n || 0).toFixed(2)} ${UNIT}`;
 
 const code = () => { try { return new URLSearchParams(location.search).get("code") || localStorage.getItem("ar-code") || ""; } catch { return ""; } };
 async function call(method, path, body) {
@@ -38,7 +39,7 @@ async function call(method, path, body) {
 }
 const P = `/api/p/${encodeURIComponent(pid)}`;
 async function load() {
-  try { st.rel = await call("GET", `${P}/relationship`); st.error = null; } catch (e) { st.error = e.status === 404 ? "This engine doesn't have institution relationships yet." : (e.detail || e.message); }
+  try { st.rel = await call("GET", `${P}/relationship`); setSettlementAsset(st.rel.asset); st.error = null; } catch (e) { st.error = e.status === 404 ? "This engine doesn't have institution relationships yet." : (e.detail || e.message); }
   draw();
 }
 async function act(label, fn, done) {
@@ -61,7 +62,7 @@ function sheet() {
     h("div", { class: "sheet" }, h("div", { class: "grab" }),
       h("div", { class: "pin" },
         h("div", { class: "spread" }, h("span", { class: "small muted" }, `${r.institution.name} · ${r.subprojects.length} sub-projects`), tag("Pinned", "gray")),
-        h("div", { class: "amount" }, total ? `Up to ${money(total)}` : "Paid in RLUSD per delivered round"),
+        h("div", { class: "amount" }, total ? `Up to ${money(total)}` : `Paid in ${UNIT} per delivered round`),
         h("div", { class: "small muted" }, "Each sub-project pays for each round your agent delivers. 80% at delivery, 20% after review.")),
       h("div", { class: "scroll", onscroll: onScroll },
         h("div", { class: "sec" }, h("h3", {}, "One relationship with this institution"),

@@ -150,6 +150,7 @@ def direct_payment_attempt(w, payer: str, pid: str, amount_drops: int = XRP) -> 
 
 def set_goal(w, goal: str, propose=None) -> dict:
     s = ensure(w)
+    previous_needs = s.needs
     from .scenario import ETHICS_CREDENTIAL
     w.store.scene = "H"
     s.goal = goal or "Bring the primary analysis back to 80% power before the interim report."
@@ -166,8 +167,12 @@ def set_goal(w, goal: str, propose=None) -> dict:
             if c["item"] not in wk:
                 wk.append(c["item"])
     _plant_integrity_case(w, s)
-    s.status = "draft"
-    s.approval = {}                      # a new spec is a new round: its budget needs its own co-sign
+    same_spec = (previous_needs is not None
+                 and s.needs.proposal_hash == previous_needs.proposal_hash
+                 and s.needs.budget_drops == previous_needs.budget_drops)
+    if not same_spec or s.status not in ("approved", "sent"):
+        s.status = "draft"
+        s.approval = {}                  # A changed spec needs its own budget approval.
     n = s.needs
     w.store.log(LAB, "spec", f"gap reading ({'LLM' if n.source == 'llm' else 'rule baseline'}, checked by code): "
                 + ("; ".join(f"{i} weeks {ws}" for i, ws in n.gaps.items()) or "no gaps")
@@ -237,6 +242,8 @@ def _classify(d, items):
 
 def send(w, workers: int = 8) -> dict:
     s = ensure(w)
+    if s.status == "sent":
+        return study_view(w)
     if s.status not in ("approved", "sent"):
         return {"ok": False, "message": "spec not approved"}
     if not s.irb_approval.strip():
@@ -644,6 +651,7 @@ def participant_view(w, pid: str) -> dict:
         lic = {**lic, "held_by_study": w.ledger.licence_held(w.engine.party(LAB)["address"], lic["mpt_id"])}
     return {
         "person": {"id": pid, "address": w.engine.party(pid)["address"], "study_pseudonym": pa.vault.pseudonym(LAB)},
+        "asset": units.UNIT,
         "requests": [request_card(w, r) for r in reqs],
         "timeline": {"weeks": WEEKS, "rows": rows},
         "gaps": s.person_claims.get(pid, []),
@@ -1004,6 +1012,7 @@ def study_view(w) -> dict:
     from .scenario import ETHICS_CREDENTIAL  # noqa: F401
     return {
         "study": {"id": LAB, "name": w.engine.party(LAB)["name"], "ledger": w.ledger.name,
+                  "asset": units.UNIT,
                   "protocol": __import__("agentrail.cohort", fromlist=["PROTOCOL"]).PROTOCOL,
                   "irb": IRB_NUMBER,
                   "purpose": "sleep_research",

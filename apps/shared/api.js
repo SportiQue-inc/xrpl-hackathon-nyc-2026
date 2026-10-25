@@ -6,6 +6,8 @@
 // `token(sub)` returns one; the default asks the engine's demo devices (/api/dev/login/{sub}),
 // which only answers on a local dev engine. A host app passes its own `token` instead.
 
+import { setSettlementAsset } from "./ui.js";
+
 export const STUDY = "org_sleeplab";
 export const RESEARCHER = `researcher@${STUDY}`;
 export const approverSub = (signer) => `approver:${signer}@${STUDY}`;
@@ -49,7 +51,9 @@ export function engine(base = "", { token, sandboxCode = storedSandboxCode() } =
       err.detail = text;
       throw err;
     }
-    return res.json();
+    const data = await res.json();
+    setSettlementAsset(data.study?.asset ?? data.asset);
+    return data;
   }
   const get = (p, sub = RESEARCHER) => call("GET", p, null, sub);
   const post = (p, b, sub = RESEARCHER) => call("POST", p, b || {}, sub);
