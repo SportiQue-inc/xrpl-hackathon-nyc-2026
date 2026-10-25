@@ -109,6 +109,9 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/api/state"): Rule((O,)),
     # research contracts (agentrail/research_contracts.py): posting needs the posting code, joining the
     # invite code and the joiner's own signature; the researcher's token is scoped to one contract
+    # "How my agent decides": stateless, synthetic owner, nothing read or stored
+    ("GET", "/api/agent/explain/presets"): Rule(public=True),
+    ("POST", "/api/agent/explain"): Rule(public=True),
     ("GET", "/api/contracts"): Rule(public=True),
     ("POST", "/api/contracts"): Rule(public=True),
     ("GET", "/api/contracts/{cid}"): Rule(public=True),

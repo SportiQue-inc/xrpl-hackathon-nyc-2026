@@ -652,6 +652,32 @@ def catalog():
             "bottleneck": _state["bottleneck"]}
 
 
+@app.get("/api/agent/explain/presets")
+def agent_explain_presets():
+    """Sample requests for the "How my agent decides" panel (synthetic)."""
+    from .catalog import explain
+    return {"presets": [{"id": k, **v} for k, v in explain.PRESETS.items()], "payout_curve": explain.payout_curve()}
+
+
+class ExplainBody(Strict):
+    institution: str = Field(default="Institution", max_length=80)
+    inst_class: Literal["academic", "hospital", "commercial"] = "academic"
+    country: str = Field(default="KR", min_length=2, max_length=2)
+    purpose: str = Field(default="sleep_research", max_length=40)
+    columns: list[str] = Field(min_length=1, max_length=10)
+    irb: bool = False
+
+
+@app.post("/api/agent/explain")
+def agent_explain(body: ExplainBody):
+    """The person's agent's checks for one request, in order, with the verdict scope.Owner gives."""
+    from .catalog import explain
+    try:
+        return explain.explain(body.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @app.get("/api/contract/projection")
 def contract_projection():
     """Live projection of the round (usable so far, expected final with a 90% band, power, risks)."""
