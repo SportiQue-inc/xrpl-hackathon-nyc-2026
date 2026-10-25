@@ -123,8 +123,17 @@ class XrplLedger(Ledger):
         return address in self.wallets
 
     def now(self) -> int:
+        """Close time of the last validated ledger, read at most once per ledger interval (~3 s).
+        A slightly old value only delays a cancel; the ledger itself still enforces the deadline."""
+        import time
+        t = time.monotonic()
+        last = self.__dict__.get("_now_cache")
+        if last and t - last[1] < 3.0:
+            return last[0]
         r = self.client.request(LedgerReq(ledger_index="validated")).result
-        return int(r["ledger"]["close_time"])
+        v = int(r["ledger"]["close_time"])
+        self._now_cache = (v, t)
+        return v
 
     def _sign(self, tx, account: str) -> Prepared:
         signed = autofill_and_sign(tx, self.client, self.wallets[account])

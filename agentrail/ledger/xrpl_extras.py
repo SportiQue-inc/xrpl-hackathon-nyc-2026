@@ -86,6 +86,7 @@ class XrplExtrasMixin:
     # ---------- credentials ----------
 
     def issue_credential(self, issuer: str, subject: str, cred_type: str) -> list[str]:
+        self.__dict__.pop("_cred_cache", None)
         if self.has_credential(subject, issuer, cred_type):
             return self._past_hashes(subject, ["CredentialCreate", "CredentialAccept"],
                                      lambda tx: tx.get("CredentialType", "").upper() == _hex(cred_type))
@@ -98,6 +99,19 @@ class XrplExtrasMixin:
         return [h1, h2]
 
     def has_credential(self, subject: str, issuer: str, cred_type: str) -> bool:
+        """Cached for a few seconds: 50 participants' agents check the same lab in one round, and a
+        positive answer does not change between ledgers unless the issuer deletes it."""
+        import time
+        cache = self.__dict__.setdefault("_cred_cache", {})
+        k = (subject, issuer, cred_type)
+        hit = cache.get(k)
+        if hit and time.monotonic() - hit[1] < float(__import__("os").environ.get("XRPL_CRED_CACHE_S", "10")):
+            return hit[0]
+        ok = self._has_credential(subject, issuer, cred_type)
+        cache[k] = (ok, time.monotonic())
+        return ok
+
+    def _has_credential(self, subject: str, issuer: str, cred_type: str) -> bool:
         r = self.client.request(GenericRequest(method="account_objects", account=subject,
                                                type="credential", ledger_index="validated")).result
         for o in r.get("account_objects", []):
