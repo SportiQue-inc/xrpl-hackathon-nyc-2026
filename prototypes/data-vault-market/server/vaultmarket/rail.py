@@ -251,7 +251,7 @@ class Rail:
             prepared.append(p)
         if record:
             for i, p in enumerate(prepared):
-                record(i, self._seq_of(p), p.tx_hash, cancel_after)
+                record(i, self._seq_of(p), p.tx_hash, cancel_after, p.blob)
         creates = list(_POOL.map(self._submit, prepared))
         def finish(i):
             leg, c, p = legs[i], creates[i], prepared[i]
@@ -273,15 +273,79 @@ class Rail:
     def cancel_escrow(self, owner: str, seq: int) -> dict:
         return self._submit(self.led.prepare_escrow_cancel(owner, owner, seq))
 
-    def created_ok(self, tx_hash: str) -> bool | None:
+    def created_ok(self, tx_hash: str, blob: str | None = None) -> bool | None:
         """True: validated tesSUCCESS. False: failed or never reached the ledger. None: cannot tell yet."""
         try:
             st = self.led.lookup(tx_hash)
         except Exception:
             return None
         if not st.found:
-            return False
+            return False if blob and self.led.is_expired(blob) else None
         return bool(st.success) if st.validated else None
+
+    def escrow_outcome(self, owner: str, seq: int) -> tuple[str, str | None]:
+        """Read the validated closing transaction; a missing escrow alone proves neither payment nor refund."""
+        if self.name == "mock":
+            pages = [list(self.led.txs.values())]
+        else:
+            from xrpl.models.requests import AccountTx
+            pages, marker = [], None
+            while True:
+                r = self.led.client.request(AccountTx(account=owner, limit=200, marker=marker)).result
+                if "error" in r:
+                    return "unknown", None
+                pages.append(r.get("transactions", []))
+                marker = r.get("marker")
+                if not marker:
+                    break
+        for page in pages:
+            for item in page:
+                tx = item if self.name == "mock" else item.get("tx_json", item.get("tx", {}))
+                ok = item.get("result") == "tesSUCCESS" if self.name == "mock" else item.get("validated") and item.get("meta", {}).get("TransactionResult") == "tesSUCCESS"
+                if ok and tx.get("Owner") == owner and tx.get("OfferSequence") == seq:
+                    state = {"EscrowFinish": "finished", "EscrowCancel": "refunded"}.get(tx.get("TransactionType"))
+                    if state:
+                        h = item.get("hash", tx.get("hash"))
+                        if self.name == "mock":
+                            h = next(k for k, v in self.led.txs.items() if v is item)
+                        return state, h
+        return "open", None
+
+    def receipt(self, tx_hash: str) -> dict:
+        from decimal import Decimal
+        if self.name == "mock":
+            tx = self.led.txs.get(tx_hash, {})
+            r = {"validated": bool(tx), "ledger_index": tx.get("ledger_index"), "meta": {"TransactionResult": tx.get("result")}}
+        else:
+            from xrpl.models.requests import Tx
+            r = self.led.client.request(Tx(transaction=tx_hash)).result
+            tx = r.get("tx_json", r)
+        meta = r.get("meta", {})
+        fields = next((n["DeletedNode"].get("FinalFields", {}) for n in meta.get("AffectedNodes", []) if n.get("DeletedNode", {}).get("LedgerEntryType")=="Escrow"), {})
+        gross = tx.get("Amount", fields.get("Amount"))
+        if gross is None and self.name == "mock":
+            original = next((t for t in self.led.txs.values() if t.get("TransactionType")=="EscrowCreate" and t.get("Account")==tx.get("Owner") and t.get("Sequence")==tx.get("OfferSequence")), {})
+            gross = original.get("Amount")
+        value = gross.get("value") if isinstance(gross, dict) else str(Decimal(gross)/1000000) if gross is not None else None
+        currency = gross.get("currency") if isinstance(gross, dict) else "XRP"
+        memos = []
+        for m in tx.get("Memos", []):
+            try:
+                memos.append(bytes.fromhex(m.get("Memo", {}).get("MemoData", "")).decode())
+            except (ValueError, UnicodeError):
+                pass
+        return {"hash":tx_hash,"validated":r.get("validated") is True,"result":meta.get("TransactionResult"),"ledger_index":r.get("ledger_index"),
+                "type":tx.get("TransactionType"),"account":tx.get("Account"),"destination":tx.get("Destination",fields.get("Destination")),
+                "owner":tx.get("Owner",fields.get("Account")),"sequence":tx.get("Sequence"),"offer_sequence":tx.get("OfferSequence"),
+                "gross_amount":value,"currency":currency,"issuer":gross.get("issuer") if isinstance(gross,dict) else None,
+                "fee_xrp":str(Decimal(tx.get("Fee",0))/1000000),"memos":memos}
+
+    def escrow_create_info(self, tx_hash: str) -> dict:
+        if self.name == "mock":
+            return self.led.txs.get(tx_hash, {})
+        from xrpl.models.requests import Tx
+        r = self.led.client.request(Tx(transaction=tx_hash)).result
+        return r.get("tx_json", r) if r.get("validated") else {}
 
 
 def merkle_root(leaves: list[str]) -> str:
