@@ -2,6 +2,7 @@
 
     python scripts/export_network.py [out.html]
 """
+import json
 import os
 import sys
 
@@ -15,4 +16,7 @@ os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
 data = network_view.build(acts.act1()["exchange"])
 with open(out, "w") as f:
     f.write(network_view.render(data))
-print(out, data["totals"])
+# one record per contract (schema agentrail.contract_trace/1): both agents' turns, verdicts, tx hashes
+with open(os.path.splitext(out)[0].replace("network", "contracts") + ".json", "w") as f:
+    json.dump(data["contracts"], f, indent=1)
+print(out, data["totals"], len(data["contracts"]), "contracts")

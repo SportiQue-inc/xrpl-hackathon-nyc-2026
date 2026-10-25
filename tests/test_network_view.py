@@ -21,3 +21,18 @@ def test_network_replays_every_trade_and_the_path_to_one_settled_and_one_refused
     assert all(s["by"] in ("engine rule", "LLM", "ledger", "ledger + engine") for s in ok["steps"])
     html = network_view.render(d)
     assert "/*DATA*/null" not in html and "synthetic data" in html
+
+
+def test_every_contract_is_a_conversation_with_verdicts():
+    ex = acts.act1()["exchange"]
+    assert len(ex.contracts) >= len(ex.trades)
+    for c in ex.contracts:
+        assert c["schema"] == "agentrail.contract_trace/1" and c["turns"][0]["speaker"] == "buyer"
+        assert set(c["verdicts"]) == {"buyer", "seller"}
+        assert all({"speaker", "message", "reasoning", "checks", "layer"} <= set(t) for t in c["turns"])
+    ok = next(c for c in ex.contracts if c["status"] == "settled")
+    assert ok["verdicts"] == {"buyer": "agree", "seller": "agree"} and ok["txs"]["escrow_finish"]
+    assert [t["speaker"] for t in ok["turns"]].count("ledger") == 2
+    no = next(c for c in ex.contracts if c["status"] == "refused")
+    assert no["verdicts"]["seller"] == "reject" and not no["txs"]
+    assert any(not k["ok"] for t in no["turns"] if t["speaker"] == "seller" for k in t["checks"])

@@ -80,9 +80,11 @@ every candidate, the comparison table, the negotiation, then the one trade with 
 |---|---|
 | needs formed by the accounts with a budget | 74 |
 | offer book | 477 listings, root anchored on the ledger before trading (re-anchored when agents collect new data) |
-| candidates per need | median 37 sampled and scored |
-| trades | 176: 130 settled, 10 settled but unfit (refund claim recorded), 23 blocked, 10 declined by the owner, 3 waiting for the owner |
-| volume | 2.56 XRP paid at negotiated prices (about 9% under the asks) |
+| candidates per need | median 34 sampled and scored |
+| already held | 127 offers refused before trading (same certified root as data the buyer bought); 3 copies bought at the new part only |
+| trades | 141: 99 settled, 10 settled but unfit (refund claim recorded), 23 blocked, 6 declined by the owner, 3 waiting for the owner |
+| sold by the agent on its own | 87 of 109 settled |
+| volume | 1.72 XRP paid at negotiated prices (about 9% under the asks) |
 | hours from need to fill | median 0 (agent), p90 11.3 (owner answered) |
 | unfit deliveries caught | 10 after delivery (not as committed, incomplete or impossible values), each with a refund claim |
 
@@ -99,12 +101,13 @@ Four institutions with 14 researchers. A budget opens only with two researchers'
 | org_neuroimg | US | A | delivery abroad |
 | org_genomics | SG | C | a past deletion was never confirmed; delivery abroad |
 
-**The same pseudonymized MRI request** from org_neuroimg (A) and org_genomics (C) produces a mix of outcomes:
-- sold on its own to A where the owner's bar allows it
-- queued with "needs grade A+, buyer is C" for genomics
+**The same pseudonymized MRI request** from org_neuroimg (A) and org_genomics (C). MRI is T3, so the
+agent never sells it on its own:
+- A passes the owner's rules and goes to the person for a fresh approval each time
+- C is held with "MRI needs grade A+ and a controlled workspace, buyer is C", without asking
 - blocked where the owner set imaging to never
 
-**Results:** 365 trades, 245 settled (138 by the agent on its own, the rest after the simulated owner answered), 87 blocked, 22 declined, 11 waiting for the manual approver (P-001). The fill rate is 90%.
+**Results:** 366 trades, 239 settled (131 by the agent on its own, the rest after the simulated owner answered), 98 blocked, 28 declined, 1 waiting for the manual approver (P-001).
 
 ## API
 

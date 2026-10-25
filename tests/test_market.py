@@ -64,15 +64,20 @@ def test_act2_is_act1_plus_a_policy(a1, a2):
     assert issubclass(policies.SensitivityPolicy, policies.AutonomyPolicy)
 
 
-def test_same_mri_sold_to_grade_a_and_not_on_its_own_to_grade_c(a2):
+def test_mri_is_never_sold_on_its_own_a_goes_to_the_person_c_is_held(a2):
     g = a2["buyer_grades"]
     assert g["org_neuroimg"]["grade"] == "A" and g["org_genomics"]["grade"] == "C"
     assert "a past deletion was never confirmed" in g["org_genomics"]["reasons"]
     mri = [t for t in a2["exchange"].trades if t["need"].endswith("-mri")]
-    auto_a = [t for t in mri if t["buyer"] == "org_neuroimg" and t["why"].startswith("sold on its own")]
-    auto_c = [t for t in mri if t["buyer"] == "org_genomics" and t["why"].startswith("sold on its own")]
-    assert auto_a and not auto_c
-    assert any("needs grade A+, buyer is C" in t["why"] for t in mri if t["buyer"] == "org_genomics")
+    assert mri and not any(t["why"].startswith("sold on its own") for t in mri)
+    a = [t for t in mri if t["buyer"] == "org_neuroimg"]
+    c = [t for t in mri if t["buyer"] == "org_genomics"]
+    asked = [t for t in a if "fresh approval" in t["why"]]
+    assert asked and all(t["status"] in ("awaiting_owner", "declined") or t["why"].startswith("owner approved")
+                         for t in asked)
+    assert not any("held: MRI" in t["why"] for t in a)
+    held = [t for t in c if "held: MRI needs grade A+" in t["why"]]
+    assert held and all(t["status"] == "refused" for t in held) and not any("fresh approval" in t["why"] for t in c)
 
 
 def test_budget_needs_two_researchers(a2):
@@ -106,8 +111,8 @@ def test_policy_rules():
     assert p.decide(trade(["sleep.daily"], **GOOD))[0] == "allow"
     assert p.decide(trade(["lab.ldl"], **{**GOOD, "irb": False}))[0] == "refuse"
     v, why = policies.AutonomyPolicy("L1").decide(trade(["imaging.mri"], **GOOD))
-    assert v == "gate" and "pseudonymized imaging is not set to sell on its own" in why
-    assert p.decide(trade(["imaging.mri"], **{**GOOD, "workspace": "copy"}))[0] == "gate"
+    assert v == "gate" and "needs your fresh approval every time" in why
+    assert p.decide(trade(["imaging.mri"], **{**GOOD, "workspace": "copy"}))[0] == "refuse"      # held
     assert p.decide(trade(["sleep.daily"], purpose="insurance_pricing", **GOOD))[0] == "refuse"
 
 

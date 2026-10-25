@@ -113,11 +113,13 @@ def build(ex) -> dict:
             continue
         d = (needs.get(t["need"]) or {}).get("discovery") or {}
         spot.append({"b": t["buyer"], "s": t["seller"], "label": lab, "steps": trace(t, needs.get(t["need"])),
+                     "trace": t.get("trace"),
                      "sampled": [{"s": x["seller"], "ok": x["ok"]} for x in d.get("sampled", [])],
                      "top": [{"s": r["seller"], "score": r["score"]} for r in d.get("ranked", [])[:5]]})
     st = [e["st"] for e in events]
     book = next((e for e in ex.events if e.get("kind") == "offer_book"), None)
     return {"nodes": nodes, "events": events, "spotlight": spot, "ledger": ex.ledger.name,
+            "contracts": getattr(ex, "contracts", []),
             "book": {"listings": book["listings"], "root": book["root"], "tx": book["tx"]} if book else None,
             "totals": {"trades": len(st), "settled": st.count("settled"), "unfit": st.count("settled_unfit"),
                        "refused": st.count("refused") + st.count("declined"), "awaiting": st.count("awaiting_owner")}}
@@ -146,7 +148,21 @@ PAGE = r"""<!doctype html>
 .step table{border-collapse:collapse;font-size:12px;margin-top:4px;width:100%}.step td,.step th{padding:2px 4px;text-align:right;border-bottom:1px solid #1f2937}
 .step th{color:var(--mut);font-weight:500}.step td:first-child,.step th:first-child{text-align:left}
 #steps{max-height:calc(100vh - 110px);overflow-y:auto}.score{fill:var(--ok);font-size:13px;font-weight:600}
-.booklbl{fill:var(--wait)}.dim .book.hot{opacity:1}
+.booklbl{fill:var(--wait)}
+#modal{position:fixed;inset:0;background:rgba(5,8,14,.72);display:none;align-items:center;justify-content:center;z-index:9;padding:16px}
+#modal.on{display:flex}#modal .box{background:#111827;border:1px solid #334155;border-radius:12px;width:min(760px,100%);max-height:92vh;display:flex;flex-direction:column}
+.mh{display:flex;justify-content:space-between;align-items:flex-start;padding:16px 18px;border-bottom:1px solid #1f2937}
+#chat,#mlist{overflow-y:auto;padding:14px 18px}#mv{padding:10px 18px;border-top:1px solid #1f2937;color:var(--mut);font-size:13px}
+.turn{max-width:78%;margin:0 0 10px;opacity:0;transform:translateY(6px);transition:all .35s}.turn.on{opacity:1;transform:none}
+.turn .who{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin:0 0 2px}
+.turn .msg{padding:8px 11px;border-radius:10px;background:#1e293b}.turn .why{font-size:12px;color:var(--mut);margin-top:3px}
+.turn.buyer{margin-right:auto}.turn.buyer .msg{background:#15305c}
+.turn.seller,.turn.owner{margin-left:auto;text-align:right}.turn.seller .msg{background:#2a2350}.turn.owner .msg{background:#4a3410}
+.turn.ledger{margin:0 auto 10px;text-align:center;max-width:92%}.turn.ledger .msg{background:#0f2a22;font-family:ui-monospace,monospace;font-size:12px}
+.chk{display:inline-block;font-size:11px;margin:3px 4px 0 0;padding:1px 6px;border-radius:9px;border:1px solid #334155}
+.chk.ok{color:#7dd3a0;border-color:#1f5e3d}.chk.no{color:var(--bad);border-color:#7f1d2d}
+.row{display:flex;gap:10px;padding:6px 4px;border-bottom:1px solid #1f2937;cursor:pointer;font-size:13px}.row:hover{background:#1e293b}
+.row .st{margin-left:auto}.st.ok{color:var(--ok)}.st.bad{color:var(--bad)}.st.wait{color:var(--wait)}.dim .book.hot{opacity:1}
 #foot{position:absolute;bottom:12px;left:16px;color:var(--mut);font-size:12px}
 #ctl{position:absolute;top:16px;right:16px}button{background:#1f2937;color:var(--fg);border:1px solid #334155;border-radius:6px;padding:6px 12px;cursor:pointer}
 .edge{stroke-width:2.2;fill:none;transition:opacity 1.2s}.lbl{fill:var(--mut);font-size:11px}
@@ -156,9 +172,10 @@ PAGE = r"""<!doctype html>
 <svg id="svg" viewBox="0 0 1000 1000"><g id="edges"></g><g id="nodes"></g></svg>
 <div id="hud"><div><b id="cT">0</b><span>trades</span></div><div><b id="cS" style="color:var(--ok)">0</b><span>settled</span></div>
 <div><b id="cR" style="color:var(--bad)">0</b><span>refused / unfit</span></div><div><b id="cE">0.0</b><span>seconds</span></div></div>
-<div id="ctl"><button id="play">Replay</button></div>
+<div id="ctl"><button id="list">Contracts</button> <button id="play">Replay</button></div>
 <div id="foot">Act 1 replayed from the run's trade log · ledger: <span id="led"></span> · synthetic data · Testnet · not legal advice</div>
-</div><div id="panel"><div class="in"><h2 id="pt"></h2><div class="who" id="pw"></div><div id="steps"></div></div></div></div>
+</div><div id="modal"><div class="box"><div class="mh"><div><b id="mt"></b><div id="ms" class="who"></div></div><button id="mx">Close</button></div>
+<div id="mlist"></div><div id="chat"></div><div id="mv"></div></div></div><div id="panel"><div class="in"><h2 id="pt"></h2><div class="who" id="pw"></div><div id="steps"></div></div></div></div>
 <script>
 const D=/*DATA*/null;
 const NS="http://www.w3.org/2000/svg",svg=document.getElementById("svg"),E=document.getElementById("edges"),N=document.getElementById("nodes");
@@ -193,6 +210,28 @@ function addStep(st){const box=document.getElementById("steps"),d=document.creat
   d.querySelector(".v").textContent="";d.querySelector(".v").appendChild(t)}
  for(const u of st.urls||[]){const l=document.createElement("a");l.href=u;l.target="_blank";l.textContent=" explorer ↗";d.querySelector(".v").appendChild(l)}
  box.appendChild(d);requestAnimationFrame(()=>d.classList.add("on"));box.scrollTop=box.scrollHeight}
+const ST={settled:"ok",settled_unfit:"bad",refused:"bad",declined:"bad",awaiting_owner:"wait",no_deal:"bad"};
+const M=document.getElementById("modal");document.getElementById("mx").onclick=()=>M.classList.remove("on");
+function verdicts(c){return `buyer: ${c.verdicts.buyer} · seller: ${c.verdicts.seller}`}
+async function chat(c,animate){const box=document.getElementById("chat");box.innerHTML="";document.getElementById("mlist").innerHTML="";
+ document.getElementById("mt").textContent=`${c.buyer} ⇄ ${c.seller} · ${c.columns.join(", ")}`;
+ document.getElementById("ms").textContent=`need ${c.need} · contract ${c.contract||"none"} · ${c.status}`;
+ document.getElementById("mv").textContent=verdicts(c)+(c.txs&&c.txs.escrow_create?` · EscrowCreate ${c.txs.escrow_create.slice(0,16)}… · EscrowFinish ${(c.txs.escrow_finish||"").slice(0,16)}…`:"");
+ M.classList.add("on");
+ for(const t of c.turns){const d=document.createElement("div");d.className="turn "+t.speaker;
+  d.innerHTML=`<div class="who"></div><div class="msg"></div><div class="why"></div><div class="cks"></div>`;
+  d.querySelector(".who").textContent=`${t.speaker==="buyer"?c.buyer+"'s agent":t.speaker==="seller"?c.seller+"'s agent":t.speaker}${t.layer?" · "+t.layer:""}`;
+  d.querySelector(".msg").textContent=t.message;d.querySelector(".why").textContent=t.reasoning||"";
+  for(const k of t.checks||[]){const s=document.createElement("span");s.className="chk "+(k.ok?"ok":"no");s.textContent=(k.ok?"✓ ":"✗ ")+k.name+(k.detail?": "+k.detail:"");d.querySelector(".cks").appendChild(s)}
+  box.appendChild(d);requestAnimationFrame(()=>d.classList.add("on"));box.scrollTop=box.scrollHeight;if(animate)await wait(900)}}
+function list(){const L=document.getElementById("mlist");L.innerHTML="";document.getElementById("chat").innerHTML="";
+ document.getElementById("mt").textContent=`${D.contracts.length} contracts`;document.getElementById("ms").textContent="click one to read the two agents' conversation";
+ document.getElementById("mv").textContent="";
+ D.contracts.forEach(c=>{const r=document.createElement("div");r.className="row";
+  r.innerHTML=`<span></span><span></span><span class="st"></span>`;r.children[0].textContent=`${c.buyer} ⇄ ${c.seller}`;
+  r.children[1].textContent=c.columns.join(", ");r.children[2].textContent=c.status;r.children[2].classList.add(ST[c.status]||"bad");
+  r.onclick=()=>chat(c,false);L.appendChild(r)});M.classList.add("on")}
+document.getElementById("list").onclick=list;
 async function spotlight(s){const a=pos[s.b],b=pos[s.s],B=bookPos,g=tmp(),P=document.getElementById("panel");
  svg.classList.add("dim");hot(s.b,true);document.getElementById("pt").textContent=s.label;
  document.getElementById("pw").textContent=`${s.b}'s agent looking for data; ${s.s}'s agent selling`;
@@ -210,7 +249,8 @@ async function spotlight(s){const a=pos[s.b],b=pos[s.s],B=bookPos,g=tmp(),P=docu
    const w=Math.max(Math.abs(a.x-b.x)+200,(Math.abs(a.y-b.y)+200)*ar),h=w/ar;
    await zoomTo([cx-w/2,cy-h/2,w,h],1600);flash({b:s.b,s:s.s,c:st.tone||"ok"},true).classList.add("final")}
   await wait(st.table?2600:1900)}
- await wait(2200);P.classList.remove("on");await zoomTo([0,0,1000,1000],1400);
+ await wait(1500);if(s.trace!=null&&D.contracts[s.trace]){await chat(D.contracts[s.trace],true);await wait(3000);M.classList.remove("on")}
+ await wait(800);P.classList.remove("on");await zoomTo([0,0,1000,1000],1400);
  g.remove();E.querySelectorAll(".final").forEach(x=>x.remove());svg.classList.remove("dim");bookC.classList.remove("hot");
  circ[s.b].setAttribute("stroke","#4b5563");for(const id in circ)hot(id,false)}
 async function run(){timers.forEach(clearTimeout);timers=[];document.getElementById("panel").classList.remove("on");
