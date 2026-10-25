@@ -199,7 +199,7 @@ class XrplExtrasMixin:
 
     def multisig_payment(self, source: str, destination: str, amount_drops: int,
                          signers: list[str], memo: str = "") -> str:
-        tx = autofill(Payment(account=source, destination=destination, amount=str(amount_drops)),
+        tx = autofill(Payment(account=source, destination=destination, amount=self._amount(amount_drops)),
                       self.client, signers_count=len(signers))
         signed = [sign(tx, self.wallets[s], multisign=True) for s in signers]
         return _check(submit_and_wait(multisign(tx, signed), self.client, autofill=False),

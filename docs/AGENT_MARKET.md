@@ -65,14 +65,66 @@ Each purpose has its own secret, with no default and no reuse of another key. Ev
    of every survivor against its certificate.
 4. **Compare.** Score = 0.45 quality grade + 0.35 price under the ceiling + 0.20 the seller's record
    of fit deliveries. Ranked list kept in the need log.
-5. **Negotiate** with the best in order: the buyer opens at 80% of the ask, the seller's agent concedes
-   toward its floor (90% of the ask, 95% with a shaky record), a deal is the first bid at or above the
-   counter; no meeting point means the next candidate. The agreed price goes into the contract hash.
+5. **Negotiate** with the best in order, around the market reference (below). The buyer opens at
+   the low end of the reference range; the seller's agent concedes from its ask toward its floor (the
+   owner's floor, or 90% of the ask, 95% with a shaky record); a deal is the first bid at or above the
+   counter, and a seller already at its floor inside the buyer's ceiling is taken as is. No meeting
+   point means the next candidate. The agreed price goes into the contract hash.
 6. The LLM may explain the choice in words; an explanation that names a seller who was not a
    candidate is dropped. It never changes the ranking or the price.
 
 `python scripts/export_network.py` replays these logs: the offer book in the middle, the fan-out to
 every candidate, the comparison table, the negotiation, then the one trade with escrow and key.
+
+## Who sets the price (`agentrail/market/pricing.py`)
+
+Neither side alone. Owners set the bounds; the market sets the price inside them.
+
+- **Bounds.** The seller's owner sets a floor (a share of the rate card, 0.6–0.9 in the simulation).
+  The buyer's owner sets the budget; the buyer's agent never offers more than its budget per item.
+- **Reference price.** Per data tier: the median of the last 20 settled prices (as a ratio to the rate
+  card, so one week and four weeks compare) and the 25th–75th percentile as the range. Settled prices
+  are public on the ledger (the escrow amount). With fewer than 3 trades the rate card is the seed.
+- **Ask.** The seller's agent asks the reference × a scarcity factor: needs posted for those columns
+  in the last 24 hours over listings in the offer book that hold them (0.85–1.4). Never under the floor.
+- **Bid.** The buyer's agent's ceiling follows the market (20% above the grade A reference) but stops
+  at the owner's budget per item; it opens at the low end of the range.
+- **Each contract's conversation names the reference**, its source (rate card or "median of the last N
+  settled trades"), the scarcity numbers and the owner's floor.
+- Price never decides consent: T2 and T3 still follow the owner's rules and go back to the person.
+
+**Measured** (`python scripts/measure_prices.py`, Act 1, mock ledger, synthetic accounts; settled
+price as a share of the rate card):
+
+| market | trades settled | median | mean |
+|---|---|---|---|
+| baseline (477 listings, 74 needs: oversupplied) | 109 | 0.70 | 0.75 |
+| 3× the needs | 264 | 0.80 | 0.78 |
+| half the listings | 95 | 0.80 | 0.78 |
+| 3× the needs and half the listings | 206 | 0.80 | 0.78 |
+
+With more listings than needs, prices settle near the owners' floors. When demand rises or supply
+falls, the median moves up by about 14%. With both at once, it rises no further in this simulation,
+because the floors and the buyers' ceilings bound the price.
+
+## Sub-projects under one institution (`agentrail/subprojects.py`)
+
+A person consents once to an institution's scope (purposes, data types). The institution then opens
+sub-projects under that scope. A sub-project is a record under the institution's one account and
+wallet, not a sub-account. It has a purpose, data types, a budget and a period. For each person and
+item, the agent routes as follows:
+
+- **auto**: the item is inside the scope and the person's own rules. It is settled per sub-project,
+  one escrow per person per round, with no new contract.
+- **ask**: the item is outside the scope, or it is T3 (genomic, imaging, mental health,
+  reproductive). The person decides for this sub-project only.
+- **blocked**: the person paused or withdrew, or never consented to this institution.
+
+Each order carries the sub-project id in its product id and in the escrow memo (`sub:<id>`), so
+payouts are listed per sub-project in the person's relationship view and in UniQLab. The routes are
+`GET /api/institution`, `POST /api/institution/subprojects`,
+`POST /api/institution/subprojects/{sid}/run`, `GET /api/p/{pid}/relationship`,
+`POST /api/p/{pid}/relationship/consent` and `POST /api/p/{pid}/subprojects/{sid}/decision`.
 
 ## Act 1: open market (mock ledger, seed 11, 3 rounds)
 
@@ -81,12 +133,12 @@ every candidate, the comparison table, the negotiation, then the one trade with 
 | needs formed by the accounts with a budget | 74 |
 | offer book | 477 listings, root anchored on the ledger before trading (re-anchored when agents collect new data) |
 | candidates per need | median 34 sampled and scored |
-| already held | 127 offers refused before trading (same certified root as data the buyer bought); 3 copies bought at the new part only |
-| trades | 141: 99 settled, 10 settled but unfit (refund claim recorded), 23 blocked, 6 declined by the owner, 3 waiting for the owner |
-| sold by the agent on its own | 87 of 109 settled |
-| volume | 1.72 XRP paid at negotiated prices (about 9% under the asks) |
+| already held | 129 offers refused before trading (same certified root as data the buyer bought); 3 copies bought at the new part only |
+| trade attempts | 153: 109 paid (escrow finished, key revealed), 36 refused before payment (6 because the delivery did not match the certified rows), 5 declined by the owner, 3 waiting for the owner |
+| paid trades | 109: 105 passed the buyer's delivery check, 4 failed it (refund claim recorded); 80 of the 109 needed no owner decision |
+| volume | 1.43 USD (test token) at market prices: median 0.70 of the rate card, near the owners' floors because listings outnumber needs |
 | hours from need to fill | median 0 (agent), p90 11.3 (owner answered) |
-| unfit deliveries caught | 10 after delivery (not as committed, incomplete or impossible values), each with a refund claim |
+| unfit deliveries caught | 6 before payment (delivery did not match the certified rows, nothing paid); 4 after delivery (incomplete or impossible values), each with a refund claim |
 
 Health columns, robot logs (lidar, joint torque, gripper events), fleet battery logs and smart-home meters trade side by side. **Reverse direction:** a person buys a wellness trait report (caffeine metabolism, lactose tolerance) from a provider credentialed for wellness reports. The person's agent sends only the variants at the loci the report needs (3 of about 30). The person's payment is escrowed and released by the provider's key reveal. The report says "wellness information, not a diagnosis". The provider signs a deletion confirmation. A request outside the credential ("disease_risk") is refused.
 
@@ -105,6 +157,8 @@ Four institutions with 14 researchers. A budget opens only with two researchers'
 agent never sells it on its own:
 - A passes the owner's rules and goes to the person for a fresh approval each time
 - C is held with "MRI needs grade A+ and a controlled workspace, buyer is C", without asking
+- the same screen runs first for every T3 type (CT, MRI, genomic): a buyer below the bar or outside a
+  controlled workspace is held, never put to the owner; the reason names the actual data type
 - blocked where the owner set imaging to never
 
 **Results:** 366 trades, 239 settled (131 by the agent on its own, the rest after the simulated owner answered), 98 blocked, 28 declined, 1 waiting for the manual approver (P-001).

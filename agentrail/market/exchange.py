@@ -18,6 +18,7 @@ offer, falls) and noted as a refund claim off the ledger; paid money is never pu
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import random
@@ -191,6 +192,8 @@ class Exchange:
         self.contracts: list[dict] = []          # one conversation per contract attempt (contract_trace)
         self.holdings: dict[str, dict] = {}      # buyer -> {"roots", "rows"}: what each buyer's store already holds
         self._explained = 0
+        from .pricing import PriceIndex
+        self.pricing = PriceIndex(quote, spec)   # reference prices from settled trades; supply and demand
         for a in accounts:
             a.seller = a.seller or quality.Seller(a.id)
             self.engine.add_party(a.id, a.name, a.kind, self.ledger.new_account(a.id))
@@ -250,7 +253,9 @@ class Exchange:
         if self.book is None:
             self.book = OfferBook(self.ledger, self.ledger.new_account("market_registry"),
                                   self.ledger.new_account("market_registry_sink"))
-        r = self.book.publish(self.offers())
+        offers = self.offers()
+        self.pricing.set_supply(offers)
+        r = self.book.publish(offers)
         self.events.append({"kind": "offer_book", **r})
         self.anchors.append(r)
         return r
@@ -264,6 +269,15 @@ class Exchange:
                 "anchor_tx": self.book.anchor_tx if self.book else None, "dropped": {}, "sampled": [],
                 "ranked": []}
         gated = self._fill_pass(need, now_h, None, cands, rejected, fills, disc)
+        if not gated and not cands and not fills:
+            # nothing passed the buyer's own bar: when only its grade or length bar emptied the book, the agent
+            # steps back to the rule floor (grade C, the owner's default weeks) once and says so in the plan
+            relaxed = self._relaxed(need, disc["dropped"])
+            if relaxed is not None:
+                disc["relaxed"] = {"from": {"min_grade": need.min_grade, "weeks": need.weeks},
+                                   "to": {"min_grade": relaxed.min_grade, "weeks": relaxed.weeks}}
+                need = relaxed
+                gated = self._fill_pass(need, now_h, None, cands, rejected, fills, disc)
         if not gated and len(fills) < need.quantity:
             # short: the sellers' agents may collect the missing data from sources their people connected
             collected = self.collect(need, need.quantity - len(fills))
@@ -285,6 +299,18 @@ class Exchange:
                "plan": need.plan, "discovery": disc}
         self.events.append({"kind": "need", **{k: v for k, v in out.items() if k not in ("fills", "rejected")}})
         return out
+
+    @staticmethod
+    def _relaxed(need: "Need", dropped: dict):
+        """The need at the rule floor, or None when the floor is no lower or the bar was not what emptied it."""
+        if not (dropped.get("grade below minimum") or dropped.get("too few weeks")):
+            return None
+        floor_weeks = min(need.weeks, (need.plan or {}).get("rule_weeks") or 1)
+        if dropped.get("too few weeks"):
+            floor_weeks = 1
+        if need.min_grade == "C" and floor_weeks == need.weeks:
+            return None
+        return dataclasses.replace(need, min_grade="C", weeks=floor_weeks)
 
     @staticmethod
     def _row_key(row: dict, cols: list) -> str:
@@ -318,8 +344,18 @@ class Exchange:
         h["roots"].add(o["cert"]["root"])
         h["rows"].update(self._row_key(r, cols) for r in o["dataset"].rows[: weeks * DAYS] if self._telling(r, cols))
 
+    def post_needs(self, needs) -> None:
+        """Open needs are the demand side of every ask until they are filled."""
+        for n in needs:
+            self.pricing.post(n.columns, n.posted_h)
+
     def _ceiling(self, need: Need) -> dict:
-        """The need as the buyer's agent formed it; without a plan, the grade A asking price is the ceiling."""
+        """The buyer's ceiling follows the market (20% above the grade A reference) but never passes the
+        owner's budget per item; without a plan, the grade A rate card is the ceiling."""
+        if need.plan.get("budget_per_item_drops"):
+            c = self.pricing.ceiling(need.columns, need.weeks, need.plan)
+            return {"columns": need.columns, "weeks": need.weeks, "max_price_drops": c["max_price_drops"],
+                    "reference": c["reference"], "why": c["why"]}
         return {"columns": need.columns, "weeks": need.weeks,
                 "max_price_drops": need.plan.get("max_price_drops") or quote(need.columns, need.weeks, "A")}
 
@@ -327,7 +363,8 @@ class Exchange:
         """Query the shared offer book, filter, check a hashed sample of each survivor, score them,
         negotiate with the best in order and trade. Returns True when a gate on the buyer itself refused
         (every other seller would say the same)."""
-        from .discovery import negotiate, score
+        from .discovery import score
+        from .pricing import negotiate
         disc = disc if disc is not None else {"listed": 0, "dropped": {}, "sampled": [], "ranked": []}
         drop = lambda why: disc["dropped"].__setitem__(why, disc["dropped"].get(why, 0) + 1)
         ceiling = self._ceiling(need)
@@ -363,7 +400,8 @@ class Exchange:
             if not ok:
                 rejected.append({"seller": seller.id, "stage": "pre_trade", "why": why})
                 continue
-            ask = quote(need.columns, need.weeks, o["grade"])
+            pq = self.pricing.ask(need.columns, need.weeks, o["grade"], seller.attrs.get("floor_mult"), now_h)
+            ask = pq["ask"]
             ov, ov_why = self.overlap(need.buyer, o["cert"]["root"], [x["row"] for x in opened], need.columns)
             if ov >= DUPLICATE_SHARE:
                 # already in the buyer's store: never pay again for the same data
@@ -372,6 +410,7 @@ class Exchange:
                 rejected.append({"seller": seller.id, "stage": "overlap", "why": f"duplicate: {ov_why}"})
                 continue
             sc = score(o, int(ask * (1 - ov)), ceiling, (seller.passed, seller.failed))
+            sc["pricing"] = {**pq, "share": round(1 - ov, 3)}
             if ov:
                 sc.update(overlap=round(ov, 3), overlap_why=ov_why, full_ask_drops=ask)
             mine.append((sc, o, int(ask * (1 - ov))))
@@ -385,7 +424,11 @@ class Exchange:
                 break
             seller = self.accounts[o["seller"]]
             track = (seller.passed, seller.failed)          # before this trade, as the agents saw it
-            neg = negotiate(ask, ceiling["max_price_drops"], track)
+            pq, share = sc["pricing"], sc["pricing"]["share"]
+            neg = negotiate(ask, ceiling["max_price_drops"], track, int(pq["floor"] * share),
+                            int(pq["reference"]["low"] * share))
+            neg.update(reference=pq["reference"], scarcity=pq["scarcity"], ask_why=pq["why"],
+                       owner_floor=int(pq["floor"] * share), ceiling_why=ceiling.get("why", ""))
             disc["ranked"][first + i]["negotiation"] = neg
             cand = {**sc, "rank": first + i + 1}
             if not neg["deal"]:
@@ -398,6 +441,9 @@ class Exchange:
             r["trace"] = len(self.contracts)
             if r["status"] in ("settled", "settled_unfit"):
                 self._hold(need.buyer, o, need.columns, need.weeks)
+                # the settled price is public on the ledger; the index learns from it
+                self.pricing.record(need.columns, need.weeks, o["grade"], int(neg["price_drops"] / max(share, 1e-6)),
+                                    (r.get("txs") or {}).get("escrow_create"))
             self.contracts.append(contract_trace.build(need, need.plan, disc, cand, {**neg, "ceiling": ceiling["max_price_drops"]},
                                                        r, seller, self.accounts[need.buyer], track))
             if r["status"] == "refused" and r["why"].startswith("blocked: no valid") or \
@@ -468,6 +514,14 @@ class Exchange:
         if trade.get("output") == "aggregate":
             from .genomic import aggregate
             part = aggregate(part, need_cols, trade.get("loci", []))
+        if trade.get("output") != "aggregate" and not quality.delivery_matches(o["cert"], rows, salts):
+            # The gate holds the plain rows here: a seller who opened good samples but sends other rows is
+            # stopped before any escrow exists, instead of being paid and leaving the buyer a refund claim.
+            seller.failed += 1
+            return self._log({**base, "status": "refused", "stage": "binding", "paid_drops": 0,
+                              "why": "delivery does not hash to the certified root; no escrow created",
+                              "signals": [{"code": "not_as_committed",
+                                           "detail": "delivery does not hash to the certified root"}]})
         main = payout_schedule.retrospective(price)["upfront_drops"]
         self._grants[(trade["buyer"], seller.id, trade["contract"])] = Decision(ALLOW, granted=list(need_cols))
         req = OrderRequest(trade["buyer"], seller.id, seller.id, f"contract:{trade['contract']}",
@@ -505,6 +559,11 @@ class Exchange:
         if not quality.delivery_matches(cert, payload["full_rows"], payload["salts"]):
             sig.append({"code": "not_as_committed", "detail": "delivery does not hash to the certified root"})
         rows = payload["rows"]
+        # The rows the buyer uses must be the certified rows, not a second list sent alongside them.
+        from_full = [{"day": r["day"], **{c: r.get(c) for c in cols}} for r in payload["full_rows"][: len(rows)]]
+        if from_full != rows:
+            sig.append({"code": "not_as_committed", "detail": "delivered rows differ from the certified rows"})
+            rows = from_full
         for c in cols:
             s = spec(c)
             xs = [r[c] for r in rows if isinstance(r.get(c), (int, float))]

@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from nacl.public import PrivateKey, PublicKey, SealedBox
 from nacl.secret import SecretBox
 
+from . import units
 from .db import Store
 from .ledger import Ledger, LostResponse, Prepared
 from .ledger.conditions import condition_hex, fulfillment_hex, key_from_fulfillment, new_key
@@ -42,6 +43,10 @@ class NeedsHumanApproval(Exception):
 
 class LostDelivery(Exception):
     pass
+
+
+class BundleMismatch(Exception):
+    """The opened bundle does not hash to the bundle hash the order and the escrow memo carry."""
 
 
 def sha256_hex(b: bytes | str) -> str:
@@ -95,7 +100,9 @@ class OrderRequest:
 def _memo(oid, o, pv, mh) -> str:
     """Ledger memo of one order. Under a data contract, the contract hash rides along with the bundle hash."""
     c = o["product_id"][len("contract:"):] if o["product_id"].startswith("contract:") else ""
+    sub = o["product_id"][len("subproject:"):] if o["product_id"].startswith("subproject:") else ""
     return (f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}" + (f"|contract:{c[:16]}" if c else "")
+            + (f"|sub:{sub}" if sub else "")
             + (f"|mandate:{mh}" if mh else ""))
 
 
@@ -223,8 +230,8 @@ class Engine:
             if data_key:
                 c.execute("INSERT INTO escrow_keys VALUES (?,?)", (oid, data_key.hex()))
             if condition:
-                c.execute("UPDATE payments SET cancel_after=? WHERE order_id=?",
-                          (self.ledger.now() + req.escrow_window_s, oid))
+                c.execute("UPDATE payments SET cancel_after=?, escrow_window_s=? WHERE order_id=?",
+                          (self.ledger.now() + req.escrow_window_s, req.escrow_window_s, oid))
             c.execute("INSERT INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "pay", "pending"))
             chain = self.mandate_chains.get(req.buyer_id)
             if chain is not None and chain.l2:
@@ -237,7 +244,7 @@ class Engine:
                           (oid, chain.l1, chain.l2, l3, presentation_hash(l3)))
             self.store.log(req.buyer_id, "order",
                            f"order {oid}: {req.product_id} [{', '.join(req.granted)}] "
-                           f"{req.price_drops / 1e6:g} XRP reserved", {"order_id": oid, "slot": req.slot})
+                           f"{units.fmt(req.price_drops)} reserved", {"order_id": oid, "slot": req.slot})
         return oid
 
     # ---------- outbox driver ----------
@@ -373,7 +380,7 @@ class Engine:
             c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "deliver", "pending"))
             via = " via x402 facilitator" if self.ledger.rail == "x402" else ""
             self.store.log("engine", "paid",
-                           f"order {oid}: {o['price_drops'] / 1e6:g} XRP to {o['payee_id']}{via} "
+                           f"order {oid}: {units.fmt(o['price_drops'])} to {o['payee_id']}{via} "
                            f"validated in ledger {st.ledger_index}",
                            {"order_id": oid, "tx_hash": p["tx_hash"], "url": self.ledger.explorer_url(p["tx_hash"])})
         return True
@@ -430,7 +437,7 @@ class Engine:
 
     # ---------- escrow: payment and data key in one ledger transaction ----------
 
-    def _send(self, oid: int, col: str, prep_fn) -> tuple[str, object]:
+    def _send(self, oid: int, col: str, prep_fn, may_resign=lambda: True) -> tuple[str, object]:
         """Sign once, store hash+blob, submit, look up; resubmit the same blob if not found."""
         p = self.store.one("SELECT * FROM payments WHERE order_id=?", oid)
         h, blob = p[f"{col}_tx" if col != "create" else "tx_hash"], p[f"{col}_blob" if col != "create" else "tx_blob"]
@@ -447,7 +454,7 @@ class Engine:
             self._submit(oid, prep)
         st = self.ledger.wait_validated(h)
         if not st.found:
-            if self.ledger.is_expired(blob):
+            if self.ledger.is_expired(blob) and may_resign():
                 # Past LastLedgerSequence and never applied: sign again (new sequence, new hash).
                 prep = prep_fn()
                 hc, bc = ("tx_hash", "tx_blob") if col == "create" else (f"{col}_tx", f"{col}_blob")
@@ -489,6 +496,8 @@ class Engine:
         buyer_addr = self.party(o["buyer_id"])["address"]
         pv = json.loads(o["policy_snapshot"]).get("version", "")
         memo = _memo(oid, o, pv, mh) + self._consent_tag(o)
+        if p["tx_hash"] is None:
+            p = self._refresh_deadline(oid, p)
         h, st = self._send(oid, "create", lambda: self.ledger.prepare_escrow_create(
             buyer_addr, p["payee_address"], p["amount_drops"], p["condition"], p["cancel_after"], memo))
         if not st.validated:
@@ -509,10 +518,22 @@ class Engine:
             c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='pay'", (oid,))
             c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "deliver", "pending"))
             self.store.log("engine", "escrowed",
-                           f"order {oid}: {o['price_drops'] / 1e6:g} XRP locked in escrow for {o['payee_id']}; "
+                           f"order {oid}: {units.fmt(o['price_drops'])} locked in escrow for {o['payee_id']}; "
                            f"pays out only when the data key is published", {"order_id": oid, "tx_hash": h,
                                                                              "url": self.ledger.explorer_url(h)})
         return True
+
+    def _refresh_deadline(self, oid: int, p) -> dict:
+        """CancelAfter counts from the moment the escrow is prepared, not from when the order was placed:
+        on a slow ledger the time between the two would otherwise eat the whole window, and the finish
+        would land after the deadline (tecNO_PERMISSION)."""
+        win = p["escrow_window_s"] if "escrow_window_s" in p.keys() else None
+        if not win or not p["condition"]:
+            return dict(p)
+        ca = self.ledger.now() + win
+        with self.store.tx() as c:
+            c.execute("UPDATE payments SET cancel_after=? WHERE order_id=?", (ca, oid))
+        return {**dict(p), "cancel_after": ca}
 
     def escrow_create_batch(self, oids: list[int]) -> bool:
         """Create every week's escrow of one participant's round in one Batch (ALL_OR_NOTHING), so the
@@ -534,6 +555,7 @@ class Engine:
             ok, why, mh = self._mandate_check(o, p)
             if not ok:
                 return False
+            p = self._refresh_deadline(oid, p)
             pv = json.loads(o["policy_snapshot"]).get("version", "")
             legs.append({"destination": p["payee_address"], "amount_drops": p["amount_drops"],
                          "condition": p["condition"], "cancel_after": p["cancel_after"],
@@ -576,6 +598,17 @@ class Engine:
                     self.store.log("engine", "withheld", f"order {oid}: key not published ({d.reason}); "
                                    f"escrow returns to {o['buyer_id']} after its deadline")
                 return False
+        if p["finish_tx"] is None and not self._finish_in_time(p):
+            # A finish that lands after CancelAfter fails (tecNO_PERMISSION) but is still written to the
+            # ledger with its Fulfillment: K would be public while the buyer cancels and gets the money back.
+            with self.store.tx() as c:
+                c.execute("UPDATE orders SET status='withheld', note=? WHERE id=?", ("escrow deadline too close", oid))
+                c.execute("UPDATE outbox SET status='done', last_error=? WHERE order_id=? AND kind='finish'",
+                          ("escrow deadline too close", oid))
+                c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "cancel", "pending"))
+                self.store.log("engine", "withheld", f"order {oid}: key not published; the escrow deadline is too "
+                               f"close for the finish to land before it, so the escrow returns to {o['buyer_id']}")
+            return False
         holder = self.key_holders.get(o["seller_id"])
         if holder is not None:
             fulfillment = holder.fulfillment(o["order_key"])
@@ -588,7 +621,8 @@ class Engine:
         submitter = payee if self.ledger.can_sign(payee) else self.relay
         buyer_addr = self.party(o["buyer_id"])["address"]
         h, st = self._send(oid, "finish", lambda: self.ledger.prepare_escrow_finish(
-            submitter, buyer_addr, p["offer_sequence"], p["condition"], fulfillment, f"order:{oid}"))
+            submitter, buyer_addr, p["offer_sequence"], p["condition"], fulfillment, f"order:{oid}"),
+            may_resign=lambda: self._finish_in_time(p))
         if not st.validated:
             return False
         with self.store.tx() as c:
@@ -603,10 +637,15 @@ class Engine:
             c.execute("UPDATE mandates SET reserved_drops=reserved_drops-?, spent_drops=spent_drops+? "
                       "WHERE buyer_id=?", (o["price_drops"], o["price_drops"], o["buyer_id"]))
             c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='finish'", (oid,))
-            self.store.log("engine", "paid", f"order {oid}: key published in EscrowFinish; {o['price_drops'] / 1e6:g} "
-                           f"XRP released to {o['payee_id']} in ledger {st.ledger_index}; {o['buyer_id']} can open "
+            self.store.log("engine", "paid", f"order {oid}: key published in EscrowFinish; {units.fmt(o['price_drops'])} "
+                           f"released to {o['payee_id']} in ledger {st.ledger_index}; {o['buyer_id']} can open "
                            f"the bundle", {"order_id": oid, "tx_hash": h, "url": self.ledger.explorer_url(h)})
         return True
+
+    def _finish_in_time(self, p) -> bool:
+        """The finish must be valid on the ledger before CancelAfter, LastLedgerSequence included."""
+        ca = p["cancel_after"]
+        return ca is None or self.ledger.now() + getattr(self.ledger, "finish_margin_s", 0) < ca
 
     def _escrow_cancel(self, oid: int) -> bool:
         o = self.store.one("SELECT * FROM orders WHERE id=?", oid)
@@ -622,7 +661,7 @@ class Engine:
             c.execute("UPDATE payments SET status='refunded' WHERE order_id=?", (oid,))
             self._release(c, o, "refunded", "escrow cancelled after its deadline; locked amount returned")
             c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='cancel'", (oid,))
-            self.store.log("engine", "refunded", f"order {oid}: EscrowCancel returned {o['price_drops'] / 1e6:g} XRP "
+            self.store.log("engine", "refunded", f"order {oid}: EscrowCancel returned {units.fmt(o['price_drops'])} "
                            f"to {o['buyer_id']}", {"order_id": oid, "tx_hash": h, "url": self.ledger.explorer_url(h)})
         return True
 
@@ -644,12 +683,24 @@ class Engine:
             # The institution's vault opens it; K comes from the validated ledger, not the contributor.
             f = self.ledger.lookup(p["finish_tx"]).fulfillment if p["kind"] == "escrow" else None
             payload = opener.open(sealed, f)
-            assert sha256_hex(canonical(payload)) == bundle_hash
-            return payload
+            return self._check_bundle(order_id, payload, bundle_hash)
         if p["kind"] == "escrow":
             # The key is read from the ledger, not from the contributor.
             st = self.ledger.lookup(p["finish_tx"])
             sealed = SecretBox(key_from_fulfillment(st.fulfillment)).decrypt(sealed)
         payload = json.loads(SealedBox(self.box_keys[buyer_id]).decrypt(sealed))
-        assert sha256_hex(canonical(payload)) == bundle_hash
+        return self._check_bundle(order_id, payload, bundle_hash)
+
+    def _check_bundle(self, order_id: int, payload: dict, bundle_hash: str) -> dict:
+        # A real check, not an assert (python -O drops those): a mismatch is recorded against the seller.
+        got = sha256_hex(canonical(payload))
+        if got != bundle_hash:
+            o = self.store.one("SELECT seller_id FROM orders WHERE id=?", order_id)
+            with self.store.tx() as c:
+                c.execute("INSERT INTO exceptions (order_id,kind,detail,cost_bearer,ts) VALUES (?,?,?,?,?)",
+                          (order_id, "bundle_mismatch", f"opened bundle hashes to {got[:16]}, order says "
+                           f"{bundle_hash[:16]}", o["seller_id"] if o else None, time.time()))
+            self.store.log("engine", "bundle_mismatch", f"order {order_id}: opened bundle does not match its hash",
+                           {"order_id": order_id})
+            raise BundleMismatch(f"order {order_id}: opened bundle does not match its hash")
         return payload

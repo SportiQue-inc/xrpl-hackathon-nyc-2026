@@ -11,8 +11,15 @@ def make_ledger(kind: str = "mock") -> Ledger:
         from .xrpl_extras import XrplExtrasMixin
         from .xrpl_ledger import XrplLedger
 
-        class TestnetLedger(XrplAmmMixin, XrplLicenceMixin, XrplExtrasMixin, XrplLedger):
-            pass
+        from .. import units
+        from .token_settle import TokenSettleMixin
+
+        if units.TOKEN:
+            class TestnetLedger(TokenSettleMixin, XrplAmmMixin, XrplLicenceMixin, XrplExtrasMixin, XrplLedger):
+                pass
+        else:
+            class TestnetLedger(XrplAmmMixin, XrplLicenceMixin, XrplExtrasMixin, XrplLedger):
+                pass
 
         if os.environ.get("PAYMENT_RAIL", "direct") == "x402":
             from .x402_rail import X402Mixin

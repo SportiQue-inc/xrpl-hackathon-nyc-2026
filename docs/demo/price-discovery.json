@@ -1,0 +1,60 @@
+{
+ "baseline": {
+  "settled": 109,
+  "median_ratio": 0.701,
+  "mean_ratio": 0.747,
+  "by_tier": {
+   "R": 0.8,
+   "T0": 0.7,
+   "T1": 0.7
+  },
+  "last_reference": {
+   "T0": 0.7,
+   "T1": 0.7,
+   "R": 0.8
+  }
+ },
+ "3x demand": {
+  "settled": 264,
+  "median_ratio": 0.8,
+  "mean_ratio": 0.779,
+  "by_tier": {
+   "R": 0.815,
+   "T0": 0.8,
+   "T1": 0.8
+  },
+  "last_reference": {
+   "T0": 0.9,
+   "T1": 0.85,
+   "R": 0.814
+  }
+ },
+ "half the supply": {
+  "settled": 95,
+  "median_ratio": 0.8,
+  "mean_ratio": 0.78,
+  "by_tier": {
+   "R": 0.825,
+   "T0": 0.8,
+   "T1": 0.8
+  },
+  "last_reference": {
+   "T0": 0.8,
+   "T1": 0.751,
+   "R": 0.825
+  }
+ },
+ "3x demand, half the supply": {
+  "settled": 206,
+  "median_ratio": 0.8,
+  "mean_ratio": 0.784,
+  "by_tier": {
+   "T0": 0.8,
+   "T1": 0.8
+  },
+  "last_reference": {
+   "T0": 0.75,
+   "T1": 0.8
+  }
+ }
+}

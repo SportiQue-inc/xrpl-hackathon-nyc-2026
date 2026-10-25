@@ -53,7 +53,7 @@ CATALOG = {
     "diagnosis.code": ("T2", "clinic_export", [("observation", GENERIC, "icd10_index", "EMR_IMPORT")]),
     "prescription.active": ("T2", "clinic_export", [("observation", GENERIC, "count", "EMR_IMPORT")]),
     # T3 highly sensitive
-    "genome.variant": ("T3", "genomics_lab", [("observation", GENERIC, "risk_score", "LAB_UPLOAD")]),
+    "genome.variant": ("T3", "genomics_lab", [("observation", GENERIC, "risk_score", "LAB")]),
     "imaging.ct": ("T3", "hospital_pacs", [("observation", GENERIC, "slices", "EMR_IMPORT")]),
     "imaging.mri": ("T3", "hospital_pacs", [("observation", GENERIC, "series", "EMR_IMPORT")]),
     "mental.phq9": ("T3", "clinic_export", [("observation", GENERIC, "score_0_27", "MANUAL")]),
@@ -322,8 +322,12 @@ class UniQdataReader:
                 day = (at - DAY0).days + 1
                 num = float(r["value_as_number"])
                 values.setdefault((item, day), {})[field] = int(num) if num.is_integer() else num
-                records.setdefault((item, day), []).append({"record_id": r["record_id"],
-                                                            "record_hash": r["record_hash"]})
+                q = r.get("quality_check_details") or {}
+                records.setdefault((item, day), []).append({
+                    "record_id": r["record_id"], "record_hash": r["record_hash"],
+                    "source_type": r.get("source_type"), "verification": r.get("verification_status"),
+                    "dataq": {"engine": q.get("quality_engine"), "passed": q.get("checks_passed"),
+                              "failed": q.get("checks_failed")}})
             offset += len(page["data"])
             if not page.get("has_more") or not page["data"]:
                 break
@@ -469,6 +473,21 @@ def feed_market(accounts, clients: dict, keep=()) -> dict:
                 tgt = TO_CATALOG.get((item, field_))
                 if tgt and isinstance(v, (int, float)):
                     by_col[(tgt[0], day)] = round(v * tgt[1], 3)
+        # T3 datasets (one record each: variants or a DICOM series) are listed only when the person's
+        # UniQdata intake holds the matching record; its hash and DataQ result become the provenance.
+        t3_item = {"genome.vcf": "genome.variant", "genome.pgx": "genome.variant",
+                   "imaging.ct": "imaging.ct", "imaging.mri": "imaging.mri"}
+        kept = []
+        for ds in a.datasets:
+            col = ds.columns[0] if len(ds.columns) == 1 else None
+            if col in t3_item and ds.meta.get("rows") is not None:
+                recs = [x for (it, _), xs in sorted(reader.records.items()) if it == t3_item[col] for x in xs]
+                if not recs:
+                    continue                          # no intake record behind it: not offered
+                ds.meta["provenance"] = {"system": "UniQdata", **recs[0]}
+                ds.meta["source"] = {col: "UniQdata"}
+            kept.append(ds)
+        a.datasets = kept
         n_used = 0
         held = {c for (c, _) in by_col}
         for ds in a.datasets:

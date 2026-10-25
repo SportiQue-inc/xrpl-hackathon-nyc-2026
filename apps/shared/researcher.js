@@ -499,7 +499,13 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
                 h("td", {}, txLink(t, { kind, amount: c.amount_xrp, title: kind === "EscrowFinish" ? `Week ${c.weeks.join(", ")} participation payment released` : undefined })),
                 h("td", {}, c.status === "delivered" && !r.withdrawn ? h("button", { class: "ar-link small", onclick: async (e) => {
                   const b = await busy(e.target, "Opening", () => api.bundle(c.order_id), () => { out.textContent = "Could not open"; });
-                  if (b) out.textContent = b.hash_matches ? "Opened · contents match what was sent" : "Hash mismatch";
+                  if (!b) return;
+                  if (!b.ok) { out.textContent = b.message || "Could not open"; return; }
+                  // The key that opened the bundle is the Fulfillment the payment release put on the ledger.
+                  out.replaceChildren(h("span", { class: "col", style: { gap: "2px" } },
+                    h("span", {}, b.hash_matches ? `Opened · ${b.rows ? b.rows.length : 0} row${b.rows && b.rows.length === 1 ? "" : "s"} match what was sent` : "Hash mismatch"),
+                    b.key_from ? h("span", { class: "row", style: { gap: "4px" } }, "Key from the payment release", txLink(b.key_from, { kind: "EscrowFinish", kindNote: "same key that released the payment" })) : null,
+                    b.fulfillment_on_ledger ? h("span", { class: "mono", title: b.fulfillment_on_ledger }, `Fulfillment ${short(b.fulfillment_on_ledger, 10, 6)}`) : null));
                 } }, "Open bundle") : null, out));
             }))) : null),
         controls(r)),

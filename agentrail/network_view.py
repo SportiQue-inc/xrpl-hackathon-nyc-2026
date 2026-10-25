@@ -11,6 +11,8 @@ zooms into that pair and steps through the decision. Each step is labelled with 
 """
 from __future__ import annotations
 
+from . import units
+
 import json
 import math
 
@@ -24,7 +26,7 @@ def _weeks(n) -> str:
 
 
 def _xrp(d) -> str:
-    return f"{d / 1e6:g} XRP"
+    return f"{d / 1e6:g} {units.UNIT}"
 
 
 def trace(t: dict, need: dict | None) -> list[dict]:
@@ -73,8 +75,9 @@ def trace(t: dict, need: dict | None) -> list[dict]:
                        f"buyer trust grade {t.get('buyer_grade', '?')})", "tone": COLOR.get(t["status"], "bad")})
     if t.get("txs"):
         sig = ", ".join(s["code"] for s in t.get("signals", [])) or "none"
+        sim = "" if any((t.get("urls") or {}).values()) else "simulated on the mock ledger (not Testnet): "
         steps.append({"k": "7. Escrow and key reveal", "by": "ledger",
-                      "v": f"EscrowCreate {t['txs']['escrow_create'][:16]}…, EscrowFinish publishes the key "
+                      "v": f"{sim}EscrowCreate {t['txs']['escrow_create'][:16]}…, EscrowFinish publishes the key "
                            f"{(t['txs'].get('escrow_finish') or '')[:16]}…; delivery hashed to the certified root "
                            f"{t.get('root', '?')}…; checks: {sig}",
                       "urls": [u for u in (t.get("urls") or {}).values() if u]})
@@ -118,7 +121,7 @@ def build(ex) -> dict:
                      "top": [{"s": r["seller"], "score": r["score"]} for r in d.get("ranked", [])[:5]]})
     st = [e["st"] for e in events]
     book = next((e for e in ex.events if e.get("kind") == "offer_book"), None)
-    return {"nodes": nodes, "events": events, "spotlight": spot, "ledger": ex.ledger.name,
+    return {"nodes": nodes, "events": events, "spotlight": spot, "ledger": ex.ledger.name, "unit": units.LABEL,
             "contracts": getattr(ex, "contracts", []),
             "book": {"listings": book["listings"], "root": book["root"], "tx": book["tx"]} if book else None,
             "totals": {"trades": len(st), "settled": st.count("settled"), "unfit": st.count("settled_unfit"),
@@ -173,13 +176,13 @@ PAGE = r"""<!doctype html>
 <div id="hud"><div><b id="cT">0</b><span>trades</span></div><div><b id="cS" style="color:var(--ok)">0</b><span>settled</span></div>
 <div><b id="cR" style="color:var(--bad)">0</b><span>refused / unfit</span></div><div><b id="cE">0.0</b><span>seconds</span></div></div>
 <div id="ctl"><button id="list">Contracts</button> <button id="play">Replay</button></div>
-<div id="foot">Act 1 replayed from the run's trade log · ledger: <span id="led"></span> · synthetic data · Testnet · not legal advice</div>
+<div id="foot">Act 1 replayed from the run's trade log · ledger: <span id="led"></span> · prices in <span id="unit"></span> · synthetic data · not legal advice</div>
 </div><div id="modal"><div class="box"><div class="mh"><div><b id="mt"></b><div id="ms" class="who"></div></div><button id="mx">Close</button></div>
 <div id="mlist"></div><div id="chat"></div><div id="mv"></div></div></div><div id="panel"><div class="in"><h2 id="pt"></h2><div class="who" id="pw"></div><div id="steps"></div></div></div></div>
 <script>
 const D=/*DATA*/null;
 const NS="http://www.w3.org/2000/svg",svg=document.getElementById("svg"),E=document.getElementById("edges"),N=document.getElementById("nodes");
-const pos={},circ={},lbl={},db={};document.getElementById("led").textContent=D.ledger;
+const pos={},circ={},lbl={},db={};document.getElementById("led").textContent=D.ledger==="mock"?"mock (simulated; tx hashes are not on Testnet)":D.ledger;document.getElementById("unit").textContent=D.unit;
 function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e}
 let bookC,bookPos={x:500,y:500};
 function setup(){E.innerHTML="";N.innerHTML="";
@@ -189,7 +192,17 @@ function setup(){E.innerHTML="";N.innerHTML="";
  const a=Math.atan2(n.y-500,n.x-500),lx=500+435*Math.cos(a),ly=500+435*Math.sin(a);
  lbl[n.id]=el("text",{x:lx,y:ly+4,"text-anchor":lx<500?"end":"start",class:"lbl"},N);lbl[n.id].textContent=n.id}}
 const C={ok:"var(--ok)",bad:"var(--bad)",wait:"var(--wait)"};
+function viaBook(e){const a=pos[e.b],b=pos[e.s];if(!a||!b)return;const B=bookPos;
+ // every trade goes through the shared offer book: the buyer's agent queries it, the match leads to the seller
+ const d=`M${a.x},${a.y} L${B.x},${B.y} L${b.x},${b.y}`;
+ const q=el("path",{d:`M${a.x},${a.y} L${B.x},${B.y}`,stroke:"var(--wait)","stroke-dasharray":"3 4",class:"edge"},E);
+ const p=el("path",{d,stroke:C[e.c],class:"edge",opacity:0},E);
+ const dot=el("circle",{r:4,fill:C[e.c]},E);const m=el("animateMotion",{dur:".7s",path:d,fill:"freeze"},dot);
+ setTimeout(()=>{p.setAttribute("opacity",.9);m.beginElement&&m.beginElement()},140);
+ if(bookC){bookC.setAttribute("stroke-width",3.5);setTimeout(()=>bookC.setAttribute("stroke-width",1.5),260)}
+ setTimeout(()=>{q.style.opacity=0;p.style.opacity=0;dot.remove()},900);setTimeout(()=>{q.remove();p.remove()},2100)}
 function flash(e,keep){const a=pos[e.b],b=pos[e.s];if(!a||!b)return;
+ if(!keep)return viaBook(e);
  const mx=(a.x+b.x)/2*0.45+275,my=(a.y+b.y)/2*0.45+275;
  const p=el("path",{d:`M${b.x},${b.y} Q${mx},${my} ${a.x},${a.y}`,stroke:C[e.c],class:"edge"},E);
  if(!keep)setTimeout(()=>p.style.opacity=0,700),setTimeout(()=>p.remove(),2000);return p}
@@ -216,7 +229,7 @@ function verdicts(c){return `buyer: ${c.verdicts.buyer} · seller: ${c.verdicts.
 async function chat(c,animate){const box=document.getElementById("chat");box.innerHTML="";document.getElementById("mlist").innerHTML="";
  document.getElementById("mt").textContent=`${c.buyer} ⇄ ${c.seller} · ${c.columns.join(", ")}`;
  document.getElementById("ms").textContent=`need ${c.need} · contract ${c.contract||"none"} · ${c.status}`;
- document.getElementById("mv").textContent=verdicts(c)+(c.txs&&c.txs.escrow_create?` · EscrowCreate ${c.txs.escrow_create.slice(0,16)}… · EscrowFinish ${(c.txs.escrow_finish||"").slice(0,16)}…`:"");
+ document.getElementById("mv").textContent=verdicts(c)+(c.txs&&c.txs.escrow_create?` · EscrowCreate ${c.txs.escrow_create.slice(0,16)}… · EscrowFinish ${(c.txs.escrow_finish||"").slice(0,16)}…${D.ledger==="mock"?" (simulated on the mock ledger, not Testnet)":""}`:"");
  M.classList.add("on");
  for(const t of c.turns){const d=document.createElement("div");d.className="turn "+t.speaker;
   d.innerHTML=`<div class="who"></div><div class="msg"></div><div class="why"></div><div class="cks"></div>`;

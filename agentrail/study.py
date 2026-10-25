@@ -22,6 +22,7 @@ from .connectors import HospitalExportSource
 from . import uniqdata_live
 from .engine import BudgetExceeded, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
 from .ledger.licence import licence_metadata
+from . import units
 from .ledger.amm_terms import SLIPPAGE, STABLE_CODE, STABLE_ISSUER, STABLE_LABEL
 from .policy import DUO, PURPOSE_DUO, SENSITIVITY, BuyerMandate
 
@@ -34,7 +35,7 @@ LABELS = {"sleep.daily": "Sleep (wearable)", "activity.daily": "Activity (wearab
           "blood_pressure.daily": "Blood pressure (clinic visit)", "birth_date": "Exact birth date",
           "zip5": "5-digit postal code", "diagnosis.rare": "Rare diagnosis"}
 IRB_NUMBER = "IRB-SYN-2026-014"   # synthetic ethics approval number shown in the console
-HOLD_WINDOW_S = 120     # escrow deadline for a round the participant's agent has not released yet
+HOLD_WINDOW_S = 240     # escrow deadline for a round the participant's agent has not released yet
 BONUS_DROPS = CELL_PRICE   # completion bonus offered on the followed participant's request
 
 
@@ -305,7 +306,7 @@ def _answer(w, req, hold_last=False) -> list[int]:
         last = hold_last and i == len(granted) - 1
         r = OrderRequest(LAB, pa.id, pa.id, "cohort.fill", f"{pa.id}|w{wk}:{'+'.join(its)}", req["purpose"],
                          sorted(its), payout.immediate(len(its) * CELL_PRICE, i), rows, decisions[wk], settle="escrow",
-                         escrow_window_s=HOLD_WINDOW_S if last else 600)
+                         escrow_window_s=HOLD_WINDOW_S if last else (600 if w.ledger.name == "mock" else 1800))
         try:
             oid = w.engine.place_order(r)
         except (BudgetExceeded, NeedsHumanApproval) as e:
@@ -365,8 +366,9 @@ def set_payout_currency(w, pid: str, currency: str) -> dict:
 def _swap_paid(w, pid: str, delivered: list):
     """After escrows pay out in XRP, the participant's agent converts exactly that amount."""
     s = w.study
-    if s.payout_currency.get(pid) != "stable" or not hasattr(w.ledger, "swap_to_stable"):
-        return
+    if s.payout_currency.get(pid) != "stable" or not hasattr(w.ledger, "swap_to_stable") or (
+            units.TOKEN and w.ledger.name == "testnet"):
+        return                     # paid in the USD token already: nothing to swap
     addr = w.engine.party(pid)["address"]
     done = {o for x in s.swaps for o in x["orders"]}
     todo = [o["order_id"] for o in delivered if o["order_id"] not in done]
@@ -602,7 +604,7 @@ def participant_view(w, pid: str) -> dict:
     reqs = _requests_for(w, pid)
     orders = w.store.q("SELECT o.id, o.scope, o.status, o.price_drops, o.policy_snapshot, p.tx_hash, p.finish_tx, "
                        "p.cancel_tx FROM orders o JOIN payments p ON p.order_id=o.id WHERE o.seller_id=? "
-                       "AND o.buyer_id=? ORDER BY o.id", pid, LAB)
+                       "AND o.buyer_id=? AND o.product_id NOT LIKE 'subproject:%' ORDER BY o.id", pid, LAB)
     contributions, cell_state = [], {}
     for o in orders:
         slot = json.loads(o["scope"])["slot"].split("|", 1)[1]

@@ -16,6 +16,8 @@ harness to show the ledger's own refusal.
 """
 from __future__ import annotations
 
+from .. import units
+
 import json
 import secrets as pysecrets
 import time
@@ -92,7 +94,7 @@ def open_for(w, buyer: str, treasury: str, amount: int, spec_hash: str, created_
                         (buyer, treasury, dest, amount, spec_hash, nonce, exp,
                          json.dumps(tx_json) if tx_json else None, "open", created_by, time.time()))
         aid = cur.lastrowid
-    st.log(buyer, "approval_open", f"{created_by} asked the approvers to release {amount / 1e6:g} XRP "
+    st.log(buyer, "approval_open", f"{created_by} asked the approvers to release {amount / 1e6:g} {units.UNIT} "
            f"for spec {spec_hash[:12]}; each approver signs on their own device (expires in "
            f"{APPROVAL_TTL_S // 60} min)", {"approval": aid})
     return view(st, aid)
@@ -243,8 +245,8 @@ def _apply_budget(w, a: dict, h: str, approvers: list[str]):
     chain = e.mandate_chains.get(buyer)
     if chain is not None:
         chain.issue_from(st.one("SELECT * FROM mandates WHERE buyer_id=?", buyer), st, funded_by=h)
-    st.log(buyer, "top_up", f"{' + '.join(approvers)} co-signed a {a['amount_drops'] / 1e6:g} XRP treasury payment "
-           f"on their own devices (approval {a['id']}); mandate now {(m['total_drops'] + a['amount_drops']) / 1e6:g} XRP",
+    st.log(buyer, "top_up", f"{' + '.join(approvers)} co-signed a {a['amount_drops'] / 1e6:g} {units.UNIT} treasury payment "
+           f"on their own devices (approval {a['id']}); mandate now {(m['total_drops'] + a['amount_drops']) / 1e6:g} {units.UNIT}",
            {"tx_hash": h, "url": w.ledger.explorer_url(h)})
     s = getattr(w, "study", None)
     if s is None or a["treasury"] != s.treasury:
