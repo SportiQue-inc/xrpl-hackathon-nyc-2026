@@ -93,6 +93,8 @@ def _guard(request: Request, aid: str, write: bool = True):
 
 from .vaultfiles import register as register_vaultfiles
 register_vaultfiles(app,M,_guard)
+from .packages import register as register_packages
+register_packages(app,M,_guard)
 
 
 def _session(resp: Response, username: str):
@@ -201,7 +203,7 @@ def _chat_today(aid: str) -> int:
 
 @app.get("/api/meta")
 def meta():
-    return {"ledger": M.rail.name, "model": llm.model_name(), "llm": llm.USAGE, "kinds": KINDS, "k_min": config.K_MIN,
+    return {"ledger": M.rail.name, "model": llm.model_name(), "models": llm.models(), "llm": llm.USAGE, "kinds": {**KINDS, data.PACKAGE_KIND: data.PACKAGE_INFO}, "k_min": config.K_MIN,
             "revision": os.environ.get("APP_REVISION"), "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": False, "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
             "rpm_cap": config.LLM_RPM, "daily_cap": config.LLM_DAILY_CALLS, "engine_url": config.ENGINE_URL}
 
@@ -405,12 +407,13 @@ def _bundles(aid: str):
         c = json.loads(f.pop("clean") or "{}")
         att = c.pop("_attestation", None)
         f["attestation"] = {k: att[k] for k in ("records", "merkle_root", "checks", "cleaned")} if att else None
-        f["preview"] = data.dumps(c)[:900]
+        f["preview"] = data.dumps({'name': f['name'], 'note': 'Complete package contents and source rights are in your private download.'}) if f['kind'] == data.PACKAGE_KIND else data.dumps(c)[:900]
     by_domain = {}
     for f in files:
         if f["status"] in ("bought", "bundled"):
             continue
-        b = by_domain.setdefault(f["kind"], {"kind": f["kind"], "domain": KINDS[f["kind"]]["domain"], "label": KINDS[f["kind"]]["label"], "files": []})
+        info = data.kind_info(f['kind'])
+        b = by_domain.setdefault(f["kind"], {"kind": f["kind"], "domain": info["domain"], "label": info["label"], "files": []})
         b["files"].append(f)
     out = []
     for k, b in by_domain.items():
@@ -492,7 +495,13 @@ def account(aid: str, request: Request):
 def settings(aid: str, request: Request, body: dict = Body(...)):
     _guard(request, aid)
     a = M.acct(aid)
+    if not a:
+        raise HTTPException(404, "account not found")
+    if any(not isinstance(body.get(side, {}), dict) for side in ("sell_agent", "buy_agent")):
+        raise HTTPException(400, "Agent settings must be objects")
     sell = {**a["sell_agent"], **body.get("sell_agent", {})}; buy = {**a["buy_agent"], **body.get("buy_agent", {})}
+    if any(not isinstance(rules.get("model", "auto"), str) or rules.get("model", "auto") not in llm.models() for rules in (sell, buy)):
+        raise HTTPException(400, "Choose auto or a model allowed by this service")
     import math
     try:
         values=list(sell.get("min",{}).values())+[buy.get("auto_limit",0)]
@@ -603,7 +612,7 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
     if w and w["buyer"] != aid:
         M.enqueue_sale(aid, w["kind"], w["id"])
         return {"ok": True}
-    p = {"kind":None,"intent":"other","price":None} if discovery else agents.parse_chat(text)
+    p = {"kind":None,"intent":"other","price":None} if discovery else agents.parse_chat(text, sell_model=a["sell_agent"].get("model", "auto"), buy_model=a["buy_agent"].get("model", "auto"))
     if not p["kind"]:
         offers=_sell_now(aid)[:3]
         if offers:

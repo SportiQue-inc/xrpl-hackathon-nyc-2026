@@ -24,12 +24,17 @@ _last = threading.local()
 
 
 def model_name() -> str:
-    """The model that wrote this thread's last answer, else the one that would be tried first."""
+    """The actual source of this thread's last answer."""
+    return getattr(_last, "model", "rules")
+
+
+def models() -> list[str]:
+    """Only model IDs already allowed by the service's current provider configuration."""
     if config.LLM_PROVIDER == "anthropic":
-        return config.ANTHROPIC_MODEL
+        return ["auto", config.ANTHROPIC_MODEL]
     if config.LLM_PROVIDER == "openai":
-        return getattr(_last, "model", None) or next((m for m in config.OPENAI_MODELS if _rest.get(m, 0) <= time.time()), config.OPENAI_MODEL)
-    return "rules"
+        return ["auto", *dict.fromkeys(config.OPENAI_MODELS)]
+    return ["auto"]
 
 
 def _reset_seconds(text: str | None) -> float:
@@ -43,11 +48,11 @@ def _reset_seconds(text: str | None) -> float:
     return total or 900.0
 
 
-def _openai(c, system: str, prompt: str, max_tokens: int):
+def _openai(c, system: str, prompt: str, max_tokens: int, model: str = "auto"):
     """Try each configured model in order; one that is rate-limited rests until its reset and the next is tried."""
     import openai
     system += " Reply with one JSON object only."     # json_object mode requires the word JSON in the prompt
-    for m in config.OPENAI_MODELS:
+    for m in config.OPENAI_MODELS if model == "auto" else [model]:
         if _rest.get(m, 0) > time.time():
             continue
         kw = {"max_completion_tokens": max_tokens}
@@ -69,7 +74,7 @@ def _openai(c, system: str, prompt: str, max_tokens: int):
                                               messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}], **kw)
             else:
                 raise
-        _last.model = m
+        _last.model = getattr(r, "model", None) or m
         return r
     return None
 
@@ -125,8 +130,12 @@ def _get_client():
     return _client
 
 
-def ask_json(system: str, prompt: str, max_tokens: int = 500) -> dict | None:
+def ask_json(system: str, prompt: str, max_tokens: int = 500, model: str = "auto") -> dict | None:
     """One JSON object from the model, or None (caller falls back to its rules)."""
+    _last.model = "rules"
+    if not isinstance(model, str) or model not in models():
+        USAGE["fallbacks"] += 1
+        return None
     left = getattr(_local, "left", None)
     if left is not None and left <= 0:
         USAGE["fallbacks"] += 1
@@ -145,9 +154,9 @@ def ask_json(system: str, prompt: str, max_tokens: int = 500) -> dict | None:
             text = "".join(b.text for b in r.content if getattr(b, "type", "") == "text")
             USAGE["in_tokens"] += r.usage.input_tokens
             USAGE["out_tokens"] += r.usage.output_tokens
+            _last.model = getattr(r, "model", None) or config.ANTHROPIC_MODEL
         else:
-            _last.model = None
-            r = _openai(c, system, prompt, max_tokens)
+            r = _openai(c, system, prompt, max_tokens, model)
             if r is None:                            # every model is resting after a 429: rules until one resets
                 USAGE["fallbacks"] += 1
                 return None
@@ -155,7 +164,11 @@ def ask_json(system: str, prompt: str, max_tokens: int = 500) -> dict | None:
             USAGE["in_tokens"] += r.usage.prompt_tokens
             USAGE["out_tokens"] += r.usage.completion_tokens
         s, e = text.find("{"), text.rfind("}")
-        return json.loads(text[s:e + 1])
+        out = json.loads(text[s:e + 1])
+        if not isinstance(out, dict):
+            raise ValueError("Expected a JSON object")
+        return out
     except Exception:
+        _last.model = "rules"
         USAGE["fallbacks"] += 1
         return None
