@@ -36,7 +36,7 @@ async function topbar(page) {
 }
 function memberBalance(account) {
   const el=$("accountName");
-  if (USER.user) el.textContent=`${USER.user.demo?'Demo vault (synthetic)':USER.user.username} · ${account.balance==null?'Wallet connecting':amount(account.balance)}`;
+  if (USER.user) el.innerHTML=`<span class="account-label">${esc(USER.user.demo?'Demo (synthetic)':USER.user.username)}</span><strong class="account-balance">${esc(account.balance==null?'Wallet connecting':amount(account.balance))}</strong>`;
 }
 function chatBox(el, data) {
   const draft = $("say")?.value || "", focused = document.activeElement?.id === "say";
