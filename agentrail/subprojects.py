@@ -27,7 +27,7 @@ T3_TIERS = {"T3"}
 
 def _shown(micro) -> str:
     """Amounts in the log as the pages show them: the test token stands in for RLUSD (units.LABEL)."""
-    return f"{(micro or 0) / 1e6:g} {'RLUSD' if units.TOKEN else 'XRP'}"
+    return units.fmt(micro)
 
 
 def _tier(item: str) -> str:

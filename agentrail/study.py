@@ -667,6 +667,7 @@ def participant_view(w, pid: str) -> dict:
     return {
         "person": {"id": pid, "address": w.engine.party(pid)["address"], "study_pseudonym": pa.vault.pseudonym(LAB)},
         "asset": units.UNIT,
+        "ledger": w.ledger.name,
         "requests": [request_card(w, r) for r in reqs],
         "timeline": {"weeks": WEEKS, "rows": rows},
         "gaps": s.person_claims.get(pid, []),

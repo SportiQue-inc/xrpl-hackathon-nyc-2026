@@ -127,14 +127,14 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
   }
 
   // ---------- Figma "UniQdata Research Contribution" frames ----------
-  // Top bar (eyebrow + title + XRPL Testnet badge), content column, sticky action bar.
+  // Top bar (eyebrow + title + current ledger badge), content column, sticky action bar.
   function fig(eyebrow, title, body, act, { back, gap11 } = {}) {
     return h("div", { class: "fg" },
       h("div", { class: "fg-top" },
         h("div", { class: "nav" },
           back ? h("button", { class: "back", onclick: back, "aria-label": T("Back", "뒤로") }, "‹") : null,
           h("div", { class: "copy" }, h("span", { class: "eb" }, eyebrow), h("span", { class: "tt" }, title))),
-        h("span", { class: "fg-pill env" }, h("span", {}, "◌"), h("span", {}, "XRPL Testnet"))),
+        h("span", { class: "fg-pill env" }, h("span", {}, "◌"), h("span", {}, ledgerName()))),
       h("div", { class: `fg-body${gap11 ? " g11" : ""}` }, body),
       act ? h("div", { class: "fg-act" }, act)
         : h("nav", { class: "ar-tabs four fg-tabs" },
@@ -157,7 +157,8 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
   const lead = (t) => h("p", { class: "fg-lead" }, t);
   const ledger = (tx, rc) => (tx && tx.tx ? h("button", { class: "fg-ledger", onclick: () => { st.receipt = { ...rc, tx }; draw(); } },
     `Tx ${short(tx.tx, 4, 4)} · ${T("View", "보기")} ↗`) : null);
-  const testnet = T("XRPL Testnet · no cash value", "XRPL Testnet · 현금 가치 없음");
+  const ledgerName = () => st.p?.ledger === "testnet" ? "XRPL Testnet" : T("Practice ledger", "연습 원장");
+  const ledgerNotice = () => `${ledgerName()} · ${T("no cash value", "현금 가치 없음")}`;
   const split = (r, price) => {
     const pay = r.payment || { max_pct: 90 };
     return { now: price * pay.max_pct / 100, held: price * (100 - pay.max_pct) / 100, days: String(pay.review || "7").replace(/\D+/g, "") || "7" };
@@ -238,7 +239,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         auto.length ? n(T(`${auto.map((i) => itemName(i.item)).join(", ")} is inside your consent; your agent sends it.`, `${auto.map((i) => itemName(i.item)).join(", ")}은 동의 범위 안이라 에이전트가 보내요.`)) : null,
         blocked.length ? n(T(`${blocked.map((i) => itemName(i.item)).join(", ")} is outside the allowed purpose and is not sent.`, `${blocked.map((i) => itemName(i.item)).join(", ")}은 허용한 목적 밖이라 보내지 않아요.`)) : null),
       card("brand", T("Participation payment", "참여 지급액"),
-        d(`${won(price)} · ${testnet}`),
+        d(`${won(price)} · ${ledgerNotice()}`),
         row(T("Paid as weeks deliver (up to)", "회차 전달 시 지급 (최대)"), won(sp.now), "brand"),
         row(T(`${sp.days}-day review holdback`, `${sp.days}일 검토 후 지급`), won(sp.held), "warn"),
         r.completion_bonus_xrp ? row(T("Separate completion payment", "완료 시 별도 지급"), won(r.completion_bonus_xrp), "ok") : null),
@@ -450,7 +451,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         d(`${[...new Set(f.entries.map((x) => lab(x.r)))].join(", ")} · ${T("approved study roles", "승인된 연구 담당자")}`),
         d(T("Access and retention follow the study protocol.", "접근과 보관은 연구 프로토콜을 따라요."))),
       card("brand", T("Payment locks before release", "보내기 전에 지급액을 먼저 예치해요"),
-        d(`${won(total)} · ${testnet}`),
+        d(`${won(total)} · ${ledgerNotice()}`),
         n(T(`Up to ${won(sp.now)} is paid as weeks deliver. At least ${won(sp.held)} is reviewed for ${sp.days} days; a person decides and you may respond.`,
           `최대 ${won(sp.now)}는 회차가 전달될 때 지급돼요. 최소 ${won(sp.held)}는 ${sp.days}일 검토 뒤 지급되고, 결정은 사람이 하며 소명할 수 있어요.`)),
         n(T(`One passkey signature records each of the ${f.steps.length} consents separately.`, `패스키 서명 한 번으로 동의 ${f.steps.length}개가 각각 따로 기록돼요.`))),
@@ -506,9 +507,9 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         lead(T("No study access has been recorded yet. The contribution releases only after the lock is confirmed.", "아직 연구 기관의 열람은 기록되지 않았어요. 예치가 확인된 뒤에만 기록이 전달돼요.")),
         card("", T("Contribution state", "기여 상태"), d(T("Requested → Locked → Delivered", "요청 → 예치 → 전달")),
           h("div", { class: "fg-steps" }, step("✓", "", T("Requested", "요청")), step("●", "on", T("Locked", "예치")), step("○", "", T("Delivered", "전달")))),
-        card("brand", T("Participation payment", "참여 지급액"), d(`${won(total)} · ${testnet}`),
+        card("brand", T("Participation payment", "참여 지급액"), d(`${won(total)} · ${ledgerNotice()}`),
           row(T("Status", "상태"), T("Confirming", "확인 중"), "brand"), row(T("Contribution access", "기록 열람"), T("Not released", "아직 안 열림"), "neutral")),
-        card("brand", T("Confirming on XRPL Testnet", "XRPL Testnet에서 확인 중"), d(T("This usually completes shortly. Repeated taps cannot create another lock.", "보통 금방 끝나요. 여러 번 눌러도 예치가 또 생기지 않아요."))),
+        card("brand", T(`Confirming on ${ledgerName()}`, `${ledgerName()}에서 확인 중`), d(T("This usually completes shortly. Repeated taps cannot create another lock.", "보통 금방 끝나요. 여러 번 눌러도 예치가 또 생기지 않아요."))),
       ], [btn(T("Confirming…", "확인 중…"), null, { disabled: true }), sub(T("View reviewed terms", "확인한 조건 보기"), null)]);
     }
     const ids = new Set(st.lastReqs || p.approvals.map((a) => a.request));
@@ -528,7 +529,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         h("span", { class: c.status === "delivered" ? "ok" : c.cancel && c.cancel.tx ? "gray" : "" },
           c.status === "delivered" ? T("Delivered", "전달됨") : c.cancel && c.cancel.tx ? T("Returned", "반환") : T("Locked", "예치됨"))))),
       card("", T("Payment evidence", "지급 증빙"),
-        d(`${cs.length ? won(cs[0].amount_xrp) : ""} ${T("per delivered week", "회차당")} · ${testnet}`),
+        d(`${cs.length ? won(cs[0].amount_xrp) : ""} ${T("per delivered week", "회차당")} · ${ledgerNotice()}`),
         ledger(firstFinish ? firstFinish.finish : cs[0] && cs[0].escrow, { kind: firstFinish ? "finish" : "escrow", amount: cs[0] && cs[0].amount_xrp, week: cs[0] && cs[0].weeks[0] })),
     ];
     return fig(allDone ? T("Contribution delivered", "기여 전달 완료") : T("Payment locked", "예치 완료"), T("Submission status", "전달 상태"), body,
@@ -661,7 +662,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     const body = [
       inReview ? pill("brand", T("In review", "검토 중")) : paid ? pill("ok", T("Paid", "지급됨")) : pill("brand", T("Locked", "예치됨")),
       h1(T("Participation payment", "참여 지급")),
-      card("brand", T(`${won(paid)} paid · ${won(inReview)} in review`, `${won(paid)} 지급 · ${won(inReview)} 검토 중`), d(testnet),
+      card("brand", T(`${won(paid)} paid · ${won(inReview)} in review`, `${won(paid)} 지급 · ${won(inReview)} 검토 중`), d(ledgerNotice()),
         row(T("Round payment", "회차 지급액"), won(roundPay), "brand"),
         bonus ? row(T("Separate completion payment", "완료 시 별도 지급"), won(bonus), "ok") : null),
       card("", T("Payment timeline", "지급 내역"),
@@ -684,7 +685,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     return fig(T("Review extended", "검토 연장"), T("Payment timeline", "지급 내역"), [
       pill("warn", T("Review extended", "검토 연장")),
       h1(T("A clarification is needed", "확인이 필요해요")),
-      card("warn", T(`${won(inReview)} remains in review`, `${won(inReview)} 검토 중`), d(testnet),
+      card("warn", T(`${won(inReview)} remains in review`, `${won(inReview)} 검토 중`), d(ledgerNotice()),
         row(T("Paid", "지급됨"), won(paid), "ok"), row(T("Pending review", "검토 대기"), won(inReview), "warn")),
       card("", T("What needs review", "확인이 필요한 부분"), signalLines(c),
         n(T("A person reviews this. Nothing is decided automatically.", "사람이 직접 검토해요. 자동으로 결정하지 않아요."), true)),
@@ -751,7 +752,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         row(T("Deletion requested", "삭제 요청"), T("Sent to the study", "연구 기관에 보냄"), "brand"),
         row(T("Deletion confirmed by the study", "연구 기관 삭제 확인"), dl.confirmation_hash ? `${dl.bundles ? `${dl.bundles} ${T("bundles", "묶음")} · ` : ""}${short(dl.confirmation_hash, 4, 0)}` : T("Waiting for the study", "기관 확인 대기"), dl.confirmation_hash ? "ok" : "neutral"),
         row(T("Retention exception", "보관 예외"), dl.retained ? dl.retained : T("None reported by the study", "기관이 보고한 예외 없음"), "neutral")),
-      card("", T("Payment outcome", "지급 결과"), d(testnet),
+      card("", T("Payment outcome", "지급 결과"), d(ledgerNotice()),
         row(T("Already paid · stays with you", "이미 받음 · 그대로"), won(kept), "ok"),
         row(T("Still due after review", "검토 후 받을 금액"), won(due), "brand"),
         row(T("Returns to study", "연구로 반환"), won(returned), "warn")),
@@ -773,7 +774,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         pill("ok", T("Cleared", "확인 완료")),
         h1(T("Review cleared", "검토가 끝났어요")),
         lead(T("Your response was accepted. The held part is now paid.", "소명이 받아들여져 검토 후 지급분이 지급됐어요.")),
-        card("ok", T(`${amt} paid`, `${amt} 지급`), d(testnet), hb ? ledger(hb.release || hb.create, { kind: "release", amount: hb.amount_xrp }) : null),
+        card("ok", T(`${amt} paid`, `${amt} 지급`), d(ledgerNotice()), hb ? ledger(hb.release || hb.create, { kind: "release", amount: hb.amount_xrp }) : null),
         card("", T("Review timeline", "검토 경과"),
           row(md(c.opened_at || c.ts), T("Review opened", "검토 시작")),
           c.response ? row(md(c.responded_at || c.ts), T("Response sent", "소명 보냄")) : null,
@@ -793,7 +794,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     return fig(T(`Respond by ${md(c.respond_by)}`, `${md(c.respond_by)}까지 소명`), T("Review notice", "검토 알림"), [
       pill("warn", T("Action needed", "확인 필요")),
       h1(T("Your held part needs review", "검토 후 지급분 확인이 필요해요")),
-      card("warn", T(`${amt} remains in review`, `${amt} 검토 중`), d(testnet)),
+      card("warn", T(`${amt} remains in review`, `${amt} 검토 중`), d(ledgerNotice())),
       card("", T("What the reviewer saw", "검토 담당자가 본 내용"), signalLines(c), n(T("A person reviews this. Nothing is decided automatically.", "사람이 직접 검토해요. 자동으로 결정하지 않아요."), true)),
       c.response ? card("", T("Your response", "보낸 소명"), d(c.response)) :
         card("", T("Tell the reviewer what happened", "상황을 알려 주세요"), d(T("Your response is shared with the study reviewer only.", "소명은 검토 담당자에게만 전달돼요.")), text),
@@ -828,17 +829,17 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         h("div", { class: "hd" }, h("div", { class: "copy", style: { display: "flex", flexDirection: "column", gap: "1px" } },
           h("span", { class: "eb" }, T("LEDGER RECEIPT", "원장 영수증")), h("span", { class: "tt" }, title)),
           h("button", { onclick: close, "aria-label": T("Close", "닫기") }, "×")),
-        pill("ok", T("Confirmed on XRPL Testnet", "XRPL Testnet에서 확인됨")),
+        pill("ok", T(`Confirmed on ${ledgerName()}`, `${ledgerName()}에서 확인됨`)),
         h("div", { class: "fg-card ok fg-sheet-body", style: { borderWidth: "1px" } },
           h("p", { class: "t" }, rc.week ? T(`Week ${rc.week} participation payment`, `${rc.week}주 차 참여 지급`) : title),
           h("p", { class: "d" }, `${txType} · ${note}`),
           money ? row(T("Amount", "금액"), won(rc.amount), "ok") : null,
-          h("p", { class: "x c-brand" }, testnet)),
+          h("p", { class: "x c-brand" }, ledgerNotice())),
         h("div", { class: "fg-card fg-sheet-body" }, h("p", { class: "t" }, T("On the ledger", "원장에 남은 것")),
           row(T("From", "보낸 곳"), rc.kind === "credential" ? "org_ethics" : r0 ? lab(r0) : "—"),
           row(T("To", "받는 곳"), short(st.p.person.address, 4, 3)),
           rc.tx.ts ? row(T("Time", "시간"), when(rc.tx.ts)) : null,
-          row(T("Network", "네트워크"), "XRPL Testnet", "brand"),
+          row(T("Network", "네트워크"), ledgerName(), "brand"),
           h("button", { class: "fg-ledger", style: { fontSize: "10px", color: "var(--uqd-text-primary)" },
             onclick: async () => { try { await navigator.clipboard.writeText(rc.tx.tx); toast(T("Hash copied", "해시를 복사했어요")); } catch (e) { /* clipboard blocked */ } } },
             `${T("Hash", "해시")} ${short(rc.tx.tx, 8, 4)} · ${T("Copy", "복사")}`)),
