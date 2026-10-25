@@ -2,7 +2,7 @@
 
     python scripts/scale_run.py                               # in-process engine (LEDGER, AGENTRAIL_CONTRACTS_PAY from env)
     python scripts/scale_run.py --engine https://agentrail-try-production.up.railway.app   # the deployed engine
-    python scripts/scale_run.py --steps 1x5,2x10,3x20         # projects x participants per project, one run per step
+    python scripts/scale_run.py --steps 1x3,2x5,4x5           # projects x participants per project, one run per step
 
 Each step posts that many research contracts (different institutions), joins that many participants to each with
 their own Ed25519 keys and signed consent, stores generated test readings (labelled as such), and runs week 1.
@@ -16,7 +16,8 @@ consent. --confirm-share sets that share (default 0.2).
 
 On the deployed engine, posting needs the posting code: AGENTRAIL_POSTING_CODE in the environment (never printed).
 Budget: price per item 0.001 x 2 items = 0.002 RLUSD per participant-week, far under the AP4M 0.10 cap; the
-default steps make 85 payments (0.17 RLUSD).
+default steps make 33 payments (0.066 RLUSD). AP4M pays one at a time (about 45 s each on the live rail),
+and a round holds the lane lock while it pays, so run one step at a time next to a live contract.
 """
 from __future__ import annotations
 
@@ -105,7 +106,7 @@ def step(h: Http, run: str, projects: int, members: int, confirm_share: float, p
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--engine", help="engine base URL; default runs the engine in this process")
-    ap.add_argument("--steps", default="1x5,2x10,3x20")
+    ap.add_argument("--steps", default="1x3,2x5,4x5")
     ap.add_argument("--confirm-share", type=float, default=0.2)
     ap.add_argument("--price", type=int, default=1000, help="micro-units per item (1000 = 0.001)")
     a = ap.parse_args()
