@@ -239,6 +239,19 @@ The participant also sees `integrity_notice` lines in `/api/events` (why the par
 - `POST /api/p/{pid}/cases/{id}/respond` body `{"text": "..."}`.
 - `POST /api/p/{pid}/resume-requests`: one tap after two missed accepted rounds paused automatic requests.
 
+## Fields and routes the two app pages add
+
+- `GET /api/study`: `study.irb` (synthetic IRB number), `withdrawals` (`[{person, kind, ts}]`,
+  kind `decline_round|pause|revoke`), and each contribution gets `items`.
+- `GET /api/p/{pid}`: each request item gets `sensitive` (true for items that need their own consent card).
+- `GET /api/events`: each event gets `ts` (unix seconds).
+- `GET /api/p/{pid}/uniqdata?project=project-sleeplab&privacy_epoch=0` -> the participant's records in the
+  shapes UniQdata and UniQLab store (`agentrail/uniqdata_port.py`): `consent_grants`, `unmapped_consent`
+  (set when a granted consent has no UniQdata lane), `payout_receipts`, `withdrawal` (after a revoke).
+  Keyed by study pseudonym; no participant id or address leaves.
+- `/apps/...` serves the shared page modules (`apps/shared/*.js`, `ui.css`) so another app can mount them.
+  CORS origins come from `AGENTRAIL_CORS_ORIGINS` (default the UniQLab Vite dev server, `http://localhost:5173`).
+
 ## Robot scene (other domains)
 
 `POST /api/run/a-guarded` then `GET /api/state` (`orders` with tx `url`, `events`). Same engine,
