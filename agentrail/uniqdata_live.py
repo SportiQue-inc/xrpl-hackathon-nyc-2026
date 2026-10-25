@@ -275,6 +275,11 @@ class UniQdataClient:
     def query(self, body: dict) -> dict:
         return self._call("POST", "/data/query", body)
 
+    def report_settlements(self, records: list[dict]) -> dict:
+        """The person's research contract payments, for the app's 연구 기여 tab and wallet
+        (UniQdata PUT /research/agentrail/settlements: the signed-in person only)."""
+        return self._call("PUT", "/research/agentrail/settlements", {"records": records})
+
 
 def records_for(item: str, day: int, value: dict) -> list[dict]:
     """One engine reading as UniQdata write records (study day -> timestamp)."""
