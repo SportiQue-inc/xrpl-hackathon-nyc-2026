@@ -146,6 +146,8 @@ def act1(seed: int = 11, ledger=None, store=None, prof: dict | None = None, roun
                        credentials={"DTC_WELLNESS"})
     provider.report_types = {"caffeine_metabolism": ["CYP1A2"], "lactose_tolerance": ["MCM6"]}
     _build_rows(accounts)
+    from ..uniqdata_live import feed_market, market_clients
+    uq = feed_market(accounts, market_clients())     # each person's own UniQdata account, when connected
     ex = Exchange(accounts + [provider], ledger=ledger, store=store, seed=seed)
     rng = random.Random(seed + 1)
     for a in accounts:
@@ -166,7 +168,8 @@ def act1(seed: int = 11, ledger=None, store=None, prof: dict | None = None, roun
     buyers = [a for a in accounts if any(d.columns == ["genome.vcf"] for d in a.datasets)][:3]
     for a, rt in zip(buyers, ["caffeine_metabolism", "lactose_tolerance", "disease_risk"]):
         reports.append(buy_report(ex, a.id, provider, rt))
-    return {"act": 1, "activity": ex.activity(), "needs": results, "reports": reports, "exchange": ex}
+    return {"act": 1, "activity": ex.activity(), "needs": results, "reports": reports, "exchange": ex,
+            "uniqdata_records_used": uq}
 
 
 ALLOWED_REPORTS = {"DTC_WELLNESS": {"caffeine_metabolism", "lactose_tolerance", "ancestry", "trait"}}
@@ -259,6 +262,8 @@ def act2(seed: int = 11, ledger=None, store=None, prof: dict | None = None) -> d
     prof = prof or load()
     people = participants(prof, act=2, seed=seed)
     _build_rows(people)
+    from ..uniqdata_live import feed_market, market_clients
+    uq = feed_market(people, market_clients())
     insts = []
     for inst in prof["institutions"]:
         insts.append(Account(inst["id"], inst["name"], "org", attrs=institution_record(inst)))
@@ -290,7 +295,7 @@ def act2(seed: int = 11, ledger=None, store=None, prof: dict | None = None) -> d
                           posted_h=1.0, why=f"{inst}: pseudonymized MRI"))
     results = [ex.fill(n) for n in sorted(needs, key=lambda n: n.posted_h)]
     grades = {i.id: policies.trust_grade({**i.attrs, "owner_country": "KR"}) for i in insts}
-    return {"act": 2, "activity": ex.activity(), "needs": results, "budgets": budgets,
+    return {"act": 2, "uniqdata_records_used": uq, "activity": ex.activity(), "needs": results, "budgets": budgets,
             "buyer_grades": {k: {"grade": g, "score": s, "reasons": w} for k, (g, s, w) in grades.items()},
             "pending_for_manual": [{k: v for k, v in p.items() if k not in ("trade", "offer")} for p in ex.pending],
             "exchange": ex}

@@ -432,3 +432,66 @@ def load_person(path: str) -> UniQdataClient:
 def load_roster(path: str) -> dict[str, UniQdataClient]:
     """pid -> client, from scripts/uniqdata_sandbox_person.py --cohort."""
     return {pid: _client(s) for pid, s in json.load(open(path)).items()}
+
+
+# ---------------- the market (acts 1 and 2) reads the same UniQdata accounts ----------------
+
+# UniQdata item:field -> market catalog column (scalar value per day; scale applied)
+TO_CATALOG = {
+    ("sleep.daily", "minutes"): ("sleep.daily", 1), ("activity.daily", "steps"): ("steps.daily", 1),
+    ("heart_rate.daily", "resting_bpm"): ("heart_rate.daily", 1),
+    ("fatigue.survey", "score_0_10"): ("fatigue.survey", 1),
+    ("spo2.daily", "pct"): ("spo2.night", 1),
+    ("body_temp.daily", "celsius"): ("body_temp.daily", 1), ("meal.log", "kcal"): ("meal.kcal", 1),
+    ("mood.daily", "score_1_5"): ("mood.score", 2),
+}
+# Only daily columns: the market grades a dataset as daily series, so periodic ones (weight every few
+# days, the weekly surveys) would read as mostly missing; they keep generated values there.
+# Visit-based clinical columns (blood pressure, labs, PHQ-9) and T3 stay on the engine side in the
+# market: the catalog trades them as daily series, while a UniQdata account holds a few visits.
+
+
+def feed_market(accounts, clients: dict) -> dict:
+    """Replace the generated rows of each account's health datasets with what that person's UniQdata
+    account actually holds, column by column, so the pre-trade quality check sees that person's real
+    completeness and bad records. Columns the account does not store at all keep their generated
+    values and are labelled so (meta["source"]). Returns {pid: records used}."""
+    from .market import quality
+    used = {}
+    for a in accounts:
+        client = clients.get(a.id)
+        if client is None:
+            continue
+        reader = UniQdataReader(client).refresh()
+        by_col = {}
+        for (item, day), vals in reader.values.items():
+            for field_, v in vals.items():
+                tgt = TO_CATALOG.get((item, field_))
+                if tgt and isinstance(v, (int, float)):
+                    by_col[(tgt[0], day)] = round(v * tgt[1], 3)
+        n_used = 0
+        held = {c for (c, _) in by_col}
+        for ds in a.datasets:
+            # columns this person's UniQdata account holds come from it; the rest keep generated values
+            cols = [c for c in ds.columns if c in held]
+            if not cols or ds.meta.get("rows") is not None:
+                continue
+            rows = []
+            for d in range(len(ds.rows) or ds.weeks * 7):
+                r = {"day": d}
+                for c in ds.columns:
+                    r[c] = by_col.get((c, d + 1)) if c in cols else (ds.rows[d].get(c) if d < len(ds.rows) else None)
+                    n_used += r[c] is not None and c in cols
+                rows.append(r)
+            ds.rows, ds.fault = rows, None          # UniQdata's own bad records replace injected faults
+            ds.salts = [hashlib.sha256(f"{ds.id}|uq|{i}".encode()).hexdigest()[:16] for i in range(len(rows))]
+            ds.shown = quality.Committed(rows, ds.salts)
+            ds.meta["source"] = {c: ("UniQdata" if c in cols else "generated") for c in ds.columns}
+        used[a.id] = n_used
+    return used
+
+
+def market_clients() -> dict:
+    """pid -> client from UNIQDATA_ROSTER, or {} when the market runs on generated data."""
+    path = os.environ.get("UNIQDATA_ROSTER")
+    return load_roster(path) if path else {}
