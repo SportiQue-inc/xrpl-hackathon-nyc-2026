@@ -428,6 +428,16 @@ class Engine:
             self._submit(oid, prep)
         st = self.ledger.wait_validated(h)
         if not st.found:
+            if self.ledger.is_expired(blob):
+                # Past LastLedgerSequence and never applied: sign again (new sequence, new hash).
+                prep = prep_fn()
+                hc, bc = ("tx_hash", "tx_blob") if col == "create" else (f"{col}_tx", f"{col}_blob")
+                with self.store.tx() as c:
+                    c.execute(f"UPDATE payments SET {hc}=?, {bc}=?, updated_at=? WHERE order_id=?",
+                              (prep.tx_hash, prep.blob, time.time(), oid))
+                    if col == "create":
+                        c.execute("UPDATE payments SET offer_sequence=? WHERE order_id=?", (prep.sequence, oid))
+                h, blob = prep.tx_hash, prep.blob
             self._submit(oid, Prepared(h, blob))
             st = self.ledger.wait_validated(h)
         return h, st

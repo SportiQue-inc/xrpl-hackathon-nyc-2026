@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from agentrail import scenario, study, uniqdata_port as port
+from agentrail import payout, scenario, study, uniqdata_port as port
 from agentrail.cohort import HERO
 from agentrail.engine import sha256_hex
 from tests.llm_doubles import capable_needs
@@ -62,8 +62,36 @@ def test_paid_rounds_are_retained_and_undelivered_rounds_are_not_earned(revoked)
     fatigue = {x["weeks"][0]: x["earn_status"] for x, c in zip(rec["rewards"], r["contributions"])
                if "fatigue.survey" in c["items"]}
     assert fatigue == {3: "paid", 4: "paid", 5: "not_earned"}   # week 5 held at revoke, refunded to the study
-    assert rec["research_rewards_retained"] == sum(c["status"] == "delivered" for c in r["contributions"])
+    assert rec["research_rewards_retained"] == sum(x["earn_status"] in ("paid", "pending") for x in rec["rewards"])
+    assert rec["unmapped"] == []
     assert rec["refund_txs"] and all(rec["refund_txs"])
+
+
+def test_held_share_stays_pending_and_bonus_goes_back_after_revoke(revoked):
+    _, _, r = revoked
+    held = {x["part"]: [] for x in port.withdrawal_record(r, PROJECT, 0)["rewards"]}
+    for x in port.withdrawal_record(r, PROJECT, 0)["rewards"]:
+        held[x["part"]].append(x["earn_status"])
+    assert held["round_held"] and set(held["round_held"]) == {"pending"}    # 20% part, paid when review ends
+    assert held["bonus_held"] == ["not_earned"]                              # completion bonus returns
+
+
+def test_released_held_parts_get_their_own_receipt(revoked):
+    w, _, _ = revoked
+    payout.release_due(w)
+    v = study.participant_view(w, HERO)
+    receipts = port.payout_receipts(v["contributions"], "mock", v["payout"]["holdbacks"])
+    released = [h for h in v["payout"]["holdbacks"] if h["status"] == "released"]
+    held_refs = {x["payout_intent_ref"] for x in receipts if x["payout_intent_ref"].startswith("agentrail:holdback:")}
+    assert released and held_refs == {f"agentrail:holdback:{h['id']}" for h in released}
+    assert len({x["payout_intent_ref"] for x in receipts}) == len(receipts)
+
+
+def test_unknown_engine_status_is_never_counted_as_earned(revoked):
+    _, _, r = revoked
+    odd = {**r, "contributions": [{**r["contributions"][0], "status": "something_new"}], "payout": {"holdbacks": []}}
+    rec = port.withdrawal_record(odd, PROJECT, 0)
+    assert rec["research_rewards_retained"] == 0 and rec["unmapped"]
 
 
 def test_pause_and_decline_do_not_supersede_queued_commands():
@@ -77,13 +105,14 @@ def test_one_payout_receipt_per_delivered_round(revoked):
     delivered = [c for c in r["contributions"] if c["status"] == "delivered"]
     assert len(receipts) == len(delivered) > 0
     assert len({x["payout_intent_ref"] for x in receipts}) == len(receipts)
-    for rec, c in zip(receipts, delivered):
+    for rec, c in zip([x for x in receipts if x["payout_intent_ref"].startswith("agentrail:order:")], delivered):
         assert rec["receipt_ref_hash"] == sha256_hex(c["finish"]["tx"])
         assert isinstance(rec["amount_minor"], int) and rec["currency"] == "XRP"
 
 
 def test_no_participant_id_leaves_through_the_port(revoked):
     w, doc, r = revoked
-    out = json.dumps([port.withdrawal_record(r, PROJECT, 0), port.payout_receipts(r["contributions"], "mock"),
+    out = json.dumps([port.withdrawal_record(r, PROJECT, 0),
+                      port.payout_receipts(r["contributions"], "mock", r["payout"]["holdbacks"]),
                       port.consent_grants(doc, PROJECT)])
     assert HERO not in out and w.engine.party(HERO)["address"] not in out

@@ -131,12 +131,38 @@ on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 |---|---|---|
 | Agentic Finance: escrow, multi-signing, on-chain credentials | all three are in the main flow, not side demos | section 4 tx links |
 | Idea | research on one person's whole record, contributed by that person's agent; the counterpart is a person, not a dataset | sections 1-2 |
-| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, 80% now and 20% held for review, idempotent payments and recovery, 80 tests | `tests/`, sections 4 and 6 |
+| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, 80% now and 20% held for review, idempotent payments and recovery, 89 tests | `tests/`, sections 4 and 6 |
 | Demo | phone request -> contribution -> researcher heatmap fills -> revoke -> clawback and refund, all with explorer links | section 9 |
 | Potential | small, frequent contributions that cards and 80-day agreements cannot carry | section 8 |
 | Bonus: QuickNode, x402 | `XRPL_RPC_URL`; `PAYMENT_RAIL=x402` | section 4 |
 
 ## 8. Potential and market
+
+### Why this matters now
+
+**The most valuable health data is traded without the people it describes.** A curated oncology patient record was valued at about $1,000 when Roche bought Flatiron (2018, derived), while data brokers sell records for $0.05–0.20 (Duke, 2023). IQVIA's data and analytics segment alone made $6.6B in 2025. In none of these deals did the people whose records changed hands receive anything. When 23andMe went bankrupt, its customers' DNA was sold to TTAM for $305M (July 2025), about $20 per customer (derived), and about 1.9M people asked for their data to be deleted.
+
+**Four shifts landed at the same time in 2025–2026.**
+- *The AI data wall.* Epoch AI expects quality public text to run out between 2026 and 2032. In January 2026 OpenAI (Torch) and Anthropic (HealthEx) both turned to patient-connected records instead of bulk EHR deals.
+- *People got the right to pull their records.* US TEFCA has exchanged 474M+ documents and Individual Access Services is live. The EU Health Data Space applies from March 2027. Korea's MyData transfer duty starts in February 2027. Yet only 7% of US patients use an app that aggregates their portals.
+- *Non-consented supply got expensive.* FTC orders now require brokers to verify consent. The DOJ bulk-data rule covers pseudonymized genomic data. Korea fined Coupang ₩201.1B for collecting behavioral data without a legal basis. The Bartz v. Anthropic settlement put a price on unlicensed training data: $1.5B.
+- *Agents can pay.* The x402 Foundation launched under the Linux Foundation in 2026, with Visa, Mastercard, Google and Stripe as members. XRPL activated Credentials, MPT and TokenEscrow between 2025 and 2026.
+
+**The gap:** none of the US, EU, UK, Korea or Japan has a rail that lets a person consent per study, per round, and get paid directly. AgentRail is that rail. A study's agent finds the missing person-weeks. The participant's agent consents to exactly what it will share. XRPL binds a consent hash, a revocable research licence (MPT with clawback) and an escrowed payment to every record. Settling a $20 weekly contribution costs $0.88 by card and about $0.0002 on XRPL.
+
+**Being honest about the evidence:** 37.8% of Americans would not share genetic data at any price (Briscoe 2020). Fewer than 15% trust health-tech companies with their data. Evidence that dynamic consent improves retention is still qualitative. Most x402 traffic is protocol signaling, and the 13.4M XRPL agentic payment count comes from third-party trackers. AgentRail starts from what buyers already pay for (filling missing person-weeks) rather than collecting supply first, which is where LunaDNA and similar ventures failed.
+
+| Market | Today | With AgentRail |
+|---|---|---|
+| Clinical and cohort research | Replacing one dropout costs ~$19.5k; 95% of top-journal RCTs have missing outcome data; data access takes a median of 80 days | Backfill a specific person-week for ~$20 (estimate), settled in seconds |
+| Pharma RWE | $0.5–5M/yr data subscriptions; linked longitudinal data is scarce | Consent hash and revocable licence on every record |
+| Health AI training and eval | 91 public licensing deals in total, most of them multi-year; physicians paid $120–300/hr | Person-week licences limited by DUO purpose codes |
+| Wearables | 611M devices shipped in 2025; ~2% of trials use wearables; remote studies retain participants a median of 5.5 days | People contribute the data their devices already collect; compensation adds ~22 days of retention |
+| People | $0 from intermediary deals; $25 per visit | Paid each round; own the licence; can stop or revoke at any time |
+
+Sources for every figure (derived and secondary figures are marked there): [docs/MARKET.md](docs/MARKET.md); earlier notes in [docs/MARKET_NOTES.md](docs/MARKET_NOTES.md).
+
+### Market detail
 
 **Data is licensed for a lot, but rarely.** The AI training dataset market grows from $3.2B (2025) to
 $16.3B (2033, 22.6% CAGR, as reported) ([Grand View Research](https://www.giikorea.co.kr/report/grvi2018158-ai-training-dataset-market-size-share-trends.html)),
@@ -154,15 +180,7 @@ weeks is too small for an 80-day agreement, and paying for it by card costs more
 ($0.30 fixed fee, [Stripe](https://stripe.com/nl/help/pricing)). So that contribution does not
 happen today, and studies over-recruit instead.
 
-**We drive the transaction cost toward zero.** The study's agent infers what is missing, each
-participant's agent consents per round, and XRPL settles with Escrow, MPT licences and Credentials
-in 3-5 seconds for under $0.0001. A $20 weekly contribution costs $0.88 to settle by card and about
-$0.00002 on XRPL (estimate at XRP $2). Agentic payments on XRPL already passed 13.5M transactions
-across 168 x402 merchants (as reported).
-
-**Revenue (estimate):** $20 per participant-week, 10% take rate, $12k per study per year.
-Year 3: 300 studies x 500 participants x 26 weeks = 3.9M settlements a year, $78M contributed value,
-$11.4M revenue, under 1% of the ~35k clinical trials started each year.
+**Revenue (estimate):** $20 per participant-week, 10% take rate and $12k per study per year. In year 3, 300 studies give 3.9M settlements, $78M of contributions and $11.4M of revenue. That is under 1% of the ~35k trials started each year. Card fees on that volume would be ~$3.4M; on XRPL they are ~$780.
 
 | Layer | Size | Source |
 |---|---|---|
@@ -189,15 +207,20 @@ Sources and the full model: [docs/MARKET.md](docs/MARKET.md).
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env                     # optional: OPENAI_API_KEY=... (never committed)
-python -m pytest -q                      # 111 tests on the mock ledger (25 attack tests)
+python -m pytest -q                      # 114 tests on the mock ledger (25 attack tests)
 python scripts/run_health_demo.py        # whole health study, mock ledger, JSON summary
 LEDGER=testnet python scripts/run_health_demo.py   # same on XRPL Testnet (faucet wallets)
 LEDGER=testnet python -m agentrail.scenario        # robot scene A, cohort round, failure scene
 uvicorn agentrail.web:app --reload       # API + dashboard at http://127.0.0.1:8000
 ```
 
-The dashboard signs in with the demo login (`POST /api/dev/login/{sub}`, localhost and dev mode
-only). Production settings: [docs/SECURITY.md](docs/SECURITY.md#7-production-mode).
+The participant app and researcher console pages are built separately on top of
+[docs/API.md](docs/API.md); `/participant` and `/console` return 404 until those pages are added.
+The dashboard at `/` shows the boundary tabs and the event log.
+
+Every API call needs a sign-in token. The dashboard signs in with the demo login
+(`POST /api/dev/login/{sub}`, localhost and dev mode only). Production settings:
+[docs/SECURITY.md](docs/SECURITY.md#7-production-mode).
 
 `.env`: `LLM_PROVIDER` (`openai` | `anthropic` | `replay` | `none`), `OPENAI_API_KEY`,
 `OPENAI_MODEL`, `XRPL_RPC_URL`, `PAYMENT_RAIL`, `LLM_SAY`. Testnet wallets come from the faucet
@@ -205,42 +228,61 @@ and are kept only in `wallets.local.json` (git-ignored).
 
 ## 10. Security design and limits
 
-Full design, production settings and the attack table: [docs/SECURITY.md](docs/SECURITY.md).
+**Ledger enforces, code verifies, the LLM only proposes.** Each control below names the layer that
+enforces it.
 
-- **Sign-in and access**: every API call needs a 15-minute token from a device-signed login
-  (Ed25519 challenge, no passwords). Roles: participant, researcher, approver, reviewer, operator.
-  One policy table decides every route; a route without a rule is denied. A participant reaches
-  only their own record, and no other role can act for them.
-- **Keys stay with their owners**: each round's escrow key and the pseudonym / date-shift secret
-  sit in the participant's keyring; the study's decryption key sits with the institution; the
-  service relays sealed bundles and cannot open them. Treasury keys sit on each approver's device.
-- **Co-sign**: the server prepares the exact XRPL transaction with a nonce and expiry; each approver
-  signs it on their own device; the server checks every signature and the signer list, then
-  submits. One person cannot release a budget, a signature cannot be reused, and one approval per
-  study plan stops repeated top-ups.
-- **State changes**: a withdrawn participant comes back only with a new consent signed on their
-  device; reviewers decide only under their own name; withdrawal deletes the sealed copies and
-  unreleased keys.
-- **Audit**: hash-chained event log with every state-changing call and its actor; chain check
-  endpoint; chain head anchored on the ledger every 5 minutes.
-- **HTTP**: strict request bodies, exact CORS origins, rate limits, security headers, secrets only
-  from env or secret files, secrets masked in logs. `AGENTRAIL_ENV=prod` requires the token secret
-  and turns the demo harness off.
-- **Tested by attack**: 25 tests reproduce the attacks (reading health data without sign-in,
-  one-person budget release, reactivating a withdrawn person, forged tokens, log tampering, ...).
-  On the code before this layer 23 of them failed; now all pass.
+| Threat | Control | Enforced by | Evidence |
+|---|---|---|---|
+| An agent raises its own budget | Study treasury: SignerList (PI + compliance, quorum 2), master key disabled. Each signer approves separately; one approval per spec | XRPL | `tefBAD_QUORUM` single signer; co-signed top-up tx |
+| An agent spends beyond what the owner signed | Owner-signed delegation (Verifiable Intent L1 -> L2 -> L3, ES256). Checked right before every payment and escrow: per-payment max, total, purpose, payee, expiry. The signed ceiling never rises by itself | code | `tests/test_mandate.py` |
+| Paying twice | Order key is idempotent; signed blob and hash stored before submit; lost response -> look up by hash and resubmit the same blob; validated ledger checked for destination, amount, InvoiceID and Condition; sequence re-read after any autofilled tx | code + XRPL | `test_lost_response_*`, recovery tests |
+| Data without payment, or payment without data | Bundle sealed to the study's key, then locked with K; escrow condition = SHA-256(K); the participant's agent publishes K in EscrowFinish to get paid, and the study reads K from the ledger | XRPL | EscrowCreate/Finish tx |
+| Delivery after consent changes | Before K is published, code re-checks revocation, the study's licence MPT, the verified-organization and ethics credentials on the ledger, the prohibited-purpose list and the consented period. A revoke is final; only a newly signed consent reopens supply | code + XRPL | `test_clawed_back_licence_alone_stops_the_key`, `test_compliance_runs_again_before_delivery`, `test_revoked_consent_cannot_be_flipped_back` |
+| Onward transfer of the licence | MPT supply 1, RequireAuth, no CanTransfer, CanClawback | XRPL | `tecNO_AUTH` tx, Clawback tx |
+| Unverified organizations | VERIFIED_ORG credential; DepositAuth + DepositPreauth by credential on the participant's account | XRPL | `tecNO_PERMISSION` tx |
+| Linking a person across studies | Per-study pseudonym and date shift = HMAC with a secret only the person's agent holds; the researcher console shows pseudonyms only | code | `test_pseudonym_differs_per_study`, `test_pseudonym_needs_the_vault_secret` |
+| Re-identification by combination | Two or more quasi-identifiers are never released together | code | `test_quasi_identifier_combination_is_never_released` |
+| Someone acting for another person | Device-signed login (Ed25519 challenge) gives a 15-minute role token (participant, researcher, approver, reviewer, operator). One policy table decides every route, default deny; a participant reaches only their own record and no other role can act for them | code | `test_participant_cannot_read_or_act_for_someone_else`, `test_other_roles_cannot_act_for_a_participant` |
+| Reading health data without sign-in | Every `/api` route needs a token; sealed bundles only for the study team | code | `test_bundle_with_health_data_is_not_readable_without_the_study_team` |
+| One person releasing the budget | The server prepares the exact XRPL tx with nonce and expiry; each approver signs it on their own device; signatures checked against the SignerList, one per approver, not reusable | code + XRPL | `test_one_person_cannot_release_the_budget`, `test_signature_cannot_be_replayed_on_another_approval_or_after_expiry` |
+| Edited or deleted records | Hash-chained event log with every state change and its actor; chain head anchored on the ledger every 5 minutes | code + XRPL | `test_edited_or_deleted_log_rows_are_detected` |
+| Cross-site requests, abuse | Exact CORS origins only, rate limits, strict request bodies, security headers, secrets masked in logs | code | `test_other_origins_get_no_cors_grant`, `test_login_is_rate_limited`, `test_request_bodies_are_strict` |
+| LLM manipulation | Proposals are JSON, schema-checked, stored with hashes, and recomputed from the coverage table. Budget, purpose and sensitive fields are clamped to the owner's limits. Licence readings are ANDed with the seller's own terms. The LLM never sees record values, and its output never widens money or permission | code | `test_hostile_llm_can_only_narrow`, `test_hostile_llm_cannot_widen_the_study` |
+| Secrets in the repository | `.env`, seeds, `wallets.local.json` and `.keystore/` are git-ignored (0600); the history has no keys; secrets only from env or secret files; `AGENTRAIL_ENV=prod` requires the token secret and closes the demo harness | repo + code | `test_prod_mode_closes_the_demo_harness` |
 
-Data and scope: all people, institutions, records and amounts are **synthetic**; XRPL Testnet
-only. Raw records never go to an LLM or on-chain. Re-identification risk is reduced
-(minimization, per-study HMAC pseudonyms and private date offsets, quasi-identifier rule), not
-eliminated; delivered rounds cannot be recalled, and the person is told so before approving. An
-unreadable consent store holds the round. Not a medical device; no diagnosis.
+**What goes on-chain:** order id, bundle hash, consent or terms hash, and the licence MPT with the
+study as a hash. No health values, names, study topics or consent text.
 
-**Not done yet** (needed before real participants): keys in KMS / HSM (local key files today, the
-interface is in place); an external penetration test; personal agents running on the person's
-device (simulated in the service process today); enrolment from the identity provider; shared
-rate-limit and token deny-list store for more than one instance; payout review keys moved to the
-keystore; a live Testnet rerun of the co-sign path.
+**Who holds which key:** each round's escrow key K and the pseudonym / date-shift secret sit in the
+participant's keyring; the study's box key sits with the institution; the service relays sealed
+bundles and holds neither (`test_engine_and_ledger_hold_no_private_keys_of_other_parties`). Each
+treasury signer key sits on that approver's device. Withdrawal deletes the sealed copies and the
+keys of rounds not yet released.
+
+**Tested by attack:** `tests/test_security.py` reproduces 25 attacks. On the code before this layer
+23 of them failed (most because the attack worked); now all pass. Design, production settings and
+the full table: [docs/SECURITY.md](docs/SECURITY.md).
+
+### Limits of this demo (read before judging)
+
+- **Keys are separated by owner, but not yet in hardware.** Each party has its own keystore
+  (memory, or 0600 files); the KMS / HSM binding is an interface only. The 50 personal agents run
+  in the service process as a simulation; in production they run on the person's phone, and the
+  participant's XRPL wallet key moves there too.
+- **Sign-in identities are enrolled by the server at start.** In production they come from the
+  UniQdata (participant) and UniQLab (researcher) accounts and device registration.
+- **No external penetration test yet.** Rate limits and the token deny list are in memory for one
+  instance; several instances need a shared store. The dashboard needs `'unsafe-inline'` in the
+  CSP. Payout review keys are still stored in the database.
+- **Destruction on withdrawal** removes the study's person-level copies held by this demo. K stays
+  public on the ledger for rounds already delivered; without the bundle copy it opens nothing.
+  Delivered rounds cannot be recalled, and the person is told so before approving.
+- **On-chain payments are visible.** Amounts and addresses are public, so participation can be
+  inferred from the ledger. Production uses per-study addresses or a payout service.
+- **The LLM summary on the request card is labelled as an AI summary.** The binding terms are the
+  DUO codes, items, weeks and recipient listed under it.
+- All data, people and institutions are synthetic. XRPL Testnet only. Raw records never go to an
+  LLM or on-chain; an unreadable consent store holds the round. Not a medical device; no diagnosis.
 
 ## 11. Legal basis (summary)
 
@@ -252,8 +294,27 @@ keystore; a live Testnet rerun of the co-sign path.
 - **Three withdrawal options**: decline this round / stop future contributions / withdraw data-use consent (PIPA Art. 37). Withdrawal immediately blocks sessions and key release, and asks the institution to destroy individual-level data and confirm; the demo records the request and the confirmation as events. Aggregate statistics already produced remain.
 - **International transfer**: access from abroad counts as transfer, so we disclose countries, recipients, purpose, fields and retention, and ask for separate consent. Each person's records stay in their own country.
 - **IRB**: approval and exemption are decided by the IRB (Bioethics Act Art. 15; 45 CFR 46.112). An XRPL Credential only shows the issuer's attestation.
-- **Participation compensation**: paid per round by the institution through Escrow and never taken back after withdrawal; Clawback applies only to the licence token. 20% of each round is held for a short review and paid by default; it is withheld only when a named reviewer confirms fraud after notice and a chance to respond. Declining or withdrawing never affects future requests, priority or compensation. The platform holds no keys or funds.
+- **Participation compensation**: non-custodial; the institution signs. Paid per round by the institution through Escrow and never taken back after withdrawal; Clawback applies only to the licence token. 20% of each round is held for a short review and paid by default; it is withheld only when a named reviewer confirms fraud after notice and a chance to respond. Declining or withdrawing never affects future requests, priority or compensation. The platform holds no keys or funds.
 - **Records**: access logs are kept 2 years and permission-change logs 3 years; no personal data, study names or conditions go on the ledger.
+
+### Legal requirements -> product rules
+
+We reflected legal requirements in the design; we do not claim compliance. Per FDA guidance (2018), "any credit for
+payment should accrue as the study progresses and not be contingent upon the subject completing the
+entire study": hence per-round escrows and a small, separate completion bonus. Full table in English and
+Korean, with the payment and penalty rules: [docs/legal/README.md](docs/legal/README.md).
+
+| What the law requires | The product rule we built | Basis |
+|---|---|---|
+| Separate consent for health data, kept apart from other consents | Separate consents for sensitive data, third-party provision and international transfer, each hashed and tied to the signature | Korea PIPA Arts. 22, 23; 45 CFR 46.116 |
+| No use beyond the consented scope | Code checks recipient, purpose, items and period on every round and again before the key is published; the LLM cannot widen it | PIPA Art. 17 |
+| Researchers must not identify the person; no other studies | Per-study participant number and minimum items only; the link stays with the person's agent; risky item combinations refused; consent states that data, even with identifiers removed, will not be used for other studies | PIPA Arts. 28-2 to 28-5; 45 CFR 46.116(b)(9); HIPAA 164.514 (reference) |
+| Withdraw at any time, without penalty | Three withdrawal options; key release stops at once; the institution is asked to destroy person-level copies and its confirmation is recorded (same rule in every country; only aggregate statistics remain); withdrawal history is never an input to pay or priority (tested) | PIPA Art. 37; Bioethics Act Art. 16; 45 CFR 46.116(b)(8) |
+| Access from abroad is an international transfer | Countries, recipients, purpose, items and retention disclosed; separate consent; records stay in the person's country | PIPA Art. 28-8 |
+| The IRB decides approval | Agents never create approval; an XRPL Credential only shows the issuer's attestation | Bioethics Act Art. 15; 45 CFR 46.112 |
+| Compensation accrues with participation, without undue inducement | Per-round escrow: 80% on contribution, 20% after a short review, paid by default; paid money is never taken back on chain | Bioethics Act Art. 16(1)5; FDA 2018 payment guidance |
+| Holding or moving others' funds needs a licence | Non-custodial: the platform only drafts transactions; the institution's wallet signs and pays; the platform never receives or sends funds | Korea AML Act (VASP); FinCEN FIN-2019-G001 |
+| No personal data on a public ledger | Only payment and licence state and hashes on chain; no health values, study names or conditions | PIPC blockchain guideline (2026) |
 
 ## 12. Where this goes (production targets)
 
@@ -270,8 +331,8 @@ turns engine results into the records those products already store, without call
 |---|---|---|
 | Separate consents: third-party provision, sensitive data | Consent lanes `research_participation`, `sensitive_health_collection` | International transfer has no UniQdata lane: a granted one blocks the hand-off |
 | Revoke | New `privacy_epoch`; queued commands from older epochs superseded; withdrawal deletion audit | Pause holds new commands only; declining a round touches nothing |
-| Rewards after revoke | Paid and pending research rewards are kept | Rounds not delivered at revoke are refunded to the study by the escrow, so they map to `not_earned`, never to kept pending rewards |
-| EscrowFinish of a delivered round | One `payout_receipt` per payout intent | `receipt_ref_hash` = SHA-256 of the XRPL tx hash; amounts in drops (`amount_minor`, currency `XRP`) |
+| Rewards after revoke | Paid and pending research rewards are kept | Rounds not delivered at revoke are refunded to the study by the escrow, so they map to `not_earned`, never to kept pending rewards. The held 20% of delivered rounds maps to `pending` (paid when review ends); the completion bonus returns, so `not_earned`. An unknown status is reported as unmapped, never as earned |
+| EscrowFinish of a delivered round, of a released held part or bonus | One `payout_receipt` per payout intent | `receipt_ref_hash` = SHA-256 of the XRPL tx hash; amounts in drops (`amount_minor`, currency `XRP`) |
 
 More: [docs/API.md](docs/API.md), [docs/PLAN.md](docs/PLAN.md), [docs/DESIGN.md](docs/DESIGN.md),
 [docs/DEMO_SCOPE.md](docs/DEMO_SCOPE.md).

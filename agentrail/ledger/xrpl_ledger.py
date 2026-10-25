@@ -19,6 +19,20 @@ from xrpl.wallet import Wallet, generate_faucet_wallet
 
 from .base import Ledger, LostResponse, Prepared, TxStatus
 
+_LEDGERS: list = []      # live XrplLedger instances, so out-of-band submits can resync their sequence cache
+
+
+def submit_and_wait(tx, client, wallet=None, **kw):
+    """xrpl-py's submit_and_wait, then forget the local sequence of the sending account: the tx was
+    autofilled from the ledger, so a cached counter for that account is now behind."""
+    from xrpl.transaction import submit_and_wait as _saw
+    try:
+        return _saw(tx, client, wallet, **kw)
+    finally:
+        for led in _LEDGERS:
+            with led._seq_lock:
+                led._seq.pop(tx.account, None)
+
 TESTNET_RPC = os.environ.get("XRPL_RPC_URL", "https://s.altnet.rippletest.net:51234/")
 WALLET_FILE = os.environ.get("AGENTRAIL_WALLETS", "wallets.local.json")
 LSF_DISABLE_MASTER = 0x00100000
@@ -48,6 +62,7 @@ class XrplLedger(Ledger):
         self.wallets: dict[str, Wallet] = {}
         self._seq: dict[str, int] = {}
         self._seq_lock = threading.Lock()
+        _LEDGERS.append(self)
         self._labels: dict[str, str] = {}
         self._rules: dict[str, list[tuple[str, str]]] = {}  # destination -> [(issuer, cred type hex)]
         if os.path.exists(wallet_file):

@@ -129,7 +129,7 @@ simulated device and returns a token; the dashboard uses it, or a token passed a
 
 `tests/test_security.py` reproduces each attack. Run against the code before this layer
 (`765c374`), the 23 attack tests failed, most because the attack worked; with this layer all pass
-(full suite: 111 passed).
+(full suite: 114 passed).
 
 | Attack | Before | Now |
 |---|---|---|

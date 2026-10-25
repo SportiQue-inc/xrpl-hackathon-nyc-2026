@@ -15,6 +15,13 @@ explorer. All data synthetic. Narration in English; on-screen captions short.
 | 2:15-2:30 | Phone: revoke | "P-017 withdraws. The study's licence token is clawed back, the unreleased week is never released, and its escrow returns to the lab. Rewards already paid stay with P-017." | Clawback, EscrowCancel links; row greys out |
 | 2:30-2:40 | Robot scene, closing line | "With a lighter consent layer the same engine runs robot data between companies on Testnet. The LLM proposes, code verifies, the ledger enforces." | scene A payments |
 
+60-second pitch version (from docs/MARKET.md; derived figures marked there)
+1. 0-10 s: "When Roche bought Flatiron, one oncology patient's record was valued at about $1,000. The person it described got nothing. 23andMe's 15 million customers were sold off at about $20 each, and 1.9 million asked to be deleted."
+2. 10-22 s: "In 2026 four things changed at once. AI ran out of public data, and OpenAI and Anthropic turned to records patients connect themselves. The US, the EU and Korea gave people the right to pull their own records. Data without consent now draws FTC orders and record fines. And agents got wallets."
+3. 22-34 s: "Yet no country has a rail where a person consents per study and is paid directly. Studies cannot fill missing weeks: replacing one dropout costs close to $20,000, and remote participants leave after 5.5 days."
+4. 34-48 s: "In AgentRail the study's agent finds the missing person-weeks and asks that person's agent. It contributes only what the person agreed to, and XRPL binds a consent hash, a revocable licence and an escrowed payment to every record. A $20 weekly contribution costs 88 cents by card and about $0.0002 on XRPL."
+5. 48-60 s: "In year 3, 300 studies settle 3.9 million contributions a year for $11.4M revenue. We solved consent and withdrawal first on the hardest data, one person's longitudinal health record. The same engine runs AI training data."
+
 Notes for recording
 - Run `scripts/run_health_demo.py` once before recording so LLM answers are recorded; recording
   then uses live calls with the recorded answers as fallback.

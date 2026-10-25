@@ -9,7 +9,9 @@ Where the two models differ, the mapping is explicit and fails closed:
   transfer has no UniQdata lane, so a granted one blocks the hand-off instead of being dropped.
 - withdrawal: UniQdata keeps paid and pending research rewards after a revoke. The engine refunds
   rounds that were not delivered when the person revoked, so those are reported as not earned,
-  never as retained pending rewards.
+  never as retained pending rewards. The held 20% of delivered rounds stays the person's and maps
+  to pending (paid when review ends); the completion bonus goes back to the study.
+- an engine status this port does not know is reported as unmapped, never as earned.
 """
 from __future__ import annotations
 
@@ -29,6 +31,14 @@ EARN_STATUS = {
     "escrowed": "not_earned",         # held round, withheld at revoke; escrow goes back to the study
     "withheld": "not_earned",
     "refunded": "not_earned",
+}
+
+# held part of a round / completion bonus (engine holdbacks) -> UniQdata research earn status
+HOLDBACK_EARN_STATUS = {
+    ("round", "held"): "pending", ("round", "suspected"): "pending", ("round", "released"): "paid",
+    ("round", "withheld"): "not_earned", ("round", "returning"): "not_earned", ("round", "returned"): "not_earned",
+    ("bonus", "held"): "pending", ("bonus", "earned"): "pending", ("bonus", "released"): "paid",
+    ("bonus", "returning"): "not_earned", ("bonus", "returned"): "not_earned",
 }
 
 
@@ -74,9 +84,14 @@ def withdrawal_record(revoke: dict, project_id: str, privacy_epoch: int) -> dict
     (withdraw_enrollment), the privacy boundary, and what happens to each round's reward."""
     pseudonym = revoke["person"]["study_pseudonym"]
     d = revoke["deletion"]
-    rewards = [{"order_id": c["order_id"], "weeks": c["weeks"], "amount_minor": round(c["amount_xrp"] * XRP),
-                "engine_status": c["status"], "earn_status": EARN_STATUS[c["status"]]}
+    rewards = [{"ref": f"agentrail:order:{c['order_id']}", "part": "round", "weeks": c["weeks"],
+                "amount_minor": round(c["amount_xrp"] * XRP), "engine_status": c["status"],
+                "earn_status": EARN_STATUS.get(c["status"], "unmapped")}
                for c in revoke["contributions"]]
+    rewards += [{"ref": f"agentrail:holdback:{h['id']}", "part": f"{h['kind']}_held", "weeks": None,
+                 "amount_minor": round(h["amount_xrp"] * XRP), "engine_status": h["status"],
+                 "earn_status": HOLDBACK_EARN_STATUS.get((h["kind"], h["status"]), "unmapped")}
+                for h in (revoke.get("payout") or {}).get("holdbacks", [])]
     return {
         "participant_number": pseudonym,
         "boundary": privacy_boundary("revoke", project_id, pseudonym, privacy_epoch),
@@ -86,16 +101,26 @@ def withdrawal_record(revoke: dict, project_id: str, privacy_epoch: int) -> dict
                                                "person_cells": d["cells_destroyed"]},
                            "confirmation_hash": d["confirmation_hash"]},
         "rewards": rewards,
-        "research_rewards_retained": sum(r["earn_status"] == "paid" for r in rewards),
+        "research_rewards_retained": sum(r["earn_status"] in ("paid", "pending") for r in rewards),
+        "unmapped": [r["ref"] for r in rewards if r["earn_status"] == "unmapped"],
         "refund_txs": [r["tx"] for r in revoke["refunds"]],
     }
 
 
-def payout_receipts(contributions: list[dict], ledger: str) -> list[dict]:
-    """UniQLab payout_receipt rows, one per delivered round. The institution pays on XRPL, so
-    SportiQue only records the proof: receipt_ref_hash is the SHA-256 of the EscrowFinish tx hash,
-    and the intent ref is the engine order, which makes reconciliation one receipt per intent."""
+def payout_receipts(contributions: list[dict], ledger: str, holdbacks: list[dict] = ()) -> list[dict]:
+    """UniQLab payout_receipt rows: one per delivered round (80% part) and one per released held
+    part or bonus. The institution pays on XRPL, so SportiQue only records the proof:
+    receipt_ref_hash is the SHA-256 of the EscrowFinish tx hash, and the intent ref is the engine
+    order or holdback, which makes reconciliation one receipt per intent."""
     out = []
+    for h in holdbacks:
+        tx = (h.get("release") or {}).get("tx")
+        if h["status"] != "released" or not tx:
+            continue
+        out.append({"payout_intent_ref": f"agentrail:holdback:{h['id']}", "receipt_ref_hash": sha256_hex(tx),
+                    "amount_minor": round(h["amount_xrp"] * XRP), "currency": "XRP", "status": "ingested",
+                    "executed_by_ref": f"xrpl:{ledger}:EscrowFinish",
+                    "metadata": {"part": f"{h['kind']}_held", "explorer_url": h["release"].get("url")}})
     for c in contributions:
         tx = (c.get("finish") or {}).get("tx")
         if c["status"] != "delivered" or not tx:

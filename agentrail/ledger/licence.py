@@ -15,9 +15,9 @@ from xrpl.models.amounts import MPTAmount
 from xrpl.models.requests import GenericRequest
 from xrpl.models.transactions import (Clawback, MPTokenAuthorize, MPTokenIssuanceCreate,
                                       MPTokenIssuanceCreateFlag as F, Payment)
-from xrpl.transaction import submit_and_wait
 
 from .xrpl_extras import _check, submit_capture
+from .xrpl_ledger import submit_and_wait  # resyncs the local sequence cache
 
 LICENCE_FLAGS = F.TF_MPT_REQUIRE_AUTH | F.TF_MPT_CAN_CLAWBACK
 

@@ -20,8 +20,9 @@ from xrpl.models.requests import AccountInfo, AccountTx, GenericRequest, SubmitO
 from xrpl.models.transactions import (AccountSet, AccountSetAsfFlag, CredentialAccept, CredentialCreate,
                                       DepositPreauth, Payment, SignerEntry, SignerListSet)
 from xrpl.models.transactions.deposit_preauth import Credential
-from xrpl.transaction import autofill, autofill_and_sign, multisign, sign, submit_and_wait
+from xrpl.transaction import autofill, autofill_and_sign, multisign, sign
 from xrpl.wallet import Wallet
+from .xrpl_ledger import submit_and_wait  # resyncs the local sequence cache
 
 LSF_ACCEPTED = 0x00010000
 LSF_DISABLE_MASTER = 0x00100000
@@ -46,6 +47,10 @@ def submit_capture(client, tx, wallet, timeout: float = 90.0) -> tuple[str, str,
     Returns (hash, result code, tx result). tem/tef/tel never reach a ledger."""
     signed = autofill_and_sign(tx, client, wallet)
     h = signed.get_hash()
+    from .xrpl_ledger import _LEDGERS
+    for led in _LEDGERS:                       # autofilled from the ledger: drop any cached counter
+        with led._seq_lock:
+            led._seq.pop(tx.account, None)
     r = client.request(SubmitOnly(tx_blob=encode(signed.to_xrpl()))).result
     prelim = r.get("engine_result", "")
     if prelim.startswith(("tem", "tef", "tel")):
