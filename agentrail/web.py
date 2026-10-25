@@ -418,6 +418,33 @@ def contract_round(providers: int = Query(default=14, ge=2, le=40), target: int 
         return onledger.run(world(), providers, target, model=_forecast_model())
 
 
+def _market_view(act: int) -> dict:
+    r = _state.get(f"market{act}")
+    if r is None:
+        return {"act": act, "status": "not run"}
+    ex = r["exchange"]
+    out = {k: v for k, v in r.items() if k not in ("exchange", "needs")}
+    out["activity"] = ex.activity()
+    out["needs"] = [{k: v for k, v in n.items() if k != "fills"} for n in r["needs"]]
+    out["pending_for_manual"] = [{k: v for k, v in p.items() if k not in ("trade", "offer")} for p in ex.pending]
+    return json.loads(json.dumps(out, default=str))
+
+
+@app.post("/api/market/run")
+def market_run(act: int = Query(default=1, ge=1, le=2)):
+    """Act 1: the 50 accounts' agents trade among themselves. Act 2: the same pipeline with the
+    healthcare sensitivity policy plugged into each participant's agent."""
+    from .market import acts
+    with _lock:
+        _state[f"market{act}"] = (acts.act1 if act == 1 else acts.act2)()
+        return _market_view(act)
+
+
+@app.get("/api/market/activity")
+def market_activity(act: int = Query(default=1, ge=1, le=2)):
+    return _market_view(act)
+
+
 @app.get("/api/catalog")
 def catalog():
     """Every column with its tier, data use codes, retention and deletion rule; plus the approval bottleneck."""

@@ -41,7 +41,7 @@ class Api:
     def __init__(self, base):
         self.base, self.tokens = base, {}
 
-    def call(self, method, path, body=None, who=None, allow=()):
+    def call(self, method, path, body=None, who=None, allow=(), _retried=False):
         h = {"Content-Type": "application/json"}
         if who:
             if who not in self.tokens:
@@ -53,6 +53,9 @@ class Api:
             with urllib.request.urlopen(req, timeout=3600) as r:
                 return json.loads(r.read() or b"null")
         except urllib.error.HTTPError as e:
+            if e.code == 401 and who and not _retried:   # a Testnet run outlives the 15-minute token
+                self.tokens.pop(who, None)
+                return self.call(method, path, body, who, allow, _retried=True)
             if e.code in allow:
                 return {"status": e.code, "detail": json.loads(e.read() or b"{}").get("detail")}
             sys.exit(f"{method} {path}: HTTP {e.code} {e.read()[:300]!r}")
