@@ -287,7 +287,7 @@ default the Testnet RLUSD issuer). The study view's `settlement` shows `stableco
 `GET /clinic/export?person=P-017&items=blood_pressure.daily&nonce=…` is the clinic's own service (not
 behind the API sign-in). Without a payment: **402** with body and `PAYMENT-REQUIRED` header (base64) =
 `{"x402Version": 2, "accepts": [{"scheme": "exact", "network": "xrpl:1", "amount": "100000", "asset": "XRP",
-"payTo": "r…", "extra": {"invoiceId": "…", "sourceTag": 804681468}}]}`. Retry with `PAYMENT-SIGNATURE`
+"payTo": "r…", "extra": {"invoiceId": "…", "sourceTag": 2610250016}}]}` (the team SourceTag, `XRPL_SOURCE_TAG`). Retry with `PAYMENT-SIGNATURE`
 (base64 PaymentPayload with `payload.signedTxBlob`): **200** with `{"export": {...}, "receipt": {"success",
 "transaction", "settledBy"}}` and a `PAYMENT-RESPONSE` header. Errors come back as 402 with `error`:
 `payment_requirements_mismatch`, `invoice_not_bound`, `payment_already_used`, `not_settled:<code>`.

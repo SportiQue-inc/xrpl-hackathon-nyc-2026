@@ -121,6 +121,7 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/api/contracts/{cid}/console"): Rule((R, O), "contract"),
     ("POST", "/api/contracts/{cid}/rounds"): Rule((R,), "contract"),
     ("POST", "/api/contracts/{cid}/close"): Rule((R,), "contract"),
+    ("POST", "/api/contracts/{cid}/payments/retry"): Rule((R,), "contract"),
     ("GET", "/api/p/{pid}/contracts"): SELF,
     ("POST", "/api/p/{pid}/contracts/records"): SELF,
     ("POST", "/api/p/{pid}/contracts/{cid}/requests/{rid}/approve"): SELF,

@@ -1,0 +1,69 @@
+"""Settings, all from the environment (see .env.example)."""
+from __future__ import annotations
+
+import os
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _load_dotenv():
+    for path in (os.path.join(ROOT, ".env"), os.path.join(ROOT, "..", "..", "..", ".env")):
+        if os.path.exists(path):
+            for line in open(path):
+                line = line.split("#", 1)[0].strip()
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip())
+
+
+_load_dotenv()
+
+DATA_DIR = os.environ.get("VM_DATA_DIR", ROOT)                  # where the DB, wallets and keys live (a disk on a host)
+os.makedirs(DATA_DIR, exist_ok=True)
+DB_PATH = os.environ.get("VM_DB", os.path.join(DATA_DIR, "vaultmarket.db"))
+LEDGER = os.environ.get("VM_LEDGER", "testnet")            # testnet | devnet | mock (tests only; the UI says so)
+WALLETS = os.environ.get("VM_WALLETS", os.path.join(DATA_DIR, "wallets.local.json"))
+AGENTS = int(os.environ.get("VM_AGENTS", "50"))
+EXTRA_PEOPLE = int(os.environ.get("VM_EXTRA_PEOPLE", "0"))     # extra simulated members added on start, up to 40, kept once added
+TICK_SECONDS = float(os.environ.get("VM_TICK_SECONDS", "30"))   # one negotiation round per tick
+# Settlement asset. USD: a test USD token (IOU) on the ledger, issued by this application, settled by token
+# escrow; XRP: the fallback. Amounts are kept in millionths of the asset (drops for XRP).
+ASSET = os.environ.get("VM_ASSET", "USD").upper()
+# AP4M (Mastercard) rail: deals pay in RLUSD on XRPL EVM Testnet through ap4m/rail-server.mjs (AP4M_RAIL_URL).
+# Its budget is 20 RLUSD in total and 0.10 per payment, so prices default to 1 unit = 0.005 RLUSD in this mode:
+# the data types' list prices (5-12 units) become 0.025-0.06 RLUSD and a seller's price is capped at 20 units.
+AP4M = os.environ.get("VM_AP4M", "0") == "1"
+AP4M_BOT_PER_HOUR = int(os.environ.get("VM_AP4M_BOT_PER_HOUR", "6"))   # simulated-agent deals on AP4M per hour; members always
+USD_PER_UNIT = float(os.environ.get("VM_USD_PER_UNIT", "0.005" if AP4M else "1"))         # 1 price unit = 1 test USD, all display values use the actual test asset
+# How the token is shown to people. The ledger key stays "test USD"; swap the name and footnote here
+# (or in env) when the market's own registered token replaces the stand-in.
+ASSET_LABEL = os.environ.get("VM_ASSET_LABEL", "RLUSD")
+ASSET_FOOTNOTE = os.environ.get("VM_ASSET_FOOTNOTE", "Testnet: test USD stands in for RLUSD.")
+XRP_DROPS_PER_UNIT = int(os.environ.get("VM_DROPS_PER_UNIT", "10000"))  # fallback: 1 price unit = 0.01 XRP
+MICRO_PER_UNIT = int(USD_PER_UNIT * 1_000_000) if ASSET == "USD" else XRP_DROPS_PER_UNIT
+DROPS_PER_XRP_UNIT = MICRO_PER_UNIT    # older name, same meaning: millionths of the asset per price unit
+K_MIN = 1
+
+LLM_PROVIDER = os.environ.get("VM_LLM_PROVIDER") or os.environ.get("LLM_PROVIDER") or (
+    "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "openai" if os.environ.get("OPENAI_API_KEY") else "none")
+ANTHROPIC_MODEL = os.environ.get("VM_ANTHROPIC_MODEL", "claude-haiku-5-5")
+# one model, or a comma list tried in order: a model that answers 429 rests until its limit resets.
+# On OpenAI's lowest tier every model has its own 50 requests/day, so a chain of seven gives about 350.
+_SMALL = ["gpt-5-nano", "gpt-4o-mini", "gpt-5.4-nano", "gpt-5-mini", "gpt-5.4-mini", "gpt-4.1-mini", "o4-mini"]
+_chosen = [m.strip() for m in (os.environ.get("VM_OPENAI_MODEL") or os.environ.get("OPENAI_MODEL") or "").split(",") if m.strip()]
+OPENAI_MODELS = _chosen + [m for m in _SMALL if m not in _chosen]   # the chosen model first, the small ones behind it
+OPENAI_MODEL = OPENAI_MODELS[0]
+OPENAI_REASONING = os.environ.get("VM_OPENAI_REASONING", "minimal")   # reasoning models only; short turns don't need more
+LLM_RPM = int(os.environ.get("VM_LLM_RPM", "4"))                 # calls per minute, all agents together
+LLM_DAILY_CALLS = int(os.environ.get("VM_LLM_DAILY_CALLS", "320"))   # spread evenly over the day (llm.free_slots)
+
+# Membership. VM_PUBLIC=1 when the site is reachable from the internet: the demo accounts become
+# read-only and only signed-in members act, each on their own account.
+PUBLIC = os.environ.get("VM_PUBLIC", "0") == "1"
+DEMO_CHAT_DAILY = int(os.environ.get("VM_DEMO_CHAT_DAILY", "200"))   # the shared demo vault, all visitors together
+CHAT_RESERVE = int(os.environ.get("VM_CHAT_RESERVE", "150"))    # extra model calls a day kept for owner chat
+CHAT_DAILY = int(os.environ.get("VM_CHAT_DAILY", "30"))         # agent chat messages per member per day
+SIGNUPS_PER_HOUR = int(os.environ.get("VM_SIGNUPS_PER_HOUR", "5"))  # per IP address
+
+# Read-only engine demonstration, linked from the marketplace navigation.
+ENGINE_URL = os.environ.get("VM_ENGINE_URL", "https://agentrail-try-production.up.railway.app/try")

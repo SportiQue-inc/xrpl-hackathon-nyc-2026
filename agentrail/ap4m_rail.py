@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 
 PER_PAYMENT_CAP_MICRO = 100_000          # 0.10 RLUSD
@@ -26,6 +27,12 @@ def _post(path: str, body: dict, timeout: float) -> dict:
     req = urllib.request.Request(_url().rstrip("/") + path, data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json",
                                           "Authorization": f"Bearer {os.environ.get('AP4M_RAIL_TOKEN', '')}"})
+    with urllib.request.urlopen(req, timeout=timeout) as res:
+        return json.loads(res.read())
+
+
+def _get(path: str, timeout: float) -> dict:
+    req = urllib.request.Request(_url().rstrip("/") + path, headers={"Authorization": f"Bearer {os.environ.get('AP4M_RAIL_TOKEN', '')}"})
     with urllib.request.urlopen(req, timeout=timeout) as res:
         return json.loads(res.read())
 
@@ -53,3 +60,14 @@ def pay(ref: str, amount_micro: int, memo: dict | None = None, content: dict | N
             return {"ok": False, "ref": ref, "reason": f"rail HTTP {e.code}", "retry": True}
     except (OSError, ValueError) as e:   # timeout or rail down: the rail keeps the job pending; retry the same ref
         return {"ok": False, "ref": ref, "reason": f"rail unreachable: {type(e).__name__}", "retry": True}
+
+
+def lookup(ref: str, timeout: float = 10.0) -> dict | None:
+    """The rail's stored result for `ref`. The rail settles paid claims in the background, so a payment that came
+    back without receipt_url gets settlement_tx, payout_tx and receipt_url here a minute or two later."""
+    if not configured():
+        return None
+    try:
+        return _get("/pay/" + urllib.parse.quote(ref, safe=""), timeout)
+    except (OSError, ValueError):
+        return None

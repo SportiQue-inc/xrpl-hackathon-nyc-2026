@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assets · Data Vault Market</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/static/ui.css">
+<style>
+  [hidden] { display:none !important; }
+  body { height:auto; min-height:100vh; }
+  .assets-page { width:min(1120px,100%); margin:0 auto; padding:32px 24px 48px; display:grid; gap:24px; }
+  .assets-page h1 { font-size:26px; }.assets-page h2 { font-size:16px; letter-spacing:0; text-transform:none; color:var(--ink); }
+  .assets-page header { display:flex; justify-content:space-between; gap:16px; align-items:start; flex-wrap:wrap; }
+  .assets-page button,.assets-page input,.assets-page select { min-height:44px; }
+  .asset-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+  .asset-summary .card { padding:18px; gap:10px; align-content:start; }
+  .asset-summary h2 { font-size:13px; color:var(--muted); }.asset-summary strong { font-size:22px; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+  .asset-total { display:grid; gap:5px; font-size:17px; font-variant-numeric:tabular-nums; }
+  .asset-details { display:grid; grid-template-columns:1fr 1fr; gap:16px; }.asset-details .card { padding:20px; gap:12px; }
+  #budgetForm { display:grid; gap:10px; }#budgetForm input { width:100%; }.budget-controls { display:flex; gap:8px; align-items:center; }.budget-controls button { white-space:nowrap; flex-shrink:0; }
+  .asset-address { overflow-wrap:anywhere; }.asset-history { display:grid; gap:12px; }.asset-history header { align-items:center; }
+  .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; }
+  table { width:100%; border-collapse:collapse; text-align:left; font-size:13px; }th,td { padding:14px 16px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-size:12px; font-weight:500; background:var(--side); }tbody tr:last-child td { border-bottom:0; }
+  .asset-amount { white-space:nowrap; text-align:right; font-variant-numeric:tabular-nums; }.asset-time { white-space:nowrap; color:var(--muted); }
+  #portfolio { display:grid; gap:24px; }
+  @media(max-width:800px) { .asset-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }.asset-details { grid-template-columns:1fr; } }
+  @media(max-width:480px) { .assets-page { padding:24px 14px; }.asset-summary { grid-template-columns:1fr; }th,td { padding:12px; } }
+</style>
+</head><body>
+<div class="top">
+  <span class="brand">Data Vault Market</span><span class="small" id="accountName">Loading vault…</span>
+  <nav aria-label="Main navigation"><a href="https://agentrail-try-production.up.railway.app/apps/try/index.html">Home</a><a href="/">Market</a><a href="/vault">My DB</a><a href="/assets">Assets</a><a href="/demo">Demo</a><a href="/report">Report</a></nav>
+  <span class="tag" id="ledgerTag" hidden></span><span class="tag" id="modelTag" hidden></span>
+</div>
+<div class="banner" id="banner" hidden></div>
+<main class="assets-page">
+  <header><div><h1>My assets</h1><p class="muted">Your balance, purchase budget and recorded payments.</p></div><button type="button" id="reload">Refresh</button></header>
+  <p class="muted small" id="updated" role="status">Loading your account…</p>
+  <section id="signIn" class="card" hidden><h2>Your account, your assets</h2><p>Sign in to see your balance and payment history.</p><div><button type="button" class="primary" id="assetSignIn">Sign in</button></div></section>
+  <div id="portfolio" hidden>
+    <section class="asset-summary" aria-label="Account summary">
+      <div class="card"><h2>Wallet balance</h2><strong id="balance">—</strong><span class="small muted" id="balanceNote"></span></div>
+      <div class="card"><h2>Sales received</h2><div class="asset-total" id="income"></div><span class="small muted">Sale proceeds only · initial funding excluded</span></div>
+      <div class="card"><h2>Purchases paid</h2><div class="asset-total" id="spending"></div><span class="small muted">Data purchases only · network fees separate</span></div>
+      <div class="card"><h2>Return</h2><strong id="roi">—</strong><span class="small muted" id="roiNote"></span></div>
+    </section>
+    <section class="asset-details" aria-label="Budget and wallet">
+      <div class="card"><h2>Purchase budget</h2><p class="small muted">Your agent asks before a purchase exceeds this limit.</p>
+        <form id="budgetForm"><label for="budget">Automatic purchase limit <span id="budgetAsset"></span></label><div class="budget-controls"><input type="number" id="budget" min="0" step="0.000001" required inputmode="decimal"><button class="primary" id="budgetSave">Save limit</button></div><span class="small muted" id="budgetStatus" role="status"></span></form>
+      </div>
+      <div class="card"><h2>Wallet and network</h2><p class="small muted">Wallet address</p><p class="mono asset-address" id="address"></p><p class="small muted" id="network"></p><p class="small muted">Testnet balances and payments use test assets. They do not represent real money or official RLUSD.</p></div>
+    </section>
+    <section class="asset-history" aria-labelledby="historyTitle">
+      <header><div><h2 id="historyTitle">Deposits, withdrawals and trade payments</h2><p class="small muted" id="historyNote">Each transaction retains its original asset and ledger result.</p></div><label class="small">Show <select id="direction"><option value="all">All activity</option><option value="in">Received</option><option value="out">Sent</option></select></label></header>
+      <div class="table-wrap"><table><thead><tr><th scope="col">Time</th><th scope="col">Activity</th><th scope="col">Direction</th><th scope="col" class="asset-amount">Amount</th><th scope="col">Ledger result</th><th scope="col">Receipt</th></tr></thead><tbody id="activity"></tbody></table></div>
+    </section>
+  </div>
+</main>
+<script src="/static/common.js"></script><script src="/static/tour.js"></script>
+<script>
+let lastPortfolio = null, budgetDirty = false;
+const money = (value, asset) => value != null && Number.isFinite(Number(value)) && typeof asset === 'string' && asset.trim() ? amount(value, asset) : 'Not available';
+const quoteUnit = () => {
+  const unit = Number(META?.unit_xrp);
+  if (!Number.isFinite(unit) || unit <= 0) throw new Error('Purchase budget units are unavailable. Refresh and try again.');
+  return unit;
+};
+function totals(rows) {
+  return rows.length ? rows.map(r => `<span>${esc(money(r.amount, r.asset))}</span>`).join('') : '<span class="muted">No confirmed payments yet</span>';
+}
+function renderActivity() {
+  const rows = (lastPortfolio?.transactions || []).filter(t => $('direction').value === 'all' || t.direction === $('direction').value);
+  $('activity').innerHTML = rows.length ? rows.map(t => {
+    let link = '';
+    try { const url = new URL(t.url); if (url.protocol === 'https:' && !url.username && !url.password) link = `<a href="${esc(url.href)}" target="_blank" rel="noopener">View transaction ↗</a>`; } catch {}
+    const date = new Date(t.created == null ? NaN : Number(t.created) * 1000);
+    return `<tr><td class="asset-time">${Number.isFinite(date.getTime()) ? esc(date.toLocaleString()) : '—'}</td><td>${esc(t.type)}${t.contract != null ? `<div class="small muted">Contract #${esc(t.contract)}</div>` : ''}</td><td>${t.direction === 'in' ? 'Received' : t.direction === 'out' ? 'Sent' : '—'}</td><td class="asset-amount">${esc(money(t.amount, t.asset))}</td><td>${esc(t.result || 'Pending')}</td><td>${link || (t.hash ? `<span class="mono">${esc(t.hash.slice(0, 12))}…</span>` : '—')}</td></tr>`;
+  }).join('') : '<tr><td colspan="6" class="muted">No transactions in this view yet.</td></tr>';
+}
+function renderPortfolio(p) {
+  lastPortfolio = p;
+  memberBalance({balance:p.balance});
+  $('balance').textContent = p.balance == null ? 'Wallet connecting' : money(p.balance, p.asset);
+  $('balanceNote').textContent = p.balance == null ? 'The ledger balance is not available yet.' : 'Current ledger balance';
+  $('income').innerHTML = totals(p.income || []); $('spending').innerHTML = totals(p.spending || []);
+  $('roi').textContent = p.roi_percent != null && Number.isFinite(Number(p.roi_percent)) ? `${Number(p.roi_percent).toLocaleString(undefined,{maximumFractionDigits:2})}%` : 'Not available';
+  $('roiNote').textContent = p.roi_note || 'Return requires matched acquisition costs for resold records.';
+  $('address').textContent = p.address || 'Wallet connecting'; $('network').textContent = p.ledger || 'Network unavailable';
+  $('budgetAsset').textContent = `(${p.asset})`;
+  const rawBudget = Number(p.budget?.auto_limit);
+  if (!budgetDirty) $('budget').value = p.budget?.auto_limit != null && Number.isFinite(rawBudget) && rawBudget >= 0 ? String(Number((rawBudget * quoteUnit()).toFixed(6))) : '';
+  $('historyNote').textContent = p.history_note || 'Recorded market transfers';
+  renderActivity(); $('portfolio').hidden = false; $('signIn').hidden = true;
+}
+async function refresh() {
+  if (!META) return null;
+  if (!ME) { lastPortfolio = null; $('portfolio').hidden = true; $('signIn').hidden = false; $('updated').textContent = ''; return null; }
+  const member = ME;
+  try {
+    const p = await api(`/api/account/${member}/portfolio`);
+    if (ME !== member) return null;
+    renderPortfolio(p); $('banner').hidden = true; $('updated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+    return p;
+  } catch (err) { lastPortfolio = null; $('portfolio').hidden = true; $('updated').textContent = 'Unable to load your assets. Try Refresh.'; showError(err); return null; }
+}
+$('reload').onclick = refresh; $('assetSignIn').onclick = authDlg; $('direction').value = 'all'; $('direction').onchange = renderActivity;
+$('budget').oninput = () => { budgetDirty = true; $('budgetStatus').textContent = ''; };
+$('budgetForm').onsubmit = async (event) => {
+  event.preventDefault();
+  if (!canAct()) return;
+  const value = $('budget').value.trim(), limit = Number(value);
+  if (!value || !Number.isFinite(limit) || limit < 0) { $('budgetStatus').textContent = 'Enter a valid amount of zero or more.'; return; }
+  $('budgetSave').disabled = true;
+  try {
+    const raw = limit / quoteUnit();
+    if (!Number.isFinite(raw) || raw > Number.MAX_SAFE_INTEGER) throw new Error('The purchase limit is too large.');
+    await post(`/api/account/${ME}/settings`, {buy_agent:{auto_limit:raw}});
+    const saved = await refresh();
+    const confirmed = Number(saved?.budget?.auto_limit);
+    if (!saved || saved.budget?.auto_limit == null || !Number.isFinite(confirmed) || Math.abs(confirmed-raw) > 1e-8) throw new Error('The new limit could not be confirmed. Refresh and try again.');
+    budgetDirty = false; $('budgetStatus').textContent = 'Saved. Your agent will use this purchase limit.';
+  } catch (err) { showError(err); $('budgetStatus').textContent = 'The limit was not confirmed. Try again.'; }
+  finally { $('budgetSave').disabled = false; }
+};
+(async () => { try { await topbar('assets'); await refresh(); live(); } catch (err) { $('updated').textContent = 'Unable to load your account.'; showError(err); } })();
+</script>
+</body></html>

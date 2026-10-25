@@ -1,0 +1,89 @@
+diff -ruN a/src/App.tsx b/src/App.tsx
+--- a/src/App.tsx	2026-10-25 05:19:25.223876574 +0000
++++ b/src/App.tsx	2026-10-25 05:19:25.257861422 +0000
+@@ -55,6 +55,7 @@
+ const ResearchStudioSetupPage = lazy(() => import('@/research-studio-ui/pages/ResearchSetup'));
+ const ResearchStudioDetailPage = lazy(() => import('@/research-studio-ui/pages/ResearchDetail'));
+ const ResearchStudioLifecycleHomePage = lazy(() => import('@/research-studio-ui/pages/ResearchLifecycleHome'));
++const ResearchParticipantsPage = lazy(() => import('@/research-studio-ui/pages/ResearchParticipantsPage'));
+ const ResearchIrbPrepPage = lazy(() => import('@/research-studio-ui/pages/ResearchIrbPrep'));
+ 
+ function RouteFallback() {
+@@ -262,6 +263,7 @@
+ 
+               <Route path="/research" element={<Navigate replace to="/research/list" />} />
+               <Route path="/research/lifecycle" element={<ResearchStudioRoute><ResearchStudioLifecycleHomePage /></ResearchStudioRoute>} />
++              <Route path="/research/participants" element={<ResearchStudioRoute><ResearchParticipantsPage /></ResearchStudioRoute>} />
+               <Route path="/research/design" element={<Navigate replace to="/research/setup" />} />
+               <Route path="/research/list" element={<ResearchStudioRoute><ResearchStudioHubPage /></ResearchStudioRoute>} />
+               <Route path="/research/setup" element={<ResearchStudioSetupRoute />} />
+diff -ruN a/src/research-studio-ui/components/sidebar/Sidebar.tsx b/src/research-studio-ui/components/sidebar/Sidebar.tsx
+--- a/src/research-studio-ui/components/sidebar/Sidebar.tsx	2026-10-25 05:19:25.227136351 +0000
++++ b/src/research-studio-ui/components/sidebar/Sidebar.tsx	2026-10-25 05:19:25.258158579 +0000
+@@ -5,7 +5,7 @@
+ import { SidebarSection, type SidebarItemData } from "@/research-studio-ui/components/sidebar";
+ import type { Status } from "@/research-studio-ui/constants/status";
+ import { useResearchStudioData } from "@/research-studio-ui/hooks/useResearchStudioData";
+-import { Compass } from "lucide-react";
++import { Compass, Users } from "lucide-react";
+ import SearchIcon from "@/research-studio-ui/assets/icons/search.svg?react";
+ import PlusIcon from "@/research-studio-ui/assets/icons/plus.svg?react";
+ import HubIcon from "@/research-studio-ui/assets/icons/research_hub.svg?react";
+@@ -157,6 +157,14 @@
+           <Compass className="w-5 h-5" />
+           <span>연구 생애주기</span>
+         </div>
++
++        <div
++          className="flex items-center gap-3 py-2 cursor-pointer"
++          onClick={() => navigate("/research/participants")}
++        >
++          <Users className="w-5 h-5" />
++          <span>참여자 · 연구 기여</span>
++        </div>
+       </div>
+ 
+       <div className="flex flex-col gap-6">
+diff -ruN a/src/research-studio-ui/pages/ResearchParticipantsPage.tsx b/src/research-studio-ui/pages/ResearchParticipantsPage.tsx
+--- a/src/research-studio-ui/pages/ResearchParticipantsPage.tsx	1970-01-01 00:00:00.000000000 +0000
++++ b/src/research-studio-ui/pages/ResearchParticipantsPage.tsx	2026-10-25 05:19:25.266694645 +0000
+@@ -0,0 +1,39 @@
++import { useEffect, useRef, useState } from "react";
++import { getClientEnv } from "@/lib/env";
++
++// AgentRail researcher console (participants, rounds with 2-signer budget approval, ledger receipts).
++// The same modules the hackathon engine serves at /console are loaded from the engine origin, so
++// both places run one source. Synthetic data and XRPL Testnet only.
++type Mounted = { stop: () => void };
++
++export default function ResearchParticipantsPage() {
++  const host = useRef<HTMLDivElement>(null);
++  const [error, setError] = useState<string | null>(null);
++  const base = (getClientEnv({ vite: "VITE_AGENTRAIL_API_URL", fallback: "http://localhost:8000" }) ?? "").replace(/\/$/, "");
++
++  useEffect(() => {
++    let mounted: Mounted | null = null;
++    let cancelled = false;
++    const css = document.createElement("link");
++    css.rel = "stylesheet";
++    css.href = `${base}/apps/shared/ui.css`;
++    document.head.appendChild(css);
++    import(/* @vite-ignore */ `${base}/apps/shared/researcher.js`)
++      .then((m) => {
++        if (!cancelled && host.current) mounted = m.mountResearcher(host.current, { base, embedded: true });
++      })
++      .catch(() => setError("연구 기여 엔진에 연결하지 못했습니다. VITE_AGENTRAIL_API_URL을 확인하세요."));
++    return () => {
++      cancelled = true;
++      mounted?.stop();
++      css.remove();
++    };
++  }, [base]);
++
++  return (
++    <div className="py-2">
++      {error ? <p className="text-sm text-[#DC2626]">{error}</p> : null}
++      <div ref={host} />
++    </div>
++  );
++}

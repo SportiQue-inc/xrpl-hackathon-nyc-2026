@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Seven steps</title>
+<meta name="viewport" content="width=1920">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<!--
+  16:9 scene for 0:00-0:15 (spec: /mnt/project-files/review/bottleneck-steps.md).
+  The "Today" row lights first, then the "With agents" row cell by cell.
+    ?minutes=4     bottom total (blank until the recording day)
+    ?still=1       final frame, no animation (for a PNG)
+    ?view=top      only the "Today" row
+-->
+<style>
+  :root {
+    --text: #111827; --text-2: #6b7280; --text-3: #9ca3af;
+    --brand: #2f6bff; --brand-weak: #eef4ff;
+    --bg: #f7f8fa; --surface: #fff; --border: #e5e7eb;
+    --green: #059669; --green-bg: #ecfdf5; --green-line: #a7f3d0;
+    --red: #dc2626; --red-bg: #fef2f2; --red-line: #fecaca;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; }
+  body { font-family: Inter, system-ui, sans-serif; color: var(--text); background: var(--bg); padding: 56px 64px; display: flex; flex-direction: column; justify-content: center; }
+  header { position: absolute; top: 56px; left: 64px; right: 64px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 40px; }
+  header h1 { font-size: 52px; font-weight: 700; letter-spacing: -1px; }
+  header .logo { font-weight: 700; color: var(--brand); font-size: 22px; }
+
+  .steps, .lane { display: grid; grid-template-columns: 190px repeat(7, 1fr) 200px; column-gap: 30px; align-items: stretch; }
+  .steps { margin-bottom: 18px; }
+  .steps .s { font-size: 19px; font-weight: 600; color: #374151; text-align: center; }
+  .steps .s i { display: block; font-style: normal; font-size: 14px; color: var(--text-3); font-weight: 500; margin-bottom: 4px; }
+  .lane { margin-bottom: 30px; }
+  .lab { display: flex; flex-direction: column; justify-content: center; font-size: 26px; font-weight: 700; }
+  .lab small { font-size: 15px; color: var(--text-2); font-weight: 500; margin-top: 6px; }
+  .top .lab { color: #374151; }
+  .bot .lab { color: var(--green); }
+
+  .cell { position: relative; border-radius: 14px; padding: 18px 12px 14px; min-height: 290px; display: flex; flex-direction: column;
+          align-items: center; text-align: center; gap: 10px; border: 2px solid var(--border); background: var(--surface); }
+  .top .cell { background: var(--red-bg); border-color: var(--red-line); }
+  .bot .cell { background: var(--green-bg); border-color: var(--green-line); }
+  .ico { width: 46px; height: 46px; }
+  .v { font-size: 30px; font-weight: 700; letter-spacing: -.5px; line-height: 1.1; }
+  .top .v { color: var(--red); }
+  .bot .v { color: var(--green); }
+  .d { font-size: 14.5px; color: #374151; line-height: 1.35; }
+  .tag { margin-top: auto; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 9px; background: var(--surface);
+         color: var(--text-2); border: 1px solid var(--border); text-transform: lowercase; letter-spacing: .2px; }
+  .tag.cited { color: #1d4ed8; border-color: #bfdbfe; }
+  .tag.synthetic { color: #7c3aed; border-color: #ddd6fe; }
+  .tag.measured { color: var(--green); border-color: var(--green-line); }
+  .tag.illustrative { color: var(--text-2); }
+
+  /* arrows between cells: long and broken on top, short and solid below */
+  .cell:not(.total)::after { content: ""; position: absolute; top: 50%; right: -34px; width: 34px; height: 0; }
+  .top .cell:not(.total)::after { border-top: 3px dashed #f87171; }
+  .bot .cell:not(.total)::after { border-top: 3px solid var(--green); width: 18px; right: -26px; }
+  .cell.last::after { display: none; }
+
+  .total { justify-content: center; background: var(--surface) !important; border-width: 3px; }
+  .top .total { border-color: var(--red); }
+  .bot .total { border-color: var(--green); }
+  .total .k { font-size: 15px; color: var(--text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
+  .total .v { font-size: 46px; }
+  .total .v.blank { min-width: 120px; border-bottom: 3px dashed var(--green-line); height: 52px; }
+
+  footer { display: flex; gap: 22px; font-size: 14px; color: var(--text-2); margin-top: 6px; }
+  footer b { font-weight: 600; }
+
+  /* animation */
+  .anim .top .cell, .anim .bot .cell { opacity: 0; transform: translateY(10px); animation: in .5s ease-out forwards; }
+  .anim .bot .cell { filter: grayscale(1); animation: in .5s ease-out forwards, lit .4s ease-out forwards; }
+  @keyframes in { to { opacity: 1; transform: none; } }
+  @keyframes lit { to { filter: none; } }
+  .view-top .bot { opacity: .1; filter: grayscale(1); }
+</style>
+</head>
+<body>
+<header><h1>One data deal, seven steps</h1><span class="logo">AgentRail</span></header>
+
+<div class="steps" id="steps"><span></span></div>
+<div class="lane top" id="top"><div class="lab">Today<small>each step waits on a person</small></div></div>
+<div class="lane bot" id="bot"><div class="lab">With agents<small>each step runs on terms</small></div></div>
+
+<footer>
+  <span><b>cited</b> outside study</span><span><b>synthetic</b> our synthetic market</span>
+  <span><b>illustrative</b> worked example</span><span><b>measured</b> run log on recording day</span>
+</footer>
+
+<script>
+  const q = new URLSearchParams(location.search);
+  const S = [
+    ["Find gaps",       ["unknown", "until analysis", "illustrative"],        ["instant", "per contribution", "measured"]],
+    ["Agree terms",     ["80 days", "median contract", "cited"],               ["seconds", "column by column", "measured"]],
+    ["Consent",         ["18 taps", "3 items × 6 weeks", "illustrative"],      ["1 rule", "+ 1 Touch ID exception", "illustrative"]],
+    ["Check quality",   ["48% unfit", "paid before review", "synthetic"],      ["on arrival", "unfit paid 1.08 → 0.27 XRP", "synthetic"]],
+    ["Pay",             ["batch wait", "$0.88 fee on $20", "cited"],           ["3–5 s", "Escrow, ~$0.0002", "measured"]],
+    ["Replace",         ["weeks", "~$19.5k per person", "cited"],              ["20.6 → 39.6", "usable of 40", "synthetic"]],
+    ["Withdraw",        ["no check", "copies stay", "illustrative"],           ["instant", "license revoked on ledger", "measured"]],
+  ];
+  const hourglass = `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12M6 22h12M7 2c0 5 10 6 10 10S7 17 7 22M17 2c0 5-10 6-10 10s10 5 10 10"/></svg>`;
+  const agent = `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/></svg>`;
+  const steps = document.getElementById("steps"), topRow = document.getElementById("top"), bot = document.getElementById("bot");
+  const cell = ([v, d, tag], icon, i, delay) =>
+    `<div class="cell${i === 6 ? " last" : ""}" style="animation-delay:${delay}s">${icon}<div class="v">${v}</div><div class="d">${d}</div><span class="tag ${tag}">${tag}</span></div>`;
+  S.forEach(([name, a, b], i) => {
+    steps.insertAdjacentHTML("beforeend", `<div class="s"><i>${i + 1}</i>${name}</div>`);
+    topRow.insertAdjacentHTML("beforeend", cell(a, hourglass, i, 0.3 + i * 0.15));
+    bot.insertAdjacentHTML("beforeend", cell(b, agent, i, 3.2 + i * 0.7));
+  });
+  steps.insertAdjacentHTML("beforeend", `<div class="s"><i>&nbsp;</i>Total</div>`);
+  const minutes = q.get("minutes");
+  topRow.insertAdjacentHTML("beforeend", `<div class="cell total" style="animation-delay:1.6s"><div class="k">Today</div><div class="v">months</div></div>`);
+  bot.insertAdjacentHTML("beforeend", `<div class="cell total" style="animation-delay:8.4s"><div class="k">With agents</div>
+    <div class="v${minutes ? "" : " blank"}">${minutes ? minutes + " min" : ""}</div><span class="tag measured">measured</span></div>`);
+  if (!q.get("still")) document.body.classList.add("anim");
+  if (q.get("view") === "top") document.body.classList.add("view-top");
+</script>
+</body>
+</html>
