@@ -38,6 +38,21 @@ def test_t3_and_outside_scope_wait_for_the_person(w):
     assert rel.route(rel.subprojects[sid], pid, "steps.daily") == ("auto", "rule")
 
 
+def test_sensitive_approval_covers_only_one_delivery_round(w, monkeypatch):
+    rel = subprojects.of(w)
+    pid = next(iter(rel.consents))
+    sp = rel.create("Fresh MRI approval", "sleep_research", ["imaging.mri"], 50_000_000, 2)
+    monkeypatch.setattr(w.cohort_people[pid].vault, "extract", lambda *args, **kwargs:
+                        [{"person": "synthetic-mri-participant", "imaging.mri": "synthetic-image-hash"}])
+    monkeypatch.setitem(w.cohort_people[pid].vault.by_item, "imaging.mri",
+                        w.cohort_people[pid].vault.by_item["sleep.daily"])
+    rel.decide(pid, sp["id"], "imaging.mri", True)
+    first = rel.run(sp["id"])
+    assert any(row["person"] == pid and row["status"] == "delivered" for row in first["settled"])
+    assert rel.route(rel.subprojects[sp["id"]], pid, "imaging.mri") == ("ask", "T3")
+    assert not rel.run(sp["id"])["settled"]
+
+
 def test_no_relationship_means_blocked(w):
     rel = subprojects.of(w)
     sp = rel.subprojects["sp-1"]
