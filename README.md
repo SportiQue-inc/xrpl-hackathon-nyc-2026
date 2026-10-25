@@ -282,11 +282,38 @@ Sources and the full model: [docs/MARKET.md](docs/MARKET.md).
    cannot open a bundle; decline / pause / revoke with Clawback and EscrowCancel links.
 4. **Other domains**: robot company's agent buys two datasets on Testnet with a multi-signed top-up.
 
+### Run the engine: one command, one full health trade
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+python scripts/run_engine.py                    # mock ledger, a few seconds
+LEDGER=testnet python scripts/run_engine.py     # XRPL Testnet (faucet wallets), about 40 minutes
+python scripts/run_engine.py --serve            # same, then keep the API + dashboard up on :8000
+```
+
+`run_engine.py` starts the API (uvicorn) and drives one trade through it over HTTP, signed in as
+each party: the researcher sets the goal (gap reading); one approver alone is refused by the ledger
+(`tefBAD_QUORUM`) and both co-sign on their own devices; the requests go out (consent checked per
+person, weekly escrows submitted in a `Batch`); the operator runs the boundary checks (refusals,
+the clinic export paid over HTTP 402, payout review and held parts, decline / pause / revoke with
+Clawback and refund). It then calls `GET /api/engine/check`, which prints one row per flow with the
+transaction that proves it, looked up again on the ledger the run used:
+
+```
+PASS  proposal  consent  co_signed_budget  escrow  key_reveal  holdback
+PASS  withdrawal_clawback  batch  amm  x402
+```
+
+The exit code is 0 only if every flow passed. The run's database is kept in `runs/` (git-ignored),
+so `python scripts/open_bundle.py <EscrowFinish hash> --db runs/<file>.db` can open any delivered
+bundle with the key from the ledger.
+
+### Other entry points
+
+```bash
 pip install -r requirements.txt
 cp .env.example .env                     # optional: OPENAI_API_KEY=... (never committed)
-python -m pytest -q                      # 114 tests on the mock ledger (25 attack tests)
+python -m pytest -q                      # 138 tests on the mock ledger (25 attack tests)
 python scripts/run_health_demo.py        # whole health study, mock ledger, JSON summary
 LEDGER=testnet python scripts/run_health_demo.py   # same on XRPL Testnet (faucet wallets)
 LEDGER=testnet python -m agentrail.scenario        # robot scene A, cohort round, failure scene

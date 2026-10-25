@@ -34,3 +34,4 @@ wallets.local.json
 ap4m/.env
 ap4m/out/
 ap4m/state/
+runs/
