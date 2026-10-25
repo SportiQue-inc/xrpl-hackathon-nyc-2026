@@ -51,11 +51,11 @@ function chatBox(el, data) {
     $("agentSignIn").onclick = authDlg;
     return;
   }
-  const approvals=data.chat.filter(c=>c.actions&&!c.done&&!c.text.startsWith('From your own DB'));
-  const conversation=data.chat.filter(c=>!approvals.includes(c));
+  const approvals=data.chat.filter(c=>c.actions&&!c.done);   // shown inline with their buttons; only counted in the header
+  const conversation=data.chat;
   const message=(c)=>`<div class="msg ${c.role==='me'?'me':'agent'}"><div>${c.done&&/lot of at least \d+ people/.test(c.text)?'<span class="small muted">Earlier group request · inactive</span><br>':''}${esc(c.text)}</div>${c.actions?`<div class="acts">${c.actions.map((a,i)=>`<button type="button" data-c="${c.id}" data-i="${i}" ${c.done?'disabled':''}>${esc(a.t)}</button>`).join('')}</div>`:''}</div>`;
-  el.innerHTML = `<div class="head"><span>Ask my agent</span>${approvals.length ? `<span class="tag red">${approvals.length} to approve</span>` : ""}</div>
-    ${open ? `${approvals.length?`<details class="pending-approvals"><summary>${approvals.length} requests waiting for your approval</summary>${approvals.map(message).join('')}</details>`:''}<div class="msgs" id="msgs">${conversation.map(message).join('') || '<p class="muted small">Tell me what you want to do, or ask what you can sell.</p>'}</div>
+  el.innerHTML = `<div class="head"><span>Ask my agent</span>${approvals.length ? `<span class="tag red">${approvals.length} waiting for you</span>` : ""}</div>
+    ${open ? `<div class="msgs" id="msgs">${conversation.map(message).join('') || '<p class="muted small">Tell me what you want to do, or ask what you can sell.</p>'}</div>
     <form id="chatForm"><input type="text" id="say" placeholder="e.g. sell my sleep logs, or I need air-quality data" aria-label="Message to my agent"><button class="primary">Send</button></form>` : ""}`;
   if (open) {
     $("msgs").scrollTop = follow ? 1e9 : scrollTop; $("say").value = draft; if (focused) $("say").focus();
