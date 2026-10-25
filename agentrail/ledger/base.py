@@ -44,6 +44,12 @@ class Ledger:
     def lookup(self, tx_hash: str) -> TxStatus:
         raise NotImplementedError
 
+    rail = "direct"
+
+    def invoice_field_of(self, blob: str) -> str | None:
+        """InvoiceID inside a signed blob we created (compared with the validated tx)."""
+        raise NotImplementedError
+
     def is_expired(self, blob: str) -> bool:
         """True once the tx can no longer be included (past LastLedgerSequence)."""
         return False

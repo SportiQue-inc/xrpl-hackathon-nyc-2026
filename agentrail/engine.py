@@ -254,7 +254,7 @@ class Engine:
         with self.store.tx() as c:
             ok = (st.success and st.destination == p["payee_address"]
                   and st.amount_drops == p["amount_drops"]
-                  and (st.invoice_id or "").upper() == p["invoice_id"].upper())
+                  and (st.invoice_id or "").upper() == (self.ledger.invoice_field_of(p["tx_blob"]) or "").upper())
             if not ok:
                 self._release(c, o, "failed", "payment not successful on validated ledger")
                 c.execute("UPDATE payments SET status='failed' WHERE order_id=?", (oid,))
@@ -268,8 +268,9 @@ class Engine:
                       "WHERE buyer_id=?", (o["price_drops"], o["price_drops"], o["buyer_id"]))
             c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='pay'", (oid,))
             c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "deliver", "pending"))
+            via = " via x402 facilitator" if self.ledger.rail == "x402" else ""
             self.store.log("engine", "paid",
-                           f"order {oid}: {o['price_drops'] / 1e6:g} XRP to {o['payee_id']} "
+                           f"order {oid}: {o['price_drops'] / 1e6:g} XRP to {o['payee_id']}{via} "
                            f"validated in ledger {st.ledger_index}",
                            {"order_id": oid, "tx_hash": p["tx_hash"], "url": self.ledger.explorer_url(p["tx_hash"])})
         return True

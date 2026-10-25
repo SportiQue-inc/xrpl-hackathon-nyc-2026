@@ -75,6 +75,9 @@ class MockLedger(Ledger):
                         ledger_index=t["ledger_index"], destination=t["Destination"],
                         amount_drops=int(t["Amount"]), invoice_id=t["InvoiceID"])
 
+    def invoice_field_of(self, blob: str) -> str | None:
+        return json.loads(blob)["InvoiceID"]
+
     def balance_drops(self, address: str) -> int:
         return self.balances.get(address, 0)
 

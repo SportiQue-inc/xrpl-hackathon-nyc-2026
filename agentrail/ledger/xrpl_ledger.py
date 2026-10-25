@@ -86,6 +86,9 @@ class XrplLedger(Ledger):
             amount_drops=int(delivered) if isinstance(delivered, str) else None,
             invoice_id=txj.get("InvoiceID"))
 
+    def invoice_field_of(self, blob: str) -> str | None:
+        return decode(blob).get("InvoiceID")
+
     def is_expired(self, blob: str) -> bool:
         lls = decode(blob).get("LastLedgerSequence")
         return lls is not None and get_latest_validated_ledger_sequence(self.client) > lls

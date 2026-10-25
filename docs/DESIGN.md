@@ -1,6 +1,6 @@
 # AgentRail design
 
-Status legend: **[done]** implemented and tested on MockLedger · **[wip]** being built
+Status legend: **[done]** implemented and tested on MockLedger (Testnet run in progress) · **[wip]** being built
 now · **[open]** decided later / out of hackathon scope.
 
 ## 1. Architecture
@@ -118,8 +118,9 @@ every pending outbox row.
 | automation: `confirm_each` / `auto_standard` / `auto_all` | person | same | [done] |
 | sensitivity tier per item; sensitive never auto under `auto_standard` | product rule | same | [done] |
 | compliance layer: prohibited purposes; sensitive items only for ethics-approved buyers | platform | `ComplianceRules` | [done] |
-| ethics approval as an XRPL **Credential** instead of a config list | ethics board | ledger lookup | [wip] |
-| buyer treasury with **multi-signing**; agent spends from a capped account; top-ups need human co-sign | buyer org | XRPL SignerList | [wip] |
+| ethics approval as an XRPL **Credential** instead of a config list | ethics board | ledger lookup | [done] |
+| settlement through the **x402** facilitator (T54, Testnet) | engine | `PAYMENT_RAIL=x402` | [wip] |
+| buyer treasury with **multi-signing**; agent spends from a capped account; top-ups need human co-sign (production: approval signatures from a hardware wallet such as Ledger) | buyer org | XRPL SignerList | [done] |
 | pause (forward only) / revoke (also withholds undelivered) | person | consent status | [done] |
 
 ## 5. Tests (MockLedger, real sealing, real SQLite) - `pytest -q`

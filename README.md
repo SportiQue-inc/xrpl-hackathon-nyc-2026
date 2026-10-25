@@ -78,6 +78,16 @@ read, the trade is held (fail closed).
   permission is re-checked just before release (x402-style: 402 terms -> pay ->
   verify -> deliver).
 - Only hashes go on-chain. No health values, names or consent text.
+- **x402**: with `PAYMENT_RAIL=x402` each order is paid through the T54 XRPL x402
+  facilitator (402 PaymentRequirements -> presigned Payment -> facilitator verify and
+  settle); the engine still confirms the result on a validated ledger itself.
+- **Credentials**: an ethics review board issues an XRPL Credential to a buyer;
+  sensitive items are released only if the ledger shows it accepted.
+- **Multi-signing**: the buyer's treasury is a SignerList (owner + compliance officer,
+  master key disabled). The agent spends from its own capped account and cannot raise
+  its budget; a co-signed treasury top-up can. In production these approval signatures
+  for institutional budget top-ups are made with a hardware wallet such as Ledger.
+- Ledger reads can go through any rippled endpoint, e.g. QuickNode: set `XRPL_RPC_URL`.
 
 ## Safety properties (tested)
 
@@ -102,6 +112,7 @@ pip install -r requirements.txt
 pytest -q                                   # MockLedger, all safety tests
 python -m agentrail.scenario                # both scenes on MockLedger, prints report
 LEDGER=testnet python -m agentrail.scenario # same scenes on XRPL Testnet (faucet wallets)
+LEDGER=testnet PAYMENT_RAIL=x402 python -m agentrail.scenario  # orders settled via x402 facilitator
 uvicorn agentrail.web:app --reload          # dashboard at http://127.0.0.1:8000
 ```
 
