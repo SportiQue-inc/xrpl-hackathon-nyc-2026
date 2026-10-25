@@ -11,7 +11,7 @@ from .connectors import PersonalVaultConnector, RoboticsConnector
 from .llm import voice
 from .engine import BudgetExceeded, Engine, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
 from .reasoning import OwnerLimits, Spec, infer_spec, match_schema, read_licence, terms_hash
-from .policy import (ALLOW, AUTOMATION_LEVELS, DENY, HOLD, PARTIAL, SENSITIVITY, ComplianceRules,
+from .policy import (PURPOSE_DUO, ALLOW, AUTOMATION_LEVELS, DENY, HOLD, PARTIAL, SENSITIVITY, ComplianceRules,
                      Decision, PersonalConsentPolicy, SENSITIVE_FIELDS, SellerPolicy)
 
 
