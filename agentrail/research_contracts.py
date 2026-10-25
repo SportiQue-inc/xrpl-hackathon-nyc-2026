@@ -129,6 +129,7 @@ class Lane:
         self.uniqdata: dict = {}                      # roster id -> UniQdataClient (UNIQDATA_ROSTER)
         self._pending: dict[str, dict] = {}           # pid -> join waiting for its signature
         self._lock = threading.RLock()
+        self._pay_lock = threading.Lock()
         if os.environ.get("UNIQDATA_ROSTER"):
             from . import uniqdata_live
             self.uniqdata = uniqdata_live.load_roster(os.environ["UNIQDATA_ROSTER"])
@@ -160,8 +161,7 @@ class Lane:
             # a week can be delivered after its round (or a payment fail at the close): keep paying those
             self._retry_at = now + 60
             for c in self.store.q("SELECT DISTINCT cp.contract_id FROM contract_payments cp WHERE cp.ok=0"):
-                with self._lock:
-                    self.retry_payments(c["contract_id"])
+                self.retry_payments(c["contract_id"])
         for c in self.store.q("SELECT id, terms, created_at FROM research_contracts WHERE status='open'"):
             t = json.loads(c["terms"])
             every = t.get("round_every_s")
@@ -453,22 +453,29 @@ class Lane:
         if not (t["weeks"][0] <= week <= t["weeks"][1]):
             raise ContractError("week is outside the contract")
         members = self._members(cid)
+        self.retry_payments(cid)
         with self._lock:
-            self.retry_payments(cid)
             self.store.log(t["institution_id"], "round", f"{cid} week {week}: asking {len(members)} members' agents "
                            f"for {', '.join(t['items'])} at {units.fmt(t['price_per_item_drops'])} per item")
             # Each member's agent answers from that member's own consent; the institution asks for every
             # item in the contract and gets only what each member agreed to.
-            out = [{"person": m["pid"], **self._send_week(cid, m["pid"], week, list(t["items"]))} for m in members]
-            for m in members:
-                self.sync_uniqdata(cid, m["pid"])
+            out = [{"person": m["pid"], **self._send_week(cid, m["pid"], week, list(t["items"]), pay=False)}
+                   for m in members]
             summary = {s: sum(1 for r in out if r["status"] == s) for s in {r["status"] for r in out}}
             with self.store.tx() as c:
                 c.execute("INSERT INTO contract_rounds (contract_id,week,started_at,result) VALUES (?,?,?,?)",
                           (cid, week, time.time(), json.dumps(summary)))
+        # Paying takes seconds per member on AP4M: do it outside the lane lock, so posting, joining and other
+        # contracts' rounds do not wait behind this round's payments.
+        for r in out:
+            if r.get("order_id") and r["status"] == "delivered":
+                self._pay(cid, r["person"], r["order_id"])
+                r.update(self._order_view(r["order_id"]))
+        for m in members:
+            self.sync_uniqdata(cid, m["pid"])
         return {"contract": cid, "week": week, "members": len(members), "summary": summary, "results": out}
 
-    def _send_week(self, cid: str, pid: str, week: int, items: list[str]) -> dict:
+    def _send_week(self, cid: str, pid: str, week: int, items: list[str], pay: bool = True) -> dict:
         t = self.terms(cid)
         pa = self._person(pid)
         d = pa.handle_request(t["institution_id"], t["purpose"], items, week, t["price_per_item_drops"])
@@ -482,7 +489,8 @@ class Lane:
         except (BudgetExceeded, NeedsHumanApproval) as e:
             return {"status": "budget", "reason": str(e)}
         self.engine.process(oid)
-        self._pay(cid, pid, oid)
+        if pay:
+            self._pay(cid, pid, oid)
         return self._order_view(oid)
 
     # ---------- AP4M: one payment per delivered member-week ----------
@@ -495,6 +503,10 @@ class Lane:
         or capped payment is recorded as unpaid, shown as such, and tried again at the next round."""
         if self._rail(cid) != "ap4m":
             return None
+        with self._pay_lock:                    # one payment at a time (one AP4M channel), never the same order twice
+            return self._pay_once(cid, pid, oid)
+
+    def _pay_once(self, cid: str, pid: str, oid: int) -> dict | None:
         o = self.store.one("SELECT status, price_drops, scope FROM orders WHERE id=?", oid)
         if o is None or o["status"] != "delivered":
             return None
