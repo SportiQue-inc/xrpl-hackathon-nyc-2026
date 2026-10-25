@@ -9,7 +9,7 @@
 <section class="col activity"><header><div><h1>Market activity</h1><p class="muted small">Individual negotiations and verified settlements</p></div><span class="tag">Live</span></header><div class="scroll"><div id="ledger"></div><section id="agentQueue" class="mine-panel" aria-live="polite"></section><details class="history mine-panel"><summary>Your trade history</summary><div id="mine"></div></details></div></section>
 <section class="col side right"><header><h1>Your agent</h1><button id="agentBtn" type="button" aria-expanded="false">Settings</button></header><div class="scroll"><div class="chatbox" id="chat" data-open="1"></div></div></section>
 </main><dialog id="agentDlg" class="agent-dlg"><div class="dlg"><div class="row"><h2>Agent settings</h2><button type="button" id="agentClose">Close</button></div><div id="agents"></div></div></dialog><dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
-<script src="/static/common.js"></script><script>
+<script src="/static/common.js"></script><script src="/static/tour.js"></script><script>
 let DOMAIN=null, DATA=null, ACC=null, refreshing=false, firstFeed=true, currentContract=null, detailBusy=false;
 const seenTrades=new Map(), recentTrades=new Map();
 const stateLabel = (s) => ({refunded:'Escrow returned to buyer',queued:'Queued',waiting:'Waiting for a buyer',negotiating:'Negotiating',settling:'Settling on ledger',settled:'Settled',rejected:'Not sold',blocked:'Blocked by your terms',interrupted:'Recovery pending','recovery review':'Needs review','awaiting buyer':'Waiting for buyer approval'}[s] || s);
