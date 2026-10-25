@@ -6,134 +6,161 @@
 <title>Data Vault Market</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: one stepper band, then three columns (owner vault | agent | buyer) over a shared ledger strip. */
+/* Layout: top bar with the demo account switcher; buyer demand on the left, the shared ledger in the middle (agent chat opens over it), my DB sorted by type on the right. Dark first; gray plus one blue. */
 :root {
-  --bg: #f7f8fa; --panel: #ffffff; --ink: #111827; --muted: #6b7280; --line: #e5e7eb;
-  --accent: #2f6bff; --accent-soft: #eef4ff; --brass: #2f6bff; --brass-soft: #eef4ff;
-  --ok: #2f6bff; --bad: #dc2626; --bad-soft: #fef2f2; --code: #f3f4f6;
-  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --bg: #0f1115; --side: #14171d; --panel: #1a1e26; --ink: #e8eaf0; --muted: #9aa1ad; --line: #2a2f3a;
+  --accent: #5b8cff; --accent-ink: #0b1020; --accent-soft: #1b2540; --bad: #f87171; --bad-soft: #3a1c1c; --code: #11141a;
   --body: "Figtree", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
-  color-scheme: light;
+  color-scheme: dark;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0f1115; --panel: #171a21; --ink: #e8eaf0; --muted: #9ca3af; --line: #2a2f3a;
-  --accent: #7aa2ff; --accent-soft: #1b2540; --brass: #7aa2ff; --brass-soft: #1b2540;
-  --ok: #7aa2ff; --bad: #f87171; --bad-soft: #3a1c1c; --code: #1f232c; color-scheme: dark; } }
-:root[data-theme="dark"] {
-  --bg: #0f1115; --panel: #171a21; --ink: #e8eaf0; --muted: #9ca3af; --line: #2a2f3a;
-  --accent: #7aa2ff; --accent-soft: #1b2540; --brass: #7aa2ff; --brass-soft: #1b2540;
-  --ok: #7aa2ff; --bad: #f87171; --bad-soft: #3a1c1c; --code: #1f232c; color-scheme: dark; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f7f8fa; --side: #ffffff; --panel: #ffffff; --ink: #111827; --muted: #6b7280; --line: #e5e7eb;
+  --accent: #2f6bff; --accent-ink: #ffffff; --accent-soft: #eef4ff; --bad: #dc2626; --bad-soft: #fef2f2; --code: #f3f4f6; color-scheme: light; } }
+:root[data-theme="light"] {
+  --bg: #f7f8fa; --side: #ffffff; --panel: #ffffff; --ink: #111827; --muted: #6b7280; --line: #e5e7eb;
+  --accent: #2f6bff; --accent-ink: #ffffff; --accent-soft: #eef4ff; --bad: #dc2626; --bad-soft: #fef2f2; --code: #f3f4f6; color-scheme: light; }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body);
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
-.wrap { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
-h1 { font: 750 clamp(26px, 4vw, 38px)/1.1 var(--display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
-h2 { font: 600 18px/1.2 var(--display); margin: 0; }
-h3 { font: 600 14px/1.3 var(--body); margin: 0; }
-.lede { color: var(--muted); max-width: 70ch; margin: 6px 0 0; }
-.eyebrow { font: 600 11px/1 var(--body); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
-code, .mono { font-family: var(--mono); font-size: 12px; }
-.steps { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
-.steps li { font-size: 13px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--panel); }
-.steps li.done { color: var(--accent); border-color: var(--accent); }
-.steps li.now { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
-.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-button { font: 600 14px var(--body); border-radius: 8px; padding: 9px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
-button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-button.warn { color: var(--bad); border-color: var(--bad); }
-button:disabled { opacity: .45; cursor: not-allowed; }
-button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
-select { font: 14px var(--body); padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); max-width: 100%; }
-.hint { color: var(--muted); font-size: 13px; }
-.cols { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
-.panel header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.who { font-size: 13px; color: var(--muted); }
-.files { display: grid; gap: 6px; }
-.file { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; align-items: center; min-width: 0; }
-.file .name { font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; }
-.file .meta { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
-.toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; white-space: nowrap; }
-.pill { display: inline-block; font: 600 11px/1 var(--body); padding: 4px 7px; border-radius: 999px; letter-spacing: .03em; }
-.pill.sell { background: var(--accent-soft); color: var(--accent); }
-.pill.keep { background: var(--code); color: var(--muted); }
-.pill.lock { background: var(--bad-soft); color: var(--bad); }
-.pill.brass { background: var(--brass-soft); color: var(--brass); }
-.card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; min-width: 0; }
-.card.hot { border-color: var(--brass); background: var(--brass-soft); }
-.kv { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; font-size: 13px; }
-.kv dt { color: var(--muted); }
-.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-pre { margin: 0; background: var(--code); border-radius: 8px; padding: 10px; overflow-x: auto; font: 11.5px/1.45 var(--mono); max-height: 260px; }
-.diff { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-@media (max-width: 520px) { .diff { grid-template-columns: minmax(0, 1fr); } }
-.owners { display: grid; gap: 4px; font-size: 13px; }
-.owners div { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
-.y { color: var(--ok); font-weight: 600; } .n { color: var(--bad); font-weight: 600; }
-.sheet { border: 2px solid var(--brass); border-radius: 12px; padding: 14px; display: grid; gap: 10px; background: var(--brass-soft); }
-.sheet .bar button { flex: 1 1 140px; }
-.empty { color: var(--muted); font-size: 13px; border: 1px dashed var(--line); border-radius: 8px; padding: 12px; }
-.ledger { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 8px; }
-.tx { display: grid; grid-template-columns: 9.5em 1fr; gap: 10px; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--line); min-width: 0; }
-.tx .t { font-family: var(--mono); font-size: 12px; color: var(--brass); }
-.tx div { min-width: 0; overflow-wrap: anywhere; }
-.log { display: grid; gap: 4px; font-size: 13px; }
-.log p { margin: 0; padding-left: 10px; border-left: 2px solid var(--accent); }
-.log p.warn { border-left-color: var(--bad); }
-.foot { color: var(--muted); font-size: 12.5px; max-width: 90ch; }
-@media (prefers-reduced-motion: no-preference) { .panel, .card { transition: border-color .2s, background .2s; } }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--body); display: flex; flex-direction: column; }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 15px; font-weight: 700; }
+h2 { font-size: 12px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+.mono { font-family: var(--mono); font-size: 11.5px; }
+.num { font-variant-numeric: tabular-nums; }
+
+.top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); background: var(--side); }
+.brand { font-weight: 700; color: var(--accent); margin-right: auto; }
+.top label { font-size: 12.5px; color: var(--muted); }
+select, input[type="text"] { font: 14px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; min-width: 0; }
+.bal { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.app { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr) 340px; }
+.col { min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.col > header { padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.scroll { overflow-y: auto; padding: 12px 16px 20px; display: grid; align-content: start; gap: 8px; flex: 1; min-height: 0; }
+.left, .right { background: var(--side); }
+.left { border-right: 1px solid var(--line); }
+.right { border-left: 1px solid var(--line); }
+@media (max-width: 1100px) {
+  body { height: auto; display: block; }
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .left, .right { border: 0; border-bottom: 1px solid var(--line); }
+  .scroll { overflow: visible; }
+  .col { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+  .center { order: -1; min-height: 70vh; }
+}
+
+button { font: 600 13.5px var(--body); border-radius: 9px; padding: 7px 13px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.danger { color: var(--bad); border-color: var(--bad); }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--bad); color: var(--bg); font-size: 11px; line-height: 18px; text-align: center; }
+.tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: var(--code); color: var(--muted); white-space: nowrap; }
+.tag.blue { background: var(--accent-soft); color: var(--accent); }
+.tag.red { background: var(--bad-soft); color: var(--bad); }
+
+/* demand list */
+.want { border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; background: var(--panel); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; }
+.want.mine { border-color: var(--accent); }
+.want.fit { box-shadow: inset 3px 0 0 var(--accent); }
+.want .who, .want .sub { font-size: 12px; color: var(--muted); }
+.want .sub { grid-column: 1 / -1; }
+.want .price { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ledger */
+.stats { display: flex; gap: 20px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.stats b { display: block; font-size: 18px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tx { border-bottom: 1px solid var(--line); }
+.tx > button { width: 100%; display: grid; grid-template-columns: 4.8em minmax(0, 1fr) auto; gap: 10px; text-align: left; border: 0; border-radius: 6px; padding: 8px 6px; font-weight: 400; align-items: baseline; }
+.tx > button:hover { background: var(--panel); }
+.tx.mine > button { background: var(--accent-soft); }
+.tx time { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.tx .what { color: var(--muted); font-size: 12px; }
+.tx .amt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.detail { margin: 0 6px 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; font-size: 12.5px; }
+.detail dt { color: var(--muted); }
+.detail dd { margin: 0; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: no-preference) { .tx.new > button { animation: flash 1.2s ease-out; } @keyframes flash { from { background: var(--accent-soft); } } }
+
+/* chat drawer over the ledger */
+.drawer { position: absolute; inset: 0 0 0 auto; width: min(420px, 100%); background: var(--side); border-left: 1px solid var(--line); box-shadow: -12px 0 30px rgb(0 0 0 / .25); display: flex; flex-direction: column; z-index: 5; }
+.drawer[hidden] { display: none; }
+.settings { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 10px; align-items: center; font-size: 12.5px; padding: 0 16px 10px; border-bottom: 1px solid var(--line); }
+.msgs { overflow-y: auto; flex: 1; min-height: 0; padding: 12px 16px; display: grid; align-content: start; gap: 10px; }
+.msg { max-width: 92%; padding: 9px 12px; border-radius: 12px; display: grid; gap: 8px; overflow-wrap: anywhere; }
+.msg.me { justify-self: end; background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 4px; }
+.msg.ai { justify-self: start; background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.msg ul { margin: 0; padding-left: 18px; }
+.msg .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.composer { border-top: 1px solid var(--line); padding: 10px 16px 14px; display: grid; gap: 8px; }
+.composer form { display: flex; gap: 8px; }
+.composer input { flex: 1; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font: 500 12px var(--body); border-radius: 999px; padding: 4px 10px; }
+
+/* my DB */
+.group { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.group > header { display: flex; justify-content: space-between; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.file { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--line); }
+.file:last-child { border-bottom: 0; }
+.file .name { font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; }
+.file .meta { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); }
+.switch { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.switch input { accent-color: var(--accent); width: 15px; height: 15px; }
+details summary { cursor: pointer; }
+pre { margin: 6px 0 0; background: var(--code); border-radius: 8px; padding: 8px; overflow-x: auto; font: 11px/1.45 var(--mono); max-height: 180px; color: var(--ink); }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div>
-    <div class="eyebrow">Prototype · synthetic data · simulated ledger</div>
-    <h1>Data Vault Market</h1>
-    <p class="lede">Everyone keeps their own data in their own vault and marks what they would sell. An agent sorts the vault into packages, matches buyer requests across many vaults, and sells only after each owner taps OK. Delivery is sealed to the buyer, and the escrow pays the owner at the moment it releases the key.</p>
-  </div>
-
-  <ol class="steps" id="steps"></ol>
-  <div class="bar">
-    <button class="primary" id="next">Start: upload to my vault</button>
-    <label class="hint" for="posting">Buyer request:</label>
-    <select id="posting"></select>
-    <button id="reset">Reset</button>
-    <span class="hint" id="status"></span>
-  </div>
-
-  <div class="cols">
-    <section class="panel" aria-labelledby="h-owner">
-      <header><h2 id="h-owner">My vault</h2><span class="who mono" id="ownerPseudo">owner: not uploaded</span></header>
-      <div class="files" id="files"></div>
-      <div id="intake"></div>
-      <div id="sheetBox"></div>
-    </section>
-
-    <section class="panel" aria-labelledby="h-agent">
-      <header><h2 id="h-agent">Agent in the middle</h2><span class="who">sorts, matches, coordinates</span></header>
-      <div id="packages"><div class="empty">Packages appear here once files are uploaded and sorted.</div></div>
-      <div id="match"></div>
-    </section>
-
-    <section class="panel" aria-labelledby="h-buyer">
-      <header><h2 id="h-buyer">Buyer</h2><span class="who" id="buyerName"></span></header>
-      <div id="buyer"><div class="empty">The buyer's request arrives at step 3.</div></div>
-      <div id="delivery"></div>
-    </section>
-  </div>
-
-  <section class="ledger" aria-labelledby="h-ledger">
-    <header class="bar" style="justify-content:space-between"><h2 id="h-ledger">Ledger</h2><span class="hint">Simulated XRPL escrow with PREIMAGE-SHA-256 conditions. The hackathon engine runs the same flow on XRPL Testnet.</span></header>
-    <div id="ledger"><div class="empty">No transactions yet.</div></div>
-    <h3>Agent log</h3>
-    <div class="log" id="log"></div>
+<div class="top">
+  <span class="brand">Data Vault Market</span>
+  <label for="acct">Signed in as (demo)</label>
+  <select id="acct"></select>
+  <span class="bal" id="bal"></span>
+</div>
+<div class="app">
+  <section class="col left" aria-labelledby="h-want">
+    <header><h1 id="h-want">Buyer demand</h1><span class="muted small">public to everyone</span></header>
+    <div class="scroll" id="wanted"></div>
   </section>
 
-  <p class="foot">All files, owners and the buyer are synthetic. Pseudonymization, provenance signatures, sealing (ECDH P-256 + AES-GCM) and the escrow condition use real Web Crypto in your browser; the ledger is an in-page simulation. The sorting and matching agent is rule-based here so the demo is deterministic; an LLM can propose the same packages, and code still checks the result before anything is offered.</p>
+  <section class="col center" aria-labelledby="h-ledger">
+    <header>
+      <div><h1 id="h-ledger">Shared ledger</h1><p class="muted small">Every settled trade: who paid whom, how much, for what. Tap a line for details.</p></div>
+      <div style="display:flex;gap:8px"><button id="pause" type="button">Pause</button><button id="openChat" class="primary" type="button">Ask my agent<span id="badge"></span></button></div>
+    </header>
+    <div class="scroll">
+      <div class="stats" id="stats"></div>
+      <div id="ledger"></div>
+      <p class="muted small">Simulated ledger. Payment and the key that opens the data are released in the same step (escrow with a SHA-256 condition, the same flow the hackathon engine runs on XRPL Testnet). Personal data is only ever sold in lots of at least 5 people.</p>
+    </div>
+    <aside class="drawer" id="drawer" hidden aria-labelledby="h-chat">
+      <header style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px 10px"><h1 id="h-chat">My agent</h1><button id="closeChat" type="button">Close</button></header>
+      <div class="settings">
+        <label for="autonomy">Buys on its own</label>
+        <select id="autonomy"><option value="0">Never, ask me every time</option><option value="50" selected>Up to 50 XRP per purchase</option><option value="300">Up to 300 XRP per purchase</option></select>
+        <label for="trust">Sellers it trusts</label>
+        <select id="trust"><option value="0">Anyone</option><option value="0.7" selected>Signed sources only</option><option value="0.9">Verified and signed only</option></select>
+        <span></span><span class="muted">Selling always waits for your OK.</span>
+      </div>
+      <div class="msgs" id="msgs" aria-live="polite"></div>
+      <div class="composer">
+        <div class="chips" id="chips"></div>
+        <form id="form"><input type="text" id="say" placeholder="What do you want to sell or buy?" autocomplete="off" aria-label="Message to my agent"><button class="primary" type="submit">Send</button></form>
+      </div>
+    </aside>
+  </section>
+
+  <section class="col right" aria-labelledby="h-db">
+    <header><h1 id="h-db">My DB</h1><span class="mono muted" id="ownerId"></span></header>
+    <div class="scroll" id="db"></div>
+  </section>
 </div>
 
 <script>
@@ -141,302 +168,290 @@ pre { margin: 0; background: var(--code); border-radius: 8px; padding: 10px; ove
 const $ = (id) => document.getElementById(id);
 const enc = new TextEncoder(), dec = new TextDecoder();
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-const sha256 = async (bytes) => hex(await crypto.subtle.digest("SHA-256", typeof bytes === "string" ? enc.encode(bytes) : bytes));
-const canon = (o) => JSON.stringify(o, Object.keys(flatKeys(o)).sort());
-function flatKeys(o, acc = {}) { if (o && typeof o === "object") for (const k of Object.keys(o)) { acc[k] = 1; flatKeys(o[k], acc); } return acc; }
-const short = (h, n = 10) => h.slice(0, n) + "…";
-const pretty = (o) => JSON.stringify(o, null, 1).replace(/\[\s*(-?[\d.]+),\s*(-?[\d.]+)\s*\]/g, "[$1, $2]");
+const sha256 = async (b) => hex(await crypto.subtle.digest("SHA-256", typeof b === "string" ? enc.encode(b) : b));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-async function hmacKey(raw) { return crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]); }
-async function hmac(key, msg) { return hex(await crypto.subtle.sign("HMAC", key, enc.encode(msg))); }
+const pretty = (o) => JSON.stringify(o, null, 1).replace(/\[\s*(-?[\d.]+),\s*(-?[\d.]+)\s*\]/g, "[$1, $2]");
+const hexToBytes = (h) => Uint8Array.from(h.match(/../g), (x) => parseInt(x, 16));
+const now = () => new Date().toTimeString().slice(0, 8);
+const short = (h, n = 10) => h.slice(0, n) + "…";
+let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const pick = (a) => a[Math.floor(rnd() * a.length)];
+const K_MIN = 5; // smallest group any lot of personal data may describe
 
-const K_MIN = 5; // smallest group a package may describe (k-anonymity)
-const STEPS = ["Upload + pseudonymize", "AI sorts into packages", "Buyer request arrives", "Match + build package", "Owner OK", "Sale: escrow, sealed push, key"];
+const KINDS = {
+  gps_track: { label: "Running GPS tracks", re: /run|gps|track|러닝|달리기|경로|운동/i, price: 12, personal: true },
+  sleep_log: { label: "Sleep logs", re: /sleep|수면|잠/i, price: 8, personal: true },
+  purchase_receipts: { label: "Purchase receipts", re: /receipt|purchase|영수증|구매내역|소비/i, price: 3, personal: true },
+  audio: { label: "Voice memos", re: /voice|audio|memo|음성|녹음/i, price: 6, personal: true },
+  air: { label: "Air-quality sensor data", re: /air|sensor|공기|대기|센서|미세먼지/i, price: 4, personal: false },
+  id_document: { label: "Identity documents", re: /passport|id card|여권|신분증/i, price: 0, personal: true },
+};
+const label = (k) => KINDS[k]?.label || k;
 
-// ---------- synthetic data ----------
-function track(day, km, lat, lng) {
-  const pts = []; for (let i = 0; i < 12; i++) pts.push([+(lat + i * 0.0021).toFixed(5), +(lng + Math.sin(i) * 0.0018).toFixed(5)]);
-  return { start: `2026-10-${day}T06:${10 + +day % 40}:44-04:00`, distance_km: km, points: pts };
-}
-const MY_FILES = [
-  { name: "run_2026-10-01.gpx", sell: true, source: "watch", raw: { owner_name: "Dana Park", email: "dana.park@example.com", device_serial: "GRM-255-88410", ...track("01", 8.2, 40.7312, -73.9897) } },
-  { name: "run_2026-10-05.gpx", sell: true, source: "watch", raw: { owner_name: "Dana Park", email: "dana.park@example.com", device_serial: "GRM-255-88410", ...track("05", 6.9, 40.7309, -73.9901) } },
-  { name: "run_2026-10-09.gpx", sell: true, source: "watch", raw: { owner_name: "Dana Park", email: "dana.park@example.com", device_serial: "GRM-255-88410", ...track("09", 9.5, 40.7315, -73.9893) } },
-  { name: "sleep_week41.csv", sell: true, source: "ring", raw: { owner_name: "Dana Park", device_serial: "OURA-3-11923", nights: [[ "2026-10-06", 7.1, 58 ], [ "2026-10-07", 6.4, 61 ], [ "2026-10-08", 7.8, 55 ]] } },
-  { name: "receipts_oct.json", sell: false, source: "bank", raw: { owner_name: "Dana Park", card_last4: "4421", items: [["Whole Foods", 64.2], ["Pharmacy", 18.9]] } },
-  { name: "voice_memo_1003.m4a", sell: false, source: "phone", raw: { owner_name: "Dana Park", seconds: 48, transcript: "Remind me to call mom about the visit" } },
-  { name: "passport_scan.jpg", sell: true, source: "phone", raw: { owner_name: "Dana Park", passport_no: "M12345678", dob: "1993-04-02" } },
+// ---------- demo accounts, preloaded ----------
+const PEOPLE = ["Dana", "Minho", "Sora", "Jae", "Lina", "Omar", "Priya", "Ken", "Ana", "Tomas"];
+const ORGS = [
+  { name: "Atlas Maps", buys: "gps_track", balance: 2000 },
+  { name: "Restwell App", buys: "sleep_log", balance: 1200 },
+  { name: "Murmur Speech Lab", buys: "audio", balance: 900 },
+  { name: "Northwind Grocers", buys: "purchase_receipts", balance: 800 },
+  { name: "City Health Dept", buys: "air", balance: 600 },
+  { name: "Kite Robotics", buys: "gps_track", balance: 1500, sells: "air" },
 ];
-// Other vaults already in the market, each with standing rules the agent must respect.
-const NEIGHBOURS = [
-  { id: "B", runs: 7, min_xrp: 10, purposes: ["research", "model-training"] },
-  { id: "C", runs: 4, min_xrp: 8, purposes: ["model-training"] },
-  { id: "D", runs: 9, min_xrp: 15, purposes: ["research", "model-training"] },
-  { id: "E", runs: 5, min_xrp: 10, purposes: ["model-training", "product"] },
-  { id: "F", runs: 6, min_xrp: 5, purposes: ["research", "model-training", "product"] },
-  { id: "G", runs: 3, min_xrp: 9, purposes: ["model-training"] },
-];
-const POSTINGS = [
-  { id: "runs", buyer: "Atlas Maps Inc.", verified: true, want: "gps_track", title: "Urban running GPS tracks",
-    text: "Wanted: urban running GPS tracks, start and end trimmed, from at least 5 people. Purpose: training a route-safety model. No resale.",
-    purpose: "model-training", price_xrp: 12, min_people: 5, resale: false },
-  { id: "voice", buyer: "Murmur Speech Lab", verified: true, want: "audio", title: "Short voice memos",
-    text: "Wanted: short voice memos with transcripts from at least 5 people. Purpose: speech model training.",
-    purpose: "model-training", price_xrp: 6, min_people: 5, resale: false },
-];
-
-// ---------- state ----------
-let S;
-function fresh() {
-  return { step: 0, files: MY_FILES.map((f) => ({ ...f })), vault: [], packages: [], posting: null, deal: null, decision: null, ledger: [], log: [], keys: {} };
-}
-
-// ---------- AI sorting (rule-based stand-in for the LLM proposal) ----------
-function classify(f) {
-  const r = f.raw;
-  if (r.passport_no) return { kind: "id_document", reason: "contains a passport number", locked: true };
-  if (r.points) return { kind: "gps_track", reason: "ordered lat/lng points with a start time" };
-  if (r.nights) return { kind: "sleep_log", reason: "nightly duration and resting heart rate" };
-  if (r.items) return { kind: "purchase_receipts", reason: "merchant and amount rows" };
-  if (r.transcript !== undefined) return { kind: "audio", reason: "audio with a transcript; voice is a biometric" };
-  return { kind: "other", reason: "unrecognized" };
-}
-
-// ---------- pseudonymize at intake ----------
 const DIRECT = ["owner_name", "email", "device_serial", "card_last4", "passport_no", "dob"];
-function pseudonymize(raw, kind) {
+function rawFor(kind, who, i) {
+  const base = { owner_name: who + " Demo", email: who.toLowerCase() + "@example.com" };
+  if (kind === "gps_track") { const lat = 40.70 + rnd() * 0.05, lng = -74.0 + rnd() * 0.05, pts = []; for (let j = 0; j < 10; j++) pts.push([+(lat + j * 0.002).toFixed(5), +(lng + Math.sin(j) * 0.0018).toFixed(5)]);
+    return { ...base, device_serial: "GRM-" + Math.floor(rnd() * 99999), start: `2026-10-${String(1 + i * 3).padStart(2, "0")}T06:${10 + i}:44-04:00`, distance_km: +(4 + rnd() * 8).toFixed(1), points: pts }; }
+  if (kind === "sleep_log") return { ...base, device_serial: "RING-" + Math.floor(rnd() * 99999), nights: [["2026-10-06", +(5.5 + rnd() * 3).toFixed(1), 52 + Math.floor(rnd() * 15)], ["2026-10-07", +(5.5 + rnd() * 3).toFixed(1), 52 + Math.floor(rnd() * 15)]] };
+  if (kind === "purchase_receipts") return { ...base, card_last4: String(1000 + Math.floor(rnd() * 8999)), items: [["grocery", +(20 + rnd() * 80).toFixed(2)], ["pharmacy", +(5 + rnd() * 30).toFixed(2)]] };
+  if (kind === "audio") return { ...base, seconds: 20 + Math.floor(rnd() * 60), transcript: "private note" };
+  if (kind === "air") return { sensor: "s_" + Math.floor(rnd() * 9999), site: "Brooklyn grid " + i, pm25: [9, 14, 11].map((x) => x + Math.floor(rnd() * 5)) };
+  return { ...base, passport_no: "M" + Math.floor(rnd() * 99999999), dob: "1990-01-01" };
+}
+const EXT = { gps_track: "gpx", sleep_log: "csv", purchase_receipts: "json", audio: "m4a", air: "csv", id_document: "jpg" };
+function pseudonymize(raw) {
   const out = {};
   for (const [k, v] of Object.entries(raw)) if (!DIRECT.includes(k)) out[k] = v;
-  if (out.start) out.start = out.start.slice(0, 10); // timestamp to the day
-  if (out.points) { out.points = out.points.slice(2, -2).map(([a, b]) => [+a.toFixed(3), +b.toFixed(3)]); out.trimmed = "first and last 2 points (~400 m) removed; coordinates to 3 decimals"; }
-  if (kind === "audio") out.transcript = "[withheld: not for sale]";
+  if (out.start) out.start = out.start.slice(0, 10);
+  if (out.points) out.points = out.points.slice(2, -2).map(([a, b]) => [+a.toFixed(3), +b.toFixed(3)]);
+  if (out.transcript) out.transcript = "[removed]";
   return out;
 }
 
-async function stepUpload() {
-  const vaultSecret = crypto.getRandomValues(new Uint8Array(32)); // stays with the owner's vault
-  S.keys.vault = await hmacKey(vaultSecret);
-  S.keys.vaultSecret = vaultSecret;
-  S.ownerPseudo = "vlt_" + (await hmac(S.keys.vault, "owner:dana")).slice(0, 16);
-  // each data source (watch, ring...) signs what it exported: provenance stamped at intake
-  const sources = {};
-  for (const f of S.files) {
-    if (!sources[f.source]) sources[f.source] = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-    const rawBytes = enc.encode(canon(f.raw));
-    const rawHash = await sha256(rawBytes);
-    const sig = hex(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, sources[f.source].privateKey, enc.encode(rawHash)));
-    const c = classify(f);
-    const sellable = f.sell && !c.locked;
-    const clean = sellable ? pseudonymize(f.raw, c.kind) : null;
-    S.vault.push({ name: f.name, kind: c.kind, reason: c.reason, locked: !!c.locked, sell: sellable, flagged: f.sell, raw: f.raw, clean,
-      prov: { source: f.source, raw_sha256: rawHash, sig, pub: sources[f.source].publicKey } });
+const S = { accounts: {}, me: "dana", wanted: [], ledger: [], open: null, paused: false, volume: 0, busy: false, chat: {}, pending: {} };
+let seq = 0;
+
+async function makeAccount(id, name, type, balance, files, trust) {
+  const vault = await crypto.subtle.importKey("raw", crypto.getRandomValues(new Uint8Array(32)), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const ecdh = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]);
+  const source = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
+  const a = { id, name, type, balance, trust, vault, ecdh, files: [] };
+  a.pid = "vlt_" + hex(await crypto.subtle.sign("HMAC", vault, enc.encode("owner"))).slice(0, 10);
+  for (const f of files) {
+    const h = await sha256(JSON.stringify(f.raw));
+    f.prov = { hash: h, sig: await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, source.privateKey, enc.encode(h)), pub: source.publicKey };
+    f.sold = 0; f.id = ++seq;
+    if (f.sell) f.clean = pseudonymize(f.raw);
+    a.files.push(f);
   }
-  S.sources = sources;
-  const n = S.vault.filter((v) => v.sell).length;
-  log(`Uploaded ${S.vault.length} files to vault ${S.ownerPseudo}. ${n} marked for sale were pseudonymized at upload; the rest stay sealed and are never indexed for buyers.`);
-  const lockedFlagged = S.vault.filter((v) => v.locked && v.flagged);
-  for (const v of lockedFlagged) log(`${v.name} was marked for sale but ${v.reason}. Identity documents can never be sold, so it was kept private.`, true);
+  S.accounts[id] = a;
+  S.chat[id] = [];
 }
 
-function stepSort() {
-  const byKind = {};
-  for (const v of S.vault) (byKind[v.kind] ||= []).push(v);
-  S.packages = Object.entries(byKind).map(([kind, items]) => {
-    const sell = items.filter((i) => i.sell);
-    return { kind, items, sellable: sell.length, status: items.some((i) => i.locked) ? "lock" : sell.length ? "sell" : "keep" };
-  });
-  log(`Sorted the vault into ${S.packages.length} packages. ${S.packages.filter((p) => p.status === "sell").map((p) => label(p.kind)).join(", ")} can be offered.`);
-}
-
-function stepPosting() {
-  S.posting = POSTINGS.find((p) => p.id === $("posting").value);
-  log(`Request from ${S.posting.buyer}${S.posting.verified ? " (verified organization)" : ""}: ${S.posting.title}, ${S.posting.price_xrp} XRP per person, at least ${S.posting.min_people} people.`);
-}
-
-async function stepMatch() {
-  const p = S.posting;
-  const mine = S.vault.filter((v) => v.kind === p.want);
-  const mineSellable = mine.filter((v) => v.sell);
-  const others = NEIGHBOURS.map((nb) => {
-    let ok = true, why = "rules allow it";
-    if (p.want !== "gps_track") { ok = false; why = "has no matching files for sale"; }
-    else if (nb.min_xrp > p.price_xrp) { ok = false; why = `minimum price ${nb.min_xrp} XRP`; }
-    else if (!nb.purposes.includes(p.purpose)) { ok = false; why = `does not allow ${p.purpose}`; }
-    return { ...nb, ok, why };
-  });
-  const joined = others.filter((o) => o.ok);
-  S.deal = { mine: mineSellable, mineHeld: mine.filter((v) => !v.sell), others, people: joined.length + (mineSellable.length ? 1 : 0) };
-  if (!mineSellable.length) {
-    log(mine.length ? `You hold ${mine.length} matching file(s), but you did not mark them for sale, so the agent does not offer them or reveal that they exist.` : "You hold no matching files.", true);
+async function init() {
+  for (const [i, n] of PEOPLE.entries()) {
+    const files = [];
+    const counts = { gps_track: 1 + Math.floor(rnd() * 4), sleep_log: Math.floor(rnd() * 3), purchase_receipts: Math.floor(rnd() * 2), audio: Math.floor(rnd() * 2), id_document: rnd() < 0.4 ? 1 : 0 };
+    for (const [k, c] of Object.entries(counts)) for (let j = 0; j < c; j++) {
+      const sell = k !== "id_document" && (n === "Dana" ? k !== "audio" && k !== "purchase_receipts" : rnd() < 0.7);
+      files.push({ name: `${k === "gps_track" ? "run" : k}_${j + 1}.${EXT[k]}`, kind: k, raw: rawFor(k, n, j), sell });
+    }
+    await makeAccount(n.toLowerCase(), n, "person", 20 + Math.floor(rnd() * 60), files, +(0.75 + rnd() * 0.2).toFixed(2));
   }
-  if (S.deal.people < p.min_people || S.deal.people < K_MIN) {
-    S.deal.blocked = true;
-    log(`Only ${S.deal.people} owner(s) can join; the request needs ${Math.max(p.min_people, K_MIN)}. No package is built and nothing is sold.`, true);
+  await makeAccount("bulk", "Anon bulk seller", "person", 5, Array.from({ length: 4 }, (_, j) => ({ name: `scraped_sleep_${j + 1}.csv`, kind: "sleep_log", raw: rawFor("sleep_log", "Bulk", j), sell: true, unsigned: true })), 0.3);
+  for (const o of ORGS) {
+    const files = o.sells ? Array.from({ length: 6 }, (_, j) => ({ name: `air_grid_${j + 1}.csv`, kind: "air", raw: rawFor("air", o.name, j), sell: true })) : [];
+    await makeAccount(o.name.toLowerCase().replace(/\W+/g, "-"), o.name, "org", o.balance, files, 0.95);
+    S.wanted.push({ id: ++seq, by: o.name.toLowerCase().replace(/\W+/g, "-"), kind: o.buys, price: KINDS[o.buys].price, min: K_MIN, note: noteFor(o.buys) });
+  }
+  S.wanted.push({ id: ++seq, by: "sora", kind: "air", price: 4, min: 1, note: "for a neighbourhood running map" });
+  $("acct").innerHTML = Object.values(S.accounts).filter((a) => a.id !== "bulk").map((a) => `<option value="${a.id}">${esc(a.name)}${a.type === "org" ? " (company)" : ""}</option>`).join("");
+  for (const a of Object.values(S.accounts)) say(a.id, "ai", `Hi ${esc(a.name)}. Tell me what you want to sell or what data you need. I post it to the board, find the other side, and settle it. I buy on my own up to the limit above; I never sell without your OK.`, null, true);
+  for (let i = 0; i < 5; i++) await tick(true);
+  render();
+  setInterval(async () => { if (!S.paused) { await tick(); render(); } }, 3500);
+}
+function noteFor(k) { return { gps_track: "route-safety model, no resale", sleep_log: "sleep coaching feature", audio: "speech model training", purchase_receipts: "basket research", air: "pollution alerts" }[k]; }
+const acct = (id) => S.accounts[id];
+const me = () => acct(S.me);
+
+// ---------- matching and settlement ----------
+function supply(kind, excludeId, minTrust = 0) {
+  return Object.values(S.accounts).filter((a) => a.id !== excludeId && a.trust >= minTrust)
+    .map((a) => ({ a, files: a.files.filter((f) => f.kind === kind && f.sell && !f.bought) })).filter((x) => x.files.length);
+}
+
+// One lot: buyer pays each seller; each seller's share is sealed with its own key K, wrapped to the buyer's key,
+// escrowed under SHA-256(K) and released with K. Source signatures are checked before any payment.
+async function settle(want, sellers, opts = {}) {
+  const buyer = acct(want.by), each = want.price, total = each * sellers.length;
+  if (buyer.balance < total) return null;
+  const parts = [];
+  for (const s of sellers) {
+    for (const f of s.files) if (!f.unsigned && !(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, f.prov.pub, f.prov.sig, enc.encode(f.prov.hash)))) return null;
+    const pseudo = "p_" + hex(await crypto.subtle.sign("HMAC", s.a.vault, enc.encode("deal:" + want.id + ":" + seq))).slice(0, 10);
+    const bundle = { buyer: buyer.name, purpose: want.note, contributor: pseudo, records: s.files.map((f) => f.clean) };
+    parts.push({ s, pseudo, ...(await sealedTrade(bundle, buyer.ecdh)) });
+  }
+  buyer.balance -= total;
+  for (const p of parts) { p.s.a.balance += each; p.s.files.forEach((f) => f.sold++); }
+  const n = parts.reduce((t, p) => t + p.s.files.length, 0);
+  buyer.files.unshift({ id: ++seq, name: `${want.kind}_lot_${want.id}.sealed`, kind: want.kind, bought: true, from: KINDS[want.kind].personal ? `${parts.length} people` : parts.map((p) => p.s.a.name).join(", "), clean: parts[0].clear.records[0], items: n });
+  const tx = { id: ++seq, time: now(), buyer: buyer.id, sellers: parts.map((p) => p.s.a.id), pseudos: parts.map((p) => p.pseudo), kind: want.kind, each, total, items: n, note: want.note,
+    cond: parts[0].condition, key: parts[0].fulfillment, bytes: parts.reduce((t, p) => t + p.bytes, 0), ok: parts.every((p) => p.matches), fresh: !opts.silent };
+  S.ledger.unshift(tx); S.ledger = S.ledger.slice(0, 60); S.volume += total;
+  return tx;
+}
+
+async function sealedTrade(bundle, buyerKey) {
+  const clear = JSON.stringify(bundle), want = await sha256(clear);
+  const K = crypto.getRandomValues(new Uint8Array(32));
+  const kKey = await crypto.subtle.importKey("raw", K, "AES-GCM", false, ["encrypt"]);
+  const iv1 = crypto.getRandomValues(new Uint8Array(12)), iv2 = crypto.getRandomValues(new Uint8Array(12));
+  const inner = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, kKey, enc.encode(clear));
+  const eph = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]);
+  const wrap = await crypto.subtle.deriveKey({ name: "ECDH", public: buyerKey.publicKey }, eph.privateKey, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
+  const sealed = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv2 }, wrap, inner);
+  const condition = "A0258020" + (await sha256(K)).toUpperCase() + "810120";   // EscrowCreate
+  const fulfillment = "A0228020" + hex(K).toUpperCase();                       // EscrowFinish reveals K
+  if ("A0258020" + (await sha256(hexToBytes(fulfillment.slice(8)))).toUpperCase() + "810120" !== condition) throw new Error("condition mismatch");
+  const unwrap = await crypto.subtle.deriveKey({ name: "ECDH", public: eph.publicKey }, buyerKey.privateKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const innerBack = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv2 }, unwrap, sealed);
+  const kBack = await crypto.subtle.importKey("raw", hexToBytes(fulfillment.slice(8)), "AES-GCM", false, ["decrypt"]);
+  const out = dec.decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv1 }, kBack, innerBack));
+  return { bytes: sealed.byteLength, matches: (await sha256(out)) === want, clear: JSON.parse(out), condition, fulfillment };
+}
+
+// The rest of the market: demo accounts' agents fill open requests under their standing rules.
+// The signed-in person is never sold automatically: their agent asks first.
+async function tick(silent) {
+  if (S.busy) return; S.busy = true;
+  try {
+    const open = S.wanted.filter((w) => w.by !== S.me);
+    if (!open.length) return;
+    const w = pick(open);
+    const personal = KINDS[w.kind].personal;
+    const pool = supply(w.kind, w.by, 0.7);
+    const mine = pool.find((x) => x.a.id === S.me);
+    const others = pool.filter((x) => x.a.id !== S.me && !(S.pending[S.me]?.want === w));
+    if (mine && !S.pending[S.me] && others.length >= K_MIN - 1) propose(w, mine);
+    const lot = others.sort(() => rnd() - 0.5).slice(0, personal ? Math.min(others.length, 5 + Math.floor(rnd() * 4)) : 2);
+    if (personal && lot.length < K_MIN) return;
+    if (await settle(w, lot, { silent })) {
+      if (acct(w.by).type === "person") S.wanted = S.wanted.filter((x) => x !== w);
+    }
+    if (rnd() < 0.15) { const p = pick(Object.values(S.accounts).filter((a) => a.type === "person" && a.id !== S.me && a.id !== "bulk")); S.wanted.push({ id: ++seq, by: p.id, kind: "air", price: 4, min: 1, note: "personal project" }); }
+  } finally { S.busy = false; }
+}
+
+// ---------- my agent ----------
+function say(id, from, html, actions, quiet) { S.chat[id].push({ from, html, actions }); if (!quiet) render(); }
+const CHIPS = ["Sell my running tracks", "I need sleep data from 5+ people", "Buy air-quality sensor data", "Sell my passport"];
+
+function propose(w, mine) {
+  const b = acct(w.by);
+  S.pending[S.me] = { want: w };
+  say(S.me, "ai", `<b>${esc(b.name)}</b> wants ${label(w.kind).toLowerCase()} at <b>${w.price} XRP</b> per person (${esc(w.note)}). You have ${mine.files.length} pseudonymized file(s) for sale. I can sell them inside a lot of at least ${K_MIN} people; the buyer sees you only as a one-time id. Sell?`,
+    [{ t: `OK, sell for ${w.price} XRP`, primary: true, run: () => sellMine(w) }, { t: "Not now", run: () => { S.pending[S.me] = { want: w, declined: true }; say(S.me, "ai", "Okay, nothing sold. Your files stay listed."); } }], true);
+}
+
+async function sellMine(w) {
+  const pool = supply(w.kind, w.by, 0.7);
+  const mine = pool.find((x) => x.a.id === S.me), others = pool.filter((x) => x.a.id !== S.me).slice(0, K_MIN + 1);
+  delete S.pending[S.me];
+  if (!mine) return say(S.me, "ai", "Your files are no longer marked for sale, so nothing was sold.");
+  if (KINDS[w.kind].personal && others.length < K_MIN - 1) return say(S.me, "ai", "Not enough other people to form a lot right now. Nothing was sold.");
+  const tx = await settle(w, [mine, ...others]);
+  if (!tx) return say(S.me, "ai", "The buyer could not pay or a source signature failed, so nothing was sold.");
+  say(S.me, "ai", `Sold in a lot of ${tx.sellers.length} people. <b>+${w.price} XRP</b>.<ul><li>${esc(acct(w.by).name)} locked the payment first</li><li>Your files went to them sealed, readable only by them and only after payment</li><li>Signatures checked, then the payment released the key</li><li>Fingerprint ${tx.ok ? "matches" : "does not match"}</li></ul>`);
+}
+
+async function handle(text) {
+  const id = S.me;
+  say(id, "me", esc(text));
+  const kind = Object.keys(KINDS).find((k) => KINDS[k].re.test(text));
+  const isSell = /sell|팔|판매|내놓/i.test(text), isBuy = /need|buy|want|looking|필요|사줘|사고|구매|구해/i.test(text);
+  const maxPrice = +(text.match(/(\d+(?:\.\d+)?)\s*xrp/i)?.[1] || 0);
+  if (!kind) return say(id, "ai", "Which data do you mean? Running tracks, sleep logs, receipts, voice memos or air-quality sensors.");
+  if (isSell) {
+    if (kind === "id_document") return say(id, "ai", "Identity documents can never be sold here, so I keep them private.");
+    const files = me().files.filter((f) => f.kind === kind && !f.bought);
+    if (!files.length) return say(id, "ai", `You have no ${label(kind).toLowerCase()} in your DB.`);
+    files.forEach((f) => markSell(f, true));
+    const w = S.wanted.find((x) => x.kind === kind && x.by !== id);
+    say(id, "ai", `I pseudonymized ${files.length} file(s) and marked them for sale. Names, emails, device serials and exact times are removed; routes lose their start and end.${w ? "" : " No buyer is asking for this yet; I will tell you when one does."}`);
+    if (w) propose(w, { a: me(), files }), render();
     return;
   }
-  // per-deal pseudonym: the buyer cannot link this owner to the vault id or to any other deal
-  const dealSalt = crypto.getRandomValues(new Uint8Array(16));
-  S.deal.salt = hex(dealSalt);
-  S.deal.pseudo = "p_" + (await hmac(S.keys.vault, "deal:" + S.deal.salt)).slice(0, 12);
-  S.deal.bundle = { contract: { buyer: p.buyer, purpose: p.purpose, resale: p.resale, price_xrp: p.price_xrp }, contributor: S.deal.pseudo,
-    records: mineSellable.map((v) => ({ file: v.kind + "_" + (mineSellable.indexOf(v) + 1), data: v.clean, provenance: { source: v.prov.source, raw_sha256: v.prov.raw_sha256, sig: v.prov.sig } })) };
-  S.deal.bundleHash = await sha256(canon(S.deal.bundle));
-  log(`Matched ${S.deal.people} owners (k = ${K_MIN} required). ${others.filter((o) => !o.ok).map((o) => `Owner ${o.id} left out: ${o.why}`).join(". ")}.`);
-  log(`Built your share: ${mineSellable.length} files, bundle hash ${short(S.deal.bundleHash, 16)}. Waiting for your OK.`);
+  if (!isBuy) return say(id, "ai", `Do you want to sell your ${label(kind).toLowerCase()} or buy some?`);
+  if (kind === "id_document") return say(id, "ai", "Identity documents are not traded here.");
+  const minTrust = +$("trust").value, limit = +$("autonomy").value;
+  const all = supply(kind, id, 0), ok = supply(kind, id, minTrust);
+  const skipped = all.filter((x) => !ok.some((y) => y.a.id === x.a.id));
+  const price = maxPrice || KINDS[kind].price;
+  const w = { id: ++seq, by: id, kind, price, min: KINDS[kind].personal ? K_MIN : 1, note: "posted by " + me().name + "'s agent" };
+  S.wanted.unshift(w);
+  const lot = ok.slice(0, KINDS[kind].personal ? 6 : 2), total = price * lot.length;
+  let t = `I posted your request on the board at ${price} XRP per ${KINDS[kind].personal ? "person" : "seller"} and found ${all.length} seller(s).`;
+  if (skipped.length) t += ` I skipped ${skipped.length} below your trust setting (${skipped.map((x) => `${esc(x.a.name)}, trust ${x.a.trust}${x.files.some((f) => f.unsigned) ? ", unsigned" : ""}`).join("; ")}).`;
+  if (KINDS[kind].personal && lot.length < K_MIN) return say(id, "ai", t + ` Only ${lot.length} trusted people have it for sale; I need ${K_MIN}. Your request stays on the board.`);
+  const go = async () => { const tx = await settle(w, lot); S.wanted = S.wanted.filter((x) => x !== w); say(id, "ai", tx ? `Bought ${tx.items} file(s) from ${tx.sellers.length} ${KINDS[kind].personal ? "people" : tx.sellers.length === 1 ? "seller" : "sellers"} for <b>${tx.total} XRP</b>. It arrived sealed to your key; the payment released the key and I opened it. It is in your DB.` : "Not enough balance, so nothing was bought."); };
+  if (total > me().balance) return say(id, "ai", t + ` It would cost ${total} XRP and you have ${me().balance}. Your request stays on the board.`);
+  if (total <= limit) { say(id, "ai", t + ` ${total} XRP is within your ${limit} XRP limit, so I am buying now.`); return go(); }
+  say(id, "ai", t + ` Total ${total} XRP is above what I may spend alone. Buy?`, [{ t: `Buy for ${total} XRP`, primary: true, run: go }, { t: "Skip", run: () => say(id, "ai", "Skipped. Your request stays on the board.") }]);
 }
 
-function decide(yes) {
-  S.decision = yes ? "ok" : "no";
-  if (yes) log("You approved the sale on your signing sheet.");
-  else {
-    S.deal.people -= 1;
-    log(`You declined. Your files are not sold. ${S.deal.people >= K_MIN ? `The other ${S.deal.people} owners still meet k = ${K_MIN}, so their sale goes ahead without you.` : "The group is now below k, so nothing is sold."}`, true);
-  }
-  S.step = 5; render();
-}
-
-async function stepSale() {
-  const p = S.posting;
-  if (S.deal.people < K_MIN) { log("The group is below k. The agent closes the request with no sale.", true); return; }
-  // the buyer's registered key: sealed pushes are encrypted to it
-  const buyerKey = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]);
-  const sellers = S.deal.others.filter((o) => o.ok).map((o) => "Owner " + o.id);
-  if (S.decision === "ok") {
-    // 1. owner side: data key K, bundle encrypted under K, then wrapped to the buyer's key
-    const K = crypto.getRandomValues(new Uint8Array(32));
-    const kKey = await crypto.subtle.importKey("raw", K, "AES-GCM", false, ["encrypt", "decrypt"]);
-    const iv1 = crypto.getRandomValues(new Uint8Array(12));
-    const inner = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv1 }, kKey, enc.encode(canon(S.deal.bundle)));
-    const eph = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]);
-    const wrapKey = await crypto.subtle.deriveKey({ name: "ECDH", public: buyerKey.publicKey }, eph.privateKey, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
-    const iv2 = crypto.getRandomValues(new Uint8Array(12));
-    const sealed = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv2 }, wrapKey, inner);
-    const cond = "A0258020" + (await sha256(K)).toUpperCase() + "810120";
-    // 2. buyer locks payment under SHA-256(K); the sealed record is pushed to the buyer's store
-    const create = await tx("EscrowCreate", `${p.buyer} locks ${p.price_xrp} XRP for ${S.deal.pseudo}. Condition ${short(cond, 22)}. Memo: bundle ${short(S.deal.bundleHash, 12)}`);
-    log(`Sealed push: ${sealed.byteLength} bytes, encrypted to ${p.buyer}'s key, delivered to their own store. The buyer holds it but cannot open it yet.`);
-    // 3. before payment: provenance of every record is checked against the source signatures
-    for (const v of S.deal.mine) {
-      const okSig = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, v.prov.pub, hexToBytes(v.prov.sig), enc.encode(v.prov.raw_sha256));
-      if (!okSig) { log(`Provenance check failed for ${v.name}. Payment stopped.`, true); return; }
-    }
-    log("Provenance checked: every record carries a valid source signature stamped at intake.");
-    // 4. owner reveals K in EscrowFinish: payment and key in one step
-    const fulfil = "A0228020" + hex(K).toUpperCase();
-    if (("A0258020" + (await sha256(hexToBytes(fulfil.slice(8)))).toUpperCase() + "810120") !== cond) throw new Error("condition mismatch");
-    const finish = await tx("EscrowFinish", `Fulfillment reveals K (${short(fulfil, 22)}). ${p.price_xrp} XRP paid to ${S.deal.pseudo}.`);
-    // 5. buyer opens what it already holds
-    const unwrap = await crypto.subtle.deriveKey({ name: "ECDH", public: eph.publicKey }, buyerKey.privateKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
-    const innerBack = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv2 }, unwrap, sealed);
-    const kFromLedger = await crypto.subtle.importKey("raw", hexToBytes(fulfil.slice(8)), "AES-GCM", false, ["decrypt"]);
-    const clear = dec.decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv1 }, kFromLedger, innerBack));
-    const matches = (await sha256(clear)) === S.deal.bundleHash;
-    S.deal.opened = { clear: JSON.parse(clear), matches, create, finish };
-    log(`${p.buyer} opened the bundle with K read from EscrowFinish. Bundle hash ${matches ? "matches" : "does NOT match"} the EscrowCreate memo.`, !matches);
-  }
-  for (const s of sellers) await tx("EscrowFinish", `${p.price_xrp} XRP paid to ${s} (pseudonymous), key released.`);
-  S.deal.sold = sellers.length + (S.decision === "ok" ? 1 : 0);
-  log(`Sale closed: ${S.deal.sold} owners paid ${p.price_xrp} XRP each. The agent fee is taken from the buyer, never from the owners' payout.`);
-}
-
-function hexToBytes(h) { const a = new Uint8Array(h.length / 2); for (let i = 0; i < a.length; i++) a[i] = parseInt(h.substr(i * 2, 2), 16); return a; }
-async function tx(type, text) { const h = (await sha256(type + text + S.ledger.length)).toUpperCase(); S.ledger.push({ type, text, h }); return h; }
-function log(text, warn = false) { S.log.push({ text, warn }); }
-const label = (k) => ({ gps_track: "Running GPS tracks", sleep_log: "Sleep log", purchase_receipts: "Purchase receipts", audio: "Voice memos", id_document: "Identity documents", other: "Other" }[k] || k);
+function markSell(f, on) { if (f.bought || f.kind === "id_document") return; f.sell = on; f.clean = on ? pseudonymize(f.raw) : null; }
 
 // ---------- rendering ----------
 function render() {
-  $("steps").innerHTML = STEPS.map((s, i) => `<li class="${i < S.step ? "done" : i === S.step ? "now" : ""}">${i + 1}. ${s}</li>`).join("");
-  const nextLabels = ["Start: upload to my vault", "Let the agent sort my vault", "Post the buyer request", "Match and build the package", "Waiting for your OK", "Run the sale", "Done"];
-  $("next").textContent = nextLabels[S.step];
-  $("next").disabled = S.step === 4 || S.step >= 6 || (S.step === 5 && S.deal?.blocked);
-  $("posting").disabled = S.step > 2;
-  $("ownerPseudo").textContent = S.ownerPseudo ? "owner: " + S.ownerPseudo : "owner: not uploaded";
-  $("status").textContent = S.step >= 6 ? "Cycle complete. Reset to try the other request or decline." : "";
+  const m = me();
+  $("acct").value = S.me;
+  $("bal").textContent = m.balance + " XRP";
+  $("ownerId").textContent = m.pid;
+  const pend = S.pending[S.me] && !S.pending[S.me].declined;
+  $("badge").innerHTML = pend && $("drawer").hidden ? '<span class="badge">1</span>' : "";
 
-  // owner files
-  if (!S.vault.length) {
-    $("files").innerHTML = S.files.map((f, i) => `<div class="file"><span class="name">${esc(f.name)}</span>
-      <label class="toggle" for="sell${i}"><input type="checkbox" id="sell${i}" data-i="${i}" ${f.sell ? "checked" : ""}> sell</label>
-      <span class="meta">from ${f.source} · contains ${Object.keys(f.raw).filter((k) => DIRECT.includes(k)).join(", ")}</span></div>`).join("");
-    document.querySelectorAll("#files input").forEach((el) => el.addEventListener("change", (e) => { S.files[+e.target.dataset.i].sell = e.target.checked; }));
-    $("intake").innerHTML = `<p class="hint">Tick what you would sell, then upload. Marked files are pseudonymized before they reach the vault index; unmarked files are stored sealed.</p>`;
-  } else {
-    $("files").innerHTML = S.vault.map((v) => `<div class="file"><span class="name">${esc(v.name)}</span>
-      <span class="pill ${v.locked ? "lock" : v.sell ? "sell" : "keep"}">${v.locked ? "never sold" : v.sell ? "for sale" : "private"}</span>
-      <span class="meta">${label(v.kind)} · source signature ${short(v.prov.sig, 8)}</span></div>`).join("");
-    const ex = S.vault.find((v) => v.sell && v.kind === "gps_track") || S.vault.find((v) => v.sell);
-    $("intake").innerHTML = ex ? `<h3>Pseudonymized at upload: ${esc(ex.name)}</h3><div class="diff">
-      <div><div class="eyebrow">What you uploaded</div><pre>${esc(pretty(ex.raw))}</pre></div>
-      <div><div class="eyebrow">What a buyer could ever see</div><pre>${esc(pretty(ex.clean))}</pre></div></div>` : "";
-  }
+  // demand list
+  const myKinds = new Set(m.files.filter((f) => f.sell).map((f) => f.kind));
+  $("wanted").innerHTML = S.wanted.map((w) => { const b = acct(w.by); return `<div class="want ${w.by === S.me ? "mine" : ""} ${myKinds.has(w.kind) && w.by !== S.me ? "fit" : ""}">
+    <div><b>${label(w.kind)}</b><div class="who">${w.by === S.me ? "your request" : esc(b.name)}${b.type === "org" ? ' <span class="tag blue">verified</span>' : ""}</div></div>
+    <div class="price">${w.price} XRP<div class="who">per ${KINDS[w.kind].personal ? "person" : "seller"}</div></div>
+    <div class="sub">${esc(w.note)}${KINDS[w.kind].personal ? ` · lots of ${w.min}+ people` : ""}${myKinds.has(w.kind) && w.by !== S.me ? " · you have this for sale" : ""}</div></div>`; }).join("");
 
-  // agent packages
-  if (S.packages.length) {
-    $("packages").innerHTML = `<h3>Packages in my vault</h3>` + S.packages.map((p) => `<div class="card ${S.posting && p.kind === S.posting.want ? "hot" : ""}">
-      <div class="bar" style="justify-content:space-between"><strong>${label(p.kind)}</strong><span class="pill ${p.status}">${p.status === "lock" ? "never sold" : p.status === "sell" ? p.sellable + " for sale" : "private"}</span></div>
-      <span class="hint">${p.items.length} file(s) · ${esc(p.items[0].reason)}</span></div>`).join("");
-  }
-  if (S.deal) {
-    const p = S.posting;
-    $("match").innerHTML = `<h3>Match for “${esc(p.title)}”</h3><div class="owners">
-      <div><span>You (${S.deal.mine.length} files)</span><span class="${S.deal.mine.length && S.decision !== "no" ? "y" : "n"}">${!S.deal.mine.length ? "not offered" : S.decision === "no" ? "declined" : S.decision === "ok" ? "approved" : "waiting for OK"}</span></div>
-      ${S.deal.others.map((o) => `<div><span>Owner ${o.id} (${o.ok ? o.runs + " tracks" : "-"})</span><span class="${o.ok ? "y" : "n"}">${o.ok ? "joins (standing rules)" : esc(o.why)}</span></div>`).join("")}
-      </div><p class="hint">${S.deal.people} owners in the lot; k = ${K_MIN} required. ${S.deal.blocked ? "Below k: nothing is built." : ""}</p>`;
-  } else $("match").innerHTML = "";
+  // ledger
+  $("stats").innerHTML = `<span><b>${S.ledger.length}</b>trades</span><span><b>${S.volume.toLocaleString()} XRP</b>paid to sellers</span><span><b>${Object.values(S.accounts).filter((a) => a.type === "person").length}</b>people's DBs</span><span><b>${S.wanted.length}</b>open requests</span>`;
+  $("ledger").innerHTML = S.ledger.map((t) => {
+    const b = acct(t.buyer), mineTx = t.buyer === S.me || t.sellers.includes(S.me), personal = KINDS[t.kind].personal;
+    const to = personal ? `${t.sellers.length} people${t.sellers.includes(S.me) ? " incl. you" : ""}` : t.sellers.map((s) => acct(s).name).join(", ");
+    const open = S.open === t.id;
+    return `<div class="tx ${mineTx ? "mine" : ""} ${t.fresh ? "new" : ""}"><button type="button" data-tx="${t.id}" aria-expanded="${open}"><time>${t.time}</time>
+      <div><b>${t.buyer === S.me ? "You" : esc(b.name)}</b> → <b>${esc(to)}</b><div class="what">${label(t.kind)} · ${t.items} files · ${t.each} XRP each</div></div><span class="amt">${t.total} XRP</span></button>
+      ${open ? `<dl class="detail"><dt>Buyer</dt><dd>${esc(b.name)}</dd><dt>Sellers</dt><dd class="mono">${personal ? t.pseudos.join(" ") : esc(to)}</dd><dt>Purpose</dt><dd>${esc(t.note)}</dd>
+        <dt>Paid</dt><dd>${t.each} XRP × ${t.sellers.length} = ${t.total} XRP</dd><dt>Delivered</dt><dd>${t.items} files, ${t.bytes.toLocaleString()} bytes sealed to the buyer's key</dd>
+        <dt>Escrow condition</dt><dd class="mono">${short(t.cond, 28)}</dd><dt>Key released</dt><dd class="mono">${short(t.key, 28)}</dd>
+        <dt>Checks</dt><dd>source signatures OK · fingerprint ${t.ok ? "matches" : "does not match"}${personal ? ` · lot of ${t.sellers.length} ≥ ${K_MIN}` : ""}</dd></dl>` : ""}</div>`; }).join("");
+  S.ledger.forEach((t) => (t.fresh = false));
+  document.querySelectorAll("[data-tx]").forEach((b) => b.onclick = () => { S.open = S.open === +b.dataset.tx ? null : +b.dataset.tx; render(); });
 
-  // signing sheet
-  if (S.step === 4 && S.deal && !S.deal.blocked && S.deal.mine.length) {
-    const p = S.posting;
-    $("sheetBox").innerHTML = `<div class="sheet" role="dialog" aria-labelledby="h-sheet"><h3 id="h-sheet">Sell to ${esc(p.buyer)}?</h3><dl class="kv">
-      <dt>What</dt><dd>${S.deal.mine.length} ${label(p.want).toLowerCase()} (pseudonymized copy)</dd>
-      <dt>Removed</dt><dd>name, email, device serial, exact times, start and end of each route</dd>
-      <dt>Purpose</dt><dd>${esc(p.purpose)}, no resale</dd>
-      <dt>You get</dt><dd>${p.price_xrp} XRP, paid when the key is released</dd>
-      <dt>Buyer sees you as</dt><dd class="mono">${S.deal.pseudo} (new for this sale only)</dd>
-      <dt>Group</dt><dd>sold only as part of ${S.deal.people} people</dd></dl>
-      <div class="bar"><button class="primary" id="ok">OK, sell</button><button class="warn" id="no">Decline</button></div></div>`;
-    $("ok").onclick = () => decide(true); $("no").onclick = () => decide(false);
-  } else if (S.step === 4 && S.deal && !S.deal.blocked && !S.deal.mine.length) {
-    S.decision = "none"; S.step = 5; return render();
-  } else $("sheetBox").innerHTML = "";
+  // my DB, sorted by type
+  const groups = {};
+  for (const f of m.files) (groups[f.bought ? "bought" : f.kind] ||= []).push(f);
+  const order = ["bought", "gps_track", "sleep_log", "purchase_receipts", "audio", "air", "id_document"].filter((k) => groups[k]);
+  $("db").innerHTML = order.map((k) => { const fs = groups[k], sell = fs.filter((f) => f.sell).length;
+    return `<div class="group"><header><b>${k === "bought" ? "Bought" : label(k)}</b><span class="muted">${fs.length} file(s)${k === "bought" ? "" : k === "id_document" ? " · never sold" : ` · ${sell} for sale`}</span></header>
+    ${fs.map((f) => `<div class="file"><span class="name">${esc(f.name)}</span>
+      ${f.bought ? `<span class="tag blue">bought</span>` : f.kind === "id_document" ? `<span class="tag red">locked</span>` : `<label class="switch" for="f${f.id}"><input type="checkbox" id="f${f.id}" data-f="${f.id}" ${f.sell ? "checked" : ""}>sell</label>`}
+      <span class="meta">${f.bought ? `${f.items} files from ${esc(f.from)}` : f.sold ? `sold ${f.sold}×` : f.sell ? "listed as a pseudonymized copy" : "private"}</span>
+      ${f.clean ? `<details class="meta"><summary>${f.bought ? "What you received (sample)" : "What a buyer would see"}</summary><pre>${esc(pretty(f.clean))}</pre></details>` : ""}</div>`).join("")}</div>`; }).join("")
+    || `<p class="muted small">No files yet.</p>`;
+  document.querySelectorAll("[data-f]").forEach((el) => el.onchange = () => { markSell(m.files.find((f) => f.id === +el.dataset.f), el.checked); render(); });
 
-  // buyer
-  if (S.posting) {
-    const p = S.posting;
-    $("buyerName").textContent = p.buyer + (p.verified ? " · verified org" : "");
-    $("buyer").innerHTML = `<div class="card hot"><span class="eyebrow">Request</span><strong>${esc(p.title)}</strong><span>${esc(p.text)}</span>
-      <dl class="kv"><dt>Price</dt><dd>${p.price_xrp} XRP per person</dd><dt>Minimum</dt><dd>${p.min_people} people</dd></dl></div>`;
-  } else { $("buyerName").textContent = ""; $("buyer").innerHTML = `<div class="empty">The buyer's request arrives at step 3.</div>`; }
-  if (S.deal?.opened) {
-    const o = S.deal.opened;
-    $("delivery").innerHTML = `<h3>Delivered and opened</h3><p class="hint">Bundle hash ${o.matches ? "matches" : "does not match"} the escrow memo. ${S.deal.sold} owners in this lot.</p><pre>${esc(pretty(o.clear.records[0]))}</pre>`;
-  } else if (S.deal?.sold) {
-    $("delivery").innerHTML = `<h3>Delivered</h3><p class="hint">${S.deal.sold} owners sold; your files were not part of it.</p>`;
-  } else $("delivery").innerHTML = "";
-
-  $("ledger").innerHTML = S.ledger.length ? S.ledger.map((t) => `<div class="tx"><span class="t">${t.type}</span><div>${esc(t.text)} <span class="mono hint">tx ${short(t.h, 12)}</span></div></div>`).join("") : `<div class="empty">No transactions yet.</div>`;
-  $("log").innerHTML = S.log.map((l) => `<p class="${l.warn ? "warn" : ""}">${esc(l.text)}</p>`).join("") || `<p>Ready. Mark what you would sell and press Start.</p>`;
+  // chat
+  $("msgs").innerHTML = S.chat[S.me].map((c, i) => `<div class="msg ${c.from}"><div>${c.html}</div>${c.actions ? `<div class="acts">${c.actions.map((a, j) => `<button type="button" class="${a.primary ? "primary" : ""}" data-m="${i}" data-a="${j}" ${c.done ? "disabled" : ""}>${esc(a.t)}</button>`).join("")}</div>` : ""}</div>`).join("");
+  document.querySelectorAll("[data-m]").forEach((b) => b.onclick = () => { const c = S.chat[S.me][+b.dataset.m]; if (c.done) return; c.done = true; c.actions[+b.dataset.a].run(); render(); });
+  $("msgs").scrollTop = $("msgs").scrollHeight;
 }
 
-async function next() {
-  $("next").disabled = true;
-  try {
-    if (S.step === 0) await stepUpload();
-    else if (S.step === 1) stepSort();
-    else if (S.step === 2) stepPosting();
-    else if (S.step === 3) await stepMatch();
-    else if (S.step === 5) await stepSale();
-    S.step = S.step === 3 && S.deal?.blocked ? 5 : S.step + 1;
-    if (S.step === 6 || (S.step === 5 && S.deal?.blocked)) S.step = 6;
-  } catch (e) { log("Error: " + e.message, true); }
-  render();
-}
-
-$("posting").innerHTML = POSTINGS.map((p) => `<option value="${p.id}">${esc(p.buyer)}: ${esc(p.title)}</option>`).join("");
-$("next").addEventListener("click", next);
-$("reset").addEventListener("click", () => { S = fresh(); render(); });
-S = fresh(); render();
+$("chips").innerHTML = CHIPS.map((c) => `<button type="button" class="chip">${esc(c)}</button>`).join("");
+$("chips").querySelectorAll(".chip").forEach((b) => b.onclick = () => handle(b.textContent));
+$("form").addEventListener("submit", (e) => { e.preventDefault(); const v = $("say").value.trim(); if (v) { $("say").value = ""; handle(v); } });
+$("openChat").onclick = () => { $("drawer").hidden = false; render(); $("say").focus(); };
+$("closeChat").onclick = () => { $("drawer").hidden = true; render(); };
+$("pause").onclick = () => { S.paused = !S.paused; $("pause").textContent = S.paused ? "Resume" : "Pause"; };
+$("acct").onchange = (e) => { S.me = e.target.value; render(); };
+init();
 </script>
 </body>
 </html>
