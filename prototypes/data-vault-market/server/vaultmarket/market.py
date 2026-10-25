@@ -259,7 +259,7 @@ class Market:
         tx = self._fee(account, fee_drops, f"cleaning {name}")
         fid = self.add_file(account, sc["kind"], name, intake.clean(sc["kind"], body), listed=listed, source=body.get("device_serial", "upload"),
                             cleaned=True, checks=["schema", "value ranges", "duplicates", "identifiers removed"] + sc["issues"])
-        self.s.x("UPDATE uploads SET file = ?, verdict = 'cleaned', fee_tx = ? WHERE id = ?", (fid, tx, uid))
+        self.s.x("UPDATE uploads SET file = ?, verdict = 'cleaned', fee_tx = ?, fee_micro = ? WHERE id = ?", (fid, tx, fee_drops, uid))
         self.s.bump("cleaned"); self.s.bump("fees", sc["fee"])
         return {"upload": uid, "file": fid, "verdict": "cleaned", "fee": sc["fee"], "tx": tx}
 

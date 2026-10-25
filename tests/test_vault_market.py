@@ -742,3 +742,8 @@ def test_extra_people_join_a_running_vault_once(market, monkeypatch):
     for aid in ids:
         assert market.acct(aid)["sell_agent"]["mode"] == "auto"
         assert {f["kind"] for f in market.s.q("SELECT kind FROM files WHERE account = ?", (aid,))} >= set(data.NEW_KINDS)
+
+
+def test_fee_label_shows_the_fee_actually_paid():
+    from vaultmarket.app import _micro
+    assert _micro(5000) == "0.005" and _micro(35500) == "0.0355" and _micro(10000) == "0.01" and _micro(2_000_000) == "2.00"

@@ -521,7 +521,7 @@ def account(aid: str, request: Request):
     return {"balance_address":display_address,"trades":trades,"agent_queue": M.s.q("SELECT q.*,p.purpose,p.buyer,c.status contract_status,c.reason contract_reason FROM sale_queue q LEFT JOIN postings p ON p.id=q.posting LEFT JOIN contracts c ON c.id=q.contract WHERE q.account=? ORDER BY q.id DESC", (aid,)),
             "account": a, "balance": display_balance, "address": M.addr.get(aid), "stats": stats, "bundles": bundles, "demand": demand,
             "bought": [f for f in files if f["status"] in ("bought", "bundled")], "files": len(files), "growth": growth,
-            "uploads": [{**u, "fee_url": (f"{EVM_EXPLORER}/tx/{u['fee_tx']}" if config.AP4M and str(u["fee_tx"]).startswith("0x") else M.rail.explorer(u["fee_tx"])) if u.get("fee_tx") else None, "fee_label": f"{(u['fee'] or 0)*config.MICRO_PER_UNIT/1e6:.2f} {M.rail.label()}"}
+            "uploads": [{**u, "fee_url": (f"{EVM_EXPLORER}/tx/{u['fee_tx']}" if config.AP4M and str(u["fee_tx"]).startswith("0x") else M.rail.explorer(u["fee_tx"])) if u.get("fee_tx") else None, "fee_label": f"{_micro(u['fee_micro'] if u.get('fee_micro') is not None else round((u['fee'] or 0) * config.MICRO_PER_UNIT))} {M.rail.label()}"}
                         for u in M.s.q("SELECT * FROM uploads WHERE account = ? ORDER BY id DESC LIMIT 10", (aid,))],
             "recs": M.s.q("SELECT * FROM recs WHERE account = ? AND status = 'open' ORDER BY id DESC", (aid,)),
             "chat": [{**c, "actions": json.loads(c["actions"]) if c["actions"] else None} for c in M.s.q("SELECT * FROM chat WHERE account = ? ORDER BY id DESC", (aid,))][::-1]}
@@ -654,8 +654,13 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
     return {"ok": True}
 
 
+def _micro(m: int) -> str:
+    """The amount actually paid, in the asset, without rounding a 0.005 fee up to 0.01."""
+    return f"{m / 1e6:.6f}".rstrip("0").rstrip(".") if m % 10000 else f"{m / 1e6:.2f}"
+
+
 def _amt(w) -> str:
-    return f"{w['expected']*config.MICRO_PER_UNIT/1000000:.2f} {M.rail.label()}"
+    return f"{_micro(round(w['expected'] * config.MICRO_PER_UNIT))} {M.rail.label()}"
 
 
 def _offer_buttons(offers) -> list[dict]:
