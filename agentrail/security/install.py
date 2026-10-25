@@ -25,6 +25,7 @@ class SecurityContext:
         self.vaults: dict[str, InstitutionVault] = {}
         persist = w.ledger.name == "testnet"        # approver keys are on a live SignerList: keep them
         root = os.environ.get("AGENTRAIL_KEYSTORE") or (".keystore" if persist else None)
+        self.root = root      # the institution's box key too, so a finished run's bundles can be opened later
         self.approvers_by_org = {org: {n: ApproverDevice(f"approver:{n}@{org}", w.ledger.name,
                                                          LocalKeyStore(f"approver.{n}.{org}", root))
                                        for n in SIGNER_NAMES} for org in (STUDY, "org_robodev")}
@@ -36,7 +37,7 @@ class SecurityContext:
         for org in BUYERS:
             if e.party(org) is None:
                 continue
-            v = InstitutionVault(org)
+            v = InstitutionVault(org, LocalKeyStore(f"institution.{org}", self.root))
             e.register_public_key(org, v.public_hex)
             e.openers[org] = v
             self.vaults[org] = v
