@@ -1025,6 +1025,12 @@ def contracts_close(cid: str):
     return _lcall(lambda L: L.close(cid))
 
 
+@app.post("/api/contracts/{cid}/payments/retry")
+def contracts_retry_payments(cid: str):
+    """Pay delivered weeks whose AP4M payment did not go through (same ref: never paid twice)."""
+    return _lcall(lambda L: {"paid": L.retry_payments(cid), "payments": L.console(cid)["payments"]})
+
+
 @app.get("/api/p/{pid}/contracts")
 def member_contracts(pid: str):
     return _lcall(lambda L: L.member_view(pid))

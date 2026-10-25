@@ -156,6 +156,12 @@ class Lane:
         now = time.time() if now is None else now
         out = []
         self.backfill_receipts()
+        if now >= getattr(self, "_retry_at", 0):
+            # a week can be delivered after its round (or a payment fail at the close): keep paying those
+            self._retry_at = now + 60
+            for c in self.store.q("SELECT DISTINCT cp.contract_id FROM contract_payments cp WHERE cp.ok=0"):
+                with self._lock:
+                    self.retry_payments(c["contract_id"])
         for c in self.store.q("SELECT id, terms, created_at FROM research_contracts WHERE status='open'"):
             t = json.loads(c["terms"])
             every = t.get("round_every_s")

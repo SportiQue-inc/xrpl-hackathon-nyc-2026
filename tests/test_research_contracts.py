@@ -287,3 +287,19 @@ def test_receipts_the_rail_settles_later_are_filled_in(c, rail):
     assert lane.backfill_receipts() == 0
     got = c.get(f"/api/p/{a.sub}/contracts", headers=ha).json()["history"][0]["payment"]
     assert got["receipt_url"].startswith("https://hackathon.ap4m.build/r/rc-") and got["status"] == "paid"
+
+
+def test_unpaid_weeks_are_paid_after_the_contract_closes(c, rail):
+    paid, state = rail
+    cid, code, researcher = post(c, AP4M_TERMS)
+    join(c, cid, code, "auto_all", "a")
+    rh = token(c, researcher)
+    state["down"] = True
+    c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=rh)
+    c.post(f"/api/contracts/{cid}/close", headers=rh)
+    state["down"] = False
+    lane = web.lane()
+    lane.tick(now=lane._retry_at if hasattr(lane, "_retry_at") else 0)
+    assert len(paid) == 1                             # the scheduler pays it after the close
+    r = c.post(f"/api/contracts/{cid}/payments/retry", headers=rh).json()
+    assert r["paid"] == 0 and r["payments"]["unpaid_count"] == 0 and len(paid) == 1
