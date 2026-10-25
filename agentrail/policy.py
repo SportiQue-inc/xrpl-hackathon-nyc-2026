@@ -80,6 +80,25 @@ SENSITIVITY = {
     "blood_pressure.daily": "sensitive",
 }
 
+# Quasi-identifiers: harmless alone, identifying together (birth date + small area + rare
+# diagnosis singles out one person). The compliance layer never releases two or more of
+# them to the same study, whatever the consent says.
+QUASI_IDENTIFIERS = {"birth_date": "exact birth date", "zip5": "5-digit postal code",
+                     "diagnosis.rare": "rare diagnosis"}
+
+# GA4GH Data Use Ontology codes for the purposes in this demo. A consent records the codes
+# it allows; a request whose purpose maps to other codes is a new purpose (the person decides).
+DUO = {
+    "DUO:0000006": "HMB - health or medical or biomedical research",
+    "DUO:0000046": "NCU - non-commercial use only",
+    "DUO:0000021": "IRB - ethics approval required",
+    "DUO:0000044": "NPOA - population origins or ancestry research prohibited",
+}
+PURPOSE_DUO = {
+    "sleep_research": ["DUO:0000006", "DUO:0000046", "DUO:0000021", "DUO:0000044"],
+    "commercial_product_dev": ["DUO:0000006"],
+}
+
 # Organization data fields that may identify people (faces, plates, voices).
 # A buyer agent requests them only if its owner allowed sensitive fields.
 SENSITIVE_FIELDS = {"raw_video"}
@@ -113,6 +132,10 @@ class ComplianceRules:
         """Returns (fields allowed to proceed, denial reason or None)."""
         if purpose in self.prohibited_purposes:
             return [], f"purpose '{purpose}' is prohibited by the compliance layer"
+        quasi = [f for f in fields if f in QUASI_IDENTIFIERS]
+        if len(quasi) >= 2:
+            return [], ("re-identification risk: " + " + ".join(QUASI_IDENTIFIERS[q] for q in quasi)
+                        + " together can single out one person; the combination is never released")
         if not any(SENSITIVITY.get(f) == "sensitive" for f in fields):
             return list(fields), None
         if not self.ethics_approved(buyer_id):
@@ -133,6 +156,7 @@ class PersonalConsentPolicy:
         self.person_id = person_id
         self.compliance = compliance or ComplianceRules()
         self.fail_reads = False  # test hook
+        self.licence_check = None  # buyer_id -> True/False (licence MPT still held) or None (none issued)
 
     def _consent(self, buyer_id: str):
         if self.fail_reads:
@@ -155,6 +179,8 @@ class PersonalConsentPolicy:
         v = f"consent-v{c['version']}:{c['doc_hash'][:16]}"
         if c["status"] == "revoked":
             return Decision(DENY, reason="data access consent revoked", policy_version=v)
+        if for_delivery and self.licence_check and self.licence_check(buyer_id) is False:
+            return Decision(DENY, reason="data licence clawed back on the ledger", policy_version=v)
         if for_delivery:
             # Already paid: pausing stops new orders, not committed deliveries.
             return Decision(ALLOW, granted=list(fields), policy_version=v)

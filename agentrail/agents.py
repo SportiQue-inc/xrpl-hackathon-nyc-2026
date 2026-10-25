@@ -409,6 +409,7 @@ def consent_document(person_id, buyer_id, purpose, items, weeks, automation, min
     return {
         "type": "agentrail.consent/v1", "version": version, "status": status,
         "data_holder": person_id, "recipient": buyer_id, "purpose": purpose,
+        "data_use": PURPOSE_DUO.get(purpose, []),
         "items": sorted(items),
         "sensitivity": {i: SENSITIVITY.get(i, "standard") for i in sorted(items)},
         "period_weeks": list(weeks), "delivery": "sealed weekly bundle, recipient key only",

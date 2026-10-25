@@ -86,29 +86,79 @@ class Person:
     data: dict = field(default_factory=dict)
 
 
+class WearableSource:
+    """The person's wearable account (synthetic). Exported with the person's own access right."""
+    name, items = "wearable", ["sleep.daily", "activity.daily", "heart_rate.daily"]
+
+    def read(self, pid: str, item: str, day: int, rng: random.Random):
+        if item == "sleep.daily":
+            return {"minutes": rng.randint(300, 480), "efficiency": round(rng.uniform(.7, .95), 2)}
+        if item == "activity.daily":
+            return {"steps": rng.randint(2000, 12000)}
+        return {"resting_bpm": rng.randint(52, 78), "hrv_ms": rng.randint(25, 90)}
+
+
+class SurveySource:
+    """Weekly fatigue survey kept in the person's own survey app."""
+    name, items = "survey_app", ["fatigue.survey"]
+
+    def read(self, pid, item, day, rng):
+        return {"score_0_10": rng.randint(1, 8)} if day % 7 == 0 else None
+
+
+class HospitalExportSource:
+    """Clinic visit records, exported on the patient's request in the clinic's own format
+    (variable names as in public sleep-study data dictionaries). The clinic charges a small
+    export fee, paid by the person's agent."""
+    name, items = "clinic_export", ["blood_pressure.daily"]
+    native = {"blood_pressure.daily": ("SYSBP", "DIABP")}
+    export_fee_drops = 100_000
+
+    def read(self, pid, item, day, rng):
+        return {"SYSBP": rng.randint(105, 140), "DIABP": rng.randint(65, 90)} if day % 7 == 3 else None
+
+
 class PersonalVaultConnector:
-    """One person's own data vault (synthetic). Exports only requested items for one week."""
+    """One person's own data, gathered from their sources and joined on a time axis.
+    What leaves the vault is only the requested items and weeks, under a study-specific
+    pseudonym, with dates shifted per study."""
 
     ITEMS = ["sleep.daily", "activity.daily", "heart_rate.daily", "fatigue.survey", "blood_pressure.daily"]
 
-    def __init__(self, person: Person):
+    def __init__(self, person: Person, sources=None):
         self.person = person
+        self.sources = sources or [WearableSource(), SurveySource(), HospitalExportSource()]
+        self.by_item = {i: src for src in self.sources for i in src.items}
 
-    def extract(self, items: list[str], week: int) -> list[dict]:
-        rng = random.Random(f"{self.person.id}-{week}")
+    def pseudonym(self, study: str) -> str:
+        import hashlib
+        return "S-" + hashlib.sha256(f"{study}|{self.person.id}".encode()).hexdigest()[:8]
+
+    def day_shift(self, study: str) -> int:
+        import hashlib
+        return int(hashlib.sha256(f"shift|{study}|{self.person.id}".encode()).hexdigest(), 16) % 90 + 30
+
+    def timeline(self, weeks: list[int]) -> dict:
+        """Which items each source holds per week (no values): what the person's agent can offer."""
+        out = {}
+        for wk in weeks:
+            out[wk] = {}
+            for item in self.ITEMS:
+                rng = random.Random(f"{self.person.id}-{wk}-{item}")
+                days = [d for d in range((wk - 1) * 7 + 1, wk * 7 + 1)
+                        if self.by_item[item].read(self.person.id, item, d, rng) is not None]
+                out[wk][item] = {"source": self.by_item[item].name, "days": len(days)}
+        return out
+
+    def extract(self, items: list[str], week: int, study: str | None = None) -> list[dict]:
+        shift = self.day_shift(study) if study else 0
+        who = self.pseudonym(study) if study else self.person.id
         rows = []
         for day in range((week - 1) * 7 + 1, week * 7 + 1):
-            row = {"person": self.person.id, "day": day}
+            row = {"person": who, "day": day + shift}
             for it in items:
-                if it == "sleep.daily":
-                    row[it] = {"minutes": rng.randint(300, 480), "efficiency": round(rng.uniform(.7, .95), 2)}
-                elif it == "activity.daily":
-                    row[it] = {"steps": rng.randint(2000, 12000)}
-                elif it == "heart_rate.daily":
-                    row[it] = {"resting_bpm": rng.randint(52, 78)}
-                elif it == "fatigue.survey":
-                    row[it] = {"score_0_10": rng.randint(1, 8)} if day % 7 == 0 else None
-                elif it == "blood_pressure.daily":
-                    row[it] = {"sys": rng.randint(105, 140), "dia": rng.randint(65, 90)}
+                src = self.by_item[it]
+                rng = random.Random(f"{self.person.id}-{week}-{it}-{day}")
+                row[it] = src.read(self.person.id, it, day, rng)
             rows.append(row)
         return rows

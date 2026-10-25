@@ -194,13 +194,17 @@ class Engine:
 
     # ---------- outbox driver ----------
 
-    def process(self, order_id: int) -> str:
+    def process(self, order_id: int, until: str | None = None) -> str:
+        """Drive the order's outbox. `until="finish"` stops before the contributor publishes the key
+        (the contributor's agent releases it at the end of the round)."""
         for _ in range(5):
             job = self.store.one("SELECT * FROM outbox WHERE order_id=? AND status='pending' ORDER BY id LIMIT 1",
                                  order_id)
             if not job:
                 break
             kind = job["kind"]
+            if kind == until:
+                break
             escrow = self.store.one("SELECT kind FROM payments WHERE order_id=?", order_id)["kind"] == "escrow"
             if kind == "pay":
                 done = self._escrow_create(order_id) if escrow else self._pay(order_id)

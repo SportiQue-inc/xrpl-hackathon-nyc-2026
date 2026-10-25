@@ -1,0 +1,66 @@
+"""Per-(study, participant) data licence as an XRPL Multi-Purpose Token (MPT).
+
+The participant's agent is the issuer. One issuance per study, maximum supply 1:
+- RequireAuth: only the study the participant authorized can hold it;
+- no CanTransfer: the study cannot pass it on (no onward transfer);
+- CanClawback: on revoke the participant takes it back.
+Metadata holds only the study, DUO codes and the consent document hash; no health data.
+The study's delivery gate checks that it still holds the licence.
+"""
+from __future__ import annotations
+
+import json
+
+from xrpl.models.amounts import MPTAmount
+from xrpl.models.requests import GenericRequest
+from xrpl.models.transactions import (Clawback, MPTokenAuthorize, MPTokenIssuanceCreate,
+                                      MPTokenIssuanceCreateFlag as F, Payment)
+from xrpl.transaction import submit_and_wait
+
+from .xrpl_extras import _check
+
+LICENCE_FLAGS = F.TF_MPT_REQUIRE_AUTH | F.TF_MPT_CAN_CLAWBACK
+
+
+def licence_metadata(study: str, duo: list[str], consent_hash: str) -> str:
+    return json.dumps({"t": "agentrail.licence/v1", "study": study, "duo": duo,
+                       "consent": consent_hash[:32]}, separators=(",", ":"), sort_keys=True)
+
+
+class XrplLicenceMixin:
+    def issue_licence(self, issuer: str, holder: str, metadata: str) -> tuple[str, list[str]]:
+        r = submit_and_wait(MPTokenIssuanceCreate(
+            account=issuer, maximum_amount="1", flags=LICENCE_FLAGS,
+            mptoken_metadata=metadata.encode().hex().upper()), self.client, self.wallets[issuer])
+        h1 = _check(r, "MPTokenIssuanceCreate")
+        mpt_id = r.result.get("meta", {}).get("mpt_issuance_id") or r.result.get("mpt_issuance_id")
+        if not mpt_id:
+            seq = r.result.get("tx_json", {}).get("Sequence") or r.result.get("Sequence")
+            from xrpl.core.addresscodec import decode_classic_address
+            mpt_id = (int(seq).to_bytes(4, "big") + decode_classic_address(issuer)).hex().upper()
+        h2 = _check(submit_and_wait(MPTokenAuthorize(account=holder, mptoken_issuance_id=mpt_id),
+                                    self.client, self.wallets[holder]), "MPTokenAuthorize (holder)")
+        h3 = _check(submit_and_wait(MPTokenAuthorize(account=issuer, mptoken_issuance_id=mpt_id, holder=holder),
+                                    self.client, self.wallets[issuer]), "MPTokenAuthorize (issuer)")
+        h4 = _check(submit_and_wait(Payment(account=issuer, destination=holder,
+                                            amount=MPTAmount(mpt_issuance_id=mpt_id, value="1")),
+                                    self.client, self.wallets[issuer]), "MPT Payment")
+        return mpt_id, [h1, h2, h3, h4]
+
+    def licence_held(self, holder: str, mpt_id: str) -> bool:
+        r = self.client.request(GenericRequest(method="account_objects", account=holder, type="mptoken",
+                                               ledger_index="validated")).result
+        return any(o.get("MPTokenIssuanceID", "").upper() == mpt_id.upper() and int(o.get("MPTAmount", "0")) > 0
+                   for o in r.get("account_objects", []))
+
+    def clawback_licence(self, issuer: str, holder: str, mpt_id: str) -> str:
+        return _check(submit_and_wait(Clawback(account=issuer, holder=holder,
+                                               amount=MPTAmount(mpt_issuance_id=mpt_id, value="1")),
+                                      self.client, self.wallets[issuer]), "Clawback")
+
+    def transfer_licence(self, holder: str, to: str, mpt_id: str) -> str:
+        """Used only to show the ledger refusing onward transfer. Returns the result code."""
+        r = submit_and_wait(Payment(account=holder, destination=to,
+                                    amount=MPTAmount(mpt_issuance_id=mpt_id, value="1")),
+                            self.client, self.wallets[holder])
+        return r.result.get("meta", {}).get("TransactionResult")

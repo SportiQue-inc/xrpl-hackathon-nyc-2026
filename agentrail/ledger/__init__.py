@@ -6,10 +6,11 @@ from .mock import MockLedger
 
 def make_ledger(kind: str = "mock") -> Ledger:
     if kind == "testnet":
+        from .licence import XrplLicenceMixin
         from .xrpl_extras import XrplExtrasMixin
         from .xrpl_ledger import XrplLedger
 
-        class TestnetLedger(XrplExtrasMixin, XrplLedger):
+        class TestnetLedger(XrplLicenceMixin, XrplExtrasMixin, XrplLedger):
             pass
 
         if os.environ.get("PAYMENT_RAIL", "direct") == "x402":

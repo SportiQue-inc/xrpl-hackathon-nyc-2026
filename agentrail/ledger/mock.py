@@ -30,6 +30,7 @@ class MockLedger(Ledger):
         self.deposit_auth: set[str] = set()
         self.preauth: dict[str, set[tuple[str, str]]] = {}   # account -> {(issuer, cred_type)}
         self.escrows: dict[tuple[str, int], dict] = {}
+        self.mpts: dict[str, dict] = {}          # id -> {issuer, meta, holders: {addr: amount}, authorized}
         self.clock = 800_000_000          # Ripple-epoch seconds; tests move it forward
 
     def new_account(self, label: str) -> str:
@@ -201,6 +202,32 @@ class MockLedger(Ledger):
         self.deposit_auth.add(account)
         self.preauth.setdefault(account, set()).add((issuer, cred_type))
         return [self._fake_tx("AccountSet", Account=account), self._fake_tx("DepositPreauth", Account=account)]
+
+    # ---------- data licence (MPT) ----------
+
+    def issue_licence(self, issuer, holder, metadata):
+        mpt_id = hashlib.sha256(f"{issuer}|{metadata}|{len(self.mpts)}".encode()).hexdigest()[:48].upper()
+        self.mpts[mpt_id] = {"issuer": issuer, "meta": metadata, "holders": {holder: 1}, "authorized": {holder}}
+        return mpt_id, [self._fake_tx("MPTokenIssuanceCreate", Account=issuer),
+                        self._fake_tx("MPTokenAuthorize", Account=holder),
+                        self._fake_tx("MPTokenAuthorize", Account=issuer, Holder=holder),
+                        self._fake_tx("Payment", Account=issuer, Destination=holder)]
+
+    def licence_held(self, holder, mpt_id):
+        return self.mpts.get(mpt_id, {}).get("holders", {}).get(holder, 0) > 0
+
+    def clawback_licence(self, issuer, holder, mpt_id):
+        m = self.mpts[mpt_id]
+        if m["issuer"] != issuer:
+            raise RuntimeError("tecNO_PERMISSION: only the issuer can claw back")
+        m["holders"][holder] = 0
+        return self._fake_tx("Clawback", Account=issuer, Holder=holder)
+
+    def transfer_licence(self, holder, to, mpt_id):
+        # No CanTransfer flag and RequireAuth: a holder cannot pass the licence to a third party.
+        self._fake_tx("Payment", Account=holder, Destination=to)
+        self.txs[list(self.txs)[-1]]["result"] = "tecNO_AUTH"
+        return "tecNO_AUTH"
 
     def payment_count(self) -> int:
         return sum(1 for t in self.txs.values() if t["result"] == "tesSUCCESS"
