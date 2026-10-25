@@ -10,22 +10,22 @@
 <style>
 /* Layout: one stepper band, then three columns (owner vault | agent | buyer) over a shared ledger strip. */
 :root {
-  --bg: #f3f4f1; --panel: #ffffff; --ink: #1c211f; --muted: #5d6762; --line: #d9ddd8;
-  --accent: #0f6e5c; --accent-soft: #dcefe9; --brass: #9a6a12; --brass-soft: #f6ecd6;
-  --ok: #1f7a3a; --bad: #b3261e; --bad-soft: #fbe4e2; --code: #eef0ec;
+  --bg: #f7f8fa; --panel: #ffffff; --ink: #111827; --muted: #6b7280; --line: #e5e7eb;
+  --accent: #2f6bff; --accent-soft: #eef4ff; --brass: #b45309; --brass-soft: #fff7e6;
+  --ok: #059669; --bad: #dc2626; --bad-soft: #fef2f2; --code: #f3f4f6;
   --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --body: "Figtree", "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #121614; --panel: #1a201d; --ink: #e6ebe8; --muted: #9aa6a0; --line: #2d3531;
-  --accent: #4fc4a8; --accent-soft: #19332c; --brass: #e0b35a; --brass-soft: #33291a;
-  --ok: #63c47f; --bad: #f08a80; --bad-soft: #3a1f1d; --code: #222a26; color-scheme: dark; } }
+  --bg: #0f1115; --panel: #171a21; --ink: #e8eaf0; --muted: #9ca3af; --line: #2a2f3a;
+  --accent: #7aa2ff; --accent-soft: #1b2540; --brass: #f0b35a; --brass-soft: #2e2413;
+  --ok: #34d399; --bad: #f87171; --bad-soft: #3a1c1c; --code: #1f232c; color-scheme: dark; } }
 :root[data-theme="dark"] {
-  --bg: #121614; --panel: #1a201d; --ink: #e6ebe8; --muted: #9aa6a0; --line: #2d3531;
-  --accent: #4fc4a8; --accent-soft: #19332c; --brass: #e0b35a; --brass-soft: #33291a;
-  --ok: #63c47f; --bad: #f08a80; --bad-soft: #3a1f1d; --code: #222a26; color-scheme: dark; }
+  --bg: #0f1115; --panel: #171a21; --ink: #e8eaf0; --muted: #9ca3af; --line: #2a2f3a;
+  --accent: #7aa2ff; --accent-soft: #1b2540; --brass: #f0b35a; --brass-soft: #2e2413;
+  --ok: #34d399; --bad: #f87171; --bad-soft: #3a1c1c; --code: #1f232c; color-scheme: dark; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
