@@ -314,7 +314,7 @@ bundle with the key from the ledger.
 ```bash
 pip install -r requirements.txt
 cp .env.example .env                     # optional: OPENAI_API_KEY=... (never committed)
-python -m pytest -q                      # 160 tests on the mock ledger (25 attack tests)
+python -m pytest -q                      # 238 tests on the mock ledger (25 attack tests)
 python scripts/run_health_demo.py        # whole health study, mock ledger, JSON summary
 LEDGER=testnet python scripts/run_health_demo.py   # same on XRPL Testnet (faucet wallets)
 LEDGER=testnet python -m agentrail.scenario        # robot scene A, cohort round, failure scene
@@ -399,9 +399,10 @@ the full table: [docs/SECURITY.md](docs/SECURITY.md).
 - **Scope check**: deterministic code, not the LLM, compares each request with the consented recipient, purpose, fields and period, and checks current consent on every access. Any change needs new consent.
 - **Pseudonymization**: researchers receive only a participant number and the consented fields. The link between a person and their number is stored separately, where researchers cannot reach it. This is pseudonymized data, and the data agreement prohibits re-identification.
 - **Three withdrawal options**: decline this round / stop future contributions / withdraw data-use consent (PIPA Art. 37). Withdrawal immediately blocks sessions and key release, and asks the institution to destroy individual-level data and confirm; the demo records the request and the confirmation as events. Aggregate statistics already produced remain.
-- **International transfer**: access from abroad counts as transfer, so we disclose countries, recipients, purpose, fields and retention, and ask for separate consent. Each person's records stay in their own country.
+- **International transfer**: there is no access route from abroad into anyone's store. Each round is one push of exactly the agreed scope, sealed in the person's page and encrypted to the receiving institution's key (docs/SECURITY.md §10). We disclose countries, recipients, purpose, fields and retention, and ask for separate consent. Each person's records stay in their own country.
+- **Participants in Mongolia**: their data is stored and processed only in Mongolia; institutions abroad receive only aggregate results that do not identify anyone. Their consent form states that the personal agent executes provision within the consented scope without human intervention, and that requests outside the scope and any sanction are checked by a person. XRP payouts to participants in Mongolia are a Testnet demo only.
 - **IRB**: approval and exemption are decided by the IRB (Bioethics Act Art. 15; 45 CFR 46.112). An XRPL Credential only shows the issuer's attestation.
-- **Participation compensation**: non-custodial; the institution signs. Paid per round by the institution through Escrow and never taken back after withdrawal; Clawback applies only to the licence token. 20% of each round is held for a short review and paid by default; it is withheld only when a named reviewer confirms fraud after notice and a chance to respond. Declining or withdrawing never affects future requests, priority or compensation. The platform holds no keys or funds.
+- **Participation compensation**: the platform holds no keys and cannot move funds alone; the research institution's wallet signs. Paid per round by the institution through Escrow and never taken back after withdrawal; Clawback applies only to the licence token. 20% of each round is held for a short review and paid by default; it is withheld only when a named reviewer confirms fraud after notice and a chance to respond. Declining or withdrawing never affects future requests, priority or compensation. The platform holds no keys or funds.
 - **Records**: access logs are kept 2 years and permission-change logs 3 years; no personal data, study names or conditions go on the ledger.
 
 ### Legal requirements -> product rules
@@ -420,7 +421,7 @@ Korean, with the payment and penalty rules: [docs/legal/README.md](docs/legal/RE
 | Access from abroad is an international transfer | Countries, recipients, purpose, items and retention disclosed; separate consent; records stay in the person's country | PIPA Art. 28-8 |
 | The IRB decides approval | Agents never create approval; an XRPL Credential only shows the issuer's attestation | Bioethics Act Art. 15; 45 CFR 46.112 |
 | Compensation accrues with participation, without undue inducement | Per-round escrow: 80% on contribution, 20% after a short review, paid by default; paid money is never taken back on chain | Bioethics Act Art. 16(1)5; FDA 2018 payment guidance |
-| Holding or moving others' funds needs a licence | Non-custodial: the platform only drafts transactions; the institution's wallet signs and pays; the platform never receives or sends funds | Korea AML Act (VASP); FinCEN FIN-2019-G001 |
+| Holding or moving others' funds needs a licence | The platform holds no keys and cannot transfer alone; it only drafts transactions; the research institution's wallet signs and pays | Korea AML Act (VASP); FinCEN FIN-2019-G001 |
 | No personal data on a public ledger | Only payment and licence state and hashes on chain; no health values, study names or conditions | PIPC blockchain guideline (2026) |
 
 ## 12. Where this goes (production targets)
