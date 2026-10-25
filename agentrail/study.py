@@ -603,7 +603,7 @@ def participant_view(w, pid: str) -> dict:
     reqs = _requests_for(w, pid)
     orders = w.store.q("SELECT o.id, o.scope, o.status, o.price_drops, o.policy_snapshot, p.tx_hash, p.finish_tx, "
                        "p.cancel_tx FROM orders o JOIN payments p ON p.order_id=o.id WHERE o.seller_id=? "
-                       "AND o.buyer_id=? ORDER BY o.id", pid, LAB)
+                       "AND o.buyer_id=? AND o.product_id NOT LIKE 'subproject:%' ORDER BY o.id", pid, LAB)
     contributions, cell_state = [], {}
     for o in orders:
         slot = json.loads(o["scope"])["slot"].split("|", 1)[1]

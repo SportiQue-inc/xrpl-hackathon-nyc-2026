@@ -99,7 +99,9 @@ class OrderRequest:
 def _memo(oid, o, pv, mh) -> str:
     """Ledger memo of one order. Under a data contract, the contract hash rides along with the bundle hash."""
     c = o["product_id"][len("contract:"):] if o["product_id"].startswith("contract:") else ""
+    sub = o["product_id"][len("subproject:"):] if o["product_id"].startswith("subproject:") else ""
     return (f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}" + (f"|contract:{c[:16]}" if c else "")
+            + (f"|sub:{sub}" if sub else "")
             + (f"|mandate:{mh}" if mh else ""))
 
 

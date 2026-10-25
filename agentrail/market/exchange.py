@@ -191,6 +191,8 @@ class Exchange:
         self.contracts: list[dict] = []          # one conversation per contract attempt (contract_trace)
         self.holdings: dict[str, dict] = {}      # buyer -> {"roots", "rows"}: what each buyer's store already holds
         self._explained = 0
+        from .pricing import PriceIndex
+        self.pricing = PriceIndex(quote, spec)   # reference prices from settled trades; supply and demand
         for a in accounts:
             a.seller = a.seller or quality.Seller(a.id)
             self.engine.add_party(a.id, a.name, a.kind, self.ledger.new_account(a.id))
@@ -250,7 +252,9 @@ class Exchange:
         if self.book is None:
             self.book = OfferBook(self.ledger, self.ledger.new_account("market_registry"),
                                   self.ledger.new_account("market_registry_sink"))
-        r = self.book.publish(self.offers())
+        offers = self.offers()
+        self.pricing.set_supply(offers)
+        r = self.book.publish(offers)
         self.events.append({"kind": "offer_book", **r})
         self.anchors.append(r)
         return r
@@ -318,8 +322,18 @@ class Exchange:
         h["roots"].add(o["cert"]["root"])
         h["rows"].update(self._row_key(r, cols) for r in o["dataset"].rows[: weeks * DAYS] if self._telling(r, cols))
 
+    def post_needs(self, needs) -> None:
+        """Open needs are the demand side of every ask until they are filled."""
+        for n in needs:
+            self.pricing.post(n.columns, n.posted_h)
+
     def _ceiling(self, need: Need) -> dict:
-        """The need as the buyer's agent formed it; without a plan, the grade A asking price is the ceiling."""
+        """The buyer's ceiling follows the market (20% above the grade A reference) but never passes the
+        owner's budget per item; without a plan, the grade A rate card is the ceiling."""
+        if need.plan.get("budget_per_item_drops"):
+            c = self.pricing.ceiling(need.columns, need.weeks, need.plan)
+            return {"columns": need.columns, "weeks": need.weeks, "max_price_drops": c["max_price_drops"],
+                    "reference": c["reference"], "why": c["why"]}
         return {"columns": need.columns, "weeks": need.weeks,
                 "max_price_drops": need.plan.get("max_price_drops") or quote(need.columns, need.weeks, "A")}
 
@@ -327,7 +341,8 @@ class Exchange:
         """Query the shared offer book, filter, check a hashed sample of each survivor, score them,
         negotiate with the best in order and trade. Returns True when a gate on the buyer itself refused
         (every other seller would say the same)."""
-        from .discovery import negotiate, score
+        from .discovery import score
+        from .pricing import negotiate
         disc = disc if disc is not None else {"listed": 0, "dropped": {}, "sampled": [], "ranked": []}
         drop = lambda why: disc["dropped"].__setitem__(why, disc["dropped"].get(why, 0) + 1)
         ceiling = self._ceiling(need)
@@ -363,7 +378,8 @@ class Exchange:
             if not ok:
                 rejected.append({"seller": seller.id, "stage": "pre_trade", "why": why})
                 continue
-            ask = quote(need.columns, need.weeks, o["grade"])
+            pq = self.pricing.ask(need.columns, need.weeks, o["grade"], seller.attrs.get("floor_mult"), now_h)
+            ask = pq["ask"]
             ov, ov_why = self.overlap(need.buyer, o["cert"]["root"], [x["row"] for x in opened], need.columns)
             if ov >= DUPLICATE_SHARE:
                 # already in the buyer's store: never pay again for the same data
@@ -372,6 +388,7 @@ class Exchange:
                 rejected.append({"seller": seller.id, "stage": "overlap", "why": f"duplicate: {ov_why}"})
                 continue
             sc = score(o, int(ask * (1 - ov)), ceiling, (seller.passed, seller.failed))
+            sc["pricing"] = {**pq, "share": round(1 - ov, 3)}
             if ov:
                 sc.update(overlap=round(ov, 3), overlap_why=ov_why, full_ask_drops=ask)
             mine.append((sc, o, int(ask * (1 - ov))))
@@ -385,7 +402,11 @@ class Exchange:
                 break
             seller = self.accounts[o["seller"]]
             track = (seller.passed, seller.failed)          # before this trade, as the agents saw it
-            neg = negotiate(ask, ceiling["max_price_drops"], track)
+            pq, share = sc["pricing"], sc["pricing"]["share"]
+            neg = negotiate(ask, ceiling["max_price_drops"], track, int(pq["floor"] * share),
+                            int(pq["reference"]["low"] * share))
+            neg.update(reference=pq["reference"], scarcity=pq["scarcity"], ask_why=pq["why"],
+                       owner_floor=int(pq["floor"] * share), ceiling_why=ceiling.get("why", ""))
             disc["ranked"][first + i]["negotiation"] = neg
             cand = {**sc, "rank": first + i + 1}
             if not neg["deal"]:
@@ -398,6 +419,9 @@ class Exchange:
             r["trace"] = len(self.contracts)
             if r["status"] in ("settled", "settled_unfit"):
                 self._hold(need.buyer, o, need.columns, need.weeks)
+                # the settled price is public on the ledger; the index learns from it
+                self.pricing.record(need.columns, need.weeks, o["grade"], int(neg["price_drops"] / max(share, 1e-6)),
+                                    (r.get("txs") or {}).get("escrow_create"))
             self.contracts.append(contract_trace.build(need, need.plan, disc, cand, {**neg, "ceiling": ceiling["max_price_drops"]},
                                                        r, seller, self.accounts[need.buyer], track))
             if r["status"] == "refused" and r["why"].startswith("blocked: no valid") or \
