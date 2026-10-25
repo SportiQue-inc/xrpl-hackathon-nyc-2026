@@ -109,3 +109,13 @@ def test_the_same_items_for_a_new_purpose_go_back_to_the_person(w):
     t = rel.scope["data_types"][0]
     sp = rel.subprojects[rel.create("Marketing reuse", "product_marketing", [t], 50_000_000, 1)["id"]]
     assert rel.route(sp, pid, t) == ("ask", "outside_scope")
+
+
+def test_subproject_budget_logs_keep_the_actual_settlement_asset(w):
+    from agentrail import units
+    rel = subprojects.of(w)
+    budget = study.CELL_PRICE - 1
+    sp = rel.create("Small budget", rel.scope["purposes"][0], [rel.scope["data_types"][0]], budget, 1)
+    message = w.store.one("SELECT message FROM events WHERE kind='subproject' ORDER BY id DESC LIMIT 1")["message"]
+    assert f"budget {units.fmt(budget)}," in message
+    assert rel.run(sp["id"])["stopped"] == f"sub-project budget {units.fmt(budget)} reached"
