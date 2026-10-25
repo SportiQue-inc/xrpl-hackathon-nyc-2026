@@ -141,23 +141,25 @@ def test_hostile_llm_cannot_widen_the_study(w):
 
 def test_api_drives_both_pages_on_one_engine():
     c = TestClient(web.app)
-    c.post("/api/reset?ledger=mock")
+    tok = lambda sub: {"Authorization": "Bearer " + c.post(f"/api/dev/login/{sub}").json()["access_token"]}
+    c.post("/api/reset?ledger=mock", headers=tok("operator"))
     web._state["w"].robot_buyer.propose = capable_needs
-    assert c.post("/api/study/goal", json={"goal": "back to 80% power"}).json()["spec_status"] == "draft"
-    assert c.post("/api/study/approve", json={"signers": ["owner"]}).json()["engine_result"] == "tefBAD_QUORUM"
-    assert c.post("/api/study/approve", json={"signers": ["owner", "compliance"]}).json()["ok"]
-    c.post("/api/study/send")
-    p = c.get(f"/api/p/{HERO}").json()
+    R, P, O = tok("researcher@org_sleeplab"), tok(HERO), tok("operator")
+    assert c.post("/api/study/goal", json={"goal": "back to 80% power"}, headers=R).json()["spec_status"] == "draft"
+    assert c.post("/api/study/approve", json={"signers": ["owner"]}, headers=O).json()["engine_result"] == "tefBAD_QUORUM"
+    assert c.post("/api/study/approve", json={"signers": ["owner", "compliance"]}, headers=O).json()["ok"]
+    c.post("/api/study/send", headers=R)
+    p = c.get(f"/api/p/{HERO}", headers=P).json()
     rid = p["requests"][0]["id"]
-    assert c.get(f"/api/p/{HERO}/preview", params={"request": rid}).json()["rows"]
-    c.post(f"/api/p/{HERO}/requests/{rid}/approve", json={"items": ["fatigue.survey"]})
-    seen = c.get("/api/study").json()["contributions"]
+    assert c.get(f"/api/p/{HERO}/preview", params={"request": rid}, headers=P).json()["rows"]
+    c.post(f"/api/p/{HERO}/requests/{rid}/approve", json={"items": ["fatigue.survey"]}, headers=P)
+    seen = c.get("/api/study", headers=R).json()["contributions"]
     assert any(x["pseudonym"] == p["person"]["study_pseudonym"] and x["weeks"] == [3] for x in seen)
     assert all("person" not in x for x in seen)                           # the console sees the pseudonym only
-    assert c.get("/api/events", params={"after": 0}).json()["last"] > 0
+    assert c.get("/api/events", params={"after": 0}, headers=R).json()["last"] > 0
     oid = next(x["order_id"] for x in seen if x["status"] == "delivered")
-    assert c.get(f"/api/study/bundle/{oid}").json()["hash_matches"]
-    r = c.post(f"/api/p/{HERO}/revoke").json()
+    assert c.get(f"/api/study/bundle/{oid}", headers=R).json()["hash_matches"]
+    r = c.post(f"/api/p/{HERO}/revoke", headers=P).json()
     assert r["clawback"] and r["refunds"]
 
 

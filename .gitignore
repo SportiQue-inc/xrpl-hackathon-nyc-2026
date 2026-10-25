@@ -26,3 +26,6 @@ __pycache__/
 *.db
 *.sqlite
 wallets.local.json
+
+# per-owner key stores (security/keystore.py)
+.keystore/

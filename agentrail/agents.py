@@ -313,6 +313,11 @@ class PersonalAgent:
         self.vault = PersonalVaultConnector(person)
         self.policy = PersonalConsentPolicy(engine.store, person.id, compliance)
         engine.policies[person.id] = self.policy
+        # The person's keyring (their phone): escrow keys and the vault secret live here, not in the engine.
+        from .security.devices import ParticipantKeyring
+        self.keyring = ParticipantKeyring(person.id)
+        self.vault._secret = self.keyring.vault_secret()
+        engine.key_holders[person.id] = self.keyring
 
     def _write_consent(self, c, buyer_id, purpose, items, weeks, automation, min_price, status, version):
         doc = consent_document(self.id, buyer_id, purpose, items, weeks, automation, min_price, status, version)

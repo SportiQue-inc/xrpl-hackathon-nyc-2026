@@ -131,7 +131,7 @@ on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 |---|---|---|
 | Agentic Finance: escrow, multi-signing, on-chain credentials | all three are in the main flow, not side demos | section 4 tx links |
 | Idea | research on one person's whole record, contributed by that person's agent; the counterpart is a person, not a dataset | sections 1-2 |
-| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, 80% now and 20% held for review, idempotent payments and recovery, 89 tests | `tests/`, sections 4 and 6 |
+| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, 80% now and 20% held for review, idempotent payments and recovery, device-signed sign-in with role tokens and per-route policy, hash-chained audit log, 114 tests incl. 25 attack tests | `tests/`, sections 4 and 6 |
 | Demo | phone request -> contribution -> researcher heatmap fills -> revoke -> clawback and refund, all with explorer links | section 9 |
 | Potential | small, frequent contributions that cards and 80-day agreements cannot carry | section 8 |
 | Bonus: QuickNode, x402 | `XRPL_RPC_URL`; `PAYMENT_RAIL=x402` | section 4 |
@@ -207,7 +207,7 @@ Sources and the full model: [docs/MARKET.md](docs/MARKET.md).
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env                     # optional: OPENAI_API_KEY=... (never committed)
-python -m pytest -q                      # 89 tests on the mock ledger
+python -m pytest -q                      # 114 tests on the mock ledger (25 attack tests)
 python scripts/run_health_demo.py        # whole health study, mock ledger, JSON summary
 LEDGER=testnet python scripts/run_health_demo.py   # same on XRPL Testnet (faucet wallets)
 LEDGER=testnet python -m agentrail.scenario        # robot scene A, cohort round, failure scene
@@ -218,11 +218,15 @@ The participant app and researcher console pages are built separately on top of
 [docs/API.md](docs/API.md); `/participant` and `/console` return 404 until those pages are added.
 The dashboard at `/` shows the boundary tabs and the event log.
 
+Every API call needs a sign-in token. The dashboard signs in with the demo login
+(`POST /api/dev/login/{sub}`, localhost and dev mode only). Production settings:
+[docs/SECURITY.md](docs/SECURITY.md#7-production-mode).
+
 `.env`: `LLM_PROVIDER` (`openai` | `anthropic` | `replay` | `none`), `OPENAI_API_KEY`,
 `OPENAI_MODEL`, `XRPL_RPC_URL`, `PAYMENT_RAIL`, `LLM_SAY`. Testnet wallets come from the faucet
 and are kept only in `wallets.local.json` (git-ignored).
 
-## 10. Security design
+## 10. Security design and limits
 
 **Ledger enforces, code verifies, the LLM only proposes.** Each control below names the layer that
 enforces it.
@@ -238,34 +242,47 @@ enforces it.
 | Unverified organizations | VERIFIED_ORG credential; DepositAuth + DepositPreauth by credential on the participant's account | XRPL | `tecNO_PERMISSION` tx |
 | Linking a person across studies | Per-study pseudonym and date shift = HMAC with a secret only the person's agent holds; the researcher console shows pseudonyms only | code | `test_pseudonym_differs_per_study`, `test_pseudonym_needs_the_vault_secret` |
 | Re-identification by combination | Two or more quasi-identifiers are never released together | code | `test_quasi_identifier_combination_is_never_released` |
-| Someone acting for another person | API calls carry a role token (participant, researcher, each signer); a participant can act only on their own requests (role tokens being added; own-request check in place) | code | `test_a_participant_cannot_answer_someone_elses_request` |
-| Cross-site requests | Every call needs an `Authorization` header, so browsers force a CORS preflight, which the server does not allow (being added) | code | |
+| Someone acting for another person | Device-signed login (Ed25519 challenge) gives a 15-minute role token (participant, researcher, approver, reviewer, operator). One policy table decides every route, default deny; a participant reaches only their own record and no other role can act for them | code | `test_participant_cannot_read_or_act_for_someone_else`, `test_other_roles_cannot_act_for_a_participant` |
+| Reading health data without sign-in | Every `/api` route needs a token; sealed bundles only for the study team | code | `test_bundle_with_health_data_is_not_readable_without_the_study_team` |
+| One person releasing the budget | The server prepares the exact XRPL tx with nonce and expiry; each approver signs it on their own device; signatures checked against the SignerList, one per approver, not reusable | code + XRPL | `test_one_person_cannot_release_the_budget`, `test_signature_cannot_be_replayed_on_another_approval_or_after_expiry` |
+| Edited or deleted records | Hash-chained event log with every state change and its actor; chain head anchored on the ledger every 5 minutes | code + XRPL | `test_edited_or_deleted_log_rows_are_detected` |
+| Cross-site requests, abuse | Exact CORS origins only, rate limits, strict request bodies, security headers, secrets masked in logs | code | `test_other_origins_get_no_cors_grant`, `test_login_is_rate_limited`, `test_request_bodies_are_strict` |
 | LLM manipulation | Proposals are JSON, schema-checked, stored with hashes, and recomputed from the coverage table. Budget, purpose and sensitive fields are clamped to the owner's limits. Licence readings are ANDed with the seller's own terms. The LLM never sees record values, and its output never widens money or permission | code | `test_hostile_llm_can_only_narrow`, `test_hostile_llm_cannot_widen_the_study` |
-| Secrets in the repository | `.env`, seeds and `wallets.local.json` are git-ignored (0600); the history has no keys; signed blobs and hashes only in the DB | repo | |
+| Secrets in the repository | `.env`, seeds, `wallets.local.json` and `.keystore/` are git-ignored (0600); the history has no keys; secrets only from env or secret files; `AGENTRAIL_ENV=prod` requires the token secret and closes the demo harness | repo + code | `test_prod_mode_closes_the_demo_harness` |
 
 **What goes on-chain:** order id, bundle hash, consent or terms hash, and the licence MPT with the
 study as a hash. No health values, names, study topics or consent text.
 
+**Who holds which key:** each round's escrow key K and the pseudonym / date-shift secret sit in the
+participant's keyring; the study's box key sits with the institution; the service relays sealed
+bundles and holds neither (`test_engine_and_ledger_hold_no_private_keys_of_other_parties`). Each
+treasury signer key sits on that approver's device. Withdrawal deletes the sealed copies and the
+keys of rounds not yet released.
+
+**Tested by attack:** `tests/test_security.py` reproduces 25 attacks. On the code before this layer
+23 of them failed (most because the attack worked); now all pass. Design, production settings and
+the full table: [docs/SECURITY.md](docs/SECURITY.md).
+
 ### Limits of this demo (read before judging)
 
-- **One process holds every party's keys.** The study, both treasury signers, the participants'
-  agents and the operator run in one server. So anyone with that server's database could open
-  bundles without the ledger step. In production, K is created and kept on the participant's phone,
-  the study's box key lives in the institution's KMS, and each signer signs on their own device
-  (XRPL multisign). The ledger rules shown here do not change.
-- **Authentication:** role tokens are being added; they are demo tokens, not accounts. In production it is the UniQdata (participant) and
-  UniQLab (researcher) login, behind a gateway with rate limits.
+- **Keys are separated by owner, but not yet in hardware.** Each party has its own keystore
+  (memory, or 0600 files); the KMS / HSM binding is an interface only. The 50 personal agents run
+  in the service process as a simulation; in production they run on the person's phone, and the
+  participant's XRPL wallet key moves there too.
+- **Sign-in identities are enrolled by the server at start.** In production they come from the
+  UniQdata (participant) and UniQLab (researcher) accounts and device registration.
+- **No external penetration test yet.** Rate limits and the token deny list are in memory for one
+  instance; several instances need a shared store. The dashboard needs `'unsafe-inline'` in the
+  CSP. Payout review keys are still stored in the database.
 - **Destruction on withdrawal** removes the study's person-level copies held by this demo. K stays
   public on the ledger for rounds already delivered; without the bundle copy it opens nothing.
   Delivered rounds cannot be recalled, and the person is told so before approving.
 - **On-chain payments are visible.** Amounts and addresses are public, so participation can be
   inferred from the ledger. Production uses per-study addresses or a payout service.
-- **The event log is append-only but not hash-chained** (proposals and consent versions are hashed
-  one by one).
 - **The LLM summary on the request card is labelled as an AI summary.** The binding terms are the
   DUO codes, items, weeks and recipient listed under it.
-- All data, people and institutions are synthetic. XRPL Testnet only. Not a medical device.
-- Raw records never go to an LLM or on-chain; an unreadable consent store holds the round. Not a medical device; no diagnosis.
+- All data, people and institutions are synthetic. XRPL Testnet only. Raw records never go to an
+  LLM or on-chain; an unreadable consent store holds the round. Not a medical device; no diagnosis.
 
 ## 11. Legal basis (summary)
 

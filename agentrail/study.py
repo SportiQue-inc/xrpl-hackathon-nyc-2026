@@ -69,8 +69,14 @@ def ensure(w) -> StudyState:
     s = StudyState()
     hm = heatmap(w, w.coverage, LAB)
     s.power_before, s.pairs_before = hm["power"], hm["complete_pairs"]
-    s.treasury = w.ledger.new_account("org_sleeplab_treasury")
-    s.signers = {"owner": w.ledger.new_keypair("sleeplab_pi"), "compliance": w.ledger.new_keypair("sleeplab_compliance")}
+    sec = getattr(w, "security", None)
+    if sec:   # approvers' keys live on their own devices; the ledger adapter never sees them
+        s.treasury = w.ledger.new_account("org_sleeplab_treasury_cosign")
+        s.signers = sec.register_treasury(s.treasury)
+    else:
+        s.treasury = w.ledger.new_account("org_sleeplab_treasury")
+        s.signers = {"owner": w.ledger.new_keypair("sleeplab_pi"),
+                     "compliance": w.ledger.new_keypair("sleeplab_compliance")}
     hashes = w.ledger.setup_multisig(s.treasury, list(s.signers.values()), quorum=2)
     w.store.log(LAB, "multisig", "study treasury: SignerList (principal investigator + compliance officer, "
                 "quorum 2), master key disabled", {"tx": hashes, "url": _url(w, hashes[-1])})
@@ -175,6 +181,11 @@ def approve(w, signers: list[str]) -> dict:
     s = ensure(w)
     if s.status != "draft":
         return {"ok": False, "message": "no draft spec to approve"}
+    if getattr(w, "security", None):
+        # Each approver signs on their own device (security/cosign.py); this entry point is the
+        # scripts' and demo harness's way to drive those devices.
+        from .security.cosign import approve_with_devices
+        return approve_with_devices(w, signers)
     unknown = [x for x in signers if x not in s.signers]
     if unknown:
         return {"ok": False, "engine_result": "unknown_signer", "signers": signers,
@@ -631,12 +642,22 @@ def _destroy_person_level(w, pid: str) -> dict:
     s.withdrawn = getattr(s, "withdrawn", set()) | {pid}
     talk(w.store, pid, LAB, "deletion_request", {"participant": pid},
          f"{pid} withdrew data access: destroy every person-level copy you hold for this participant and confirm.")
-    oids = [r["id"] for r in w.store.q("SELECT id FROM orders WHERE buyer_id=? AND seller_id=?", LAB, pid)]
+    orders = w.store.q("SELECT id, order_key, status FROM orders WHERE buyer_id=? AND seller_id=?", LAB, pid)
+    oids = [r["id"] for r in orders]
     destroyed = []
     for oid in oids:
         got = w.engine.inbox.received.pop(oid, None)
         if got:
             destroyed.append(got[0])
+    # The gate's copies go too: sealed bundles and any escrow key the engine held. The participant's
+    # keyring forgets the keys of rounds never released, so they can never be published.
+    with w.store.tx() as c:
+        c.executemany("DELETE FROM bundles WHERE order_id=?", [(o,) for o in oids])
+        c.executemany("DELETE FROM escrow_keys WHERE order_id=?", [(o,) for o in oids])
+    kr = getattr(w.cohort_people.get(pid), "keyring", None)
+    for o in orders:
+        if kr is not None and o["status"] != "delivered":
+            kr.forget(o["order_key"])
     cells = sum(len(v) for v in w.coverage.cells[pid].values())
     w.coverage.cells[pid] = {wk: set() for wk in WEEKS}
     receipt = {"participant_number": pid, "bundles_destroyed": sorted(destroyed), "own_cells_destroyed": cells,

@@ -114,7 +114,8 @@ CREATE TABLE IF NOT EXISTS proposals (
 );
 CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, scene TEXT,
-  actor TEXT NOT NULL, kind TEXT NOT NULL, message TEXT NOT NULL, data TEXT
+  actor TEXT NOT NULL, kind TEXT NOT NULL, message TEXT NOT NULL, data TEXT,
+  prev_hash TEXT, hash TEXT          -- hash chain: sha256(prev_hash | row), see security/audit.py
 );
 """
 
@@ -131,6 +132,10 @@ class Store:
         self._local = threading.local()
         self._keepalive = self._connect()
         self._keepalive.executescript(SCHEMA)
+        cols = {r[1] for r in self._keepalive.execute("PRAGMA table_info(events)")}
+        for col in ("prev_hash", "hash"):           # databases created before the hash chain
+            if col not in cols:
+                self._keepalive.execute(f"ALTER TABLE events ADD COLUMN {col} TEXT")
         self.scene = None
 
     def _connect(self) -> sqlite3.Connection:
@@ -138,6 +143,7 @@ class Store:
                                isolation_level=None, timeout=30, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA busy_timeout = 30000")
+        conn.create_function("chain_hash", 2, _chain_hash, deterministic=True)
         if not self.path.startswith("file:"):
             conn.execute("PRAGMA journal_mode = WAL")
         return conn
@@ -168,7 +174,23 @@ class Store:
         return r
 
     def log(self, actor: str, kind: str, message: str, data: dict | None = None):
+        """Append to the event log. Secrets are masked first; each row is chained to the previous one
+        inside the same INSERT, so concurrent writers cannot fork the chain."""
+        from .security.masking import mask
+        ts, msg, d = time.time(), mask(message), mask(json.dumps(data or {}, sort_keys=True))
+        body = event_body(ts, self.scene, actor, kind, msg, d)
         self.conn.execute(
-            "INSERT INTO events (ts, scene, actor, kind, message, data) VALUES (?,?,?,?,?,?)",
-            (time.time(), self.scene, actor, kind, message, json.dumps(data or {}, sort_keys=True)),
+            "INSERT INTO events (ts, scene, actor, kind, message, data, prev_hash, hash) "
+            "SELECT ?,?,?,?,?,?, p, chain_hash(p, ?) FROM "
+            "(SELECT (SELECT hash FROM events ORDER BY id DESC LIMIT 1) AS p)",
+            (ts, self.scene, actor, kind, msg, d, body),
         )
+
+
+def event_body(ts, scene, actor, kind, message, data) -> str:
+    return json.dumps([repr(float(ts)), scene, actor, kind, message, data], separators=(",", ":"))
+
+
+def _chain_hash(prev: str | None, body: str) -> str:
+    import hashlib
+    return hashlib.sha256(((prev or "GENESIS") + "|" + body).encode()).hexdigest()
