@@ -182,7 +182,10 @@ def rail(monkeypatch):
                          "verified": True, "pool": pool, "memo": memo}
         return paid[ref]
 
-    fake = types.SimpleNamespace(pay=pay)
+    def lookup(ref, timeout=10.0):
+        return {**paid[ref], "receipt_url": f"https://hackathon.ap4m.build/r/{ref}.json"} if ref in paid else None
+
+    fake = types.SimpleNamespace(pay=pay, lookup=lookup)
     monkeypatch.setitem(sys.modules, "agentrail.ap4m_rail", fake)
     monkeypatch.setattr(agentrail, "ap4m_rail", fake, raising=False)
     monkeypatch.setattr(web.lane(), "rail", "ap4m")
@@ -269,3 +272,18 @@ def test_the_researchers_agent_runs_each_week_on_its_own_and_ap4m_forwards_payou
     oid = next(iter(paid.values()))["memo"]["order"]
     view = lane._order_view(oid)["payment"]
     assert view["status"] == "paid" and "merchant" in view["payee"]
+
+
+def test_receipts_the_rail_settles_later_are_filled_in(c, rail):
+    paid, _ = rail
+    cid, code, researcher = post(c, AP4M_TERMS)
+    a, ha = join(c, cid, code, "auto_all", "a")
+    c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=token(c, researcher))
+    lane = web.lane()
+    with lane.store.tx() as tx:                      # the rail settles in the background: no receipt yet
+        tx.execute("UPDATE contract_payments SET result=json_remove(result, '$.receipt_url')")
+    assert c.get(f"/api/p/{a.sub}/contracts", headers=ha).json()["history"][0]["payment"]["receipt_url"] is None
+    assert lane.backfill_receipts() == 1
+    assert lane.backfill_receipts() == 0
+    got = c.get(f"/api/p/{a.sub}/contracts", headers=ha).json()["history"][0]["payment"]
+    assert got["receipt_url"].startswith("https://hackathon.ap4m.build/r/rc-") and got["status"] == "paid"

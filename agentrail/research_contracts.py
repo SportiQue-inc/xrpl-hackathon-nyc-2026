@@ -155,6 +155,7 @@ class Lane:
         institution's agent asks, each member's agent answers from that member's consent, the rail pays."""
         now = time.time() if now is None else now
         out = []
+        self.backfill_receipts()
         for c in self.store.q("SELECT id, terms, created_at FROM research_contracts WHERE status='open'"):
             t = json.loads(c["terms"])
             every = t.get("round_every_s")
@@ -526,6 +527,32 @@ class Lane:
                             "WHERE o.buyer_id=? AND o.status='delivered' AND (cp.ok IS NULL OR cp.ok=0) ORDER BY o.id",
                             t["institution_id"])
         return sum(1 for r in rows if (self._pay(cid, r["seller_id"], r["id"]) or {}).get("ok"))
+
+    def backfill_receipts(self, limit: int = 50) -> int:
+        """The rail settles in the background: a payment it has made gets its receipt and payout tx later.
+        Re-read paid refs that have no receipt yet (ap4m_rail.lookup) and keep what the rail now holds."""
+        try:
+            from . import ap4m_rail
+        except Exception:
+            return 0
+        lookup = getattr(ap4m_rail, "lookup", None)
+        if lookup is None:
+            return 0
+        done = 0
+        for p in self.store.q("SELECT order_id, ref, result FROM contract_payments WHERE ok=1 AND rail='ap4m' "
+                              "ORDER BY order_id LIMIT 500"):
+            r = json.loads(p["result"])
+            if r.get("receipt_url") or done >= limit:
+                continue
+            got = lookup(p["ref"])
+            if not got or not got.get("ok"):
+                continue
+            merged = {**r, **{k: v for k, v in got.items() if v not in (None, "")}}
+            with self.store.tx() as c:
+                c.execute("UPDATE contract_payments SET result=?, updated_at=? WHERE order_id=?",
+                          (json.dumps(merged), time.time(), p["order_id"]))
+            done += 1
+        return done
 
     def _payment(self, oid: int, rail: str, status: str, amount: int) -> dict:
         if rail != "ap4m":
