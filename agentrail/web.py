@@ -374,6 +374,14 @@ def study_dispute(tx_hash: str):
     return _call(study.dispute, tx_hash)
 
 
+@app.get("/api/engine/check")
+def engine_check():
+    """One row per flow of the health trade, each with the ledger transaction that proves it."""
+    from . import engine_check as ec
+    with _lock:
+        return {"ledger": world().ledger.name, "flows": ec.flows(world())}
+
+
 @app.get("/api/study/live")
 def study_live(after: int = 0):
     """Clawback and EscrowCancel as the ledger stream delivers them (Testnet: WebSocket subscribe)."""
