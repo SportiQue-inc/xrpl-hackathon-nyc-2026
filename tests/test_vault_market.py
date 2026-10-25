@@ -373,7 +373,8 @@ def test_price_discovery_does_not_mix_xrp_and_test_usd_trade_units(market):
     assert market.quote('sleep_log')['median']==8
 
 
-def test_member_negotiation_history_is_private_to_the_participants(market, monkeypatch):
+@pytest.mark.parametrize("seller", ["seller", None])
+def test_member_negotiation_history_is_private_to_the_participants(market, monkeypatch, seller):
     from fastapi.testclient import TestClient
     from vaultmarket import app as web
     monkeypatch.setattr(web, 'M', market)
@@ -382,7 +383,7 @@ def test_member_negotiation_history_is_private_to_the_participants(market, monke
         market.s.insert('accounts', id=aid, name=aid, type='person')
         market.s.insert('users', username=aid, account=aid)
         market.s.insert('sessions', token=aid, username=aid)
-    cid=market.s.insert('contracts',posting=market.test_post,buyer='u-owner',seller='seller',sellers=['seller'],kind='sleep_log',status='rejected',trace={})
+    cid=market.s.insert('contracts',posting=market.test_post,buyer='u-owner',seller=seller,sellers=['seller'],kind='sleep_log',status='rejected',trace={})
     client=TestClient(web.app)
     assert client.get(f'/api/contract/{cid}').status_code==403
     assert cid not in [c['id'] for c in client.get('/api/market').json()['contracts']]

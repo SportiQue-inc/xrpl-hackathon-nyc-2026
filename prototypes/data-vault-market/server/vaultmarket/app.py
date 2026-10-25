@@ -190,7 +190,7 @@ def accounts(request: Request):
 
 def _can_view_contract(c, account):
     participants={c.get("buyer"), c.get("seller"), *json.loads(c.get("sellers") or "[]")}
-    return not config.PUBLIC or not any(str(a).startswith("u-") for a in participants) or account in participants
+    return not config.PUBLIC or not any(str(a).startswith("u-") for a in participants) or (bool(account) and account in participants)
 
 
 def _trade_summaries(contracts, account):
