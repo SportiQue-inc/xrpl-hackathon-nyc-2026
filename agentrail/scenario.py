@@ -196,6 +196,16 @@ def scene_c(w: World) -> dict:
     e2.policies, e2.box_keys = e.policies, e.box_keys
     e2.recover()
     w.engine = e2
+    # The gate stores only sealed bundles: the operator's own key cannot open them.
+    from nacl.exceptions import CryptoError
+    from nacl.public import PrivateKey, SealedBox
+    sealed = w.store.one("SELECT sealed FROM bundles WHERE order_id=?", oid)["sealed"]
+    try:
+        SealedBox(PrivateKey.generate()).decrypt(sealed)
+        w.store.log("gate", "error", "operator could open a bundle (should never happen)")
+    except CryptoError:
+        w.store.log("gate", "sealed", f"operator tries to open order {oid}'s bundle with its own key: fails; "
+                    f"only {req.buyer_id}'s key opens it ({len(e2.open_bundle(req.buyer_id, oid))} rows)")
     final = w.store.one("SELECT status FROM orders WHERE id=?", oid)["status"]
     deliveries = w.store.one("SELECT COUNT(*) n FROM deliveries WHERE order_id=?", oid)["n"]
     return {"order_id": oid, "after_first_try": status1, "final": final, "delivery_attempts": deliveries,
