@@ -490,6 +490,52 @@ class Engine:
                                                                              "url": self.ledger.explorer_url(h)})
         return True
 
+    def escrow_create_batch(self, oids: list[int]) -> bool:
+        """Create every week's escrow of one participant's round in one Batch (ALL_OR_NOTHING), so the
+        participant never holds half a promise. Each order passes the same checks as alone; if any
+        fails, nothing is batched and the orders go one by one. After submit, each order's payment
+        points at its inner tx and process() carries on as usual."""
+        prep_batch = getattr(self.ledger, "prepare_escrow_batch", None)
+        if prep_batch is None or len(oids) < 2:
+            return False
+        legs, buyer = [], None
+        for oid in oids:
+            o = self.store.one("SELECT * FROM orders WHERE id=?", oid)
+            p = self.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+            if p["tx_hash"] is not None or p["kind"] != "escrow" or (buyer and o["buyer_id"] != buyer):
+                return False
+            buyer = o["buyer_id"]
+            if not self._recheck(o, for_delivery=False).ok:
+                return False
+            ok, why, mh = self._mandate_check(o, p)
+            if not ok:
+                return False
+            pv = json.loads(o["policy_snapshot"]).get("version", "")
+            legs.append({"destination": p["payee_address"], "amount_drops": p["amount_drops"],
+                         "condition": p["condition"], "cancel_after": p["cancel_after"],
+                         "memo": f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}" + (f"|mandate:{mh}" if mh else "")})
+        try:
+            outer, hashes, seqs = prep_batch(self.party(buyer)["address"], legs)
+            self.ledger.submit(outer)
+        except Exception as e:
+            self.store.log("engine", "batch", f"batch of {len(oids)} escrows not submitted ({e}); one by one instead")
+            return False
+        st = self.ledger.wait_validated(outer.tx_hash)
+        applied = st.validated and all(self.ledger.wait_validated(h, 10).found for h in hashes)
+        if not applied:
+            self.store.log("engine", "batch", f"batch of {len(oids)} escrows: nothing applied ({st.result}); "
+                           "one by one instead", {"tx_hash": outer.tx_hash, "url": self.ledger.explorer_url(outer.tx_hash)})
+            return False
+        with self.store.tx() as c:
+            for oid, h, sq in zip(oids, hashes, seqs):
+                # The inner tx is what the ledger records per escrow; the outer blob is resubmittable.
+                c.execute("UPDATE payments SET tx_hash=?, tx_blob=?, offer_sequence=?, status='submitted', "
+                          "updated_at=? WHERE order_id=?", (h, outer.blob, sq, time.time(), oid))
+        self.store.log("engine", "batch", f"{len(oids)} weekly escrows submitted together (Batch, all or nothing): "
+                       f"{st.result}", {"tx_hash": outer.tx_hash, "url": self.ledger.explorer_url(outer.tx_hash),
+                                         "orders": oids})
+        return True
+
     def _escrow_finish(self, oid: int) -> bool:
         """Contributor side: re-check permission, then publish the key to get paid."""
         o = self.store.one("SELECT * FROM orders WHERE id=?", oid)

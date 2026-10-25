@@ -278,3 +278,42 @@ def test_ethics_credential_expires_or_is_withdrawn_on_the_ledger(w):
     assert pa.policy.compliance.check(study.LAB, "sleep_research", items)[0] == items
     L.clock += 61
     assert pa.policy.compliance.check(study.LAB, "sleep_research", items)[0] == ["sleep.daily"]
+
+
+def test_a_persons_weekly_escrows_are_created_together_or_not_at_all(w):
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    study.send(w)
+    batches = [t for t in w.ledger.txs.values() if t.get("TransactionType") == "Batch"]
+    assert batches and all(t["result"] == "tesSUCCESS" for t in batches)
+    multi = [r for r in w.study.requests.values() if len(r["orders"]) > 1 and not any(o["hold"] for o in r["orders"])]
+    oids = [o["order_id"] for o in multi[0]["orders"]]
+    hashes = {w.store.one("SELECT tx_hash FROM payments WHERE order_id=?", o)["tx_hash"] for o in oids}
+    inner = {h for b in batches for h in [__import__("hashlib").sha256(__import__("json").dumps(x, sort_keys=True)
+                                                                         .encode()).hexdigest().upper() for x in b["RawTransactions"]]}
+    assert hashes <= inner
+    assert all(w.store.one("SELECT status FROM orders WHERE id=?", o)["status"] == "delivered" for o in oids)
+
+
+def test_failed_batch_applies_nothing_and_orders_go_one_by_one():
+    from agentrail.ledger import MockLedger
+    L = MockLedger()
+    a, b = L.new_account("a"), L.new_account("b")
+    L.balances[a] = 3
+    legs = [{"destination": b, "amount_drops": 2, "condition": "C", "cancel_after": 10, "memo": "m"}] * 2
+    outer, hashes, _ = L.prepare_escrow_batch(a, legs)
+    L.submit(outer)
+    assert L.lookup(outer.tx_hash).success and not any(L.lookup(h).found for h in hashes) and L.balances[a] == 3
+
+
+def test_participant_who_picked_a_stablecoin_has_their_agent_swap_what_it_was_paid(w):
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    study.send(w)
+    rid = study.participant_view(w, HERO)["requests"][0]["id"]
+    study.participant_approve(w, HERO, rid, ["fatigue.survey", "heart_rate.daily"])
+    sw = [x for x in w.study.swaps if x["person"] == HERO]
+    assert sw and sw[0]["ok"] and float(sw[0]["delivered"]) > 0
+    addr = w.engine.party(HERO)["address"]
+    from agentrail.ledger.amm_terms import STABLE_CODE, STABLE_ISSUER
+    assert w.ledger.ious[(addr, STABLE_CODE, STABLE_ISSUER)] == pytest.approx(sum(float(x["delivered"]) for x in sw))
+    assert all(x["person"] == HERO for x in w.study.swaps)          # others kept XRP
+    assert study.set_payout_currency(w, "P-002", "XRP")["payout_currency"] == "XRP"
