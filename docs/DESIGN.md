@@ -197,6 +197,10 @@ Code decides, people confirm, the LLM never judges.
 Consent text: "You can always stop. Declining or withdrawing never affects future study requests,
 priority or compensation."
 
+## 7a. Keys and delivery (`agentrail/vault/`)
+
+The person's root key is the passkey's PRF output and is never stored. Each trade derives its own key K with HKDF over the trade id and bundle hash. The page seals only the agreed scope with K and encrypts it to the receiving institution's key. The engine pushes it into the institution's store, with an escrow on SHA-256(K). There is no subscription and no access right, because inbound access from abroad is what cross-border rules restrict (docs/SECURITY.md §10). The API is in docs/API.md, "Push delivery sealed in the person's page".
+
 ## 8. Open items
 
 - **[done]** Key-reveal escrow (PREIMAGE-SHA-256) so the payment releases with the key.

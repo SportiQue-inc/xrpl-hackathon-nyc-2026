@@ -82,6 +82,9 @@ class OrderRequest:
     settle: str = "payment"         # "payment" or "escrow" (paid only when the data key is published)
     escrow_window_s: int = 600      # CancelAfter = ledger time + window
     extra: dict | None = None       # more sealed content under the same bundle hash (e.g. a data-contract manifest)
+    # Sealed by the person's own page (vault/keys.py): {"record": sealed record dict, "condition": hex}.
+    # The engine then never sees the bundle in clear, nor K; it stores and forwards what the page sealed.
+    presealed: dict | None = None
 
     def content(self, bundle_hash: str) -> dict:
         return {"payee": self.payee_id, "granted": sorted(self.granted),
@@ -159,7 +162,11 @@ class Engine:
         payee_addr = self.party(req.payee_id)["address"]
         data_key, condition = None, None
         holder = self.key_holders.get(req.seller_id)
-        if req.settle == "escrow" and holder is not None:
+        if req.presealed is not None:
+            bundle_hash = req.presealed["record"]["bundle_hash"]
+            sealed = canonical(req.presealed["record"]).encode()
+            condition = req.presealed["condition"].upper()
+        elif req.settle == "escrow" and holder is not None:
             # K is created and kept by the contributor's keyring; the engine gets the lock and condition.
             sealed, condition = holder.lock(order_key, sealed)
         elif req.settle == "escrow":

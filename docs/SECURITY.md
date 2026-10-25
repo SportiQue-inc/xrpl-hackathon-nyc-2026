@@ -175,3 +175,21 @@ simulated device and returns a token; the dashboard uses it, or a token passed a
   Testnet run with the new `*_cosign` treasuries is still to be repeated.
 - Re-identification risk is reduced (minimization, HMAC pseudonym per study, private date offset,
   quasi-identifier rule), not eliminated.
+
+## 10. Push, not access: why transfer abroad needs it
+
+A subscription or "view right" means an outside party keeps reading the person's store. Many data-localization and cross-border rules restrict exactly that inbound access from abroad, so that model breaks first for an overseas institution. AgentRail never opens the person's store to anyone:
+- For each trade, the person's page assembles exactly the agreed columns and days.
+- It seals them with a per-trade key K, derived from the passkey's PRF root, and encrypts the result to the institution's registered P-256 key.
+- The engine pushes that sealed record into the institution's own store.
+- The escrow condition is SHA-256(K). Publishing K pays the person and opens the copy the institution already holds.
+
+What each party holds:
+
+| party | holds | never holds |
+|---|---|---|
+| person's page | PRF root (only while the passkey is used), K until the reveal | anything of other people |
+| engine | sealed records, conditions, tx hashes | K before the reveal, the clear bundle, the root |
+| institution | its P-256 private key, the sealed copy, then K from the ledger | the person's store, other trades' keys |
+
+Withdrawal stops future pushes, and a key not yet revealed is never published. For copies already delivered, the engine sends a deletion request that must come back as a signed deletion confirmation, and a missing one is an audit flag. A decrypted copy cannot be force-deleted; expiry for copies is contractual plus audit. Tests: `tests/test_vault.py`.
