@@ -72,6 +72,8 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
     ledger = make_ledger(ledger_kind)
     engine = Engine(store, ledger)
     w = World(store, engine, ledger)
+    from .security.install import install
+    install(w)        # identities and approver devices; institution vaults once the parties exist
     engine.relay = ledger.new_account("vault_relay")   # publishes keys for contributors without a funded key
 
     def party(pid, name, kind):
@@ -134,8 +136,9 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
 
     # Buyer treasury controlled by multi-signing (owner + compliance officer, master key off).
     # The agent spends only from its own account, capped by the mandate.
-    w.treasury = ledger.new_account("org_robodev_treasury")
-    w.treasury_signers = [ledger.new_keypair("robodev_owner"), ledger.new_keypair("robodev_compliance")]
+    w.treasury = ledger.new_account("org_robodev_treasury_cosign")
+    # The approvers' keys stay on their devices; the ledger adapter only learns their addresses.
+    w.treasury_signers = list(w.security.register_treasury(w.treasury, "org_robodev").values())
     hashes = ledger.setup_multisig(w.treasury, w.treasury_signers, quorum=2)
     store.log("org_robodev", "multisig", "treasury: SignerList (owner + compliance, quorum 2), master key "
               "disabled; agent spends only from its capped account", {"tx": hashes})
@@ -156,8 +159,7 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
     engine.set_mandate(BuyerMandate("org_sleeplab", 40 * XRP, 6 * XRP, ["sleep_research"]))
     engine.set_mandate(BuyerMandate("org_adtech", 40 * XRP, 6 * XRP, ["marketing_profiling"]))
     w.lab = InstitutionAgent("org_sleeplab", engine, "sleep_research")
-    from .security.install import install
-    install(w)        # institution vaults hold the box keys; identities and approver devices enrolled
+    w.security.install_institutions()     # institution vaults hold the box keys, the engine only public keys
     return w
 
 
@@ -172,6 +174,16 @@ def scene_a(w: World, budget_xrp: float | None = None) -> dict:
 
 def top_up(w: World, buyer_id: str, amount_xrp: float, signers: list[str], treasury: str | None = None) -> str | None:
     """Raise an agent's budget. Only a multi-signed treasury payment can do it."""
+    listed = w.security.signer_lists.get(treasury or w.treasury, {})
+    if signers and set(signers) <= set(listed.values()):
+        # The human approvers sign on their own devices (security/cosign.py).
+        from .security.cosign import approve_with_devices, open_for
+        names = [n for n, a in listed.items() if a in signers]
+        t, amount = treasury or w.treasury, int(round(amount_xrp * XRP))
+        r = approve_with_devices(w, names, buyer_id, opener=lambda: open_for(
+            w, buyer_id, t, amount, f"topup:{buyer_id}:{amount}:{len(w.store.q('SELECT id FROM approvals'))}",
+            f"agent:{buyer_id}"))
+        return r.get("tx") if r.get("ok") else None
     try:
         h = w.ledger.multisig_payment(treasury or w.treasury, w.engine.party(buyer_id)["address"],
                                       int(amount_xrp * XRP), signers)

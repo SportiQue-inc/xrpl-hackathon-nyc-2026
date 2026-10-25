@@ -25,8 +25,11 @@ class SecurityContext:
         self.vaults: dict[str, InstitutionVault] = {}
         persist = w.ledger.name == "testnet"        # approver keys are on a live SignerList: keep them
         root = os.environ.get("AGENTRAIL_KEYSTORE") or (".keystore" if persist else None)
-        self.approvers = {n: ApproverDevice(f"approver:{n}@{STUDY}", w.ledger.name,
-                                            LocalKeyStore(f"approver.{n}.{STUDY}", root)) for n in SIGNER_NAMES}
+        self.approvers_by_org = {org: {n: ApproverDevice(f"approver:{n}@{org}", w.ledger.name,
+                                                         LocalKeyStore(f"approver.{n}.{org}", root))
+                                       for n in SIGNER_NAMES} for org in (STUDY, "org_robodev")}
+        self.approvers = self.approvers_by_org[STUDY]
+        self.signer_lists: dict[str, dict[str, str]] = {}      # treasury address -> {name: address}
 
     def install_institutions(self):
         e = self.w.engine
@@ -38,8 +41,12 @@ class SecurityContext:
             e.openers[org] = v
             self.vaults[org] = v
 
-    def signer_addresses(self) -> dict[str, str]:
-        return {n: d.address for n, d in self.approvers.items()}
+    def signer_addresses(self, org: str = STUDY) -> dict[str, str]:
+        return {n: d.address for n, d in self.approvers_by_org[org].items()}
+
+    def register_treasury(self, treasury: str, org: str = STUDY) -> dict[str, str]:
+        self.signer_lists[treasury] = self.signer_addresses(org)
+        return self.signer_lists[treasury]
 
     def _enrol(self, sub, role, scope, device=None, **attrs):
         d = device or Device(sub)
@@ -50,8 +57,9 @@ class SecurityContext:
         self._enrol(f"researcher@{STUDY}", "researcher", STUDY)
         self._enrol(f"reviewer@{STUDY}", "reviewer", STUDY)
         self._enrol("operator", "operator", "*")
-        for n, d in self.approvers.items():
-            self._enrol(d.sub, "approver", STUDY, d, signer=n)
+        for org, devs in self.approvers_by_org.items():
+            for n, d in devs.items():
+                self._enrol(d.sub, "approver", org, d, signer=n)
 
     def enrol_participants(self, pids):
         for pid in pids:
@@ -66,7 +74,6 @@ def install(w) -> SecurityContext:
     w.store._keepalive.executescript(SCHEMA + ANCHOR_SCHEMA + CONSENT_SCHEMA)
     sc = SecurityContext(w)
     w.security = sc
-    sc.install_institutions()
     sc.enrol_staff()
     sc.enrol_participants(list(getattr(w, "people", {})))
     from ..scenario import FIXTURE

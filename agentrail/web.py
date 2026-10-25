@@ -44,6 +44,14 @@ app.add_middleware(CORSMiddleware, allow_origins=cors_origins(), allow_credentia
                    allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
 install_logging_filter()
 
+
+@app.on_event("startup")
+def _start_anchoring():
+    """Anchor the event log's head on the ledger every AGENTRAIL_ANCHOR_S seconds (0 = off)."""
+    every = float(os.environ.get("AGENTRAIL_ANCHOR_S", "300"))
+    if every > 0:
+        audit.Anchorer(world, every, _lock).start()
+
 ID = r"^[A-Za-z0-9_.:@-]{1,80}$"
 ITEM = r"^[a-z0-9_.]{1,40}$"
 

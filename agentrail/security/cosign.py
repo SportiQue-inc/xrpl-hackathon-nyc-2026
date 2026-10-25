@@ -62,11 +62,17 @@ def view(store, aid: int) -> dict:
 
 
 def open_approval(w, created_by: str) -> dict:
+    """The study's budget for its current draft spec."""
     from ..study import LAB, ensure
     s = ensure(w)
     if s.status != "draft" or not s.needs:
         raise ApprovalError(409, "no draft spec to approve")
-    spec_hash = f"{s.needs.proposal_hash}:{s.needs.budget_drops}"
+    return open_for(w, LAB, s.treasury, s.needs.budget_drops, f"{s.needs.proposal_hash}:{s.needs.budget_drops}",
+                    created_by)
+
+
+def open_for(w, buyer: str, treasury: str, amount: int, spec_hash: str, created_by: str) -> dict:
+    """An approval to pay `amount` drops from a multi-signed treasury to the buyer's agent account."""
     st = w.store
     ex = st.one("SELECT id, status, expires_at FROM approvals WHERE spec_hash=?", spec_hash)
     if ex and ex["status"] == "open" and ex["expires_at"] > time.time():
@@ -77,16 +83,16 @@ def open_approval(w, created_by: str) -> dict:
         with st.tx() as c:
             c.execute("DELETE FROM approval_signatures WHERE approval_id=?", (ex["id"],))
             c.execute("DELETE FROM approvals WHERE id=?", (ex["id"],))
-    dest = w.engine.party(LAB)["address"]
+    dest = w.engine.party(buyer)["address"]
     nonce, exp = pysecrets.token_hex(16), time.time() + APPROVAL_TTL_S
-    tx_json = _unsigned_tx(w.ledger, s.treasury, dest, s.needs.budget_drops, spec_hash, nonce)
+    tx_json = _unsigned_tx(w.ledger, treasury, dest, amount, spec_hash, nonce)
     with st.tx() as c:
         cur = c.execute("INSERT INTO approvals (study,treasury,destination,amount_drops,spec_hash,nonce,expires_at,"
                         "tx_json,status,created_by,ts) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                        (LAB, s.treasury, dest, s.needs.budget_drops, spec_hash, nonce, exp,
+                        (buyer, treasury, dest, amount, spec_hash, nonce, exp,
                          json.dumps(tx_json) if tx_json else None, "open", created_by, time.time()))
         aid = cur.lastrowid
-    st.log(LAB, "approval_open", f"{created_by} asked the approvers to release {s.needs.budget_drops / 1e6:g} XRP "
+    st.log(buyer, "approval_open", f"{created_by} asked the approvers to release {amount / 1e6:g} XRP "
            f"for spec {spec_hash[:12]}; each approver signs on their own device (expires in "
            f"{APPROVAL_TTL_S // 60} min)", {"approval": aid})
     return view(st, aid)
@@ -115,7 +121,7 @@ def add_signature(w, aid: int, approver_sub: str, signer_name: str, payload: dic
         with st.tx() as c:
             c.execute("UPDATE approvals SET status='expired' WHERE id=?", (aid,))
         raise ApprovalError(410, "approval expired; open a new one")
-    signers = w.study.signers
+    signers = w.security.signer_lists.get(a["treasury"], {})
     if signer_name not in signers:
         raise ApprovalError(403, f"{signer_name} is not on the treasury's signer list")
     address = signers[signer_name]
@@ -210,23 +216,25 @@ def _apply_budget(w, a: dict, h: str, approvers: list[str]):
     st.log(buyer, "top_up", f"{' + '.join(approvers)} co-signed a {a['amount_drops'] / 1e6:g} XRP treasury payment "
            f"on their own devices (approval {a['id']}); mandate now {(m['total_drops'] + a['amount_drops']) / 1e6:g} XRP",
            {"tx_hash": h, "url": w.ledger.explorer_url(h)})
-    s = w.study
+    s = getattr(w, "study", None)
+    if s is None or a["treasury"] != s.treasury:
+        return
     s.status = "approved"
     s.approval = {"signers": [x for x in s.signers if x in {r["signer_name"] for r in st.q(
         "SELECT signer_name FROM approval_signatures WHERE approval_id=?", a["id"])}],
         **_tx(w, h), "amount_xrp": a["amount_drops"] / 1e6, "approval_id": a["id"], "approvers": approvers}
 
 
-def approve_with_devices(w, names: list[str]) -> dict:
+def approve_with_devices(w, names: list[str], buyer: str = "org_sleeplab", opener=None) -> dict:
     """Demo harness and scripts: the named approvers' (simulated) devices sign. With fewer than the
     quorum the harness submits anyway so the ledger's own refusal is shown."""
-    devices = w.security.approvers
+    devices = w.security.approvers_by_org[buyer]
     unknown = [n for n in names if n not in devices]
     if unknown:
         return {"ok": False, "engine_result": "unknown_signer", "signers": names,
                 "message": f"not on the treasury's signer list: {', '.join(unknown)}"}
     try:
-        a = open_approval(w, "researcher@org_sleeplab")
+        a = opener() if opener else open_approval(w, f"researcher@{buyer}")
     except ApprovalError as e:
         return {"ok": False, "message": str(e)}
     out = None
@@ -237,6 +245,8 @@ def approve_with_devices(w, names: list[str]) -> dict:
         d = devices[n]
         out = add_signature(w, a["id"], d.sub, n, d.cosign(view(w.store, a["id"])))
     if out and out.get("status") == "executed":
+        if opener:
+            return out
         from ..study import study_view
         return {"ok": True, **study_view(w)}
     r = execute(w, a["id"], allow_short=True)

@@ -72,7 +72,7 @@ def ensure(w) -> StudyState:
     sec = getattr(w, "security", None)
     if sec:   # approvers' keys live on their own devices; the ledger adapter never sees them
         s.treasury = w.ledger.new_account("org_sleeplab_treasury_cosign")
-        s.signers = sec.signer_addresses()
+        s.signers = sec.register_treasury(s.treasury)
     else:
         s.treasury = w.ledger.new_account("org_sleeplab_treasury")
         s.signers = {"owner": w.ledger.new_keypair("sleeplab_pi"),
