@@ -101,6 +101,8 @@ class Rail:
         st = json.load(open(state_file)) if os.path.exists(state_file) else {"lines": []}
         try:
             self.issuer = self._issuer_wallet(funder)
+            if st.get("issuer") != self.issuer:      # a different issuer means new flags and new lines
+                st = {"issuer": self.issuer, "lines": []}
             if not st.get("flags"):
                 for flag in (AccountSetAsfFlag.ASF_DEFAULT_RIPPLE, AccountSetAsfFlag.ASF_ALLOW_TRUSTLINE_LOCKING):
                     r = self._send(AccountSet, self.issuer, set_flag=flag)
