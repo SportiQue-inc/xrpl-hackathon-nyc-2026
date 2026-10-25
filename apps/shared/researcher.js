@@ -170,7 +170,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
     const budget = st.s ? st.s.study.budget_xrp : 0;
     return h("div", { class: "ar-shell" },
       h("aside", { class: "ar-side" },
-        h("div", { class: "ar-logo" }, "UniQdata"),
+        h("div", { class: "ar-logo" }, "UniQLab"),
         h("label", { class: "ar-search" }, icon("search"), h("input", {
           placeholder: "Search", value: st.filters.q,
           onkeydown: (e) => { if (e.key === "Enter") { st.filters.q = e.target.value; go("#/directory"); } },
@@ -188,7 +188,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
       ),
       h("div", { class: "ar-main" },
         h("header", { class: "ar-top" },
-          h("span", { class: "ar-budget" }, `Study budget ${Math.round(budget)} XRP`),
+          h("span", { class: "ar-budget" }, `Study budget ${Math.round(budget)} RLUSD`),
           tag(st.s && st.s.study.ledger === "testnet" ? "Testnet" : "Practice ledger"),
           h("button", { class: "ar-iconbtn", "aria-label": "Notifications" }, icon("bell")),
           h("div", { class: "row" }, h("span", { class: "ar-avatar" }), h("span", { style: { fontWeight: 500 } }, "Researcher A")),
@@ -571,7 +571,11 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
     };
     const goal = h("textarea", { class: "ar-textarea", placeholder: "Raise power to 0.8 for fatigue vs sleep, weeks 3–5" }, st.goal || s.goal || "");
     const msg = h("div");
-    const err = (e) => render(msg, banner("red", "The engine did not answer. ", h("span", { class: "tiny" }, e.message)));
+    const err = (e) => {
+      if (e.status === 409 && /already approved/.test(e.detail || "")) { load(); return render(msg, banner("blue", "This round's budget is already approved by both signers. Send it, or set a new goal for a new round.")); }
+      if (e.status === 403 && /reset/.test(e.message)) return render(msg, banner("blue", "The shared sandbox can't be reset from the browser. Set a new goal to start a new round."));
+      render(msg, banner("red", "The engine did not answer. ", h("span", { class: "tiny" }, e.message)));
+    };
     return h("div", { class: "col", style: { gap: "16px" } },
       h("div", { class: "ar-pagehead" },
         h("div", {}, h("h1", {}, "Rounds"), h("p", { class: "sub" }, `${LIVE_STUDY} · propose, approve and send a participation round`)),
@@ -684,7 +688,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
           h("td", {}, c.kept_weeks && c.kept_weeks.length ? weeksLabel(c.kept_weeks) : "—"))))),
       p.notes && p.notes.length ? h("p", { class: "tiny muted" }, p.notes.join(" · ")) : null,
       h("div", { class: "row", style: { gap: "16px" } },
-        h("b", {}, `${p.people} people · ${p.cells} cells · ${p.budget_xrp} XRP`),
+        h("b", {}, `${p.people} people · ${p.cells} cells · ${p.budget_xrp} RLUSD`),
         p.verdict === "rejected" ? tag("Nothing in the table supports this goal", "amber") : null),
       h("div", { class: "ar-banner blue", style: { flexDirection: "column", gap: "4px" } },
         h("span", { class: "tiny" }, "Participants will read"), h("span", {}, p.summary_for_participants)));

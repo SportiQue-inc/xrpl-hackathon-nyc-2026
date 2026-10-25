@@ -19,7 +19,7 @@ from .agents import talk
 from .cohort import (HERO, PRIMARY, WEEKS, apply_deliveries, heatmap, infer_needs, person_gaps, power)
 from .connectors import HospitalExportSource
 from . import uniqdata_live
-from .engine import BudgetExceeded, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
+from .engine import BudgetExceeded, NeedsHumanApproval, OrderConflict, OrderRequest, canonical, sha256_hex
 from .ledger.licence import licence_metadata
 from . import units
 from .ledger.amm_terms import SLIPPAGE, STABLE_CODE, STABLE_ISSUER, STABLE_LABEL
@@ -310,6 +310,9 @@ def _answer(w, req, hold_last=False) -> list[int]:
             oid = w.engine.place_order(r)
         except (BudgetExceeded, NeedsHumanApproval) as e:
             w.store.log(LAB, "stop", f"{pa.id}: {e}")
+            continue
+        except OrderConflict as e:          # this person's week was already ordered in an earlier round
+            w.store.log(LAB, "stop", f"{pa.id} week {wk}: already ordered in an earlier round ({e})")
             continue
         req["orders"].append({"order_id": oid, "week": wk, "items": its, "hold": last, "full": len(its) * CELL_PRICE})
         oids.append(oid)

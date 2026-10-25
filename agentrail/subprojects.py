@@ -66,10 +66,11 @@ class Relationships:
 
     @property
     def scope(self) -> dict:
-        """Read on every access: the study's current needs, or the protocol before it has read its gaps."""
+        """The protocol the person agreed to, plus anything the study's needs added. The week's gaps never
+        narrow it: a sub-project inside the agreed items reuses the consent with no new ask."""
         s = ensure(self.w)
         cells = s.needs.cells if s.needs else {}
-        types = sorted({i for wk in cells.values() for its in wk.values() for i in its}) or PROTOCOL_ITEMS
+        types = sorted({i for wk in cells.values() for its in wk.values() for i in its} | set(PROTOCOL_ITEMS))
         types = [catalog.canon(t) if catalog.canon(t) in catalog.CATALOG else t for t in types]
         return {"purposes": [s.needs.purpose] if s.needs else ["sleep_research"],
                 "data_types": sorted({t for t in types if _tier(t) not in T3_TIERS}),
