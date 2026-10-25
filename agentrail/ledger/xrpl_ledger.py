@@ -23,19 +23,35 @@ _LEDGERS: list = []      # live XrplLedger instances, so out-of-band submits can
 TX_STATS = {"submitted": 0, "fee_drops": 0}      # every tx this process sent, for the running-cost count
 
 
+_ACCOUNT_LOCKS: dict = {}
+_ACCOUNT_LOCKS_GUARD = threading.Lock()
+
+
 def submit_and_wait(tx, client, wallet=None, **kw):
-    """xrpl-py's submit_and_wait, then forget the local sequence of the sending account: the tx was
-    autofilled from the ledger, so a cached counter for that account is now behind."""
+    """xrpl-py's submit_and_wait, one tx per account at a time (other accounts run in parallel).
+    When a ledger already counts this account's sequence locally (prepared txs in flight), the tx takes
+    the next number from that counter, so it cannot reuse a sequence still in flight. Otherwise it is
+    autofilled from the ledger and the cached counter is dropped afterwards."""
     from xrpl.transaction import submit_and_wait as _saw
+    with _ACCOUNT_LOCKS_GUARD:
+        lock = _ACCOUNT_LOCKS.setdefault(tx.account, threading.Lock())
+    counted = next((led for led in _LEDGERS if tx.account in led._seq), None)
+    if counted is not None and tx.sequence is None:
+        tx = type(tx).from_dict({**tx.to_dict(), "sequence": counted._next_sequence(tx.account)})
     try:
-        r = _saw(tx, client, wallet, **kw)
+        with lock:
+            r = _saw(tx, client, wallet, **kw)
         TX_STATS["submitted"] += 1
         TX_STATS["fee_drops"] += int((r.result.get("tx_json") or r.result).get("Fee", 0) or 0)
         return r
+    except Exception:
+        counted = None          # the counted sequence may not have been used: re-read it next time
+        raise
     finally:
-        for led in _LEDGERS:
-            with led._seq_lock:
-                led._seq.pop(tx.account, None)
+        if counted is None:
+            for led in _LEDGERS:
+                with led._seq_lock:
+                    led._seq.pop(tx.account, None)
 
 TESTNET_RPC = os.environ.get("XRPL_RPC_URL", "https://s.altnet.rippletest.net:51234/")
 WALLET_FILE = os.environ.get("AGENTRAIL_WALLETS", "wallets.local.json")

@@ -353,9 +353,11 @@ def _reset_own_wallet(ledger, wallet):
 
 def build_cohort(w: World, n: int = 50):
     """50 participants with their own agents. Payees on Testnet are the public fixture addresses."""
-    from .cohort import synthetic_coverage
+    from .cohort import HERO, synthetic_coverage
     e = w.engine
-    accounts = [a for a in json.load(open(FIXTURE))["accounts"] if a["role"] == "participant"][:n]
+    n = int(os.environ.get("COHORT_N") or n)          # smaller cohorts for quicker Testnet runs
+    every = [a for a in json.load(open(FIXTURE))["accounts"] if a["role"] == "participant"]
+    accounts = every[:n] + [a for a in every[n:] if a["account_id"] == HERO]   # the followed participant stays
     compliance = ComplianceRules(credential_check=lambda buyer: w.ledger.has_credential(
         e.party(buyer)["address"], e.party("org_ethics")["address"], ETHICS_CREDENTIAL))
     w.cohort_people = {}
