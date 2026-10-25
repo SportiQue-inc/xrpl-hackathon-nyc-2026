@@ -399,6 +399,17 @@ def request_card(w, req) -> dict:
             "summary_source": s.needs.source if s.needs else "rules",
             "duo": [{"code": c, "label": DUO[c]} for c in PURPOSE_DUO.get(req["purpose"], [])],
             "items": per_item, "reward_xrp": n_cells * CELL_PRICE / XRP,
+            "partial_data_plan": "Stated: weeks you contribute before stopping are analyzed as planned in the "
+                                 "protocol; the ethics board decides any other use.",
+            "if_you_stop": [
+                {"kind": "decline_round", "label": "Skip this round", "effect": "Nothing is sent this time; "
+                 "your consent stays as it is."},
+                {"kind": "pause", "label": "Stop future rounds", "effect": "No new requests run; rewards already "
+                 "paid stay yours."},
+                {"kind": "revoke", "label": "Withdraw data access", "effect": "The study's licence is taken back on "
+                 "the ledger, rounds not yet released are never released and their escrow returns to the study; "
+                 "weeks already contributed stay pseudonymized for the stated analysis only; rewards already "
+                 "paid stay yours."}],
             "settlement": "escrow: the reward is locked on XRPL and released when your agent publishes the key"}
 
 
@@ -540,7 +551,8 @@ def participant_revoke(w, pid: str) -> dict:
                 out["withheld"].append(o["order_id"])
     out["refunds"] = [{"order_id": oid, **_tx(w, w.store.one("SELECT cancel_tx FROM payments WHERE order_id=?",
                                                                 oid)["cancel_tx"])} for oid in sweep(w)["refunded"]]
-    out["kept"] = "consent history (every version hashed), rewards already paid, rounds already delivered"
+    out["kept"] = ("consent history (every version hashed); rewards already paid stay with the participant; weeks "
+                   "already contributed stay pseudonymized with the study for the stated analysis only")
     s.withdrawals.append({"person": pid, "kind": "revoke", "ts": time.time(), **out})
     return {**out, **participant_view(w, pid)}
 
