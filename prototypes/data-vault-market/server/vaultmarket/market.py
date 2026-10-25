@@ -93,6 +93,23 @@ class Market:
             for k in ("gps_track","sleep_log","purchase_receipts"):
                 body=data.make_record(k,demo_rng,"Synthetic demo",0,(40.7,-74))
                 self.add_file("demo-vault",k,data.file_name(k,body,0),body,listed=False,source="synthetic demo")
+        if not self.s.stat("kinds_v2"):
+            # newer everyday data kinds: give every vault a minimum for them and some records to sell
+            rng2 = random.Random(303)
+            for acc in self.s.q("SELECT id, name, type FROM accounts"):
+                a = self.acct(acc["id"]); rules = a["sell_agent"]; mins = rules.setdefault("min", {})
+                for k in data.NEW_KINDS:
+                    mins.setdefault(k, round(KINDS[k]["price"] * (rng2.uniform(0.6, 1.25) if acc["type"] == "person" else 1.2), 1))
+                self.s.x("UPDATE accounts SET sell_agent=? WHERE id=?", (json.dumps(rules), acc["id"]))
+                if acc["type"] != "person" or acc["id"].startswith("u-"):
+                    continue
+                home = (round(40.66 + rng2.random() * 0.14, 5), round(-74.01 + rng2.random() * 0.1, 5))
+                demo = acc["id"] == "demo-vault"
+                for k in (list(KINDS) if demo else data.NEW_KINDS):
+                    for j in range(6 if demo else rng2.randint(1, 3)):
+                        body = data.make_record(k, rng2, acc["name"], j, home)
+                        self.add_file(acc["id"], k, data.file_name(k, body, j), body, listed=acc["id"] == "demo-vault" or rng2.random() < 0.7, source="phone")
+            self.s.bump("kinds_v2")
         if not self.s.stat("demo_vault_auto_v1") and self.s.one("SELECT id FROM accounts WHERE id='demo-vault'"):
             # The demo vault's agent sells on its own within its minimums, like the market personas, with enough records to trade.
             rules=self.acct("demo-vault")["sell_agent"];rules["mode"]="auto"
@@ -750,7 +767,7 @@ class Market:
         # someone uploads something new; their agent runs it through intake
         if rng.random() < 0.7:
             a = rng.choice(self.s.q("SELECT id, name FROM accounts WHERE type = 'person' AND id != 'dana' AND id NOT LIKE 'u-%'"))
-            kind = rng.choice(["gps_track", "gps_track", "sleep_log", "purchase_receipts", "audio"])
+            kind = rng.choice(["gps_track", "gps_track", "sleep_log", "purchase_receipts", "audio", "step_count", "commute", "screen_time", "energy_use"])
             body = data.make_record(kind, rng, a["name"], rng.randint(5, 60), (40.7 + rng.random() * 0.1, -73.95 - rng.random() * 0.05))
             roll = rng.random()
             if roll < 0.08:
@@ -776,7 +793,11 @@ class Market:
                 self.scan(a)
         self.events += 1
 
-    PURPOSES = {"gps_track": ["running-route app", "city heat-map research", "shoe wear study", "bike-lane planning"],
+    PURPOSES = {"step_count": ["fitness app benchmark", "city walkability study", "health insurer wellness program"],
+                "commute": ["transit planning", "bike-lane planning", "office space planning"],
+                "screen_time": ["digital wellbeing research", "app market study", "advertising"],
+                "energy_use": ["utility demand forecasting", "solar sizing", "home insurance pricing"],
+                "gps_track": ["running-route app", "city heat-map research", "shoe wear study", "bike-lane planning"],
                 "sleep_log": ["sleep research", "mattress product study", "wearable calibration", "insurance pricing"],
                 "purchase_receipts": ["basket research", "price index", "store layout study"],
                 "audio": ["speech model training", "accent research", "voice assistant tuning"],

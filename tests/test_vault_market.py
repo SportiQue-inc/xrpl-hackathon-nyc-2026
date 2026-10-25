@@ -506,14 +506,14 @@ def test_demo_can_open_samples_and_finish_its_own_queued_sale(market, monkeypatc
     assert client.post('/api/demo-session').status_code == 200
     assert client.cookies.get(web.COOKIE) == token
     own = client.get('/api/account/demo-vault').json()
-    assert own['account']['id'] == 'demo-vault' and own['files'] == 18
-    assert {b['kind'] for b in own['bundles']} == {'gps_track', 'sleep_log', 'purchase_receipts'}
+    assert own['account']['id'] == 'demo-vault' and own['files'] == 72
+    assert {b['kind'] for b in own['bundles']} == set(data.KINDS)
     response = client.post('/api/account/demo-vault/upload-sample', json={'kind': 'sleep_log'})
     assert response.status_code == 200
     sample = response.json()
     if sample['verdict'] == 'clean':
         assert client.post(f"/api/account/demo-vault/upload/{sample['upload']}/clean").status_code == 200
-    assert client.get('/api/account/demo-vault').json()['files'] == 19
+    assert client.get('/api/account/demo-vault').json()['files'] == 73
     assert client.post(f'/api/account/demo-vault/sell-now/{market.test_post}').status_code == 200
     assert client.post('/api/account/demo-vault/chat', json={'text': 'sell my sleep logs'}).status_code == 200
     queued = client.get('/api/account/demo-vault').json()

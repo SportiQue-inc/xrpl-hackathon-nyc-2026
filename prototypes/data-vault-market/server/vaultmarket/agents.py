@@ -104,7 +104,9 @@ def parse_chat(text: str) -> dict:
     """-> {intent: sell|buy|other, kind, price}"""
     import re
     kinds = {"gps_track": r"run|gps|track|러닝|달리기|경로", "sleep_log": r"sleep|수면|잠", "purchase_receipts": r"receipt|purchase|영수증|구매내역",
-             "audio": r"voice|audio|음성|녹음", "air": r"air|sensor|공기|대기|센서|미세먼지"}
+             "audio": r"voice|audio|음성|녹음", "air": r"air|sensor|공기|대기|센서|미세먼지",
+             "step_count": r"step|걸음|만보", "commute": r"commute|trip|출퇴근|통근|이동", "screen_time": r"screen|app usage|스크린|화면|앱 사용",
+             "energy_use": r"energy|electric|kwh|meter|전기|에너지|전력"}
     kind = next((k for k, rx in kinds.items() if re.search(rx, text, re.I)), None)
     intent = "sell" if re.search(r"sell|팔|판매", text, re.I) else "buy" if re.search(r"need|buy|want|필요|사|구매|구해", text, re.I) else "other"
     pattern=r"(?:\$|(?:for|at|price|minimum|budget|최저가?|가격|예산)\s*:?\s*)(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:XRP|test\s*USD|USD|달러|에)"
@@ -113,13 +115,15 @@ def parse_chat(text: str) -> dict:
     return rule          # anything unclear goes to the conversational reply, which runs off the request path
 
 
-def chat_reply(text: str, context: dict) -> dict | None:
-    """A conversational answer from the owner's agent. -> {reply, action: sell|buy|null, kind}"""
+def chat_reply(text: str, context: dict, history: list | None = None) -> dict | None:
+    """The owner's agent in conversation. -> {reply, offer_ids, set_min, sell_kind, buy}; code validates every action."""
     return llm.ask_json(
-        "You are the owner's personal data agent in a data marketplace on the XRP Ledger Testnet. You sell the owner's records "
-        "(GPS tracks, sleep logs, purchase receipts, voice clips, air-quality data) one-to-one to buyers, never below the owner's minimums "
-        "and never for blocked purposes, and you can post requests to buy data. Answer briefly and plainly in the user's language, "
-        "using only the facts given. Never invent sales, prices or balances.",
-        f"Facts: {json.dumps(context, ensure_ascii=False)}\nOwner says: \"{text}\"\n"
-        f'Return {{"reply": "1-3 short sentences", "action": "sell"|"buy"|null, "kind": one of {list(KINDS)} or null}}. '
-        "Set action only when the owner clearly asks you to sell or buy now.", max_tokens=300)
+        "You are the owner's personal data agent in a data marketplace on the XRP Ledger Testnet. You sell the owner's records one-to-one "
+        "to buyers, never below the owner's minimums and never for blocked purposes, and you can post requests to buy data. "
+        "Talk like a helpful broker, in the owner's language, in 1-3 short sentences. Narrow things down with the owner: if they are vague, "
+        "ask one focused question (which data, which kind of buyer or purpose, what price) and suggest at most 3 concrete offers that fit. "
+        "Do not repeat a list you already gave; build on the conversation. Use only the facts given; never invent sales, buyers or prices.",
+        f"Facts: {json.dumps(context, ensure_ascii=False)}\nRecent conversation: {json.dumps(history or [], ensure_ascii=False)}\nOwner now says: \"{text}\"\n"
+        'Return {"reply": "...", "offer_ids": [ids from matching_offers to show as buttons, at most 3, or empty], '
+        '"set_min": {"kind": kind, "price": number in the asset} or null, "sell_kind": kind or null, "buy": {"kind": kind, "budget": number} or null}. '
+        "Only set set_min, sell_kind or buy when the owner clearly asked for that change or action in this message.", max_tokens=400, chat=True)
