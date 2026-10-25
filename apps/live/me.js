@@ -191,4 +191,15 @@ function draw() {
 }
 
 watchSelf(api, pid, () => load(), { interval: 2000 });
+// The participant view above does not change when the institution opens a sub-project, so
+// poll the relationship too: a new sub-project and what the agent did with it show up here.
+let relKey = "";
+setInterval(async () => {
+  if (st.sheet || st.busy) return;
+  try {
+    const r = await call("GET", `${P}/relationship`);
+    const k = JSON.stringify(r);
+    if (k !== relKey) { relKey = k; st.rel = r; setSettlementAsset(r.asset); draw(); }
+  } catch (_) { /* engine restarting; keep polling */ }
+}, 3000);
 load();
