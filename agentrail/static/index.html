@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentRail</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --ink: #1b1d1f; --muted: #646a70; --line: #e2e4e6;
+    --accent: #2457c5; --ok: #1e7a46; --warn: #a15c00; --bad: #b3261e; --chip: #eef1f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121416; --panel: #1b1e21; --ink: #e8eaec; --muted: #9aa1a8; --line: #2c3035;
+            --accent: #7aa2ff; --ok: #5fcf8d; --warn: #f0b35a; --bad: #ff8a80; --chip: #252a30; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  header { padding: 16px; border-bottom: 1px solid var(--line); display: flex; gap: 12px;
+           flex-wrap: wrap; align-items: center; }
+  header h1 { font-size: 18px; margin: 0 12px 0 0; }
+  .badge { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--muted); }
+  .badge.live { color: var(--ok); }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 7px 12px;
+           font: inherit; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  main { padding: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+  section.wide { grid-column: 1 / -1; }
+  h2 { font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .num { border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  .num b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .num span { font-size: 12px; color: var(--muted); }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  .log { max-height: 520px; overflow: auto; font-size: 13px; }
+  .ev { display: grid; grid-template-columns: 28px 110px minmax(0, 1fr); gap: 8px; padding: 4px 0;
+        border-bottom: 1px dashed var(--line); }
+  .ev .who { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .k-blocked, .k-refused, .k-deny, .k-withheld, .k-conflict, .k-stop { color: var(--bad); }
+  .k-credential, .k-multisig, .k-top_up { color: var(--accent); }
+  .k-ask_person, .k-ask_human, .k-lost_response, .k-lost_delivery, .k-filter, .k-restart, .k-recover { color: var(--warn); }
+  .k-paid, .k-delivered { color: var(--ok); }
+  .msg { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; padding: 6px 0;
+         border-bottom: 1px dashed var(--line); }
+  .msg .sc { color: var(--muted); font-size: 12px; padding-top: 2px; }
+  .msg .hd { font-size: 12px; color: var(--muted); }
+  .msg .hd b { color: var(--ink); font-weight: 600; }
+  .bubble { margin-top: 2px; padding: 6px 10px; border-radius: 10px; background: var(--chip);
+            display: inline-block; max-width: 100%; overflow-wrap: anywhere; }
+  .r-buyer .bubble { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
+  .r-person .bubble { background: color-mix(in srgb, var(--ok) 14%, var(--panel)); }
+  .r-engine .bubble { background: transparent; border: 1px solid var(--line); }
+  .src { font-size: 11px; border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; margin-left: 6px; }
+  details.facts { font-size: 12px; color: var(--muted); }
+  .fbtn.on { background: var(--accent); color: #fff; }
+  .s-delivered { color: var(--ok); } .s-blocked, .s-withheld, .s-failed { color: var(--bad); }
+  code { font-size: 12px; }
+  a { color: var(--accent); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tabs button.on { background: var(--accent); color: #fff; }
+  .issue { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  @media (max-width: 900px) { .issue { grid-template-columns: minmax(0, 1fr); } }
+  .issue h3 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin: 8px 0 4px; letter-spacing: .04em; }
+  .issue ul { margin: 0; padding-left: 18px; }
+  .evd { padding: 4px 0; border-bottom: 1px dashed var(--line); overflow-wrap: anywhere; }
+  .hm { display: grid; grid-template-columns: 52px repeat(8, 1fr); gap: 2px; font-size: 10px; max-width: 420px; }
+  .hm div { height: 9px; border-radius: 2px; }
+  .hm .lbl { height: auto; color: var(--muted); }
+  .c-held { background: color-mix(in srgb, var(--muted) 35%, var(--panel)); }
+  .c-contributed { background: var(--ok); } .c-waiting { background: var(--warn); }
+  .c-missing { background: transparent; border: 1px dashed var(--line); }
+  input { width: 70px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+</style>
+</head>
+<body>
+<header>
+  <h1>AgentRail</h1>
+  <span class="badge">Synthetic data</span>
+  <span class="badge" id="ledger">ledger: -</span>
+  <span class="badge" id="voice">agent voice: -</span>
+  <div class="row">
+    <button onclick="runAll()">Run all scenes</button>
+    <button class="ghost" onclick="act('/api/reset').then(()=>act('/api/run/a'))">A: robotics</button>
+    <button class="ghost" onclick="act('/api/run/b')">B: personal data</button>
+    <button class="ghost" onclick="act('/api/run/c')">C: failures</button>
+    <button class="ghost" onclick="act('/api/run/d')">D: 50 people</button>
+    <span class="row">budget <input id="budget" value="30"> XRP
+      <button class="ghost" onclick="act('/api/reset').then(()=>act('/api/run/a?budget='+budget.value))">A with budget</button></span>
+  </div>
+</header>
+<main>
+  <section class="wide">
+    <h2>Hard boundaries, solved first</h2>
+    <div class="row" style="margin-bottom:8px">
+      <button onclick="act('/api/run/boundaries')">Run boundary checks</button>
+      <span class="badge">consent - re-identification - withdrawal - other domains</span>
+    </div>
+    <div class="tabs" id="btabs"></div>
+    <div id="bissue" class="issue"></div>
+  </section>
+  <section class="wide">
+    <h2>Sleep study - 50 participants x 8 weeks (sleep + fatigue in the same week)</h2>
+    <div class="nums" id="study-nums"></div>
+    <div id="heat" class="hm"></div>
+  </section>
+  <section>
+    <h2>Robot developer - buyer agent mandate</h2>
+    <div class="nums" id="m-org_robodev"></div>
+    <div class="scroll"><table id="cands"></table></div>
+  </section>
+  <section>
+    <h2>Sleep lab - buyer agent mandate</h2>
+    <div class="nums" id="m-org_sleeplab"></div>
+    <div class="scroll"><table id="consents"></table></div>
+  </section>
+  <section class="wide">
+    <h2>Orders, payments and deliveries</h2>
+    <div class="scroll"><table id="orders"></table></div>
+  </section>
+  <section class="wide">
+    <h2>Agent conversation and decisions</h2>
+    <div class="row" id="filters" style="margin-bottom:8px"></div>
+    <div class="log" id="events"></div>
+  </section>
+  <section>
+    <h2>Approvals asked of people</h2>
+    <div class="scroll"><table id="approvals"></table></div>
+    <h2 style="margin-top:14px">Exceptions</h2>
+    <div class="scroll"><table id="exceptions"></table></div>
+    <h2 style="margin-top:14px">Buyer accounts</h2>
+    <div class="scroll"><table id="accounts"></table></div>
+  </section>
+</main>
+<script>
+const xrp = d => (d / 1e6).toLocaleString(undefined, {maximumFractionDigits: 2});
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Operator token: from #token=... (kept in this tab only), or the local demo harness login.
+let TOKEN = null;
+try { TOKEN = sessionStorage.getItem('agentrail_token'); } catch (e) {}
+const fromHash = new URLSearchParams(location.hash.slice(1)).get('token');
+if (fromHash) { TOKEN = fromHash; history.replaceState(null, '', location.pathname); }
+async function login() {
+  const r = await fetch('/api/dev/login/operator', {method: 'POST'});
+  if (!r.ok) throw new Error('sign in: open this page with #token=<operator token>');
+  TOKEN = (await r.json()).access_token;
+  try { sessionStorage.setItem('agentrail_token', TOKEN); } catch (e) {}
+}
+async function api(url, opts = {}, retry = true) {
+  if (!TOKEN) await login();
+  const r = await fetch(url, {...opts, headers: {...(opts.headers || {}), Authorization: 'Bearer ' + TOKEN}});
+  if (r.status === 401 && retry) { TOKEN = null; return api(url, opts, false); }
+  return r;
+}
+async function act(url) { await api(url, {method: 'POST'}); await load(); }
+async function runAll() { for (const u of ['/api/reset', '/api/run/a-guarded', '/api/run/b', '/api/run/c', '/api/run/d']) await act(u); }
+function table(el, cols, rows) {
+  document.getElementById(el).innerHTML = '<tr>' + cols.map(c => `<th>${c[0]}</th>`).join('') + '</tr>' +
+    (rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td>${c[1](r)}</td>`).join('') + '</tr>').join('')
+                 : `<tr><td colspan="${cols.length}" style="color:var(--muted)">nothing yet</td></tr>`);
+}
+let B = null, btab = 'consent';
+function renderIssue() {
+  if (!B) return;
+  document.getElementById('btabs').innerHTML = B.issues.map(i =>
+    `<button class="ghost ${i.id === btab ? 'on' : ''}" onclick="btab='${i.id}';renderIssue()">${esc(i.title)}</button>`).join('');
+  const i = B.issues.find(x => x.id === btab);
+  const link = e => e.url ? ` <a href="${e.url}" target="_blank">tx</a>` : (e.tx ? ` <code>${esc(e.tx.slice(0, 10))}</code>` : '');
+  document.getElementById('bissue').innerHTML = `
+    <div><h3>Problem</h3>${esc(i.problem)}<h3>Our answer</h3>${esc(i.solution)}
+      <h3>Enforced by</h3><ul>${i.enforced.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+      <h3>Demo moment</h3>${esc(i.moment)}</div>
+    <div><h3>Evidence from this run</h3>${i.evidence.length ? i.evidence.map(e =>
+        `<div class="evd">${esc(e.label)}${e.reason ? ` <span style="color:var(--muted)">(${esc(e.reason)})</span>` : ''}${link(e)}</div>`).join('')
+        : '<div style="color:var(--muted)">Run boundary checks</div>'}
+      <h3>Tests</h3><ul>${i.tests.map(t => `<li><code>${esc(t)}</code></li>`).join('')}</ul></div>`;
+}
+async function loadStudy() {
+  B = await (await api('/api/boundaries')).json(); renderIssue();
+  const st = await (await api('/api/study')).json();
+  const h = st.heatmap;
+  document.getElementById('study-nums').innerHTML = [
+    [h.power_before, 'power at start'], [h.power, 'power now (plan 0.80)'],
+    [st.responses.auto + ' / ' + st.responses.approval, 'auto / asked person'],
+    [st.settlement.paid_xrp + ' XRP', 'paid by escrow']].map(([v, l]) => `<div class="num"><b>${v}</b><span>${l}</span></div>`).join('');
+  document.getElementById('heat').innerHTML = '<div class="lbl"></div>' + h.weeks.map(w => `<div class="lbl">w${w}</div>`).join('') +
+    h.rows.map(r => `<div class="lbl">${r.person}</div>` + r.cells.map(c => `<div class="c-${c.s}" title="${r.person} ${c.s}"></div>`).join('')).join('');
+}
+async function load() {
+  loadStudy().catch(() => {});
+  const s = await (await api('/api/state')).json();
+  const L = document.getElementById('ledger');
+  L.textContent = s.ledger === 'testnet' ? 'XRPL Testnet (real)' : 'Mock ledger';
+  L.className = 'badge' + (s.ledger === 'testnet' ? ' live' : '');
+  for (const m of s.mandates) {
+    const el = document.getElementById('m-' + m.buyer_id); if (!el) continue;
+    const avail = m.total_drops - m.spent_drops - m.reserved_drops;
+    el.innerHTML = [['Budget', m.total_drops], ['Reserved', m.reserved_drops], ['Spent', m.spent_drops], ['Available', avail]]
+      .map(([k, v]) => `<div class="num"><b>${xrp(v)}</b><span>${k} XRP</span></div>`).join('');
+  }
+  const a = s.results.a;
+  table('cands', [['Product', r => esc(r.seller + ' / ' + r.product)], ['Price', r => xrp(r.price_xrp * 1e6)],
+    ['Result', r => r.excluded ? `<span class="s-blocked">excluded: ${esc(r.excluded)}</span>`
+       : (a.selected || []).includes(r.product) ? `<span class="s-delivered">selected</span>` +
+         (r.refused_fields.length ? ` (without ${esc(r.refused_fields.join(', '))})` : '') : 'qualified'],
+    ['Quality (sample)', r => r.quality.missing_rate !== undefined ? `missing ${(r.quality.missing_rate*100).toFixed(1)}%` : '']],
+    a ? a.candidates : []);
+  table('consents', [['Person', r => esc(r.person_id)], ['Recipient', r => esc(r.buyer_id)],
+    ['Items', r => esc(JSON.parse(r.items).join(', '))], ['Automation', r => esc(r.automation)],
+    ['Status', r => esc(r.status)], ['Consent doc', r => `v${r.version} <code>${esc(r.doc_hash.slice(0, 12))}…</code>`]], s.consents);
+  table('orders', [['#', r => r.id], ['Buyer', r => esc(r.buyer_id)], ['Payee', r => esc(r.payee_id)],
+    ['Scope', r => esc(r.scope.slot + ': ' + r.scope.granted.join(', '))], ['XRP', r => xrp(r.price_drops)],
+    ['Terms', r => `<code>${esc(r.policy_snapshot.version || '')}</code>`],
+    ['Status', r => `<span class="s-${r.status}">${esc(r.status)}</span>${r.note ? ' - ' + esc(r.note) : ''}`],
+    ['Payment', r => r.tx_hash ? (r.url ? `<a href="${r.url}" target="_blank" rel="noopener">${esc(r.tx_hash.slice(0, 10))}…</a>`
+       : `<code>${esc(r.tx_hash.slice(0, 10))}…</code>`) + (r.ledger_index ? ` @${r.ledger_index}` : '') : '-']], s.orders);
+  STATE = s; renderEvents();
+  document.getElementById('voice').textContent = 'agent voice: ' + s.voice;
+  table('approvals', [['Person', r => esc(r.person_id)], ['Kind', r => esc(r.kind + (r.week ? ' w' + r.week : ''))],
+    ['Asked', r => esc(JSON.parse(r.items).join(', '))], ['Status', r => esc(r.status)],
+    ['Approved', r => esc(r.decided_items ? JSON.parse(r.decided_items).join(', ') || 'none' : '')]], s.approvals);
+  table('exceptions', [['Order', r => r.order_id], ['Kind', r => esc(r.kind)], ['Detail', r => esc(r.detail)],
+    ['Cost bearer', r => esc(r.cost_bearer || '')]], s.exceptions);
+  table('accounts', [['Buyer', r => esc(r[0])], ['Address', r => `<code>${esc(r[1].address)}</code>`],
+    ['Multisig', r => r[1].multisig ? 'yes' : 'no'], ['Master key disabled', r => r[1].master_disabled ? 'yes' : 'no']],
+    Object.entries(s.accounts));
+}
+let STATE = null, FILTER = 'all';
+const role = a => a === 'engine' ? 'engine' : /^(org_robodev|org_sleeplab|org_adtech|org_cohort)/.test(a) ? 'buyer'
+  : /^P|^person /.test(a) ? 'person' : 'seller';
+const FILTERS = [['all', 'All'], ['buyer', 'Buyer agents'], ['seller', 'Seller agents'], ['person', 'Personal agents and people'], ['engine', 'Engine and ledger']];
+function renderEvents() {
+  document.getElementById('filters').innerHTML = FILTERS.map(([k, t]) =>
+    `<button class="ghost fbtn${FILTER === k ? ' on' : ''}" onclick="FILTER='${k}';renderEvents()">${t}</button>`).join('');
+  const evs = STATE.events.filter(e => FILTER === 'all' || role(e.actor) === FILTER);
+  document.getElementById('events').innerHTML = evs.map(e => {
+    const d = JSON.parse(e.data || '{}');
+    const to = d.to ? ` &rarr; <b>${esc(d.to)}</b>` : '';
+    const src = d.by ? `<span class="src">${d.by === 'llm' ? 'LLM sentence' : 'rule sentence'}</span>` : '';
+    const facts = d.facts ? `<details class="facts"><summary>decided by code</summary><code>${esc(JSON.stringify(d.facts))}</code></details>` : '';
+    return `<div class="msg r-${role(e.actor)} k-${esc(e.kind)}"><span class="sc">${esc(e.scene || '')}</span><div>
+      <div class="hd"><b>${esc(e.actor)}</b>${to} · ${esc(e.kind)}${src}</div>
+      <div class="bubble">${esc(e.message)}</div>${facts}</div></div>`;
+  }).join('');
+}
+load();
+</script>
+</body>
+</html>
