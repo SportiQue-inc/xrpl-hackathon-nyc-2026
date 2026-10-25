@@ -6,34 +6,32 @@
 </head><body>
 <div class="top">
   <span class="brand">Data Vault Market</span>
-  <nav><a href="/">Market</a><a href="/vault" aria-current="page">My DB</a></nav>
+  <nav><a href="/">Market</a><a href="/vault" aria-current="page">My DB</a><a href="/assets">Assets</a></nav>
   <span class="tag" id="ledgerTag"></span><span class="tag" id="modelTag"></span>
-  <label class="small muted" for="acct">Signed in as (demo)</label><select id="acct"></select>
+  <span class="small" id="accountName"></span>
 </div>
 <div class="banner" id="banner" hidden></div>
-<div class="app">
+<div class="app vault-app">
   <section class="col side left" aria-labelledby="h-me">
-    <header><h1 id="h-me">Wallet</h1><span class="mono muted small" id="addr"></span></header>
+    <header><h1 id="h-me">For your data</h1></header>
     <div class="scroll">
-      <div class="kpis" id="wallet"></div>
-      <h2>My DB over time</h2><svg id="growth" viewBox="0 0 320 70" style="width:100%;height:70px" role="img" aria-label="Files in my DB over time"></svg>
-      <h2>Bought</h2><div id="bought"></div>
+      <div class="onboarding"><h2>Start here</h2><ol><li>Connect your payout wallet.</li><li>Import your own records below.</li><li>Ask your agent what you can sell.</li></ol><a href="/assets">Wallet, budget & transfers →</a></div>
+      <h2>Recommendations</h2><div id="recs"></div><h2>Market demand</h2><div id="marketHints"></div>
     </div>
   </section>
   <section class="col" aria-labelledby="h-db">
     <header><div><h1 id="h-db">My DB</h1><span class="muted small" id="dbSub"></span></div>
       <div class="seg" role="group" aria-label="Sort bundles"><button type="button" id="vDom" aria-pressed="true">By domain</button><button type="button" id="vDem" aria-pressed="false">By demand</button><button type="button" id="vAll" aria-pressed="false">All requests</button></div></header>
-    <div class="scroll"><div id="recs"></div><div id="bundles"></div></div>
+    <div class="scroll"><section class="intake-work"><h2>Import your data</h2>      <label class="drop" id="drop" for="file">Drop a JSON file here or click to choose.<br><span class="small">The intake agent classifies it, refuses sensitive data and offers paid cleaning for raw data.</span></label>
+      <input type="file" id="file" accept=".json,application/json" hidden>
+      <details class="sample-options"><summary>Try a sample file</summary><div class="acts" id="samples"></div></details>
+      <h2>Intake results</h2><div id="uploads"></div></section><details class="buy-request"><summary>Buy data for my DB</summary><form id="buyForm"><label>Category <select id="buyKind"></select></label><label>Offer <input id="buyPrice" type="number" min="0.000001" step="any" required></label><label class="small"><input type="checkbox" id="buyResale"> Request permission to bundle and resell</label><button class="primary">Ask agent to buy</button></form></details><div id="bundles"></div><h2>Purchased data</h2><div id="bought"></div></div>
   </section>
   <section class="col side right" aria-labelledby="h-u">
-    <header><h1 id="h-u">Upload</h1></header>
+    <header><h1 id="h-u">Your agent</h1></header>
     <div class="scroll">
-      <div class="chatbox" id="chat" data-open="1"></div>
-      <label class="drop" id="drop" for="file">Drop a JSON file here or click to choose.<br><span class="small">The intake agent classifies it, refuses sensitive data and offers paid cleaning for raw data.</span></label>
-      <input type="file" id="file" accept=".json,application/json" hidden>
-      <h2>From my phone (demo files)</h2>
-      <div class="acts" id="samples"></div>
-      <h2>Intake results</h2><div id="uploads"></div>
+      <button id="discoverData" type="button">Find what I can sell</button><div class="chatbox" id="chat" data-open="1"></div>
+<details class="audit"><summary>Network & model diagnostics</summary><div id="diagnostics" class="small muted"></div></details>
     </div>
   </section>
 </div>
@@ -50,10 +48,17 @@ $("file").onchange = async () => { const f = $("file").files[0]; if (!f) return;
 $("vDom").onclick = () => { VIEW = "domain"; refresh(); }; $("vDem").onclick = () => { VIEW = "demand"; refresh(); }; $("vAll").onclick = () => { VIEW = "all"; refresh(); };
 const VERDICT = { ok: ["blue", "passed"], clean: ["", "needs cleaning"], cleaned: ["blue", "cleaned"], block: ["red", "refused"] };
 async function refresh() {
+  if (!META) return;
+  if (!ME) {
+    document.querySelector('.app').innerHTML='<div class="empty" style="max-width:480px;margin:60px auto"><h1>Your personal data vault</h1><p>Sign in to view your records, upload data and instruct your own agent.</p><button class="primary" id="vaultSignIn">Sign in</button></div>';
+    $('vaultSignIn').onclick=authDlg;
+    return;
+  }
   try { ACC = await api(`/api/account/${ME}`); META = await api("/api/meta"); } catch { return; }
   const a = ACC.account, k = META.kinds;
-  $("banner").hidden = META.connected >= META.accounts; $("banner").textContent = `Funding wallets on the ledger: ${META.connected} of ${META.accounts}. Funded accounts are already trading.`;
-  $("addr").textContent = ACC.address || ""; $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribute("aria-pressed", VIEW === "demand"); $("vAll").setAttribute("aria-pressed", VIEW === "all");
+  $('diagnostics').textContent=`${META.connected}/${META.accounts} wallets connected · provider ${META.llm.provider} · ${META.llm.calls} calls · ${META.llm.out_tokens} generated tokens · ${META.llm.fallbacks} rule fallbacks. ${META.asset_note||''}`;
+
+$("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribute("aria-pressed", VIEW === "demand"); $("vAll").setAttribute("aria-pressed", VIEW === "all");
   $("dbSub").textContent = `${ACC.files} files · the agent sorts them into bundles by domain and by who is asking`;
   $("uploads").innerHTML = ACC.uploads.map((u) => `<div class="card"><div class="row"><span class="mono">${esc(u.name)}</span><span class="tag ${VERDICT[u.verdict]?.[0] || ""}">${VERDICT[u.verdict]?.[1] || esc(u.verdict)}</span></div>
     <span class="small muted">${esc(u.why)}</span>${u.verdict === "clean" && u.file === -1 ? `<div class="acts"><button class="primary" type="button" data-u="${u.id}">Clean it for ${xrp(u.fee)}</button></div>` : ""}</div>`).join("") || '<p class="muted small">Nothing uploaded yet.</p>';
@@ -67,31 +72,32 @@ async function refresh() {
       <details class="small"><summary>What a buyer would get</summary><pre>${esc(f.preview)}</pre></details></div>`;
   if (VIEW === "domain") {
     $("bundles").innerHTML = ACC.bundles.map((b) => `<div class="card"><div class="row"><h3>${esc(b.domain)}</h3><span class="price">${b.best_offer ? `best offer ${xrp(b.best_offer)}` : "no buyer yet"}</span></div>
-      <span class="small muted">${esc(b.label)} · ${b.files.length} files · ${b.listed} listed · expected next sale ${b.listed && b.best_offer ? xrp(b.best_offer) : "—"} · earned ${xrp(b.earned)}</span>
-      <div class="row small"><span>${b.offers} offers</span><span class="y">${b.agreed} sold</span><span class="muted">${b.declined} no deal</span><span><b>${b.earned}</b> earned</span></div>
+      <span class="small muted">${esc(b.label)} · ${b.files.length} files · ${b.listed} listed · expected next sale ${b.listed && b.best_offer ? xrp(b.best_offer) : "—"}</span>
+      <div class="row small"><span>${b.offers} offers</span><span class="y">${b.agreed} agreed</span><span class="n">${b.declined} declined</span></div>
       <details><summary class="small">Files</summary>${b.files.map(fileRow).join("")}</details></div>`).join("") || '<p class="muted small">Your DB is empty. Upload something on the right.</p>';
   } else if (VIEW === "all") {
     const all = (await api(`/api/market?account=${ME}`)).postings;
-    $("bundles").innerHTML = `<p class="muted small">Every open buy request on the market. Mark interest and your agent negotiates it first; otherwise it acts on its own rules.</p>` + all.map((p) => `<div class="card ${p.mine ? "hot" : ""}"><div class="row"><b>${esc(k[p.kind].label)}</b><span class="price">${p.offer}</span></div>
-      <span class="muted small">${esc(p.buyer_name)} ${p.verified ? '<span class="tag blue">verified</span>' : ""} · ${esc(p.purpose)} · up to ${p.max} · lots of ${p.lot} · ${p.settled} settled · ${p.rejected} rejected${p.interest ? ` · ${p.interest} interested` : ""}</span>
+    $("bundles").innerHTML = `<p class="muted small">Every open buy request on the market. Mark interest and your agent negotiates it first; otherwise it acts on its own rules.</p>` + all.map((p) => `<div class="card ${p.mine ? "hot" : ""}"><div class="row"><b>${esc(k[p.kind].label)}</b><span class="price">${xrp(p.offer)}</span></div>
+      <span class="muted small">${esc(p.buyer_name)} ${p.verified ? '<span class="tag blue">verified</span>' : ""} · ${esc(p.purpose)} · up to ${xrp(p.max)} · one-to-one · ${p.settled} settled · ${p.rejected} rejected${p.interest ? ` · ${p.interest} interested` : ""}</span>
       ${p.buyer === ME ? '<span class="tag blue">your request</span>' : p.mine ? '<span class="tag blue">Your agent is on it ✓</span>' : `<div class="acts"><button type="button" data-msg="${esc(`Sell my ${k[p.kind].label.toLowerCase()} to ${p.buyer_name} (request #${p.id}) if it fits my terms.`)}">Tell my agent</button></div>`}</div>`).join("");
     $("bundles").querySelectorAll("[data-msg]").forEach((b) => b.onclick = () => tellAgent(b.dataset.msg));
   } else {
-    $("bundles").innerHTML = ACC.demand.map((w) => `<div class="card ${w.interested ? "hot" : ""}"><div class="row"><h3>For ${esc(w.buyer_name)}</h3><span class="price">${xrp(w.offer)} per person</span></div>
+    $("bundles").innerHTML = ACC.demand.map((w) => `<div class="card ${w.interested ? "hot" : ""}"><div class="row"><h3>For ${esc(w.buyer_name)}</h3><span class="price">${xrp(w.offer)} per purchase</span></div>
       <span class="small muted">${esc(k[w.kind].label)} for ${esc(w.purpose)} · ${w.listed} listed, ${w.private} private · ${w.settled} settled, ${w.rejected} rejected so far</span>
       <span class="small">${w.purpose && (a.sell_agent.blocks || []).includes(w.purpose) ? '<span class="n">Your rules decline this purpose.</span>' : w.offer >= (a.sell_agent.min?.[w.kind] ?? 0) ? `<span class="y">Meets your minimum of ${a.sell_agent.min?.[w.kind]}.</span>` : `Below your minimum of ${a.sell_agent.min?.[w.kind]}; your agent will counter.`}</span>
       <div class="acts">${w.interested ? '<span class="tag blue">Your agent is on it ✓</span>' : `<button type="button" data-msg="${esc(`Sell my ${k[w.kind].label.toLowerCase()} to ${w.buyer_name} (request #${w.id}) if it fits my terms.`)}">Tell my agent</button>`}</div></div>`).join("") || '<p class="muted small">No open request matches your data yet.</p>';
     $("bundles").querySelectorAll("[data-msg]").forEach((b) => b.onclick = () => tellAgent(b.dataset.msg));
   }
   $("bundles").querySelectorAll("[data-f]").forEach((el) => el.onchange = async () => { await post(`/api/account/${ME}/file/${el.dataset.f}`, { listed: el.checked }); refresh(); });
-  const earned = ACC.bundles.reduce((t, b) => t + b.earned, 0);
-  const st = ACC.stats;
-  $("wallet").innerHTML = [[ACC.balance != null ? ACC.balance.toFixed(2) : "…", `${sym()} balance`], [st.earned_xrp.toFixed(2), `${sym()} earned`], [st.agreed, "sales agreed"], [st.declined, "no deal"],
-    [st.fees_xrp.toFixed(2), `${sym()} cleaning fees`], [ACC.files, "files in my DB"], [ACC.bought.length, "lots bought"]].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
-  let cum = 0; const pts = ACC.growth.map((g) => [g.m, (cum += g.n)]); const mx = Math.max(1, ...pts.map((p) => p[0])), my = Math.max(1, cum);
-  $("growth").innerHTML = pts.length ? `<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${pts.map(([x, y]) => `${(x / mx) * 310 + 5},${65 - (y / my) * 58}`).join(" ")}"/><text x="5" y="10" fill="var(--muted)" font-size="10">${cum} files</text>` : "";
-  $("bought").innerHTML = ACC.bought.map((f) => `<div class="card"><span class="mono">${esc(f.name)}</span><span class="small muted">${esc(f.source)}${f.status === "bundled" ? " · combined into a resale bundle" : ""}</span><details class="small"><summary>Sample</summary><pre>${esc(f.preview)}</pre></details></div>`).join("") || '<p class="muted small">Nothing bought yet.</p>';
+  memberBalance(ACC);
+  $('marketHints').innerHTML=ACC.demand.slice(0,8).map(w=>`<div class="card"><b>${esc(k[w.kind].label)}</b><span class="small muted">${esc(w.purpose)}</span><span>${xrp(w.offer)} offer · ${w.listed+w.private} matching files</span></div>`).join('')||'<p class="small muted">Your agent checks demand after you import records.</p>';
+  $("bought").innerHTML = ACC.bought.map((f) => `<div class="card">${f.resale&&f.status==='bought'?`<label class="small"><input type="checkbox" data-bundle="${f.id}" data-kind="${f.kind}"> Select for a licensed resale bundle</label>`:''}<span class="mono">${esc(f.name)}</span><span class="small muted">${esc(f.source)}${f.status === "bundled" ? " · combined into a resale bundle" : ""}</span><details class="small"><summary>Sample</summary><pre>${esc(f.preview)}</pre></details></div>`).join("") || '<p class="muted small">Nothing bought yet.</p>';
+  if(ACC.bought.some(f=>f.resale&&f.status==='bought')) $('bought').innerHTML+='<button class="primary" id="bundleBuy">Bundle selected purchases for resale</button>';
+  $('bundleBuy')?.addEventListener('click',async()=>{try{const files=[...document.querySelectorAll('[data-bundle]:checked')].map(e=>+e.dataset.bundle);await post(`/api/account/${ME}/bundle`,{files});await refresh();}catch(e){showError(e);}});
+  $('discoverData').onclick=()=>tellAgent('What can I sell from my DB?');
+  if(!$('buyKind').options.length){$('buyKind').innerHTML=Object.entries(k).map(([id,v])=>`<option value="${id}">${esc(v.label)}</option>`).join('');$('buyPrice').value=(k[$('buyKind').value].price*(META.unit_xrp||.01)).toFixed(2);}
+  $('buyForm').onsubmit=async(e)=>{e.preventDefault();try{await post(`/api/account/${ME}/chat`,{text:'buy '+k[$('buyKind').value].label,price:Number($('buyPrice').value)/(META.unit_xrp||.01),resale:$('buyResale').checked});await refresh();}catch(err){showError(err);}};
   chatBox($("chat"), ACC);
 }
-topbar("vault").then(refresh); live();
+topbar("vault").then(refresh).catch(showError); live();
 </script></body></html>

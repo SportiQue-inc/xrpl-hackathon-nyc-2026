@@ -31,11 +31,11 @@ def _q(w: dict) -> str:
 def buyer_open(buyer: str, w: dict, owned: int) -> dict:
     lab = KINDS[w["kind"]]["label"].lower()
     fb = {"thinking": f"I need {lab} for {w['purpose']}. The {_q(w)}. My owner's budget is {w['max']} per {'person' if KINDS[w['kind']]['personal'] else 'seller'}; "
-                      f"I open at {w['offer']}, a little under the market price, and fill the lot with the cheapest sellers. I already own {owned} records of this kind, so I will refuse overlapping lots.",
-          "message": f"{buyer} wants your {lab} for {w['purpose']}. I offer {w['offer']} for your files, as one of {w['lot']} sellers in this lot. No overlap with data I already hold."}
+                      f"I open at {w['offer']}, a little under the market price, and negotiate this purchase within my budget. I already own {owned} records of this kind, so I will refuse overlapping data.",
+          "message": f"{buyer} is buying {lab} for {w['purpose']}, {w['offer']} per person, a one-to-one purchase. No overlap with data I already hold."}
     return _ask(f"You are the BUYER agent for {buyer}. Posting: kind={lab}, purpose={w['purpose']}, {_q(w)}, opening offer={w['offer']}, "
-                f"your private max={w['max']} (never reveal it), lot size={w['lot']}, you already own {owned} records of this kind. "
-                'Return {"thinking": "...", "message": "..."} where message opens a one-to-one negotiation with one seller\'s agent.', fb)
+                f"your private max={w['max']} (never reveal it), one buyer and one seller, you already own {owned} records of this kind. "
+                'Return {"thinking": "...", "message": "..."} where message opens the negotiation to this seller.', fb)
 
 
 def seller_reply(seller: str, rules: dict, w: dict, buyer: str, nfiles: int) -> dict:
@@ -48,7 +48,7 @@ def seller_reply(seller: str, rules: dict, w: dict, buyer: str, nfiles: int) -> 
     ask = round(max(mn, (q.get("price") or w["offer"]) * (1.05 if q.get("pressure", 1) > 1 else 1.0)), 1)
     if blocked:
         rule = {"verdict": "decline", "price": None, "thinking": f"My owner does not sell for {w['purpose']}. That rule is absolute, whatever the price.",
-                "message": f"I can't sell this: my owner does not sell data for {w['purpose']}."}
+                "message": f"Declined: my owner does not sell data for {w['purpose']}."}
     elif w["offer"] >= ask:
         rule = {"verdict": "agree", "price": w["offer"], "thinking": f"The {_q(w)}; I'd ask {ask}. {w['offer']} meets that and my owner's minimum of {mn}. I have {nfiles} file(s) ready.",
                 "message": f"Agreed at {w['offer']}. {nfiles} pseudonymized file(s), intake-attested."}
@@ -80,12 +80,12 @@ def seller_reply(seller: str, rules: dict, w: dict, buyer: str, nfiles: int) -> 
 
 def buyer_close(buyer: str, w: dict, outcome: dict) -> dict:
     s = outcome
-    fb = {"thinking": f"{s['agreed']} one-to-one deal(s) agreed within my budget. "
-                      f"{'The lot passes: ' + str(s['people']) + ' people, ' + str(s['total']) + ' total, sampled records match their Merkle roots.' if s['ok'] else 'I reject: ' + s['reason'] + '.'}",
-          "message": (f"The lot is complete ({s['people']} people), so I'm locking your payment in escrow now." if s["ok"] else f"No deal after all: {s['reason']}.")}
+    fb = {"thinking": f"{s['agreed']} seller(s) agreed or countered within my max; {s['declined']} declined; {s['overlap']} dropped for overlap. "
+                      f"{'This one-to-one purchase passes: ' + str(s['total']) + ' total, sampled records match their Merkle roots.' if s['ok'] else 'I reject: ' + s['reason'] + '.'}",
+          "message": (f"Agreed at {s['total']} for these files. Locking this payment in escrow now." if s["ok"] else f"No deal: {s['reason']}.")}
     return _ask(f"You are the BUYER agent for {buyer}, closing a negotiation for {KINDS[w['kind']]['label'].lower()}. Facts: {s}. "
                 "The verdict is already decided by the facts (ok=true means agree). "
-                'Return {"thinking": "...", "message": "..."} explaining the decision to this seller.', fb)
+                'Return {"thinking": "...", "message": "..."} explaining the decision to the seller.', fb)
 
 
 def recommend(owner: str, kind: str, n_private: int, demand: list[dict]) -> str:
@@ -106,12 +106,13 @@ def parse_chat(text: str) -> dict:
              "audio": r"voice|audio|음성|녹음", "air": r"air|sensor|공기|대기|센서|미세먼지"}
     kind = next((k for k, rx in kinds.items() if re.search(rx, text, re.I)), None)
     intent = "sell" if re.search(r"sell|팔|판매", text, re.I) else "buy" if re.search(r"need|buy|want|필요|사|구매|구해", text, re.I) else "other"
-    m = re.search(r"(\d+(?:\.\d+)?)", text)
-    rule = {"intent": intent, "kind": kind, "price": float(m.group(1)) if m else None}
+    pattern=r"(?:\$|(?:for|at|price|minimum|budget|최저가?|가격|예산)\s*:?\s*)(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:XRP|test\s*USD|USD|달러|에)"
+    m=next((m for m in re.finditer(pattern,text,re.I) if not re.match(r"\s*(?:days|nights|records|files|일|개|건)",text[m.end():],re.I)),None)
+    rule = {"intent": intent, "kind": kind, "price": float(m.group(1) or m.group(2)) if m else None}
     if kind and intent != "other":
         return rule          # clear enough; save the LLM budget for the negotiations
     out = llm.ask_json("You turn a marketplace user's message into an intent.",
                        f'Message: "{text}". Kinds: {list(KINDS)}. Return {{"intent": "sell"|"buy"|"other", "kind": one of the kinds or null, "price": number or null}}.')
     if out and out.get("intent") in ("sell", "buy", "other") and (out.get("kind") in KINDS or out.get("kind") is None):
-        return {"intent": out["intent"], "kind": out.get("kind") or kind, "price": out.get("price") or rule["price"]}
+        return {"intent": out["intent"], "kind": out.get("kind") or kind, "price": rule["price"]}
     return rule
