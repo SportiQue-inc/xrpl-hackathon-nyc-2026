@@ -12,7 +12,7 @@ const api = engine("", { token: async (sub) => {
   return (await r.json()).access_token;
 } });
 const root = document.getElementById("app");
-const st = { rel: null, sheet: false, doc: null, checked: new Set(), read: false, busy: null, error: null, toast: null };
+const st = { rel: null, sheet: false, doc: null, checked: new Set(), items: new Set(), read: false, busy: null, error: null, toast: null };
 
 const h = (tag, props, ...kids) => {
   const el = document.createElement(tag);
@@ -48,7 +48,15 @@ async function act(label, fn, done) {
   st.busy = null; await load();
   setTimeout(() => { st.toast = null; draw(); }, 2500);
 }
-const consent = () => act("Signing", () => call("POST", `${P}/relationship/consent`, { institution: st.rel.institution.id }), "Consent recorded · one signature for the whole scope");
+// The person may narrow the scope: items left out come back to them in every sub-project.
+const consent = () => {
+  const all = st.rel.scope.data_types || [];
+  const items = all.filter((i) => st.items.has(i));
+  const narrowed = items.length < all.length;
+  return act("Signing", () => call("POST", `${P}/relationship/consent`, { institution: st.rel.institution.id, ...(narrowed ? { items } : {}) }),
+    narrowed ? `Consent recorded · ${items.length} of ${all.length} data types; the rest come back to you` : "Consent recorded · one signature for the whole scope");
+};
+const openSheet = () => { st.sheet = true; st.doc = null; st.items = new Set(st.rel.consented?.items || st.rel.scope.data_types || []); draw(); };
 const decide = (p, allow) => act("Answering", () => call("POST", `${P}/subprojects/${encodeURIComponent(p.sid)}/decision`, { item: p.item, allow }), allow ? "Allowed · your agent sends it" : "Declined · nothing sent");
 
 // One document per consent, each read to the end before it can be checked (as on /participant).
@@ -92,7 +100,8 @@ function sheet() {
           h("button", { class: "btn primary block", disabled: !st.read, onclick: () => { st.checked.add(d.key); st.doc = null; draw(); } }, "I agree to this document"),
           h("button", { class: "btn ghost", onclick: () => { st.doc = null; draw(); } }, "Back")))];
   }
-  const ready = all.every((x) => st.checked.has(x.key));
+  const ready = all.every((x) => st.checked.has(x.key)) && st.items.size > 0;
+  const types = r.scope.data_types || [];
   return [h("div", { class: "scrim", onclick: () => { st.sheet = false; draw(); } }),
     h("div", { class: "sheet" }, h("div", { class: "grab" }),
       h("div", { class: "pin" },
@@ -101,9 +110,13 @@ function sheet() {
         h("div", { class: "small muted" }, "Read each document to the end, then agree once.")),
       h("div", { class: "scroll" },
         all.map((x) => h("button", { class: "pcard", style: "width:100%;text-align:left;cursor:pointer", onclick: () => { st.doc = x.key; st.read = false; draw(); } },
-          h("div", { class: "spread" }, h("b", {}, x.title), st.checked.has(x.key) ? tag("Read · agreed", "blue") : tag("Read to the end", "gray"))))),
+          h("div", { class: "spread" }, h("b", {}, x.title), st.checked.has(x.key) ? tag("Read · agreed", "blue") : tag("Read to the end", "gray")))),
+        h("div", { class: "pcard" }, h("div", { class: "spread" }, h("b", {}, "What you allow"), tag(`${st.items.size} of ${types.length}`, st.items.size < types.length ? "amber" : "gray")),
+          h("div", { class: "tiny muted" }, "Untick anything you don't want sent automatically. It comes back to you whenever a sub-project asks for it."),
+          types.map((i) => h("label", { class: "row small", style: "gap:8px;padding:4px 0;cursor:pointer" },
+            h("input", { type: "checkbox", checked: st.items.has(i), onchange: (e) => { e.target.checked ? st.items.add(i) : st.items.delete(i); draw(); } }), i)))),
       h("div", { class: "act" },
-        h("button", { class: "btn primary block", disabled: !ready || !!st.busy, onclick: () => { st.sheet = false; consent(); } }, `Agree once (${st.checked.size} of ${all.length} documents, demo key)`),
+        h("button", { class: "btn primary block", disabled: !ready || !!st.busy, onclick: () => { st.sheet = false; consent(); } }, st.items.size < types.length ? `Agree once to ${st.items.size} of ${types.length} data types (demo key)` : `Agree once (${st.checked.size} of ${all.length} documents, demo key)`),
         h("button", { class: "btn ghost", onclick: () => { st.sheet = false; draw(); } }, "Not now")))];
 }
 
@@ -138,11 +151,13 @@ function draw() {
       h("div", { class: "spread" }, h("b", {}, r.institution.name), r.consented ? tag("1 relationship", "blue") : tag("Not joined", "gray")),
       h("div", { class: "small muted" }, r.consented ? `One consent · ${r.subprojects.length} sub-projects under it` : "Agree once to this institution's scope; your agent handles each sub-project inside it."),
       r.consented?.tx && h("div", { class: "tiny mono muted" }, `consent tx ${r.consented.tx.slice(0, 12)}…`),
-      !r.consented && h("button", { class: "btn primary", onclick: () => { st.sheet = true; st.doc = null; draw(); } }, "Review and agree")));
+      r.consented?.items && h("div", { class: "tiny muted" }, `You allow ${r.consented.items.length} of ${(r.scope.data_types || []).length}: ${r.consented.items.join(", ")}`),
+      !r.consented ? h("button", { class: "btn primary", onclick: openSheet }, "Review and agree")
+        : h("button", { class: "btn sm", style: "align-self:flex-start", disabled: !!st.busy, onclick: openSheet }, "Change what you allow")));
     if (r.pending.length) body.push(h("div", { class: "pcard" }, h("b", {}, "Your agent asks"),
       r.pending.map((p) => h("div", { class: "col", style: "gap:4px;padding:8px 0;border-top:1px solid var(--border)" },
         h("div", { class: "small" }, h("b", {}, p.item), ` · ${r.subprojects.find((s) => s.id === p.sid)?.name || p.sid}`),
-        h("div", { class: "tiny muted" }, p.reason === "T3" ? "Genomic, CT or MRI (T3): always asked" : "Outside the scope you agreed to"),
+        h("div", { class: "tiny muted" }, p.reason === "T3" ? "Genomic, CT or MRI (T3): always asked" : p.reason === "narrowed" ? "You left this out when you agreed" : r.subprojects.find((s) => s.id === p.sid)?.purpose && !(r.scope.purposes || []).includes(r.subprojects.find((s) => s.id === p.sid).purpose) ? `New purpose: ${r.subprojects.find((s) => s.id === p.sid).purpose}` : "Outside the scope you agreed to"),
         h("div", { class: "row" }, h("button", { class: "btn sm primary", disabled: !!st.busy, onclick: () => decide(p, true) }, "Allow (demo key)"),
           h("button", { class: "btn sm", disabled: !!st.busy, onclick: () => decide(p, false) }, "Not this one"))))));
     body.push(...r.subprojects.map((s) => h("div", { class: "pcard" },

@@ -94,10 +94,17 @@ class Relationships:
         return {**out, **self.own}
 
     # ----- consent and routing -----
-    def consent(self, pid: str) -> dict:
-        self.own.setdefault(pid, {"at": time.time(), "tx": None})
+    def consent(self, pid: str, items: list | None = None) -> dict:
+        """Consent to the scope, or to a narrower set of its data types; the rest come back to the person."""
+        offered = self.scope["data_types"]
+        unknown = [i for i in (items or []) if i not in offered]
+        if unknown:
+            raise ValueError(f"not in the institution's scope: {', '.join(unknown)}")
+        kept = sorted(items) if items else list(offered)
+        self.own[pid] = {"at": self.own.get(pid, {}).get("at", time.time()), "tx": None,
+                         **({"items": kept} if len(kept) < len(offered) else {})}
         self.w.store.log(pid, "consent", f"{pid} consented to {LAB}'s scope: {', '.join(self.scope['purposes'])}; "
-                         f"{', '.join(self.scope['data_types'])}")
+                         f"{', '.join(kept)}" + (f" (narrowed from {len(offered)} data types)" if len(kept) < len(offered) else ""))
         return self.own[pid]
 
     def _withdrawn(self, pid: str) -> bool:
@@ -115,6 +122,8 @@ class Relationships:
             return "ask", "T3"
         if item not in self.scope["data_types"] or sp.purpose not in self.scope["purposes"]:
             return "ask", "outside_scope"
+        if item not in self.consents[pid].get("items", self.scope["data_types"]):
+            return "ask", "narrowed"
         return "auto", "in_scope"
 
     def routing(self, sp: SubProject) -> list[dict]:
@@ -218,7 +227,7 @@ class Relationships:
                      for i in sp.data_types]
             pending += [{"sid": sp.id, "item": x["item"], "reason": x["reason"]} for x in items if x["decision"] == "ask"]
             pays = [p for p in self.payouts(sp.id, pid) if p["status"] == "delivered"]
-            subs.append({"id": sp.id, "name": sp.name, "status": sp.status, "items": items, "payouts": pays,
+            subs.append({"id": sp.id, "name": sp.name, "purpose": sp.purpose, "status": sp.status, "items": items, "payouts": pays,
                          "total": round(sum(p["amount"] for p in pays), 6)})
         return {"institution": {"id": LAB, "name": self.w.engine.party(LAB)["name"]}, "scope": self.scope,
                 "consented": self.consents.get(pid), "subprojects": subs, "pending": pending,

@@ -10,7 +10,7 @@ import os
 import re
 import threading
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -715,6 +715,7 @@ class SubProjectBody(Strict):
 
 class RelationshipConsentBody(Strict):
     institution: str = Field(default=study.LAB, pattern=ID)
+    items: list[Annotated[str, Field(pattern=r"^[a-z0-9_.]{1,60}$")]] | None = Field(default=None, max_length=40)
 
 
 class SubProjectDecisionBody(Strict):
@@ -754,7 +755,7 @@ def participant_relationship(pid: str):
 
 @app.post("/api/p/{pid}/relationship/consent")
 def participant_relationship_consent(pid: str, body: RelationshipConsentBody):
-    return _rel(lambda r: {"ok": True, "consented": r.consent(pid), **r.relationship(pid)})
+    return _rel(lambda r: {"ok": True, "consented": r.consent(pid, body.items), **r.relationship(pid)})
 
 
 @app.post("/api/p/{pid}/subprojects/{sid}/decision")

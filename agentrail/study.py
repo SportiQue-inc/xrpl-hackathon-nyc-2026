@@ -629,8 +629,10 @@ def participant_view(w, pid: str) -> dict:
     s = ensure(w)
     pa = w.cohort_people[pid]
     reqs = _requests_for(w, pid)
-    orders = w.store.q("SELECT o.id, o.scope, o.status, o.price_drops, o.policy_snapshot, p.tx_hash, p.finish_tx, "
-                       "p.cancel_tx FROM orders o JOIN payments p ON p.order_id=o.id WHERE o.seller_id=? "
+    from .binding import consent_in_force
+    now = w.ledger.now()
+    orders = w.store.q("SELECT o.id, o.scope, o.status, o.price_drops, o.policy_snapshot, o.bundle_hash, o.created_at, "
+                       "p.tx_hash, p.finish_tx, p.cancel_tx, p.cancel_after FROM orders o JOIN payments p ON p.order_id=o.id WHERE o.seller_id=? "
                        "AND o.buyer_id=? AND o.product_id NOT LIKE 'subproject:%' ORDER BY o.id", pid, LAB)
     contributions, cell_state = [], {}
     for o in orders:
@@ -641,7 +643,11 @@ def participant_view(w, pid: str) -> dict:
             status = "refunded"
         contributions.append({"order_id": o["id"], "weeks": [wk], "items": its, "amount_xrp": o["price_drops"] / XRP,
                               "status": status, "escrow": _tx(w, o["tx_hash"]), "finish": _tx(w, o["finish_tx"]),
-                              "cancel": _tx(w, o["cancel_tx"])})
+                              "cancel": _tx(w, o["cancel_tx"]), "bundle_hash": o["bundle_hash"],
+                              "consent_hash": (consent_in_force(w.store, pid, LAB, o["created_at"]) or {}).get("doc_hash"),
+                              # an escrow nobody finished goes back to the study at this time (CancelAfter)
+                              "refund_at": time.time() + max(0, o["cancel_after"] - now)
+                              if o["cancel_after"] and not o["finish_tx"] and not o["cancel_tx"] else None})
         for i in its:
             cell_state[(wk, i)] = ("contributed" if status == "delivered" else
                                    "escrowed" if status == "escrowed" else status, o["finish_tx"] or o["tx_hash"])
@@ -931,6 +937,17 @@ def participant_revoke(w, pid: str, assertion: dict | None = None) -> dict:
                 out["withheld"].append(o["order_id"])
     out["refunds"] = [{"order_id": oid, **_tx(w, w.store.one("SELECT cancel_tx FROM payments WHERE order_id=?",
                                                                 oid)["cancel_tx"])} for oid in sweep(w)["refunded"]]
+    # Each round still held: its key stays with the person's agent, and the escrow goes back to the study.
+    now = w.ledger.now()
+    for oid in out["withheld"]:
+        r = w.store.one("SELECT o.scope, p.finish_tx, p.cancel_tx, p.cancel_after FROM orders o JOIN payments p "
+                        "ON p.order_id=o.id WHERE o.id=?", oid)
+        wk = int(json.loads(r["scope"])["slot"].split("|", 1)[1].split(":")[0][1:])
+        out.setdefault("held_rounds", []).append({
+            "order_id": oid, "week": wk, "key_released": bool(r["finish_tx"]), **_tx(w, r["cancel_tx"]),
+            "refund_at": time.time() + max(0, (r["cancel_after"] or now) - now) if not r["cancel_tx"] else None})
+    out["further_access"] = "refused: every open re-reads the licence on the ledger" if lic else \
+        "refused: consent revoked, the person's agent releases no further keys"
     payout.on_withdrawal(w, LAB, pid)          # completion bonus goes back; reviewed held shares stay theirs
     out["deletion"] = _destroy_person_level(w, pid)
     for req in _requests_for(w, pid):
