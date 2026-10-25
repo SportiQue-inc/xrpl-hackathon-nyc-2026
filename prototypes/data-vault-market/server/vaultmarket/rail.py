@@ -236,9 +236,10 @@ class Rail:
         st = self.led.wait_validated(prepared.tx_hash, timeout=40) if hasattr(self.led, "wait_validated") else self.led.lookup(prepared.tx_hash)
         return {"hash": prepared.tx_hash, "result": st.result or ("tesSUCCESS" if st.success else "unknown"), "ok": bool(st.success)}
 
-    def escrow_lot(self, buyer_addr: str, legs: list[dict], memo: str) -> list[dict]:
+    def escrow_lot(self, buyer_addr: str, legs: list[dict], memo: str, record=None) -> list[dict]:
         """legs: [{seller_addr, drops, K}] -> per leg {create, finish} results. Creates run in parallel from the
-        buyer (local sequence counter), then each seller's agent finishes its own escrow, revealing K."""
+        buyer (local sequence counter), then each seller's agent finishes its own escrow, revealing K.
+        record(i, sequence, create_hash, cancel_after) runs for each leg before anything is submitted."""
         cancel_after = self.led.now() + 3600
         prepared = []
         for leg in legs:
@@ -248,16 +249,39 @@ class Rail:
             else:
                 p = self.led.prepare_escrow_create(buyer_addr, dst, leg["drops"], condition_hex(leg["K"]), cancel_after, memo)
             prepared.append(p)
+        if record:
+            for i, p in enumerate(prepared):
+                record(i, self._seq_of(p), p.tx_hash, cancel_after)
         creates = list(_POOL.map(self._submit, prepared))
         def finish(i):
             leg, c, p = legs[i], creates[i], prepared[i]
             if not c["ok"]:
                 return {"hash": None, "result": "not created", "ok": False}
-            seq = p.sequence if p.sequence is not None else json.loads(p.blob).get("Sequence")
-            f = self.led.prepare_escrow_finish(leg["seller_addr"], buyer_addr, seq, condition_hex(leg["K"]), fulfillment_hex(leg["K"]), memo)
-            return self._submit(f)
+            return self.finish_escrow(leg["seller_addr"], buyer_addr, self._seq_of(p), leg["K"], memo)
         finishes = list(_POOL.map(finish, range(len(legs))))
         return [{"create": c, "finish": f} for c, f in zip(creates, finishes)]
+
+
+    @staticmethod
+    def _seq_of(p) -> int:
+        return p.sequence if p.sequence is not None else json.loads(p.blob).get("Sequence")
+
+    def finish_escrow(self, seller_addr: str, owner: str, seq: int, K: bytes, memo: str) -> dict:
+        f = self.led.prepare_escrow_finish(seller_addr, owner, seq, condition_hex(K), fulfillment_hex(K), memo)
+        return self._submit(f)
+
+    def cancel_escrow(self, owner: str, seq: int) -> dict:
+        return self._submit(self.led.prepare_escrow_cancel(owner, owner, seq))
+
+    def created_ok(self, tx_hash: str) -> bool | None:
+        """True: validated tesSUCCESS. False: failed or never reached the ledger. None: cannot tell yet."""
+        try:
+            st = self.led.lookup(tx_hash)
+        except Exception:
+            return None
+        if not st.found:
+            return False
+        return bool(st.success) if st.validated else None
 
 
 def merkle_root(leaves: list[str]) -> str:

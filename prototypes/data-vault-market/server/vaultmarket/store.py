@@ -38,6 +38,11 @@ CREATE TABLE IF NOT EXISTS users (
   wallet TEXT, wallet_tag INT, wallet_tx TEXT,   -- personal XRPL wallet; verified when wallet_tx is set
   created REAL);
 CREATE TABLE IF NOT EXISTS prices (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, price REAL, contract INT, created REAL);
+CREATE TABLE IF NOT EXISTS escrows (   -- every escrow leg, written before it is submitted, so a restart can finish or refund it
+  id INTEGER PRIMARY KEY AUTOINCREMENT, contract INT, buyer TEXT, seller TEXT, owner TEXT, seq INT, create_hash TEXT,
+  finish_hash TEXT, k TEXT, cancel_after INT, drops INT, price REAL, files TEXT,
+  state TEXT,              -- open | finished | refunded | void
+  created REAL);
 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT, created REAL);
 """
 

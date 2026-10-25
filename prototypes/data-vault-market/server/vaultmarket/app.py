@@ -459,7 +459,10 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
         pid = M.s.insert("postings", buyer=aid, kind=p["kind"], offer=offer, max=round(offer * 1.25, 1), purpose=f"{a['name']}'s own use", lot=6 if KINDS[p["kind"]]["personal"] else 2,
                          min_trust=a["buy_agent"].get("min_trust", 0.7), resale=0, status="open", once=1)
         M.chat(aid, "agent", f"Posted request #{pid}: {KINDS[p['kind']]['label'].lower()} at {offer}, up to {round(offer * 1.25, 1)}. I will negotiate it next and buy on my own up to {a['buy_agent'].get('auto_limit')} total.")
-        threading.Thread(target=lambda: (M.lock.acquire(), M.negotiate(M.s.one("SELECT * FROM postings WHERE id = ?", (pid,))), M.lock.release()), daemon=True).start()
+        def run():
+            with M.lock:          # released even if the negotiation raises, or the market loop would stall
+                M.negotiate(M.s.one("SELECT * FROM postings WHERE id = ?", (pid,)))
+        threading.Thread(target=run, daemon=True).start()
     else:
         M.chat(aid, "agent", "Tell me what to sell or what you need, for example 'sell my sleep logs' or 'I need air-quality data'.")
     return {"ok": True}
