@@ -43,6 +43,10 @@ class LostDelivery(Exception):
     pass
 
 
+class BundleMismatch(Exception):
+    """The opened bundle does not hash to the bundle hash the order and the escrow memo carry."""
+
+
 def sha256_hex(b: bytes | str) -> str:
     return hashlib.sha256(b.encode() if isinstance(b, str) else b).hexdigest()
 
@@ -650,12 +654,24 @@ class Engine:
             # The institution's vault opens it; K comes from the validated ledger, not the contributor.
             f = self.ledger.lookup(p["finish_tx"]).fulfillment if p["kind"] == "escrow" else None
             payload = opener.open(sealed, f)
-            assert sha256_hex(canonical(payload)) == bundle_hash
-            return payload
+            return self._check_bundle(order_id, payload, bundle_hash)
         if p["kind"] == "escrow":
             # The key is read from the ledger, not from the contributor.
             st = self.ledger.lookup(p["finish_tx"])
             sealed = SecretBox(key_from_fulfillment(st.fulfillment)).decrypt(sealed)
         payload = json.loads(SealedBox(self.box_keys[buyer_id]).decrypt(sealed))
-        assert sha256_hex(canonical(payload)) == bundle_hash
+        return self._check_bundle(order_id, payload, bundle_hash)
+
+    def _check_bundle(self, order_id: int, payload: dict, bundle_hash: str) -> dict:
+        # A real check, not an assert (python -O drops those): a mismatch is recorded against the seller.
+        got = sha256_hex(canonical(payload))
+        if got != bundle_hash:
+            o = self.store.one("SELECT seller_id FROM orders WHERE id=?", order_id)
+            with self.store.tx() as c:
+                c.execute("INSERT INTO exceptions (order_id,kind,detail,cost_bearer,ts) VALUES (?,?,?,?,?)",
+                          (order_id, "bundle_mismatch", f"opened bundle hashes to {got[:16]}, order says "
+                           f"{bundle_hash[:16]}", o["seller_id"] if o else None, time.time()))
+            self.store.log("engine", "bundle_mismatch", f"order {order_id}: opened bundle does not match its hash",
+                           {"order_id": order_id})
+            raise BundleMismatch(f"order {order_id}: opened bundle does not match its hash")
         return payload
