@@ -138,6 +138,30 @@ on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 
 ## 8. Potential and market
 
+### Why this matters now
+
+
+**Data about people is traded without the people.** The data broker market is $300–435B a year; IQVIA alone earned $16.3B in 2025. Those whose data it is get almost nothing: 23andMe's 15 million customers were auctioned for about $17 each.
+
+**Three shifts are breaking that model at once.**
+1. *The AI data wall.* Public human text runs out between 2026 and 2032 (Epoch AI). Value moves to consented, private, longitudinal data, which is why AI licensing deals went from 12 in 2023 to 28 in 2024.
+2. *Data rights become law.* The EU Health Data Space is in force (2025), with secondary use from 2029. US TEFCA exchange grew from ~10M documents to ~464M in 2025, and individual access is live. Korea's health information highway connects 1,263 hospitals. Meanwhile the FTC is banning brokers from selling sensitive data without consent.
+3. *Agents have wallets.* x402 passed 138M payments on Base, 87% under 10 cents. XRPL agent payments passed 13.5M (as reported).
+
+**The gap where they meet:** people can now pull their own records, those records are worth more than ever, and machines can make small, frequent payments. But there is no rail for a person's agent to consent per round, attach a revocable licence and be paid per contribution. AgentRail is that rail. It starts with the hardest case, one person's longitudinal health record, and extends to AI training data and B2B data by lightening the consent layer.
+
+| Market | Today | With AgentRail |
+|---|---|---|
+| Clinical and cohort research | missing weeks mean re-recruiting at $2,273–6,533 per person; data access takes a median of 80 days | the study's agent requests exactly the missing person-weeks; ~$20 per person-week (estimate), settled in seconds |
+| Pharma real-world evidence | bulk de-identified data with weak consent provenance | consent hash and revocable licence on every record |
+| Health AI training and evaluation | multi-year, multi-million licences | person-week licences limited by DUO purpose codes |
+| Wearables and digital health | data locked in vendor servers; median retention 5.5 days | users contribute their own records and are paid per round |
+| People | ~$17 (auction), $25 one-off | paid each round, own the licence, can stop or revoke any time |
+
+Sources for every figure: [docs/MARKET_THESIS.md](docs/MARKET_THESIS.md) and [docs/MARKET.md](docs/MARKET.md).
+
+### Market detail
+
 **Data is licensed for a lot, but rarely.** The AI training dataset market grows from $3.2B (2025) to
 $16.3B (2033, 22.6% CAGR, as reported) ([Grand View Research](https://www.giikorea.co.kr/report/grvi2018158-ai-training-dataset-market-size-share-trends.html)),
 and real-world evidence solutions are a $2-2.6B market ([IMARC](https://www.imarcgroup.com/real-world-evidence-solutions-market)).
@@ -157,8 +181,7 @@ happen today, and studies over-recruit instead.
 **We drive the transaction cost toward zero.** The study's agent infers what is missing, each
 participant's agent consents per round, and XRPL settles with Escrow, MPT licences and Credentials
 in 3-5 seconds for under $0.0001. A $20 weekly contribution costs $0.88 to settle by card and about
-$0.00002 on XRPL (estimate at XRP $2). Agentic payments on XRPL already passed 13.5M transactions
-across 168 x402 merchants (as reported).
+$0.00002 on XRPL (estimate at XRP $2).
 
 **Revenue (estimate):** $20 per participant-week, 10% take rate, $12k per study per year.
 Year 3: 300 studies x 500 participants x 26 weeks = 3.9M settlements a year, $78M contributed value,

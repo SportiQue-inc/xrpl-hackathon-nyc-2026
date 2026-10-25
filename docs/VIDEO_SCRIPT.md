@@ -15,6 +15,14 @@ explorer. All data synthetic. Narration in English; on-screen captions short.
 | 2:15-2:30 | Phone: revoke | "P-017 withdraws. The study's licence token is clawed back, the unreleased week is never released, and its escrow returns to the lab. Rewards already paid stay with P-017." | Clawback, EscrowCancel links; row greys out |
 | 2:30-2:40 | Robot scene, closing line | "With a lighter consent layer the same engine runs robot data between companies on Testnet. The LLM proposes, code verifies, the ledger enforces." | scene A payments |
 
+60-second pitch version (from docs/MARKET_THESIS.md)
+1. "Data about people is traded for over $300B a year, without the people. 23andMe's 15 million customers were auctioned for about $17 each."
+2. "Three things change at once: AI is running out of public data, law gives people the right to pull their own records, and agents now have wallets."
+3. "So the next data market is one where people take part through their own agents. The hardest and most valuable record is one person's whole health record."
+4. "Today a study cannot fill a few missing weeks: re-recruiting costs over $2,000 a person and getting data takes 80 days."
+5. "In AgentRail the study's agent finds the missing person-weeks and asks. The person's agent contributes only what they agreed to, and XRPL ties consent, licence and payment together in about 3 seconds for $0.00002."
+6. "We solved the hardest boundary first. The same engine runs AI training and robot data."
+
 Notes for recording
 - Run `scripts/run_health_demo.py` once before recording so LLM answers are recorded; recording
   then uses live calls with the recorded answers as fallback.
