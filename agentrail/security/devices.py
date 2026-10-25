@@ -135,6 +135,40 @@ class ApproverDevice(Device):
                 "signature": self.sign(approval_message(approval))}
 
 
+class ParticipantWalletDevice(Device):
+    """A participant's agent device whose key is the participant's own XRPL wallet (Ed25519). The
+    same seed signs consent documents and logins and receives the rewards on XRPL, so a consent
+    signature verifies against the wallet the money goes to. The seed stays in the keystore."""
+
+    def _seed(self) -> str:
+        from xrpl.constants import CryptoAlgorithm
+        from xrpl.wallet import Wallet
+        return self.ks.get_or_create("xrpl.seed", lambda: Wallet.create(CryptoAlgorithm.ED25519).seed.encode()).decode()
+
+    def wallet(self):
+        from xrpl.wallet import Wallet
+        return Wallet.from_seed(self._seed())
+
+    @property
+    def address(self) -> str:
+        return self.wallet().classic_address
+
+    def _signing(self):
+        if getattr(self, "_sk", None) is None:
+            from nacl.signing import SigningKey
+            from xrpl.core.keypairs import derive_keypair
+            _, private = derive_keypair(self._seed())
+            self._sk = SigningKey(bytes.fromhex(private[2:]))   # "ED" + 32-byte Ed25519 private key
+        return self._sk
+
+    @property
+    def public_hex(self) -> str:
+        return bytes(self._signing().verify_key).hex()
+
+    def sign(self, message: bytes) -> str:
+        return self._signing().sign(message).signature.hex()
+
+
 def mock_address(public_hex: str) -> str:
     import hashlib
     return "r" + hashlib.sha256(("ed25519:" + public_hex).encode()).hexdigest()[:24]

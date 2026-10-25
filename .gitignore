@@ -37,3 +37,4 @@ ap4m/state/
 .uniqdata_person.json*
 runs/
 .uniqdata_roster.json*
+.participant_wallets.json

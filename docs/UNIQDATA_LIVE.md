@@ -97,3 +97,34 @@ are created inside the sandbox container, as UniQdata's own sandbox scripts do. 
 that goes through UniQdata's public API: the passkey, the consent, and the writes and reads.
 Sleep has no concept that UniQdata accepts without a vocabulary load, so it is stored as
 UniQdata's generic typed answer, with the item named in `source_value`.
+
+## The whole cohort on UniQdata (50 accounts)
+
+- `python scripts/uniqdata_sandbox_person.py --cohort --out .uniqdata_roster.json` creates one
+  UniQdata account per cohort participant (P-001 to P-050). Each account gets its agent's
+  passkey and an approved sensitive-health collection consent. The approval goes through
+  UniQdata's consent-signing ceremony: the passkey signs a challenge derived from the consent's own
+  hash, and UniQdata verifies the signature.
+- `python scripts/uniqdata_fill_cohort.py [--catalog]` writes eight weeks of synthetic records
+  into each account. The first pass covers sleep, heart rate, steps, the weekly survey and clinic
+  blood pressure. Wear adherence differs per person, about one in five people wear the device less
+  and less after week 4, and about one in ten have bad records: a flat heart-rate week, implausible
+  readings, or a survey answered twice. `--catalog` adds the T0-T3 catalog:
+  - T0: SpO2, weight and temperature
+  - T1: meals, medication taken, mood and energy
+  - T2: glucose, HbA1c, diagnoses and prescriptions
+  - T3: PHQ-9, genomic variants and CT/MRI metadata
+
+  Each person also gets a pre-consent tier: T0-T3, T0-T2, T0-T1 or T0. UniQdata allows ten writes
+  a minute, so the script paces itself.
+- `UNIQDATA_ROSTER=.uniqdata_roster.json` makes every participant's vault read from their own
+  UniQdata account.
+- `AGENTRAIL_KEYSTORE=runs/keystore python scripts/fund_participant_wallets.py` gives each
+  participant their own Ed25519 XRPL Testnet wallet, funded from the faucet. The same key signs
+  their consent documents and logins, and on Testnet the rewards go to that wallet. Seeds stay in
+  the keystore and only the addresses are written to `.participant_wallets.json`.
+
+The participant page's passkey approval relays six calls to UniQdata through `UniQdataClient`
+(see `docs/passkey-approval-contract.md`). When the account already has its agent's passkey, a
+person's own Touch ID passkey is added through UniQdata's managed path, which the existing passkey
+approves, and the engine accepts an approval only when it is signed by that Touch ID credential.

@@ -34,8 +34,37 @@ CONCEPTS = {
                              ("measurement", 3012888, "DIABP", "EMR_IMPORT")],
     "sleep.daily": [("observation", 2000000160, "minutes", "WEARABLE")],
 }
+# The wider health catalog (tiers T0-T3) stored for the cohort. T2/T3 items have no concept UniQdata
+# accepts without a vocabulary load either, so they use the generic typed answer as sleep does.
+GENERIC = 2000000160
+CATALOG = {
+    # T0 everyday device data
+    "spo2.daily": ("T0", "wearable", [("measurement", 40762499, "pct", "WEARABLE")]),
+    "body_weight.daily": ("T0", "smart_scale", [("measurement", 3025315, "kg", "SENSOR")]),
+    "body_temp.daily": ("T0", "wearable", [("measurement", 3020891, "celsius", "WEARABLE")]),
+    # T1 life log and self-report
+    "meal.log": ("T1", "meal_app", [("observation", GENERIC, "kcal", "MANUAL")]),
+    "medication.taken": ("T1", "pill_reminder", [("observation", GENERIC, "taken", "MANUAL")]),
+    "mood.daily": ("T1", "survey_app", [("observation", GENERIC, "score_1_5", "MANUAL")]),
+    "energy.survey": ("T1", "survey_app", [("observation", 2000000101, "score_0_10", "MANUAL")]),
+    # T2 clinical
+    "lab.glucose": ("T2", "clinic_export", [("measurement", 3004501, "mg_dl", "EMR_IMPORT")]),
+    "lab.hba1c": ("T2", "clinic_export", [("measurement", 3034639, "pct", "EMR_IMPORT")]),
+    "diagnosis.code": ("T2", "clinic_export", [("observation", GENERIC, "icd10_index", "EMR_IMPORT")]),
+    "prescription.active": ("T2", "clinic_export", [("observation", GENERIC, "count", "EMR_IMPORT")]),
+    # T3 highly sensitive
+    "genome.variant": ("T3", "genomics_lab", [("observation", GENERIC, "risk_score", "LAB_UPLOAD")]),
+    "imaging.ct": ("T3", "hospital_pacs", [("observation", GENERIC, "slices", "EMR_IMPORT")]),
+    "imaging.mri": ("T3", "hospital_pacs", [("observation", GENERIC, "series", "EMR_IMPORT")]),
+    "mental.phq9": ("T3", "clinic_export", [("observation", GENERIC, "score_0_27", "MANUAL")]),
+}
+CONCEPTS.update({k: v[2] for k, v in CATALOG.items()})
+TIER = {"sleep.daily": "T0", "activity.daily": "T0", "heart_rate.daily": "T0", "fatigue.survey": "T1",
+        "blood_pressure.daily": "T2", **{k: v[0] for k, v in CATALOG.items()}}
+
 SOURCE = {"heart_rate.daily": "wearable", "sleep.daily": "wearable", "activity.daily": "wearable",
-          "fatigue.survey": "survey_app", "blood_pressure.daily": "clinic_export"}
+          "fatigue.survey": "survey_app", "blood_pressure.daily": "clinic_export",
+          **{k: v[1] for k, v in CATALOG.items()}}
 DAY0 = datetime(2026, 9, 7, 8, 0, tzinfo=timezone.utc)      # study day 1 (Monday)
 
 
@@ -108,6 +137,13 @@ class SoftPasskey:
                 "attestationObject": _b64(_cbor({"fmt": "none", "attStmt": {}, "authData": auth})),
                 "clientDataJson": _b64(cdj), "transports": "internal"}
 
+    def prf(self, salt: bytes) -> bytes:
+        """WebAuthn PRF emulation (hmac-secret): a 32-byte secret only this passkey can produce for a
+        salt. The person's agent derives its vault and per-trade keys from it, like a device would."""
+        import hmac
+        secret = hashlib.sha256(b"agentrail-prf|" + self.key.private_numbers().private_value.to_bytes(32, "big")).digest()
+        return hmac.new(secret, salt, hashlib.sha256).digest()
+
     def assertion(self, challenge: str) -> dict:
         self.count = max(self.count + 1, int(time.time() * 10) & 0x7FFFFFFF)
         auth = self._rp_hash() + bytes([0x05]) + self.count.to_bytes(4, "big")
@@ -157,9 +193,10 @@ class UniQdataClient:
         challenge and resend the same bytes with the assertion."""
         content = json.dumps(body).encode() if body is not None else None
         hdr = {"content-type": "application/json"} if content else {}
-        for wait in (0.5, 1, 2, 4, 0):    # a just-issued session can read as unverified for a moment (503)
+        # a just-issued session can read as unverified for a moment (503); writes are rate-limited (429)
+        for wait in (0.5, 1, 2, 4, 7, 7, 7, 7, 7, 7, 7, 7, 0):
             r = self.http.request(method, self.base + path, content=content, params=params, headers=hdr)
-            if r.status_code != 503 or not wait:
+            if r.status_code not in (429, 503) or not wait:
                 break
             time.sleep(wait)
         detail = r.json().get("detail") if r.headers.get("content-type", "").startswith("application/json") else None
