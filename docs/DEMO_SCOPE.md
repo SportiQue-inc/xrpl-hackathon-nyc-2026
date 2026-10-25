@@ -1,43 +1,50 @@
 # Demo scope
 
-Cast: 1 institution (sleep study), 50 synthetic participants, 1 study request,
-1 delivery format (`sleep.daily.v1`), 3 simulated weekly rounds.
+All people, institutions, records and amounts are synthetic. XRPL Testnet only.
 
-## Demo flow (3 minutes)
+## Cast
 
-| # | Scene | What must really happen |
-|---|-------|-------------------------|
-| 1 | Institution posts request: age 40-60, >=80% sleep coverage in last 30 days, `sleep.daily.v1`, 12 weeks, 2 RLUSD per weekly delivery, 50 people, budget 1,200 RLUSD | Request stored with structured criteria |
-| 2 | 50 personal agents check privately | Each agent evaluates its own synthetic data and rules; ineligible or unwilling agents stay silent; eligible ones return yes + manifest + attestation only |
-| 3 | One person approves joining on screen (others pre-approved in simulation) | Relationship record with agreement version |
-| 4 | Week 1: institution agent selects within budget and buys the round | Per-person payment on XRPL Testnet, confirmed on a validated ledger; only that week's data released after confirmation |
-| 5 | Week 2: agent skips data it already holds, buys only new days | No duplicate payment for the same round (idempotent by round id) |
-| 6 | Week 3: one person pauses | Their release is refused; agent reallocates budget; their payments for past rounds remain |
-| 7 | Person view | Study usage history and received payments |
+- **Northside Sleep Lab** (synthetic): an 8-week sleep and fatigue study, 50 participants, stalled
+  at power 0.65. Holds an ethics-review Credential and a verified-organization Credential; its
+  treasury is multi-signed (principal investigator + compliance officer).
+- **P-017**, the participant the demo follows: wearable, survey app and clinic records joined on
+  one time axis by their personal agent. Missing in the study: fatigue survey weeks 3-5, heart rate
+  week 4. Consent: sleep, activity, heart rate, automatic; anything else asks P-017.
+- 49 other participants with different automation levels (automatic, standard only, every round).
+- An unverified lab, and an ad network with a prohibited purpose.
+- Scene A (other domains): a robot developer and four data sellers.
 
-Live variation for judges: lower the budget -> agent buys fewer rounds and asks a human to approve an increase.
+## Flow (about 3 minutes)
 
-## Checks enforced by code (not by the LLM)
+| # | Surface | What really happens |
+|---|---|---|
+| 1 | Researcher console | Goal typed; the LLM reads the coverage table and analysis note and proposes gaps; code keeps fatigue w3-5 and heart rate w4-5 and shows the table cells; per-person reading for P-017 shown next to the code verdict |
+| 2 | Console | One signer cannot release the budget (ledger refuses); PI + compliance co-sign the top-up |
+| 3 | Console | Participation requests sent; agents answer auto / ask the person / blocked; auto contributions settle by key-reveal escrow; heatmap fills; power rises |
+| 4 | P-017's phone | Request card: lab name, ethics-review and verified-organization badges read from the ledger, two-sentence reason, DUO chips, fatigue w3-5 "needs you", heart rate w4 "auto", reward in XRP |
+| 5 | Phone | Preview of exactly what leaves: study pseudonym, shifted days, requested items only |
+| 6 | Phone | Approve: escrow per week, P-017's agent publishes each key, reward paid, the study reads the key from the ledger and opens the bundle; P-017 issues the study a non-transferable licence (MPT); week 5 is held until the round closes |
+| 7 | Boundaries | New purpose stops for approval; unverified lab gets no answer and its direct payment fails (`tecNO_PERMISSION`); birth date + postal code + rare diagnosis refused; a bundle sealed to the study cannot be opened with the operator key |
+| 8 | Phone | Withdrawals: another participant declines a round (nothing on the ledger); one pauses (rewards stay); P-017 revokes: licence Clawback, week-5 key withheld, EscrowCancel refund; console row greys out |
+| 9 | Other domains | Robot developer's agent closes its evaluation gaps from two sellers on Testnet with a multi-signed top-up; consent layer replaced by seller licence terms |
 
-- Request format is registered and allowed in the relationship
-- Payee matches the participant; amount matches the agreement
-- Payment confirmed on a validated ledger before data is released
-- Round id not already paid or released
-- Relationship active and not paused at release time (re-checked just before release)
-- Agent spend stays within its mandate; increases need human approval
+## Checks enforced by code or the ledger (never by the LLM)
 
-## Pre-purchase disclosure (institution side)
+- LLM proposals are recomputed from the coverage table; anything without support is removed.
+- Consent, period, purpose (DUO), compliance, verified organization, sensitivity: code, on order and
+  again before the key is published.
+- The study must still hold the licence MPT for the key to be published.
+- Budget only through a multi-signed treasury; per-order limit and reservation in the engine.
+- Escrow condition = sha256 of the bundle key; refund only after `CancelAfter`.
+- Payments carry order id, bundle hash and consent or terms hash; no health data on the ledger.
 
-Allowed: eligible yes/no, data period, completeness %, source type, last update,
-source attestation. Not allowed: any raw value before payment.
+## Surfaces
 
-## Out of scope (roadmap)
+- Participant app and researcher console: UI by the team on the API in [API.md](API.md).
+- Dashboard (`/`): boundary tabs with this run's evidence, study heatmap, orders with explorer
+  links, agent conversation.
 
-Zero-knowledge eligibility proofs, genome data, real hospital/wearable APIs,
-3-party key split UI, multi-institution matching, mainnet funds, bridges.
+## Out of scope
 
-## Screens
-
-1. Institution: post request, eligible pool, agent budget and purchase log
-2. Person: incoming request, approve/pause, usage history, payments
-3. Ledger view: payments and confirmations (QuickNode)
+Real device, clinic or survey APIs; mainnet funds; RLUSD; recall of already delivered rounds;
+medical interpretation of any kind.
