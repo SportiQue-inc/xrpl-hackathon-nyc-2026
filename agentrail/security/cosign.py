@@ -154,8 +154,9 @@ def _valid(ledger, a: dict, address: str, payload: dict) -> bool:
     if len(sig_entries) != 1 or not is_valid_classic_address(address):
         return False
     e = sig_entries[0]["Signer"]
-    body = {k: v for k, v in signed.items() if k not in ("Signers", "SigningPubKey", "TxnSignature")}
-    want = {k: v for k, v in a["tx_json"].items() if k not in ("Signers", "SigningPubKey", "TxnSignature")}
+    # Multi-signing signs the tx with an empty SigningPubKey; nothing else may differ.
+    body = {k: v for k, v in signed.items() if k not in ("Signers", "TxnSignature")}
+    want = {**{k: v for k, v in a["tx_json"].items() if k not in ("Signers", "TxnSignature")}, "SigningPubKey": ""}
     if body != want or e.get("Account") != address:
         return False
     try:

@@ -336,3 +336,30 @@ def test_prod_mode_closes_the_demo_harness(c, monkeypatch):
     monkeypatch.delenv("AGENTRAIL_JWT_SECRET", raising=False)
     with pytest.raises(RuntimeError):
         Authority()
+
+
+def test_xrpl_multisign_signatures_are_checked_offline():
+    """The Testnet path without a network: each approver device signs the exact unsigned tx;
+    the server accepts only that approver's key over that tx, then combines them."""
+    from xrpl.models.transactions import Payment
+    from xrpl.models.transactions.transaction import Transaction
+    from xrpl.transaction import multisign
+    from xrpl.wallet import Wallet
+    from agentrail.security.cosign import _valid
+    from agentrail.security.devices import ApproverDevice
+    from agentrail.security.keystore import LocalKeyStore
+
+    class L:
+        name = "testnet"
+    owner, comp = (ApproverDevice(f"approver:{n}", "testnet", LocalKeyStore(f"t.{n}", root="")) for n in ("o", "c"))
+    tx = Payment(account=Wallet.create().classic_address, destination=Wallet.create().classic_address,
+                 amount="40000000", sequence=7, fee="36", last_ledger_sequence=999, signing_pub_key="")
+    a = {"tx_json": tx.to_xrpl()}
+    so, sc = owner.cosign(a), comp.cosign(a)
+    assert _valid(L, a, owner.address, so) and _valid(L, a, comp.address, sc)
+    assert not _valid(L, a, comp.address, so)                                  # owner's signature as compliance
+    other = {"tx_json": {**a["tx_json"], "Amount": "90000000"}}
+    assert not _valid(L, other, owner.address, so)                             # same signature, bigger amount
+    combined = multisign(Transaction.from_xrpl(a["tx_json"]),
+                         [Transaction.from_xrpl(x["signed_tx"]) for x in (so, sc)])
+    assert len(combined.signers) == 2
