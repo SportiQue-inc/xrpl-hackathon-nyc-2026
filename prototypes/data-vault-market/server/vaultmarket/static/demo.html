@@ -10,7 +10,7 @@ let D=null, selected=null, asList=false, busy=false, lastFetch=0, refreshTimer=n
 const receipts=a=>(a.receipts||[]).filter(r=>r.asset===$('asset').value&&r.at>=D.start&&r.at<=D.end);
 const income=a=>receipts(a).reduce((s,r)=>s+Number(r.amount),0);
 const sales=a=>receipts(a).length;
-const money=(value,asset=$('asset').value)=>`${Number(value||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} ${asset}`;
+const money=(value,asset=$('asset').value)=>`${Number(value||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} ${assetLabel(asset)}`;
 const clock=t=>IS_REPORT?`Week ${Math.max(1,Math.min(8,Math.ceil((t-D.start)/(7*86400))))}`:new Date(t*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 function syncSelection(){
  document.querySelectorAll('#grid [data-agent]').forEach(b=>{const on=b.dataset.agent===selected;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});
@@ -34,8 +34,14 @@ function renderNetwork(){
  if(key===networkKey)return;networkKey=key;
  const focus=document.activeElement?.dataset.networkAgent;
  $('network').innerHTML=DemoViz.network({...D,default_asset:$('asset').value},selected);
+ const seen=new Set([...$('network').querySelectorAll('path[data-flow]')].map(p=>p.dataset.flow)),fresh=window._flows?[...seen].filter(k=>!window._flows.has(k)):[];window._flows=new Set([...(window._flows||[]),...seen]);
+ const head=$('network').querySelector('.dv-network-head>div');if(head&&!head.querySelector('.dv-ticker'))head.insertAdjacentHTML('beforeend','<p class="dv-ticker" aria-live="polite"></p>');
+ fresh.forEach(k=>{const p=$('network').querySelector(`path[data-flow="${CSS.escape(k)}"]`);if(!p)return;[p,$('network').querySelector(`li[data-flow="${CSS.escape(k)}"]`),$('network').querySelector(`[data-counterparty="${CSS.escape(p.dataset.other)}"]`)].forEach(n=>n&&n.classList.add('dv-flash'));p.dataset.flashParty=p.dataset.party;});
+ if(fresh.length){const [id,st]=fresh[0].split(':'),c=(D.activity||[]).find(e=>String(e.id)===id),who=x=>D.agents.find(a=>a.id===x)?.name||x;if(c)window._ticker=`<b>C${esc(id)}</b> · ${esc(who(c.seller))} → ${esc(who(c.buyer))} · ${esc(META.kinds[c.kind]?.label||c.kind)} · <b class="${st==='settled'?'success':st==='rejected'?'failure':'pending'}">${st==='settled'?'Settled':st==='rejected'?'Rejected':'Negotiating'}</b>${st==='settled'&&c.total!=null?` <b class="success">+${money(c.total)}</b>`:''}${c.reason&&st==='rejected'?` · ${esc(c.reason)}`:''}`;}
+ const tk=$('network').querySelector('.dv-ticker');if(tk)tk.innerHTML=window._ticker||'Waiting for the next deal…';
  const agents=D.agents.slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
  $('network').querySelectorAll('.dv-agent-node').forEach((node,i)=>{node.dataset.networkAgent=agents[i].id;node.setAttribute('role','button');node.onclick=()=>selectAgent(agents[i].id);node.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectAgent(agents[i].id);}};if(focus===agents[i].id)node.focus({preventScroll:true});});
+ $('network').querySelectorAll('path[data-flash-party]').forEach(p=>$('network').querySelector(`[data-network-agent="${CSS.escape(p.dataset.flashParty)}"]`)?.classList.add('dv-flash'));
 }
 function render(){
  const ordered=D.agents.slice().sort((a,b)=>income(b)-income(a)||sales(b)-sales(a)||String(a.id).localeCompare(String(b.id)));
@@ -62,13 +68,13 @@ async function refresh(){
  busy=true;lastFetch=Date.now();
  try{
   const next=await api(IS_REPORT?'/api/research-report':'/api/demo?minutes='+$('period').value);D=next;
-  if(IS_REPORT){document.title='Research contribution report';document.querySelector('.demo-title h1').textContent='Research contribution report';document.querySelector('.demo-title>p').textContent='Practice simulation, not the live market. 50 made-up participants join one 8-week research study. "Simulated XRP" is pretend money used only on this page; nothing here touched the ledger. The live market, with real Testnet payments in test USD, is on the Demo page.';$('guide').innerHTML='<article><b>1 · The same research window</b><p>Compare 50 synthetic participants over eight weeks using the existing contribution and consent policy engine. This report is a recorded mock test, separate from the live marketplace.</p></article><article><b>2 · Different contribution policies</b><p>Inspect automatic participation, standard-data-only automation and approval for every round. Consent scope and missing-data opportunities vary between participants.</p></article><article><b>3 · Paid and held amounts stay separate</b><p>Only completed mock receipts appear as income. Amber bars show held rewards. These results do not establish that a policy caused higher earnings.</p></article>';$('period').parentElement.hidden=true;document.querySelectorAll('.chart-panel h2')[1].textContent='Approval mode & rewards';document.querySelectorAll('.chart-panel>p')[1].textContent='Same 8-week window and study budget. Consent scopes and missing-data opportunities also vary.';}
+  if(IS_REPORT){document.title='Research contribution report';document.querySelector('.demo-title h1').textContent='Research contribution report';document.querySelector('.demo-title>p').textContent='Practice simulation, not the live market. 50 made-up participants join one 8-week research study. "Simulated XRP" is pretend money used only on this page; nothing here touched the ledger. The live market, with real Testnet payments in ${assetLabel()}, is on the Demo page.';$('guide').innerHTML='<article><b>1 · The same research window</b><p>Compare 50 synthetic participants over eight weeks using the existing contribution and consent policy engine. This report is a recorded mock test, separate from the live marketplace.</p></article><article><b>2 · Different contribution policies</b><p>Inspect automatic participation, standard-data-only automation and approval for every round. Consent scope and missing-data opportunities vary between participants.</p></article><article><b>3 · Paid and held amounts stay separate</b><p>Only completed mock receipts appear as income. Amber bars show held rewards. These results do not establish that a policy caused higher earnings.</p></article>';$('period').parentElement.hidden=true;document.querySelectorAll('.chart-panel h2')[1].textContent='Approval mode & rewards';document.querySelectorAll('.chart-panel>p')[1].textContent='Same 8-week window and study budget. Consent scopes and missing-data opportunities also vary.';}
   const assets=D.assets||[],value=$('asset').value||D.default_asset||META.asset,signature=JSON.stringify(assets);
-  if($('asset').dataset.options!==signature){$('asset').innerHTML=assets.map(a=>`<option>${esc(a)}</option>`).join('');$('asset').dataset.options=signature;}$('asset').value=assets.includes(value)?value:(D.default_asset||assets[0]||'');
+  if($('asset').dataset.options!==signature){$('asset').innerHTML=assets.map(a=>`<option value="${esc(a)}">${esc(assetLabel(a))}</option>`).join('');$('asset').dataset.options=signature;}$('asset').value=assets.includes(value)?value:(D.default_asset||assets[0]||'');
   render();if(ME)memberBalance(await api('/api/account/'+ME));$('banner').hidden=true;
  }catch(e){showError(e);}finally{busy=false;}
 }
 $('period').onchange=refresh;$('asset').onchange=render;$('view').onclick=()=>{asList=!asList;$('view').textContent=asList?'Grid view':'List view';render();};
-topbar(IS_REPORT?'report':'demo').then(()=>{refresh();if(!IS_REPORT){live();setInterval(refresh,30000);}}).catch(showError);
+topbar(IS_REPORT?'report':'demo').then(()=>{refresh();if(!IS_REPORT){try{new EventSource('/api/stream').onmessage=()=>refresh();}catch{}setInterval(refresh,30000);}}).catch(showError);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
 </script></body></html>

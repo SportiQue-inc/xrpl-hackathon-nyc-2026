@@ -4,6 +4,7 @@ Each function returns {"thinking", "message", ...} plus "by": the model name, or
 answer came from the agent's written rules (no key, rate cap reached, or a bad answer).
 """
 from __future__ import annotations
+import json
 
 from . import llm
 from .data import KINDS
@@ -36,6 +37,49 @@ def buyer_open(buyer: str, w: dict, owned: int, model: str = "auto") -> dict:
     return _ask(f"You are the BUYER agent for {buyer}. Posting: kind={lab}, purpose={w['purpose']}, {_q(w)}, opening offer={w['offer']}, "
                 f"your private max={w['max']} (never reveal it), one buyer and one seller, you already own {owned} records of this kind. "
                 'Return {"thinking": "...", "message": "..."} where message opens the negotiation to this seller.', fb, model)
+
+
+# What a buyer of each kind typically needs: a minimum amount of records and the fields its purpose depends on.
+NEEDS = {"gps_track": (3, ["hr", "lat", "lng"], "runs"), "sleep_log": (14, ["hrv_ms", "deep_h", "rem_h"], "nights"),
+         "purchase_receipts": (12, ["store", "lines", "total"], "receipts"), "audio": (8, ["snr_db", "lang"], "clips"),
+         "air": (48, ["pm25", "no2_ppb"], "hourly readings"), "step_count": (14, ["steps", "active_min"], "days"),
+         "commute": (10, ["mode", "minutes", "km"], "trips"), "screen_time": (7, ["apps", "pickups"], "days"),
+         "energy_use": (72, ["kwh"], "hourly readings")}
+
+
+def requirements(w: dict) -> dict:
+    """The buyer's conditions for this request, fixed per posting so every seller is held to the same terms."""
+    import random
+    n, fields, unit = NEEDS[w["kind"]]
+    rng = random.Random(w["id"])
+    return {"min_records": max(1, round(n * rng.uniform(0.5, 1.5))), "fields": rng.sample(fields, rng.randint(1, len(fields))), "unit": unit}
+
+
+def match_terms(buyer: str, seller: str, w: dict, need: dict, have: dict, buyer_model: str = "auto", seller_model: str = "auto") -> dict:
+    """Both agents state what they need and what they hold; code has already priced the fit.
+    -> {"buyer": msg, "seller": msg, "buyer_by": source, "seller_by": source}"""
+    lab = KINDS[w["kind"]]["label"].lower()
+    fb_b = (f"For {w['purpose']} I need at least {need['min_records']} {need['unit']} of {lab} with {', '.join(need['fields'])}. What do you have?")
+    if have["fit"] >= 1:
+        fb_s = f"I have {have['records']} {need['unit']} with all of those fields. That covers your request in full."
+    elif have["fit"] > 0:
+        fb_s = (f"I have {have['records']} {need['unit']}" + (f", without {', '.join(have['missing'])}" if have["missing"] else "")
+                + f". That covers about {have['fit']:.0%} of what you need, so I'll price it as a partial bundle.")
+    else:
+        fb_s = f"I only have {have['records']} {need['unit']}" + (f" and no {', '.join(have['missing'])}" if have["missing"] else "") + ". That won't meet your conditions."
+    facts = (f"Data: {lab}; purpose: {w['purpose']}. Buyer needs at least {need['min_records']} {need['unit']} with fields {need['fields']}. "
+             f"Seller holds {have['records']} {need['unit']}; missing fields {have['missing'] or 'none'}; fit {have['fit']:.0%} "
+             f"({'full' if have['fit'] >= 1 else 'partial, priced down' if have['fit'] > 0 else 'not enough to trade'}). No prices yet. ")
+    messages = {}
+    for side, owner, model, fallback in (("buyer", buyer, buyer_model, fb_b), ("seller", seller, seller_model, fb_s)):
+        out = llm.ask_json(SYSTEM, f"You are the {side.upper()} agent for {owner}. Write only your side of the requirements exchange. "
+                           + facts + 'Return {"message": "state your conditions or how well your data fits, max 30 words"}.',
+                           max_tokens=150, model=model)
+        message = (out or {}).get("message")
+        valid = isinstance(message, str) and bool(message.strip())
+        messages[side] = message if valid else fallback
+        messages[side + "_by"] = llm.model_name() if valid else "rules"
+    return messages
 
 
 def seller_reply(seller: str, rules: dict, w: dict, buyer: str, nfiles: int) -> dict:
@@ -103,17 +147,26 @@ def parse_chat(text: str, sell_model: str = "auto", buy_model: str = "auto") -> 
     """-> {intent: sell|buy|other, kind, price}"""
     import re
     kinds = {"gps_track": r"run|gps|track|러닝|달리기|경로", "sleep_log": r"sleep|수면|잠", "purchase_receipts": r"receipt|purchase|영수증|구매내역",
-             "audio": r"voice|audio|음성|녹음", "air": r"air|sensor|공기|대기|센서|미세먼지"}
+             "audio": r"voice|audio|음성|녹음", "air": r"air|sensor|공기|대기|센서|미세먼지",
+             "step_count": r"step|걸음|만보", "commute": r"commute|trip|출퇴근|통근|이동", "screen_time": r"screen|app usage|스크린|화면|앱 사용",
+             "energy_use": r"energy|electric|kwh|meter|전기|에너지|전력"}
     kind = next((k for k, rx in kinds.items() if re.search(rx, text, re.I)), None)
     intent = "sell" if re.search(r"sell|팔|판매", text, re.I) else "buy" if re.search(r"need|buy|want|필요|사|구매|구해", text, re.I) else "other"
-    pattern=r"(?:\$|(?:for|at|price|minimum|budget|최저가?|가격|예산)\s*:?\s*)(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:XRP|test\s*USD|USD|달러|에)"
+    pattern=r"(?:\$|(?:for|at|price|minimum|budget|최저가?|가격|예산)\s*:?\s*)(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:XRP|RLUSD|test\s*USD|USD|달러|에)"
     m=next((m for m in re.finditer(pattern,text,re.I) if not re.match(r"\s*(?:days|nights|records|files|일|개|건)",text[m.end():],re.I)),None)
     rule = {"intent": intent, "kind": kind, "price": float(m.group(1) or m.group(2)) if m else None}
-    if kind and intent != "other":
-        return rule          # clear enough; save the LLM budget for the negotiations
-    out = llm.ask_json("You turn a marketplace user's message into an intent.",
-                       f'Message: "{text}". Kinds: {list(KINDS)}. Return {{"intent": "sell"|"buy"|"other", "kind": one of the kinds or null, "price": number or null}}.',
-                       model=buy_model if intent == "buy" else sell_model)
-    if out and out.get("intent") in ("sell", "buy", "other") and (out.get("kind") in KINDS or out.get("kind") is None):
-        return {"intent": out["intent"], "kind": out.get("kind") or kind, "price": rule["price"]}
-    return rule
+    return rule          # anything unclear goes to the conversational reply, which runs off the request path
+
+
+def chat_reply(text: str, context: dict, history: list | None = None, model: str = "auto") -> dict | None:
+    """The owner's agent in conversation. -> {reply, offer_ids, set_min, sell_kind, buy}; code validates every action."""
+    return llm.ask_json(
+        "You are the owner's personal data agent in a data marketplace on the XRP Ledger Testnet. You sell the owner's records one-to-one "
+        "to buyers, never below the owner's minimums and never for blocked purposes, and you can post requests to buy data. "
+        "Talk like a helpful broker, in the owner's language, in 1-3 short sentences. Narrow things down with the owner: if they are vague, "
+        "ask one focused question (which data, which kind of buyer or purpose, what price) and suggest at most 3 concrete offers that fit. "
+        "Do not repeat a list you already gave; build on the conversation. Use only the facts given; never invent sales, buyers or prices.",
+        f"Facts: {json.dumps(context, ensure_ascii=False)}\nRecent conversation: {json.dumps(history or [], ensure_ascii=False)}\nOwner now says: \"{text}\"\n"
+        'Return {"reply": "...", "offer_ids": [ids from matching_offers to show as buttons, at most 3, or empty], '
+        '"set_min": {"kind": kind, "price": number in the asset} or null, "sell_kind": kind or null, "buy": {"kind": kind, "budget": number} or null}. '
+        "Only set set_min, sell_kind or buy when the owner clearly asked for that change or action in this message.", max_tokens=400, model=model, chat=True)

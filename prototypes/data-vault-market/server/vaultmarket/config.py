@@ -29,6 +29,10 @@ TICK_SECONDS = float(os.environ.get("VM_TICK_SECONDS", "30"))   # one negotiatio
 # escrow; XRP: the fallback. Amounts are kept in millionths of the asset (drops for XRP).
 ASSET = os.environ.get("VM_ASSET", "USD").upper()
 USD_PER_UNIT = float(os.environ.get("VM_USD_PER_UNIT", "1"))         # 1 price unit = 1 test USD, all display values use the actual test asset
+# How the token is shown to people. The ledger key stays "test USD"; swap the name and footnote here
+# (or in env) when the market's own registered token replaces the stand-in.
+ASSET_LABEL = os.environ.get("VM_ASSET_LABEL", "test USD")
+ASSET_FOOTNOTE = os.environ.get("VM_ASSET_FOOTNOTE", "XRPL Testnet: application-issued test USD; this is not official RLUSD.")
 XRP_DROPS_PER_UNIT = int(os.environ.get("VM_DROPS_PER_UNIT", "10000"))  # fallback: 1 price unit = 0.01 XRP
 MICRO_PER_UNIT = int(USD_PER_UNIT * 1_000_000) if ASSET == "USD" else XRP_DROPS_PER_UNIT
 DROPS_PER_XRP_UNIT = MICRO_PER_UNIT    # older name, same meaning: millionths of the asset per price unit
@@ -50,6 +54,8 @@ LLM_DAILY_CALLS = int(os.environ.get("VM_LLM_DAILY_CALLS", "320"))   # spread ev
 # Membership. VM_PUBLIC=1 when the site is reachable from the internet: the demo accounts become
 # read-only and only signed-in members act, each on their own account.
 PUBLIC = os.environ.get("VM_PUBLIC", "0") == "1"
+DEMO_CHAT_DAILY = int(os.environ.get("VM_DEMO_CHAT_DAILY", "200"))   # the shared demo vault, all visitors together
+CHAT_RESERVE = int(os.environ.get("VM_CHAT_RESERVE", "150"))    # chat can use this much ahead of pacing, within the same hard daily cap
 CHAT_DAILY = int(os.environ.get("VM_CHAT_DAILY", "30"))         # agent chat messages per member per day
 SIGNUPS_PER_HOUR = int(os.environ.get("VM_SIGNUPS_PER_HOUR", "5"))  # per IP address
 

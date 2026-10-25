@@ -87,12 +87,41 @@ class Market:
                         self.add_file(o["id"], "air", data.file_name("air", body, j), body, listed=True, source="kite-sensor-net")
         if not self.s.one("SELECT id FROM accounts WHERE id='demo-vault'"):
             self.s.insert("accounts",id="demo-vault",name="Demo vault",type="person",trust=.9,verified=0,
-                          sell_agent={"mode":"ask","min":{k:v["price"] for k,v in KINDS.items()},"blocks":["insurance pricing"]},
+                          sell_agent={"mode":"auto","min":{k:v["price"] for k,v in KINDS.items()},"blocks":["insurance pricing"]},
                           buy_agent={"auto_limit":10,"min_trust":.7,"max_overlap":0})
             demo_rng=random.Random(101)
             for k in ("gps_track","sleep_log","purchase_receipts"):
                 body=data.make_record(k,demo_rng,"Synthetic demo",0,(40.7,-74))
                 self.add_file("demo-vault",k,data.file_name(k,body,0),body,listed=False,source="synthetic demo")
+        if not self.s.stat("kinds_v2"):
+            # newer everyday data kinds: give every vault a minimum for them and some records to sell
+            rng2 = random.Random(303)
+            for acc in self.s.q("SELECT id, name, type FROM accounts"):
+                a = self.acct(acc["id"]); rules = a["sell_agent"]; mins = rules.setdefault("min", {})
+                for k in data.NEW_KINDS:
+                    mins.setdefault(k, round(KINDS[k]["price"] * (rng2.uniform(0.6, 1.25) if acc["type"] == "person" else 1.2), 1))
+                self.s.x("UPDATE accounts SET sell_agent=? WHERE id=?", (json.dumps(rules), acc["id"]))
+                if acc["type"] != "person" or acc["id"].startswith("u-"):
+                    continue
+                home = (round(40.66 + rng2.random() * 0.14, 5), round(-74.01 + rng2.random() * 0.1, 5))
+                demo = acc["id"] == "demo-vault"
+                for k in (list(KINDS) if demo else data.NEW_KINDS):
+                    for j in range(6 if demo else rng2.randint(1, 3)):
+                        body = data.make_record(k, rng2, acc["name"], j, home)
+                        self.add_file(acc["id"], k, data.file_name(k, body, j), body, listed=acc["id"] == "demo-vault" or rng2.random() < 0.7, source="phone")
+            self.s.bump("kinds_v2")
+        if not self.s.stat("demo_vault_auto_v1") and self.s.one("SELECT id FROM accounts WHERE id='demo-vault'"):
+            # The demo vault's agent sells on its own within its minimums, like the market personas, with enough records to trade.
+            rules=self.acct("demo-vault")["sell_agent"];rules["mode"]="auto"
+            self.s.x("UPDATE accounts SET sell_agent=? WHERE id='demo-vault'",(json.dumps(rules),))
+            self.s.x("UPDATE files SET status='listed' WHERE account='demo-vault' AND status='private'")
+            demo_rng=random.Random(202)
+            for k in ("gps_track","sleep_log","purchase_receipts"):
+                for j in range(1,6):
+                    body=data.make_record(k,demo_rng,"Synthetic demo",j,(40.7,-74))
+                    self.add_file("demo-vault",k,data.file_name(k,body,j),body,listed=True,source="synthetic demo")
+            self.chat("demo-vault","agent","I now sell automatically within your minimum prices and allowed purposes. Change this under Settings.")
+            self.s.bump("demo_vault_auto_v1")
         legacy=self.s.q("SELECT DISTINCT account FROM chat WHERE done=0 AND actions IS NOT NULL AND text LIKE '%lot of at least % people%'")
         self.s.x("UPDATE chat SET done=1 WHERE done=0 AND actions IS NOT NULL AND text LIKE '%lot of at least % people%'")
         for a in legacy:
@@ -330,7 +359,7 @@ class Market:
 
         # the LLM writes the buyer's opening, the first seller's answer and the buyer's decision when
         # three slots are free under the cap; otherwise the whole round runs on written rules
-        llm.budget(3 if llm.free_slots() >= 3 else 0)
+        llm.budget(min(4, llm.free_slots()))
         try:
             return self._negotiate(w, seller_id, queue_id)
         finally:
@@ -387,6 +416,8 @@ class Market:
         cands = [a for a in by_acct if a not in low_trust and w["purpose"] not in self.acct(a)["sell_agent"].get("blocks", [])]
         self.rng.shuffle(cands)
         cands.sort(key=lambda a: a not in interested)
+        if "demo-vault" in cands and self.rng.random() < 0.5:
+            cands.remove("demo-vault");cands.insert(0,"demo-vault")  # the demo vault trades often so its history fills in
         cands = [seller_id] if seller_id in cands else [] if seller_id else cands[:1]
         trace["buyer_trace"].append(f"{len(by_acct)} vaults list this kind; {len(low_trust)} below trust {w['min_trust']} skipped; asking {len(cands)}"
                                     + (f", {len(interested & set(cands))} marked interest so they go first." if interested & set(cands) else "."))
@@ -412,12 +443,33 @@ class Market:
                 step("Duplicate check (record fingerprints)", f"{ov:.0%} of this lot's record fingerprints are already in the buyer's DB; any overlap is refused. Refused before price talk.", False, a)
                 overlap += 1
                 continue
+            # both agents check that what the buyer needs is what the seller holds, before any price talk
+            need = agents.requirements(w)
+            recs = [json.loads(x) for f in fs for x in intake.leaves(f["kind"], json.loads(f["clean"]))]
+            present = set().union(*(r.keys() for r in recs if isinstance(r, dict))) if recs else set()
+            if w["kind"] == "gps_track":
+                present |= {k for r in recs for p in (r.get("points") or [])[:1] for k in p}
+            missing = [x for x in need["fields"] if x not in present]
+            fit = min(1.0, len(recs) / need["min_records"]) * (1 - 0.5 * len(missing) / max(1, len(need["fields"])))
+            fit = round(fit if fit >= 0.2 else 0, 2)
+            mt = agents.match_terms(buyer["name"], sa["name"], w, need, {"records": len(recs), "missing": missing, "fit": fit}, buyer_model=buyer["buy_agent"].get("model", "auto"), seller_model=sa["sell_agent"].get("model", "auto"))
+            say(w["buyer"], "buyer", mt["buyer"], f"Conditions for {w['purpose']}: at least {need['min_records']} {need['unit']}, fields {', '.join(need['fields'])}.", mt["buyer_by"])
+            say(a, "seller", mt["seller"], f"I hold {len(recs)} {need['unit']}; missing {', '.join(missing) or 'nothing'}; fit {fit:.0%}.", mt["seller_by"])
+            step("Requirements match", f"buyer needs ≥{need['min_records']} {need['unit']} with {', '.join(need['fields'])}; seller has {len(recs)}"
+                 + (f", missing {', '.join(missing)}" if missing else "") + f" → fit {fit:.0%}" + ("" if fit >= 1 else ", priced as a partial bundle" if fit else ", no trade"), fit > 0, a)
+            if not fit:
+                trace["seller_trace"].append({"seller": a, "verdict": "conditions not met", "price": None, "fit": fit}, buyer_model=buyer["buy_agent"].get("model", "auto"), seller_model=sa["sell_agent"].get("model", "auto"))
+                trace["verdicts"]["sellers"][a] = "conditions not met"
+                declined += 1
+                continue
+            value = 0.5 + 0.5 * fit   # a partial bundle is still worth something to the buyer, just less
+            w_fit = {**w, "max": round(w["max"] * value, 1), "offer": round(min(w["offer"], w["max"] * value * 0.92), 1)} if fit < 1 else w
             self.s.x("UPDATE contracts SET reason='Seller agent is reviewing the offer' WHERE id=?",(cid,));self.events += 1
-            r = agents.seller_reply(sa["name"], sa["sell_agent"], w, buyer["name"], len(fs))
+            r = agents.seller_reply(sa["name"], sa["sell_agent"], w_fit, buyer["name"], len(fs))
             say(a, "seller", r["message"], r["thinking"], r["by"])
             final = r["verdict"]
             if r["verdict"] == "counter":
-                if r["price"] <= w["max"]:
+                if r["price"] <= w_fit["max"]:
                     say(w["buyer"], "buyer", f"{r['price']} accepted.", f"Counter {r['price']} is within my max.", "rules"); final = "agree"
                 else:
                     say(w["buyer"], "buyer", f"{r['price']} is more than I can pay. Pass.", f"Counter {r['price']} exceeds my max.", "rules"); final = "decline"
@@ -462,7 +514,7 @@ class Market:
         if people_eff < need:
             reason = "The buyer already owns some of these records; no repeat payment." if overlap else "The seller did not accept within the buyer budget and owner terms."
         elif total * config.MICRO_PER_UNIT / 1e6 + (0 if self.rail.token else 0.2 * len(verified)) > bal:
-            reason = f"not enough {self.rail.symbol()} for {len(verified)} escrows"
+            reason = f"not enough {self.rail.label()} for {len(verified)} escrows"
         if personal:
             step("One-to-one agreement", "One buyer negotiates with one seller for this record bundle.", len(verified) == 1)
         outcome = {"agreed": len(agreed), "declined": declined, "overlap": overlap, "people": people_eff, "total": total, "ok": not reason, "reason": reason}
@@ -506,7 +558,7 @@ class Market:
         if self.s.one("SELECT id FROM chat WHERE account = ? AND done = 0 AND actions LIKE ?", (aid, f'%"posting": {w["id"]}%')):
             return
         b = self.acct(w["buyer"])
-        self.chat(aid, "agent", f"{b['name']} wants {KINDS[w['kind']]['label'].lower()} for {w['purpose']} at {w['offer'] * config.MICRO_PER_UNIT / 1e6:.6f} {self.rail.symbol()} for this purchase. "
+        self.chat(aid, "agent", f"{b['name']} wants {KINDS[w['kind']]['label'].lower()} for {w['purpose']} at {w['offer'] * config.MICRO_PER_UNIT / 1e6:.6f} {self.rail.label()} for this purchase. "
                                 f"You have {nfiles} listed file(s). Approve this one-to-one sale?",
                   [{"t": "OK, include me", "do": "interest", "posting": w["id"]}, {"t": "Not this one", "do": "noop", "posting": w["id"]}])
 
@@ -559,7 +611,7 @@ class Market:
                 trace["tx"].append({"seller": leg["seller"], "create": r["create"]["hash"], "finish": r["finish"]["hash"], "ok": r["finish"]["ok"]})
                 cond = condition_hex(leg["K"])
                 trace["protocol"].append({"protocol": f"XRPL EscrowCreate ({'token escrow, ' if self.rail.token else ''}PREIMAGE-SHA-256 crypto-condition)", "who": leg["seller"], "ok": r["create"]["ok"], "tx": r["create"]["hash"],
-                                          "detail": f"buyer locks {leg['drops'] / 1e6:.3f} {self.rail.symbol()}{(' (issuer ' + self.rail.issuer[:8] + '…)') if self.rail.token else ''} to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
+                                          "detail": f"buyer locks {leg['drops'] / 1e6:.3f} {self.rail.label()}{(' (issuer ' + self.rail.issuer[:8] + '…)') if self.rail.token else ''} to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
                 trace["protocol"].append({"protocol": "XRPL EscrowFinish (fulfillment reveals K)", "who": leg["seller"], "ok": r["finish"]["ok"], "tx": r["finish"]["hash"],
                                           "detail": f"seller's agent submits the fulfillment (the preimage K); the ledger checks SHA-256(K) against the condition and pays; {r['finish']['result']}"})
                 if not r["finish"]["ok"]:
@@ -598,6 +650,7 @@ class Market:
                 self.s.insert("prices", kind=w["kind"], price=l["price"], contract=cid)
                 if self.acct(l["seller"])["type"] == "person" and self.acct(l["seller"])["sell_agent"].get("mode") == "ask":
                     self.chat(l["seller"], "agent", f"Sale completed: {data.kind_info(w['kind'])['label']} to {self.acct(buyer_id)['name']}: +{l['drops'] / 1e6:.6f} {self.rail.symbol()} on the ledger. Contract #{cid}.")
+
             for a in {l["seller"] for l in paid}:
                 self._bal.pop(a, None)
             self._bal.pop(buyer_id, None)
@@ -757,7 +810,7 @@ class Market:
         # someone uploads something new; their agent runs it through intake
         if rng.random() < 0.7:
             a = rng.choice(self.s.q("SELECT id, name FROM accounts WHERE type = 'person' AND id != 'dana' AND id NOT LIKE 'u-%'"))
-            kind = rng.choice(["gps_track", "gps_track", "sleep_log", "purchase_receipts", "audio"])
+            kind = rng.choice(["gps_track", "gps_track", "sleep_log", "purchase_receipts", "audio", "step_count", "commute", "screen_time", "energy_use"])
             body = data.make_record(kind, rng, a["name"], rng.randint(5, 60), (40.7 + rng.random() * 0.1, -73.95 - rng.random() * 0.05))
             roll = rng.random()
             if roll < 0.08:
@@ -783,7 +836,11 @@ class Market:
                 self.scan(a)
         self.events += 1
 
-    PURPOSES = {"gps_track": ["running-route app", "city heat-map research", "shoe wear study", "bike-lane planning"],
+    PURPOSES = {"step_count": ["fitness app benchmark", "city walkability study", "health insurer wellness program"],
+                "commute": ["transit planning", "bike-lane planning", "office space planning"],
+                "screen_time": ["digital wellbeing research", "app market study", "advertising"],
+                "energy_use": ["utility demand forecasting", "solar sizing", "home insurance pricing"],
+                "gps_track": ["running-route app", "city heat-map research", "shoe wear study", "bike-lane planning"],
                 "sleep_log": ["sleep research", "mattress product study", "wearable calibration", "insurance pricing"],
                 "purchase_receipts": ["basket research", "price index", "store layout study"],
                 "audio": ["speech model training", "accent research", "voice assistant tuning"],

@@ -147,15 +147,50 @@ def test_bad_json_clears_prior_success_source(models):
     assert llm.model_name() == 'rules'
 
 
-def test_chat_parser_uses_owning_side_preference(models):
+def test_chat_parser_leaves_ambiguous_messages_for_offpath_conversation(models):
+    calls = []
+    client_reply(models, lambda **kw: calls.append(kw) or response(kw['model']))
+    assert agents.parse_chat('buy something unusual', sell_model='allowed-a', buy_model='allowed-b') == {
+        'intent': 'buy', 'kind': None, 'price': None}
+    assert agents.parse_chat('help with my data', sell_model='allowed-a', buy_model='allowed-b') == {
+        'intent': 'other', 'kind': None, 'price': None}
+    assert calls == [], 'The request-path parser must never wait on the provider'
+
+
+def test_offpath_conversation_uses_each_accounts_own_side_preference(web_market, models):
+    from vaultmarket import app as web
+    client, market = web_market
+    assert client.post('/api/account/u-owner/settings', json={
+        'sell_agent': {'model': 'allowed-a'}, 'buy_agent': {'model': 'allowed-b'}}).status_code == 200
+    market.s.x('UPDATE accounts SET sell_agent=?,buy_agent=? WHERE id=?', (
+        json.dumps({'mode': 'ask', 'min': {}, 'blocks': [], 'model': 'allowed-b'}),
+        json.dumps({'auto_limit': 100, 'model': 'allowed-a'}), 'u-other'))
     seen = []
     def create(**kw):
         seen.append(kw['model'])
-        return response(kw['model'], '{"intent":"other","kind":null,"price":null}')
+        return response(kw['model'] + '-snapshot', '{"reply":"Which data would you like to discuss?","offer_ids":[]}')
     client_reply(models, create)
-    agents.parse_chat('buy something unusual', sell_model='allowed-a', buy_model='allowed-b')
-    agents.parse_chat('help with my data', sell_model='allowed-a', buy_model='allowed-b')
+    web._converse('u-owner', 'buy something unusual', {}, False)
+    web._converse('u-owner', 'help with my data', {}, False)
+    web._converse('u-other', 'help with my data', {}, False)
+    assert seen == ['allowed-b', 'allowed-a', 'allowed-b']
+    assert market.s.one("SELECT COUNT(*) n FROM chat WHERE role='agent'")['n'] == 3
+    assert market.s.one('SELECT COUNT(*) n FROM sale_queue')['n'] == 0
+
+
+def test_requirements_exchange_records_each_sides_actual_model(models):
+    seen = []
+    def create(**kw):
+        seen.append(kw['model'])
+        return response(kw['model'] + '-snapshot', '{"message":"My conditions are clear."}')
+    client_reply(models, create)
+    out = agents.match_terms('Buyer', 'Seller', {'kind': 'sleep_log', 'purpose': 'sleep research'},
+                            {'min_records': 14, 'fields': ['hrv_ms'], 'unit': 'nights'},
+                            {'records': 14, 'missing': [], 'fit': 1},
+                            buyer_model='allowed-b', seller_model='allowed-a')
     assert seen == ['allowed-b', 'allowed-a']
+    assert out == {'buyer': 'My conditions are clear.', 'seller': 'My conditions are clear.',
+                   'buyer_by': 'allowed-b-snapshot', 'seller_by': 'allowed-a-snapshot'}
 
 
 @pytest.mark.parametrize('side', ['sell_agent', 'buy_agent'])
@@ -164,16 +199,21 @@ def test_agent_settings_reject_non_objects(web_market, side):
     assert client.post('/api/account/u-owner/settings', json={side: []}).status_code == 400
 
 
-@pytest.mark.parametrize('cap', ['minute', 'thread'])
-def test_selected_model_keeps_minute_and_thread_caps(models, cap):
+@pytest.mark.parametrize('chat', [False, True])
+@pytest.mark.parametrize('cap', ['minute', 'daily', 'thread'])
+def test_selected_model_keeps_total_caps_including_owner_chat(models, cap, chat):
     calls = []
     client_reply(models, lambda **kw: calls.append(kw) or response(kw['model']))
     if cap == 'minute':
-        models.setattr(config, 'LLM_RPM', 0)
+        models.setattr(config, 'LLM_RPM', 1)
+        llm._calls.append(time.time())
+    elif cap == 'daily':
+        models.setattr(config, 'LLM_DAILY_CALLS', 1)
+        llm.USAGE['calls'] = 1
     else:
         llm.budget(0)
     try:
-        assert llm.ask_json('system', 'prompt', model='allowed-b') is None
+        assert llm.ask_json('system', 'prompt', model='allowed-b', chat=chat) is None
         assert calls == [] and llm.model_name() == 'rules'
     finally:
         llm.budget(None)

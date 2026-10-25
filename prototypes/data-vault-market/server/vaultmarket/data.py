@@ -17,7 +17,12 @@ KINDS = {
     "purchase_receipts": {"label": "Purchase receipts", "domain": "Shopping", "price": 3, "personal": True, "ext": "json"},
     "audio": {"label": "Voice clips", "domain": "Voice", "price": 6, "personal": True, "ext": "json"},
     "air": {"label": "Air-quality sensor data", "domain": "Environment", "price": 4, "personal": False, "ext": "csv"},
+    "step_count": {"label": "Daily steps", "domain": "Mobility and fitness", "price": 4, "personal": True, "ext": "csv"},
+    "commute": {"label": "Commute trips", "domain": "Mobility and fitness", "price": 7, "personal": True, "ext": "json"},
+    "screen_time": {"label": "Screen time", "domain": "Digital habits", "price": 5, "personal": True, "ext": "json"},
+    "energy_use": {"label": "Home energy use", "domain": "Home", "price": 5, "personal": True, "ext": "csv"},
 }
+NEW_KINDS = ("step_count", "commute", "screen_time", "energy_use")   # added after launch; market.py backfills them
 DIRECT = {"owner_name", "email", "phone", "device_serial", "card_last4", "home", "passport_no", "dob", "address"}
 PACKAGE_KIND = 'data_package'
 PACKAGE_INFO = {'label': 'Data package', 'domain': 'Mixed data', 'personal': True}
@@ -96,6 +101,46 @@ def air(rng: random.Random, site_idx: int, day: date) -> dict:
     return {"site": name, "lat": lat, "lng": lng, "readings": rows, "_fps": [fp("air", name, day)]}
 
 
+APPS = [("Instagram", "social"), ("YouTube", "video"), ("Google Maps", "navigation"), ("Spotify", "music"), ("Slack", "work"),
+        ("Duolingo", "education"), ("Citymapper", "navigation"), ("TikTok", "social"), ("Kindle", "reading"), ("Chrome", "browsing")]
+MODES = [("subway", 0.55), ("bus", 0.15), ("bike", 0.12), ("walk", 0.1), ("rideshare", 0.08)]
+
+
+def steps(rng: random.Random, who: str, start: date, days: int = 14) -> dict:
+    rows = [{"day": (start + timedelta(days=d)).isoformat(), "steps": max(800, int(rng.gauss(8200, 2600))),
+             "active_min": rng.randint(15, 95), "floors": rng.randint(0, 18)} for d in range(days)]
+    return {"days": rows, "_fps": [fp("steps", who, r["day"]) for r in rows]}
+
+
+def commute(rng: random.Random, who: str, start: date, home: tuple[float, float]) -> dict:
+    work = (round(40.70 + rng.random() * 0.06, 4), round(-74.01 + rng.random() * 0.04, 4))
+    trips = []
+    for d in range(10):
+        day = start + timedelta(days=d + (d // 5) * 2)
+        mode = rng.choices([m for m, _ in MODES], [w for _, w in MODES])[0]
+        mins = {"subway": 32, "bus": 44, "bike": 27, "walk": 55, "rideshare": 29}[mode] + rng.randint(-6, 12)
+        for leg, (a, b) in enumerate([(home, work), (work, home)]):
+            trips.append({"trip": f"{day.isoformat()}-{leg}", "date": day.isoformat(), "mode": mode, "minutes": mins + rng.randint(-4, 6),
+                          "km": round(math.dist(a, b) * 100, 1), "from": {"lat": a[0], "lng": a[1]}, "to": {"lat": b[0], "lng": b[1]},
+                          "depart": f"{(8 if leg == 0 else 17) + rng.randint(0, 1):02d}:{rng.randint(0, 59):02d}"})
+    return {"trips": trips, "_fps": [fp("trip", who, t["trip"]) for t in trips]}
+
+
+def screen_time(rng: random.Random, who: str, start: date, days: int = 7) -> dict:
+    rows = []
+    for d in range(days):
+        apps = rng.sample(APPS, rng.randint(4, 7))
+        rows.append({"day": (start + timedelta(days=d)).isoformat(), "pickups": rng.randint(40, 140),
+                     "apps": [{"app": n, "category": c, "minutes": rng.randint(4, 95)} for n, c in apps]})
+    return {"usage": rows, "_fps": [fp("screen", who, r["day"]) for r in rows]}
+
+
+def energy(rng: random.Random, who: str, start: date, days: int = 7) -> dict:
+    rows = [{"t": f"{(start + timedelta(days=d)).isoformat()}T{h:02d}:00",
+             "kwh": round(max(0.05, 0.35 + 0.6 * (h in (7, 8, 18, 19, 20, 21)) + rng.gauss(0, 0.12)), 2)} for d in range(days) for h in range(24)]
+    return {"meter": rows, "tariff": rng.choice(["Con Edison residential", "Con Edison time-of-use"]), "_fps": [fp("kwh", who, start, d) for d in range(days)]}
+
+
 def make_record(kind: str, rng: random.Random, who: str, idx: int, home: tuple[float, float]) -> dict:
     base = date(2026, 9, 1) + timedelta(days=idx * rng.randint(2, 5))
     if kind == "gps_track":
@@ -106,6 +151,14 @@ def make_record(kind: str, rng: random.Random, who: str, idx: int, home: tuple[f
         body = receipts(rng, who, 9 + idx % 2)
     elif kind == "audio":
         body = voice(rng, who)
+    elif kind == "step_count":
+        body = steps(rng, who, base)
+    elif kind == "commute":
+        body = commute(rng, who, base, home)
+    elif kind == "screen_time":
+        body = screen_time(rng, who, base)
+    elif kind == "energy_use":
+        body = energy(rng, who, base)
     else:
         body = air(rng, idx, base)
     if KINDS[kind]["personal"]:
@@ -123,6 +176,14 @@ def file_name(kind: str, body: dict, idx: int) -> str:
         return f"receipts_{body['receipts'][0]['date'][:7]}.json"
     if kind == "audio":
         return f"voice_clips_{idx + 1}.json"
+    if kind == "step_count":
+        return f"steps_from_{body['days'][0]['day']}.csv"
+    if kind == "commute":
+        return f"commute_{body['trips'][0]['date']}.json"
+    if kind == "screen_time":
+        return f"screen_time_week_of_{body['usage'][0]['day']}.json"
+    if kind == "energy_use":
+        return f"smart_meter_{body['meter'][0]['t'][:10]}.csv"
     return f"air_{body['site'].lower().replace(' ', '_')}_{body['readings'][0]['t'][:10]}.csv"
 
 
@@ -136,6 +197,10 @@ def pseudonymize(kind: str, body: dict) -> dict:
         out["nights"] = [{k: v for k, v in n.items() if k != "bedtime"} for n in body["nights"]]
     if kind == "purchase_receipts":
         out["receipts"] = [{k: v for k, v in r.items() if k != "receipt"} for r in body["receipts"]]
+    if kind == "commute":   # home and work blurred to about 1 km, trip ids dropped
+        out["trips"] = [{**{k: v for k, v in t.items() if k not in ("trip", "from", "to")},
+                         "from": {"lat": round(t["from"]["lat"], 2), "lng": round(t["from"]["lng"], 2)},
+                         "to": {"lat": round(t["to"]["lat"], 2), "lng": round(t["to"]["lng"], 2)}} for t in body["trips"]]
     return out
 
 

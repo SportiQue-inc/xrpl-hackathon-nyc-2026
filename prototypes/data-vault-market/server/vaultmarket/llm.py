@@ -79,13 +79,14 @@ def _openai(c, system: str, prompt: str, max_tokens: int, model: str = "auto"):
     return None
 
 
-def _slot() -> bool:
-    """Take one call slot under the per-minute and per-day caps, or say no."""
+def _slot(chat: bool = False) -> bool:
+    """Chat may use budget ahead of pacing; all agents share the same hard minute and daily caps."""
     with _lock:
         now = time.time()
         if USAGE["day"] != time.strftime("%Y-%m-%d", time.gmtime()):
             USAGE.update(day=time.strftime("%Y-%m-%d", time.gmtime()), calls=0)
-        if USAGE["calls"] >= _paced_cap(now):
+        limit = min(config.LLM_DAILY_CALLS, _paced_cap(now) + config.CHAT_RESERVE) if chat else _paced_cap(now)
+        if USAGE["calls"] >= limit:
             return False
         while _calls and now - _calls[0] > 60:
             _calls.pop(0)
@@ -97,6 +98,11 @@ def _slot() -> bool:
 
 
 _local = threading.local()
+
+
+def enabled() -> bool:
+    """A model is configured; a call that finds no budget falls back to the written rules."""
+    return config.LLM_PROVIDER in ("anthropic", "openai")
 
 
 def free_slots() -> int:
@@ -130,7 +136,7 @@ def _get_client():
     return _client
 
 
-def ask_json(system: str, prompt: str, max_tokens: int = 500, model: str = "auto") -> dict | None:
+def ask_json(system: str, prompt: str, max_tokens: int = 500, model: str = "auto", chat: bool = False) -> dict | None:
     """One JSON object from the model, or None (caller falls back to its rules)."""
     _last.model = "rules"
     if not isinstance(model, str) or model not in models():
@@ -140,7 +146,7 @@ def ask_json(system: str, prompt: str, max_tokens: int = 500, model: str = "auto
     if left is not None and left <= 0:
         USAGE["fallbacks"] += 1
         return None
-    if config.LLM_PROVIDER not in ("anthropic", "openai") or not _slot():
+    if config.LLM_PROVIDER not in ("anthropic", "openai") or not _slot(chat):
         USAGE["fallbacks"] += 1
         return None
     if left is not None:

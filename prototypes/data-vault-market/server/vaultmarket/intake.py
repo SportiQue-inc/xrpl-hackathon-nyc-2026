@@ -27,7 +27,8 @@ if not os.path.exists(_KEY_FILE):
 SIGNER = SigningKey(open(_KEY_FILE, "rb").read())
 INTAKE_PUBKEY = SIGNER.verify_key.encode().hex()
 
-CLEAN_FEE = {"gps_track": 0.2, "sleep_log": 0.5, "purchase_receipts": 0.2, "audio": 0.3, "air": 0.2}   # price units
+CLEAN_FEE = {"gps_track": 0.2, "sleep_log": 0.5, "purchase_receipts": 0.2, "audio": 0.3, "air": 0.2,
+             "step_count": 0.1, "commute": 0.3, "screen_time": 0.2, "energy_use": 0.2}   # price units
 
 SENSITIVE_KEYS = {"diagnosis": "a diagnosis", "icd10": "diagnosis codes", "medications": "medications", "prescription": "prescriptions",
                   "passport_no": "a passport number", "ssn": "a social security number", "mrn": "a medical record number"}
@@ -44,12 +45,21 @@ def classify(body: dict) -> str | None:
         return "audio"
     if "readings" in body:
         return "air"
+    if "days" in body:
+        return "step_count"
+    if "trips" in body:
+        return "commute"
+    if "usage" in body:
+        return "screen_time"
+    if "meter" in body:
+        return "energy_use"
     return None
 
 
 def records(kind: str, body: dict) -> list:
     return {"gps_track": lambda: [body], "sleep_log": lambda: body["nights"], "purchase_receipts": lambda: body["receipts"],
-            "audio": lambda: body["clips"], "air": lambda: body["readings"]}[kind]()
+            "audio": lambda: body["clips"], "air": lambda: body["readings"], "step_count": lambda: body["days"],
+            "commute": lambda: body["trips"], "screen_time": lambda: body["usage"], "energy_use": lambda: body["meter"]}[kind]()
 
 
 def screen(body: dict) -> dict:
@@ -84,7 +94,7 @@ def screen(body: dict) -> dict:
     if kind == "audio" and any(c.get("snr_db", 30) < 10 for c in body["clips"]):
         issues.append("clips too noisy to use")
     if issues:
-        return {"verdict": "clean", "kind": kind, "why": "; ".join(issues), "issues": issues, "fee": CLEAN_FEE[kind]}
+        return {"verdict": "clean", "kind": kind, "why": "; ".join(issues), "issues": issues, "fee": CLEAN_FEE.get(kind, 0.2)}
     return {"verdict": "ok", "kind": kind, "why": "schema, value ranges and duplicates all check out", "issues": []}
 
 

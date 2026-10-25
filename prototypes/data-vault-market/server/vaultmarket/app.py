@@ -204,7 +204,7 @@ def _chat_today(aid: str) -> int:
 @app.get("/api/meta")
 def meta():
     return {"ledger": M.rail.name, "model": llm.model_name(), "models": llm.models(), "llm": llm.USAGE, "kinds": {**KINDS, data.PACKAGE_KIND: data.PACKAGE_INFO}, "k_min": config.K_MIN,
-            "revision": os.environ.get("APP_REVISION"), "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": False, "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
+            "revision": os.environ.get("APP_REVISION"), "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": False, "asset_label": M.rail.label(), "asset_footnote": config.ASSET_FOOTNOTE if M.rail.asset == "USD" else "", "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
             "rpm_cap": config.LLM_RPM, "daily_cap": config.LLM_DAILY_CALLS, "engine_url": config.ENGINE_URL}
 
 
@@ -269,7 +269,7 @@ def demo(minutes: int = 60):
     for a in styles:
         a['receipts']=[{'asset':r['asset'],'amount':r['drops']/1e6,'at':r['created'],'contract':r['contract'],'kind':r['kind'],'buyer':r['buyer_name']} for r in rows if r['src']==a['id']]
     activity=[]
-    for c in M.s.q("SELECT id,buyer,seller,kind,status,reason,created FROM contracts ORDER BY id DESC LIMIT 100"):
+    for c in M.s.q("SELECT id,buyer,seller,kind,status,reason,total,created FROM contracts ORDER BY id DESC LIMIT 100"):
         if c['buyer'] not in ids or c['seller'] not in ids:
             continue
         sources=set()
@@ -603,6 +603,8 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
     _guard(request, aid)
     if aid.startswith("u-") and _chat_today(aid) >= config.CHAT_DAILY:
         raise HTTPException(429, f"your agent answers {config.CHAT_DAILY} messages a day; try again tomorrow")
+    if aid == "demo-vault" and _chat_today(aid) >= config.DEMO_CHAT_DAILY:
+        raise HTTPException(429, "the shared demo has used today's agent messages; use your own vault or try again tomorrow")
     text = body["text"].strip()[:500]
     M.chat(aid, "me", text)
     a = M.acct(aid)
@@ -612,37 +614,105 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
     if w and w["buyer"] != aid:
         M.enqueue_sale(aid, w["kind"], w["id"])
         return {"ok": True}
-    p = {"kind":None,"intent":"other","price":None} if discovery else agents.parse_chat(text, sell_model=a["sell_agent"].get("model", "auto"), buy_model=a["buy_agent"].get("model", "auto"))
-    if not p["kind"]:
+    if llm.enabled():
+        threading.Thread(target=_converse, args=(aid, text, body, discovery), daemon=True).start()
+    else:
+        _rules_chat(aid, text, body, discovery)
+    return {"ok": True}
+
+
+def _amt(w) -> str:
+    return f"{w['expected']*config.MICRO_PER_UNIT/1000000:.2f} {M.rail.label()}"
+
+
+def _offer_buttons(offers) -> list[dict]:
+    return [{"t":f"{KINDS[w['kind']]['label']} · {w['purpose']} · ~{_amt(w)}","do":"interest","posting":w["id"]} for w in offers]
+
+
+def _set_min(aid: str, kind: str, price: float):
+    floor=float(price)/(config.MICRO_PER_UNIT/1000000)
+    if not 0<=floor<1000000:
+        raise HTTPException(400,"Enter a finite non-negative minimum")
+    rules=M.acct(aid)["sell_agent"];rules.setdefault("min",{})[kind]=floor
+    M.s.x("UPDATE accounts SET sell_agent=? WHERE id=?",(json.dumps(rules),aid))
+
+
+def _post_buy(aid: str, kind: str, offer: float, resale=False) -> int:
+    a = M.acct(aid)
+    if not 0<offer<1000000:
+        raise HTTPException(400,"Enter a positive purchase budget")
+    pid = M.s.insert("postings", buyer=aid, kind=kind, offer=offer, max=round(offer * 1.25, 1), purpose="aggregation and resale" if resale else f"{a['name']}'s own use", lot=1,
+                     min_trust=a["buy_agent"].get("min_trust", 0.7), resale=int(bool(resale)), status="open", once=1)
+    def run():
+        with M.lock:          # released even if the negotiation raises, or the market loop would stall
+            M.negotiate(M.s.one("SELECT * FROM postings WHERE id = ?", (pid,)))
+    threading.Thread(target=run, daemon=True).start()
+    return pid
+
+
+def _rules_chat(aid: str, text: str, body: dict, discovery: bool):
+    """The written-rules agent, used when no model is configured or the model does not answer."""
+    a = M.acct(aid)
+    p = {"kind":None,"intent":"discover","price":None} if discovery else agents.parse_chat(text, sell_model=a["sell_agent"].get("model", "auto"), buy_model=a["buy_agent"].get("model", "auto"))
+    if p["intent"] == "other":
+        M.chat(aid, "agent", "Tell me what to sell or what you need, for example 'sell my sleep logs' or 'I need air-quality data'.")
+    elif not p["kind"]:
         offers=_sell_now(aid)[:3]
         if offers:
-            lines=[f"{KINDS[w['kind']]['label']}: {w['listed']+w['private']} available file(s), wanted for {w['purpose']}; expected {w['expected']*config.MICRO_PER_UNIT/1000000:g} {M.rail.symbol()}." for w in offers]
-            M.chat(aid,"agent","From your own DB, these requests fit your data and terms. "+" ".join(lines)+" Choose one to authorize a one-to-one negotiation. A quote is not a completed payout.",[{"t":"Sell "+KINDS[w["kind"]]["label"],"do":"interest","posting":w["id"]} for w in offers])
+            M.chat(aid,"agent",f"{len(offers)} buyer request{'s' if len(offers)>1 else ''} fit your data and your minimums: "+"; ".join(f"{KINDS[w['kind']]['label']} for {w['purpose']} (~{_amt(w)})" for w in offers)+". Pick one and I'll negotiate it for you. The price is an estimate until the deal settles.",
+                   _offer_buttons(offers))
         else:
             M.chat(aid,"agent","I found no matching sale yet. Add records in My DB; I will classify them and compare them with buyers' requests. Your files stay private until you choose to sell.")
     elif p["intent"] == "sell":
         if p.get("price") is not None:
-            floor=float(p["price"])/(config.MICRO_PER_UNIT/1000000)
-            if not 0<=floor<1000000:
-                raise HTTPException(400,"Enter a finite non-negative minimum")
-            rules=a["sell_agent"];rules.setdefault("min",{})[p["kind"]]=floor
-            M.s.x("UPDATE accounts SET sell_agent=? WHERE id=?",(json.dumps(rules),aid))
-            M.chat(aid,"agent",f"Your minimum is now {p['price']:g} {M.rail.symbol()} for this data category.")
+            _set_min(aid, p["kind"], p["price"])
+            M.chat(aid,"agent",f"Your minimum is now {p['price']:g} {M.rail.label()} for this data category.")
         M.enqueue_sale(aid, p["kind"])
     elif p["intent"] == "buy":
         offer = float(body["price"]) if body.get("price") is not None else float(p["price"])/(config.MICRO_PER_UNIT/1000000) if p["price"] is not None else KINDS[p["kind"]]["price"]
-        if not 0<offer<1000000:
-            raise HTTPException(400,"Enter a positive purchase budget")
-        pid = M.s.insert("postings", buyer=aid, kind=p["kind"], offer=offer, max=round(offer * 1.25, 1), purpose="aggregation and resale" if body.get("resale") else f"{a['name']}'s own use", lot=1,
-                         min_trust=a["buy_agent"].get("min_trust", 0.7), resale=int(bool(body.get("resale"))), status="open", once=1)
+        pid = _post_buy(aid, p["kind"], offer, body.get("resale"))
         M.chat(aid, "agent", f"Posted request #{pid}: {KINDS[p['kind']]['label'].lower()} at {offer}, up to {round(offer * 1.25, 1)}. I will negotiate it next and buy on my own up to {a['buy_agent'].get('auto_limit')} total.")
-        def run():
-            with M.lock:          # released even if the negotiation raises, or the market loop would stall
-                M.negotiate(M.s.one("SELECT * FROM postings WHERE id = ?", (pid,)))
-        threading.Thread(target=run, daemon=True).start()
-    else:
-        M.chat(aid, "agent", "Tell me what to sell or what you need, for example 'sell my sleep logs' or 'I need air-quality data'.")
-    return {"ok": True}
+
+
+def _converse(aid: str, text: str, body: dict, discovery: bool):
+    """The model holds the conversation, off the request path so a slow provider never times the request out.
+    It proposes; code checks every action against the owner's rules before anything happens."""
+    try:
+        a = M.acct(aid); u = config.MICRO_PER_UNIT/1000000
+        files = M.s.q("SELECT kind, status, COUNT(*) n FROM files WHERE account = ? AND status IN ('listed','private') GROUP BY kind, status", (aid,))
+        sold = M.s.one("SELECT COUNT(*) n, COALESCE(SUM(total*unit_micro),0)/1000000.0 t FROM contracts WHERE seller = ? AND status = 'settled' AND asset = ?", (aid, M.rail.symbol()))
+        offers = _sell_now(aid)[:12]
+        demand = [{"kind": d["kind"], "n": d["n"], "best": d["best"]} for d in M.s.q("SELECT kind, COUNT(*) n, MAX(max) best FROM postings WHERE status='open' AND buyer != ? GROUP BY kind", (aid,))]
+        history = [{"who": c["role"], "text": c["text"][:300]} for c in M.s.q("SELECT role, text FROM chat WHERE account = ? ORDER BY id DESC LIMIT 8", (aid,))][::-1]
+        ctx = {"asset": M.rail.label(), "my_files": [dict(f) for f in files], "deals_sold": sold["n"], "sold_total": sold["t"],
+               "selling_mode": a["sell_agent"].get("mode"), "my_minimums": {k: round(v*u, 2) for k, v in (a["sell_agent"].get("min") or {}).items()},
+               "blocked_purposes": a["sell_agent"].get("blocks", []), "auto_buy_limit": round(a["buy_agent"].get("auto_limit", 0)*u, 2),
+               "matching_offers": [{"id": w["id"], "kind": w["kind"], "buyer": w["buyer_name"], "purpose": w["purpose"], "you_would_get": round(w["expected"]*u, 2), "buyer_budget": round(w["max"]*u, 2)} for w in offers],
+               "open_demand_by_kind": demand, "kinds": {k: v["label"] for k, v in KINDS.items()}}
+        side = "buy_agent" if agents.parse_chat(text)["intent"] == "buy" else "sell_agent"
+        out = agents.chat_reply(text, ctx, history, model=a[side].get("model", "auto"))
+        reply = str((out or {}).get("reply") or "").strip()
+        if not reply:
+            raise ValueError("no model answer")
+        by_id = {w["id"]: w for w in offers}
+        picks = [by_id[i] for i in (out.get("offer_ids") or []) if isinstance(i, int) and i in by_id][:3]
+        # the model only proposes: each change or trade becomes a button the owner presses, checked again when pressed
+        acts = _offer_buttons(picks)
+        sm = out.get("set_min") or {}
+        if sm.get("kind") in KINDS and isinstance(sm.get("price"), (int, float)) and 0 <= sm["price"] < 1e6:
+            acts.append({"t": f"Set {KINDS[sm['kind']]['label'].lower()} minimum to {sm['price']:g} {M.rail.label()}", "do": "set_min", "kind": sm["kind"], "price": float(sm["price"])})
+        if out.get("sell_kind") in KINDS:
+            acts.append({"t": f"Sell my {KINDS[out['sell_kind']]['label'].lower()}", "do": "sell_kind", "kind": out["sell_kind"]})
+        buy = out.get("buy") or {}
+        if buy.get("kind") in KINDS and isinstance(buy.get("budget"), (int, float)) and 0 < buy["budget"] < 1e6:
+            acts.append({"t": f"Post a request: {KINDS[buy['kind']]['label'].lower()} up to {buy['budget']:g} {M.rail.label()}", "do": "post_buy", "kind": buy["kind"], "budget": float(buy["budget"])})
+        M.chat(aid, "agent", reply[:800], acts or None)
+    except Exception:
+        try:
+            _rules_chat(aid, text, body, discovery)
+        except HTTPException as e:
+            M.chat(aid, "agent", str(e.detail))
+    M.events += 1
 
 
 @app.post("/api/account/{aid}/chat/{cid}/act")
@@ -665,6 +735,14 @@ def chat_act(aid: str, cid: int, request: Request, body: dict = Body(...)):
             M.chat(aid,"agent",f"Purchase #{act['contract']}: {state['status']}. Open its receipts for the payment and delivery result.")
             M.events+=1
         threading.Thread(target=go,daemon=True).start()
+    elif act["do"] == "sell_kind" and act.get("kind") in KINDS:
+        M.enqueue_sale(aid, act["kind"])
+    elif act["do"] == "set_min" and act.get("kind") in KINDS:
+        _set_min(aid, act["kind"], act["price"])
+        M.chat(aid, "agent", f"Your minimum for {KINDS[act['kind']]['label'].lower()} is now {act['price']:g} {M.rail.label()}.")
+    elif act["do"] == "post_buy" and act.get("kind") in KINDS:
+        pid = _post_buy(aid, act["kind"], act["budget"]/(config.MICRO_PER_UNIT/1000000))
+        M.chat(aid, "agent", f"Posted request #{pid} for {KINDS[act['kind']]['label'].lower()}, up to {act['budget']:g} {M.rail.label()}. I'll negotiate it next.")
     elif act["do"] == "skip_buy":
         M.s.x("UPDATE contracts SET status='rejected',reason='Owner skipped this purchase' WHERE id=? AND buyer=? AND status='awaiting buyer'",(act.get("contract"),aid))
     return {"ok": True}
