@@ -460,3 +460,99 @@ def test_seller_wallet_history_only_counts_a_finished_escrow_as_received(market)
     market.rail.led.client=SimpleNamespace(request=lambda _:SimpleNamespace(result={'transactions':rows}))
     history=market.rail.wallet_activity('seller')
     assert len(history)==1 and history[0]['type']=='EscrowFinish' and history[0]['direction']=='in'
+
+
+def test_demo_session_is_synthetic_scoped_and_cannot_receive_personal_files(market, monkeypatch):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web,'M',market);monkeypatch.setattr(config,'PUBLIC',True)
+    market.s.insert('accounts',id='demo-vault',name='Demo Dana',type='person',sell_agent={'mode':'ask','min':{},'blocks':[]},buy_agent={'auto_limit':10,'min_trust':.7})
+    client=TestClient(web.app,base_url='https://testserver')
+    r=client.post('/api/demo-session');assert r.status_code==200
+    me=client.get('/api/me').json()['user'];assert me['demo'] and me['account']=='demo-vault'
+    assert client.get('/api/account/demo-vault').status_code==200
+    assert client.post('/api/account/demo-vault/settings',json={}).status_code==200
+    assert client.get('/api/account/u-private').status_code==403
+    assert client.post('/api/account/seller/settings',json={}).status_code==403
+    assert client.post('/api/account/demo-vault/upload',files={'file':('private.json',b'{}')}).status_code==403
+    assert market.s.one('SELECT count(*) n FROM users')['n']==0
+    cid=market.s.insert('contracts',posting=market.test_post,buyer='u-private',seller='demo-vault',sellers=['demo-vault'],kind='sleep_log',status='rejected',trace={})
+    assert client.get('/api/contract/'+str(cid)).status_code==403
+
+
+def test_auto_demo_never_replaces_an_existing_member_session(market,monkeypatch):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web,'M',market)
+    market.s.insert('users',username='member',account='u-member')
+    market.s.insert('sessions',username='member',token='member-session')
+    client=TestClient(web.app,base_url='https://testserver');client.cookies.set(web.COOKIE,'member-session')
+    r=client.post('/api/demo-session');assert r.status_code==200
+    assert client.get('/api/me').json()['user']['account']=='u-member'
+
+
+def test_demo_can_open_samples_and_finish_its_own_queued_sale(market, monkeypatch):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web, 'M', market)
+    monkeypatch.setattr(config, 'PUBLIC', True)
+    monkeypatch.setattr(market, '_connect_all', lambda: None)
+    market.seed()
+    market.addr['demo-vault'] = market.rail.ensure_account('demo-vault')
+    client = TestClient(web.app, base_url='https://testserver')
+    assert client.post('/api/demo-session').status_code == 200
+    token = client.cookies.get(web.COOKIE)
+    assert client.post('/api/demo-session').status_code == 200
+    assert client.cookies.get(web.COOKIE) == token
+    own = client.get('/api/account/demo-vault').json()
+    assert own['account']['id'] == 'demo-vault' and own['files'] == 3
+    assert {b['kind'] for b in own['bundles']} == {'gps_track', 'sleep_log', 'purchase_receipts'}
+    response = client.post('/api/account/demo-vault/upload-sample', json={'kind': 'sleep_log'})
+    assert response.status_code == 200
+    sample = response.json()
+    if sample['verdict'] == 'clean':
+        assert client.post(f"/api/account/demo-vault/upload/{sample['upload']}/clean").status_code == 200
+    assert client.get('/api/account/demo-vault').json()['files'] == 4
+    assert client.post(f'/api/account/demo-vault/sell-now/{market.test_post}').status_code == 200
+    assert client.post('/api/account/demo-vault/chat', json={'text': 'sell my sleep logs'}).status_code == 200
+    queued = client.get('/api/account/demo-vault').json()
+    assert len(queued['agent_queue']) == 1
+    assert queued['agent_queue'][0]['status'] == 'queued'
+    assert queued['chat'][-1]['text'] == 'sell my sleep logs'
+    assert market.process_sale_queue()
+    completed = client.get('/api/account/demo-vault').json()['agent_queue'][0]
+    assert completed['status'] == 'settled'
+    contract = client.get(f"/api/contract/{completed['contract']}").json()['contract']
+    assert contract['seller'] == 'demo-vault' and contract['sellers'] == ['demo-vault']
+    assert client.post('/api/me/wallet', json={'address': market.addr['seller']}).status_code == 403
+    assert client.post('/api/me/wallet/verify').status_code == 403
+    assert market.s.one('SELECT count(*) n FROM users')['n'] == 0
+
+
+def test_demo_activity_reports_actual_sources_and_excludes_member_sessions(market, monkeypatch):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web, 'M', market)
+    monkeypatch.setattr(config, 'PUBLIC', True)
+    synthetic = market.s.insert('contracts', buyer='buyer', seller='seller', kind='sleep_log', status='negotiating')
+    market.s.insert('messages', contract=synthetic, speaker='buyer', side='buyer', text='offer', thinking={'by': 'gpt-4.1-mini', 't': 'budget'})
+    member = market.s.insert('contracts', buyer='u-private', seller='seller', kind='sleep_log', status='negotiating')
+    shared = market.s.insert('contracts', buyer='buyer', seller='demo-vault', kind='sleep_log', status='settled')
+    activity = TestClient(web.app).get('/api/demo').json()['activity']
+    assert next(c for c in activity if c['id'] == synthetic)['source'] == 'gpt-4.1-mini'
+    assert {member, shared}.isdisjoint(c['id'] for c in activity)
+
+
+def test_current_asset_statistics_count_each_actual_finish_once(market, monkeypatch):
+    from vaultmarket import app as web
+    monkeypatch.setattr(web, 'M', market)
+    monkeypatch.setattr(config, 'MICRO_PER_UNIT', 1000000)
+    market.rail.asset = 'USD'
+    current = market.s.insert('contracts', buyer='buyer', seller='seller', kind='sleep_log', status='settled', total=13.7, asset='test USD', unit_micro=1000000)
+    for amount in (5400000, 8300000):
+        market.s.insert('txs', contract=current, type='EscrowFinish (key released)', src='seller', dst='buyer', drops=amount, asset='test USD', result='tesSUCCESS')
+    market.s.insert('txs', contract=current, type='EscrowCreate', src='buyer', dst='seller', drops=13700000, asset='test USD', result='tesSUCCESS')
+    market.s.insert('txs', contract=current, type='EscrowFinish (key released)', src='seller', dst='buyer', drops=9000000, asset='test USD', result='tecFAILED')
+    legacy = market.s.insert('contracts', buyer='buyer', seller='seller', kind='sleep_log', status='settled', total=2.9, asset='XRP', unit_micro=10000)
+    market.s.insert('txs', contract=legacy, type='EscrowFinish (key released)', src='seller', dst='buyer', drops=29000, asset='XRP', result='tesSUCCESS')
+    assert web._paid_now() == {'units': 13.7, 'micro': 13700000}

@@ -319,9 +319,9 @@ def market(request: Request, account: str = "", domain: str | None = None):
 
 def _paid_now() -> dict:
     """What settled deals in the current settlement asset paid on the ledger. Older counters mix in the XRP era."""
-    r = M.s.one("SELECT COALESCE(SUM(c.total), 0) units, COALESCE(SUM(t.drops), 0) micro FROM contracts c JOIN txs t ON t.contract = c.id "
+    r = M.s.one("SELECT COALESCE(SUM(t.drops), 0) micro FROM contracts c JOIN txs t ON t.contract = c.id "
                 "AND t.type LIKE 'EscrowFinish%' AND t.result = 'tesSUCCESS' WHERE c.status = 'settled' AND c.asset = ?", (M.rail.symbol(),))
-    return r
+    return {"micro":r["micro"],"units":r["micro"]/config.MICRO_PER_UNIT}
 
 
 def _sell_now(aid: str) -> list[dict]:
@@ -396,7 +396,7 @@ def contract(cid: int, request: Request):
 
 
 def _bundles(aid: str):
-    files = M.s.q("SELECT id, kind, name, status, sold, bytes, source, derived_from, created, clean FROM files WHERE account = ? ORDER BY created DESC", (aid,))
+    files = M.s.q("SELECT id, kind, name, status, sold, bytes, source, derived_from, resale, created, clean FROM files WHERE account = ? ORDER BY created DESC", (aid,))
     for f in files:
         c = json.loads(f.pop("clean") or "{}")
         att = c.pop("_attestation", None)
