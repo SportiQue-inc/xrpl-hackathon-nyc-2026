@@ -33,13 +33,17 @@ def main(c, L):
 
     header, req = L._x402_state()[p.tx_hash]
     t = time.time()
+    paid = L.balance_drops(api)
     try:
         s = fac.settle(payment_header=header, payment_requirements=req)
-        res = f"success={s.success} reason={s.error_reason}"
+        res = f"success={s.success} reason={s.error_reason} tx={'same' if s.transaction == p.tx_hash else s.transaction}"
     except Exception as e:  # noqa: BLE001
         res = f"refused: {e}"
     c.step("replay the same payment header", None, res, None, t, "failure",
            "must not pay twice: same signed tx, sequence already used")
+    time.sleep(8)  # let any second settlement reach a validated ledger
+    c.step("hospital API balance unchanged after the replay", None, str(L.balance_drops(api) - paid), "0",
+           time.time(), "check", "a replay may answer success for the already-settled tx, but it cannot pay again")
 
     from dataclasses import replace
     t = time.time()

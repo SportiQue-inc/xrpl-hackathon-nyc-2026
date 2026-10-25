@@ -21,6 +21,9 @@ from .base import LostResponse, Prepared
 
 FACILITATOR_URL = os.environ.get("X402_FACILITATOR_URL", "https://xrpl-facilitator-testnet.t54.ai")
 NETWORK = "xrpl:1"  # Testnet
+# The T54 facilitator refuses requirements without extra.sourceTag (source_tag_mismatch);
+# 804681468 is the x402-xrpl SDK default analytics tag.
+SOURCE_TAG = int(os.environ.get("X402_SOURCE_TAG", "804681468"))
 
 
 class X402Mixin:
@@ -36,7 +39,7 @@ class X402Mixin:
         """What the gate answers with HTTP 402 for this order."""
         return PaymentRequirements(scheme="exact", network=NETWORK, amount=str(amount_drops), asset="XRP",
                                    pay_to=destination, max_timeout_seconds=300,
-                                   extra={"invoiceId": invoice})
+                                   extra={"invoiceId": invoice, "sourceTag": SOURCE_TAG})
 
     def prepare_payment(self, source, destination, amount_drops, invoice_id, memo):
         state = self._x402_state()

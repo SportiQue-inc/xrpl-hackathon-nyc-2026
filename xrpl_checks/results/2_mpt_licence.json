@@ -1,0 +1,136 @@
+{
+ "key": "2_mpt_licence",
+ "title": "MPT data licence + Clawback",
+ "status": "pass",
+ "amendments": {
+  "MPTokensV1": "enabled",
+  "Clawback": "enabled"
+ },
+ "accounts": {
+  "participant_agent (MPT issuer)": "r4opQCK1ymsmtB1xdVUYBmjn7scMEj5aar",
+  "study_A (licence holder)": "rsdgcxcK3bUWxkSUe1osVjkYcAG13HGuqd",
+  "study_B (third party)": "rs4zAcio6fByVmC6RLikmYaJAr6ACQezwv"
+ },
+ "steps": [
+  {
+   "label": "MPTokenIssuanceCreate (max 1, RequireAuth|CanClawback)",
+   "kind": "success",
+   "tx": "26ED61533DD5FA3F8F29ACD00118BB19C2C813AC606EFB22D484533D24FF4673",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 48.9,
+   "explorer": "https://testnet.xrpl.org/transactions/26ED61533DD5FA3F8F29ACD00118BB19C2C813AC606EFB22D484533D24FF4673",
+   "note": ""
+  },
+  {
+   "label": "MPTokenAuthorize (study opts in)",
+   "kind": "success",
+   "tx": "AEB6B460D751B7321F53FE63514168E285841C079A2D314BA2D2A11445924C7D",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 48.9,
+   "explorer": "https://testnet.xrpl.org/transactions/AEB6B460D751B7321F53FE63514168E285841C079A2D314BA2D2A11445924C7D",
+   "note": ""
+  },
+  {
+   "label": "MPTokenAuthorize (issuer authorizes study)",
+   "kind": "success",
+   "tx": "DE1344EB9F35214BB8237D6C208A3555A05CE0E88DCC8E339E02EED4D80FE2A8",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 48.9,
+   "explorer": "https://testnet.xrpl.org/transactions/DE1344EB9F35214BB8237D6C208A3555A05CE0E88DCC8E339E02EED4D80FE2A8",
+   "note": ""
+  },
+  {
+   "label": "MPT Payment issuer -> study (licence granted)",
+   "kind": "success",
+   "tx": "11742C910834817A1560FE57601A6FD1A9CA8B519B85B67FA00D879D8D701378",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 48.9,
+   "explorer": "https://testnet.xrpl.org/transactions/11742C910834817A1560FE57601A6FD1A9CA8B519B85B67FA00D879D8D701378",
+   "note": ""
+  },
+  {
+   "label": "licence_held(study_A) after grant",
+   "kind": "check",
+   "tx": null,
+   "result": "True",
+   "expect": "True",
+   "ok": true,
+   "seconds": 0.0,
+   "explorer": null,
+   "note": ""
+  },
+  {
+   "label": "MPTokenAuthorize (study_B opts in, to rule out 'no holder object')",
+   "kind": "setup",
+   "tx": "0150C6771497C581DA7E52D5AEF858CFDE4DB77016C614EBD732BD5171BD6657",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 11.8,
+   "explorer": "https://testnet.xrpl.org/transactions/0150C6771497C581DA7E52D5AEF858CFDE4DB77016C614EBD732BD5171BD6657",
+   "note": ""
+  },
+  {
+   "label": "study_A -> study_B onward transfer",
+   "kind": "failure",
+   "tx": "6BE571AF3D33F761410CCDE9AE93FD9FAE44BB01D242757EA96D2B57E2DCFDF1",
+   "result": "tecNO_AUTH",
+   "expect": "tecNO_AUTH",
+   "ok": true,
+   "seconds": 15.5,
+   "explorer": "https://testnet.xrpl.org/transactions/6BE571AF3D33F761410CCDE9AE93FD9FAE44BB01D242757EA96D2B57E2DCFDF1",
+   "note": "no CanTransfer: holders cannot pass the licence on"
+  },
+  {
+   "label": "Clawback issuer <- study_A (consent revoked)",
+   "kind": "success",
+   "tx": "57E38EDDC483DB31B9D1F66BC7771C9CF6548F97F566FD834A5B7E693F818E8B",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 10.4,
+   "explorer": "https://testnet.xrpl.org/transactions/57E38EDDC483DB31B9D1F66BC7771C9CF6548F97F566FD834A5B7E693F818E8B",
+   "note": ""
+  },
+  {
+   "label": "licence_held(study_A) after clawback",
+   "kind": "check",
+   "tx": null,
+   "result": "False",
+   "expect": "False",
+   "ok": true,
+   "seconds": 0.0,
+   "explorer": null,
+   "note": ""
+  },
+  {
+   "label": "study_A tries to use/transfer after clawback",
+   "kind": "observe",
+   "tx": "186CA5B8EB3476D474CC205D4CDCAA5DB3F1EA99A8DB5F9FF564DDE48C17C92B",
+   "result": "tecNO_AUTH",
+   "expect": null,
+   "ok": true,
+   "seconds": 11.8,
+   "explorer": "https://testnet.xrpl.org/transactions/186CA5B8EB3476D474CC205D4CDCAA5DB3F1EA99A8DB5F9FF564DDE48C17C92B",
+   "note": ""
+  }
+ ],
+ "notes": [
+  "mpt_issuance_id = 014CAF91EF0EF374614632B5C6F7D2042514381999E8E865",
+  "issuance on ledger: found=True MaximumAmount=1 CanTransfer=False RequireAuth=True CanClawback=True",
+  "metadata on ledger: {\"consent\":\"abababababababababababababababab\",\"duo\":[\"DUO:0000007\",\"DUO:0000019\"],\"study\":\"study_A\",\"t\":\"agentrail.licence/v1\"}"
+ ],
+ "conclusion": "Licence MPT works end to end: non-transferable (tecNO_AUTH on onward transfer) and revocable by Clawback; licence_held() flips to False.",
+ "blocker": null,
+ "alternative": null,
+ "total_seconds": 136.3,
+ "ran_at": "2026-10-25T03:07:15Z"
+}

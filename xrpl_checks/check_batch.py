@@ -78,7 +78,7 @@ def main(c, L):
     buyer = c.account("buyer (study)", L.new_account("batch_buyer"))
     insts = [c.account("hospital_A", L.new_account("batch_hosp_a")),
              c.account("hospital_B", L.new_account("batch_hosp_b"))]
-    enabled = c.amendments.get("Batch") == "enabled"
+    enabled = "enabled" in (c.amendments.get("Batch"), c.amendments.get("BatchV1_1"))
     blocker = None
     if enabled:
         try:
@@ -97,4 +97,4 @@ def main(c, L):
 
 
 if __name__ == "__main__":
-    run("4_batch", "Batch atomic multi-hospital purchase", ["Batch", "fixBatchInnerSigs"], main)
+    run("4_batch", "Batch atomic multi-hospital purchase", ["Batch", "BatchV1_1", "fixBatchV1_2", "fixBatchInnerSigs"], main)
