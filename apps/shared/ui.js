@@ -84,6 +84,9 @@ const ICONS = {
   coin: '<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6.5V8M12 16v1.5"/>',
   building: '<path d="M4 21V5l8-2v18M12 8l8 2v11M4 21h16M8 8h.01M8 12h.01M8 16h.01M16 13h.01M16 17h.01"/>',
 };
+// Participation payment unit shown on the participant pages.
+export const UNIT = "RLUSD";
+
 export function icon(name, size = 18) {
   const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   s.setAttribute("viewBox", "0 0 24 24");

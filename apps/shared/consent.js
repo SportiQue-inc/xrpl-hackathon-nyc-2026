@@ -2,14 +2,15 @@
 // (제3자 제공: 개인정보 보호법 제17조 제2항, 민감정보: 제23조, 국외 이전: 제28조의8)를 각각 한 장씩 만듭니다.
 // 각 장의 본문 해시가 서명하는 statement에 들어가므로, 참여자가 읽은 글과 서명이 묶입니다.
 
-const won = (x) => `${(Math.round((x || 0) * 100) / 100).toFixed(2)} XRP`;
+import { UNIT } from "./ui.js";
+const won = (x) => `${(Math.round((x || 0) * 100) / 100).toFixed(2)} ${UNIT}`;
 
 export async function textHash(text) {
   const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// r: request card, send: the items picked ({item, label, weeks, sensitive}), price: XRP for them,
+// r: request card, send: the items picked ({item, label, weeks, sensitive}), price: the payment for them,
 // names: {org, purpose, item(i), weeks(ws)}
 export function consentPages(r, send, price, names) {
   const { org, purpose, item, weeks } = names;

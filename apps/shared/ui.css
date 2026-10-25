@@ -331,11 +331,12 @@ a.ar-hash { color: var(--ar-brand); }
 
 /* ---------- consent document: pinned terms on top, one clause page at a time ---------- */
 .ar-flow { --uq-primary: #005FFF; --uq-text: #0F172A; --uq-sub: #64748B; --uq-border: #E2E8F0; --uq-low: #F1F5F9;
-  position: fixed; inset: 0; z-index: 60; background: #fff; color: var(--uq-text); display: flex; flex-direction: column;
-  max-width: 480px; margin: 0 auto; font-family: Pretendard, "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", Roboto, sans-serif; }
-.ar-flow .bar { height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-bottom: 1px solid var(--uq-border); flex: none; }
+  width: 100%; max-width: 480px; height: min(84vh, 760px); background: #fff; color: var(--uq-text); display: flex; flex-direction: column;
+  border-radius: 14px 14px 0 0; overflow: hidden; box-shadow: 0 -12px 40px rgba(15,23,42,.18); animation: ar-up .24s cubic-bezier(.2,.8,.2,1); font-family: Pretendard, "SF Pro Text", "Apple SD Gothic Neo", "Noto Sans KR", Roboto, sans-serif; }
+.ar-flow .grab { width: 42px; height: 4px; border-radius: 999px; background: #CBD5E1; margin: 8px auto 0; flex: none; }
+.ar-flow .bar { height: 48px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-bottom: 1px solid var(--uq-border); flex: none; }
 .ar-flow .bar .title { flex: 1; font-weight: 700; font-size: 16px; }
-.ar-pin { flex: none; padding: 14px 20px 12px; background: var(--uq-low); display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--uq-border); }
+.ar-pin { flex: none; padding: 12px 20px 10px; background: var(--uq-low); display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--uq-border); }
 .ar-pin .org { font-size: 16px; }
 .ar-pin .amt { font-size: 26px; line-height: 1.1; font-weight: 800; color: var(--uq-primary); letter-spacing: -.3px; }
 .ar-pin .ar-kv { margin: 0; row-gap: 2px; }

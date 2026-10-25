@@ -4,7 +4,7 @@
 import { engine, watchSelf } from "./api.js";
 import { createPasskey, passkeySupported, signWithPasskey } from "./passkey.js";
 import { consentPages, textHash } from "./consent.js";
-import { h, render, tag, icon, short, sum, banner, busy } from "./ui.js";
+import { h, render, tag, icon, short, sum, banner, busy, UNIT } from "./ui.js";
 
 const ITEM = {
   "heart_rate.daily": "안정시 심박", "fatigue.survey": "피로 설문", "blood_pressure.daily": "혈압(진료 기록)",
@@ -22,7 +22,7 @@ const EVENT = {
 };
 const CONSENT = { research: "연구 참여", third_party: "제3자 제공", sensitive: "민감정보", international: "국외 이전" };
 const itemName = (i) => ITEM[i] || i;
-const won = (x) => `${(Math.round((x || 0) * 100) / 100).toFixed(2)} XRP`;
+const won = (x) => `${(Math.round((x || 0) * 100) / 100).toFixed(2)} ${UNIT}`;
 const weeks = (ws) => {
   const s = [...new Set(ws)].sort((a, b) => a - b);
   if (!s.length) return "";
@@ -387,14 +387,16 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
       foot = [h("button", { class: "ar-fill", disabled: f.phase === "busy", onclick: signFlow },
         icon("unlock", 18), f.phase === "busy" ? (f.step || "확인 중") : "동의하고 패스키로 인증")];
     }
-    return h("div", { class: "ar-flow", role: "dialog", "aria-modal": "true", "aria-label": "연구 참여 동의서" },
+    return h("div", { class: "ar-sheet-wrap", onclick: (ev) => { if (ev.target === ev.currentTarget) closeFlow(); } },
+      h("div", { class: "ar-flow", role: "dialog", "aria-modal": "true", "aria-label": "연구 참여 동의서" },
+      h("div", { class: "grab" }),
       h("div", { class: "bar" },
         h("button", { class: "ar-iconbtn", style: { border: 0 }, onclick: back, "aria-label": "이전" }, icon("back")),
         h("span", { class: "title" }, "연구 참여 동의서"),
         h("button", { class: "ar-iconbtn", style: { border: 0 }, onclick: closeFlow, "aria-label": "닫기" }, icon("x"))),
       pin, progress,
       h("div", { class: "main" }, main),
-      h("div", { class: "foot" }, foot));
+      h("div", { class: "foot" }, foot)));
   }
 
   async function signFlow() {
