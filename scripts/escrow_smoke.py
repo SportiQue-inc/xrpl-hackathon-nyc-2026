@@ -1,5 +1,10 @@
 """Testnet smoke test for the key-reveal escrow: one finish, one cancel after deadline.
 Run: LEDGER=testnet python scripts/escrow_smoke.py"""
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 import time
 
 from agentrail.ledger import make_ledger

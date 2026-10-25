@@ -43,7 +43,10 @@ class Voice:
         p = os.environ.get("LLM_PROVIDER", "").lower()
         self.cache_path = os.environ.get("LLM_CACHE", os.path.join(os.path.dirname(__file__), "..", "fixtures",
                                                                     "llm_cache.json"))
-        self.record = os.environ.get("LLM_RECORD") == "1"
+        # Live answers are recorded by default, so a later run without quota replays them.
+        self.record = os.environ.get("LLM_RECORD", "1") == "1"
+        # Conversation sentences are optional; decisions (propose) get the call budget first.
+        self.speak = os.environ.get("LLM_SAY", "0") == "1"
         self.cache = {}
         if os.path.exists(self.cache_path):
             with open(self.cache_path) as f:
@@ -120,15 +123,22 @@ class Voice:
         """Ask for a JSON proposal. Returns (proposal, 'llm') or (None, 'rules').
         The caller validates every field; nothing here is trusted."""
         key = self._key(system, payload)
+        hit = self.cache.get(key)
         if self.provider == "replay":
-            hit = self.cache.get(key)
             return (hit["answer"], "llm") if hit else (None, "rules")
         with self._lock:
             if not self.active or self.calls >= self.max_calls:
-                return None, "rules"
+                return (hit["answer"], "llm") if hit else (None, "rules")
             self.calls += 1
         try:
-            out = self._ask_json(system, json.dumps(payload, ensure_ascii=False))
+            try:
+                out = self._ask_json(system, json.dumps(payload, ensure_ascii=False))
+            except Exception as e:
+                if "rate" not in str(e).lower() or "quota" in str(e).lower() or "per day" in str(e).lower():
+                    raise
+                import time
+                time.sleep(7)      # per-minute limit: wait once, then give up
+                out = self._ask_json(system, json.dumps(payload, ensure_ascii=False))
             if self.record and isinstance(out, dict):
                 with self._lock:
                     self.cache[key] = {"model": self.model, "answer": out}
@@ -137,13 +147,13 @@ class Voice:
         except Exception as e:
             with self._lock:
                 self._off(e)
-            return None, "rules"
+            return (hit["answer"], "llm") if hit else (None, "rules")
         return (out, "llm") if isinstance(out, dict) else (None, "rules")
 
     def say(self, speaker: str, to: str | None, facts: dict, fallback: str) -> tuple[str, str]:
         """Return (sentence, source). Source is 'llm' or 'rules'."""
         with self._lock:
-            if not self.active or self.calls >= self.max_calls:
+            if not self.speak or not self.active or self.calls >= self.max_calls:
                 return fallback, "rules"
             self.calls += 1
         prompt = (f"Agent: {speaker}\nTalking to: {to or 'its owner'}\n"

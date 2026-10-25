@@ -61,6 +61,13 @@ class XrplLedger(Ledger):
     def new_account(self, label: str) -> str:
         if label in self._labels:
             w = Wallet.from_seed(self._labels[label])
+            try:   # re-runs spend the same wallets; refill from the faucet when low
+                bal = int(self.client.request(AccountInfo(account=w.classic_address, ledger_index="validated"))
+                          .result["account_data"]["Balance"])
+                if bal < 60_000_000:
+                    generate_faucet_wallet(self.client, wallet=w, debug=False)
+            except Exception:
+                pass
         else:
             w = generate_faucet_wallet(self.client, debug=False)
             self._labels[label] = w.seed

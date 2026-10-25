@@ -254,8 +254,10 @@ def scene_c(w: World) -> dict:
         SealedBox(PrivateKey.generate()).decrypt(sealed)
         w.store.log("gate", "error", "operator could open a bundle (should never happen)")
     except CryptoError:
+        final = w.store.one("SELECT status FROM orders WHERE id=?", oid)["status"]
+        opened = f"{len(e2.open_bundle(req.buyer_id, oid))} rows" if final == "delivered" else f"order is {final}"
         w.store.log("gate", "sealed", f"operator tries to open order {oid}'s bundle with its own key: fails; "
-                    f"only {req.buyer_id}'s key opens it ({len(e2.open_bundle(req.buyer_id, oid))} rows)")
+                    f"only {req.buyer_id}'s key opens it ({opened})")
     final = w.store.one("SELECT status FROM orders WHERE id=?", oid)["status"]
     deliveries = w.store.one("SELECT COUNT(*) n FROM deliveries WHERE order_id=?", oid)["n"]
     return {"order_id": oid, "after_first_try": status1, "final": final, "delivery_attempts": deliveries,
