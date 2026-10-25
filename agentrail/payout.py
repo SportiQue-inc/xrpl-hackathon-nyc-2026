@@ -34,7 +34,14 @@ BLOCK_DAYS = 180
 DAY = 86400
 REASONS = {"copied_series": "the same data series was already contributed by another participant",
            "impossible_value": "values outside what a body or device can produce",
-           "quality": "below the data standard announced in the request"}
+           "quality": "below the data standard announced in the request",
+           # data-contract checks (contract/fitness.py)
+           "incomplete": "fewer days than the contract's minimum for this window",
+           "wrong_unit": "values in a different unit than the contract",
+           "drift": "values moved far from the profile the contract was agreed on",
+           "duplicate": "the same series was already delivered by another provider",
+           "tampered": "the delivered values do not match the source's signed export"}
+FRAUD = {"copied_series", "impossible_value", "duplicate", "tampered", "different_person", "bad_signature"}
 BOUNDS = {"sleep.daily": ("minutes", 0, 1000), "heart_rate.daily": ("resting_bpm", 25, 220),
           "activity.daily": ("steps", 0, 100_000), "fatigue.survey": ("score_0_10", 0, 10)}
 
@@ -256,15 +263,28 @@ def review(w, hb, delivered, withdrawn=False):
                     signals.append({"code": "copied_series", "item": item, "week": o["week"],
                                     "matches": "another participant's contribution"})
     if not signals:
-        with w.store.tx() as c:
-            c.execute("UPDATE holdbacks SET review='pass' WHERE id=?", (hb["id"],))
+        _review_note(w, hb["id"], "pass")
         return "pass"
-    now, win = w.ledger.now(), windows(w.ledger)
     with w.store.tx() as c:
         c.execute("UPDATE holdbacks SET status='suspected', review='signals found' WHERE id=?", (hb["id"],))
+    open_case(w, study, pid, hb["request_id"], signals)
+    return "signals found"
+
+
+def _review_note(w, hid: int, note: str):
+    with w.store.tx() as c:
+        c.execute("UPDATE holdbacks SET review=? WHERE id=?", (note, hid))
+
+
+def open_case(w, study: str, pid: str, request_id: int, signals: list[dict]) -> int:
+    """A named reviewer decides; the provider is told why and can respond first."""
+    now, win = w.ledger.now(), windows(w.ledger)
+    with w.store.tx() as c:
+        c.execute("UPDATE holdbacks SET review='signals found' WHERE study=? AND person=? AND request_id=? "
+                  "AND status='suspected'", (study, pid, request_id))
         cur = c.execute("INSERT INTO integrity_cases (study, person, request_id, signals, status, notified_at, "
                         "respond_by, ts) VALUES (?,?,?,?,?,?,?,?)",
-                        (study, pid, hb["request_id"], json.dumps(signals), "suspected", now, now + win["respond"],
+                        (study, pid, request_id, json.dumps(signals), "suspected", now, now + win["respond"],
                          time.time()))
         case = cur.lastrowid
     codes = sorted({s["code"] for s in signals})
@@ -272,9 +292,10 @@ def review(w, hb, delivered, withdrawn=False):
          f"We are holding the {100 - IMMEDIATE_PCT}% review part of this round for up to "
          f"{(win['review'] + win['extend']) // DAY or win['review'] + win['extend']}"
          f"{' days' if w.ledger.name == 'mock' else ' s (Testnet)'}: "
-         + "; ".join(REASONS[c] for c in codes) + ". You can respond; a staff member reviews the case.")
+         + "; ".join(REASONS.get(c, c.replace("_", " ")) for c in codes)
+         + ". You can respond; a staff member reviews the case.")
     _audit(w, study, pid, "hold", ",".join(codes), signals, notified=now)
-    return "signals found"
+    return case
 
 
 def respond(w, study: str, pid: str, case_id: int, text: str) -> dict:
@@ -306,23 +327,40 @@ def decide(w, study: str, case_id: int, reviewer_id: str, confirm: bool) -> dict
             x.execute("UPDATE integrity_cases SET status='cleared', reviewer_id=?, decided_at=? WHERE id=?",
                       (reviewer_id, now, case_id))
             x.execute("UPDATE holdbacks SET status='held', review='pass after review' WHERE study=? AND person=? "
-                      "AND request_id=? AND kind='round' AND status='suspected'", (study, pid, c["request_id"]))
+                      "AND request_id=? AND kind IN ('round','contribution') AND status='suspected'",
+                      (study, pid, c["request_id"]))
         _audit(w, study, pid, "clear", "reviewed", signals, reviewer_id, c["notified_at"])
         talk(w.store, study, pid, "integrity_notice", {"case": case_id, "status": "cleared"},
              "Review finished: nothing wrong found. The held part will be paid.")
         return {"ok": True, "status": "cleared"}
+    if not {s["code"] for s in signals} & FRAUD:
+        # Unfit, not fraud: the held part of this contribution is not paid and returns to the study.
+        # No sanction, no repayment claim, nothing else changes for the provider.
+        with w.store.tx() as x:
+            x.execute("UPDATE integrity_cases SET status='confirmed', reviewer_id=?, decided_at=? WHERE id=?",
+                      (reviewer_id, now, case_id))
+            x.execute("UPDATE holdbacks SET status='withheld', review='unfit: ' || ? WHERE study=? AND person=? "
+                      "AND request_id=? AND kind IN ('round','contribution') AND status='suspected'",
+                      (",".join(sorted({s["code"] for s in signals})), study, pid, c["request_id"]))
+        _audit(w, study, pid, "withhold_unfit", ",".join(sorted({s["code"] for s in signals})), signals,
+               reviewer_id, c["notified_at"])
+        talk(w.store, study, pid, "integrity_notice", {"case": case_id, "status": "unfit"},
+             f"Reviewer {reviewer_id} confirmed this contribution does not meet the contract. Its held part is "
+             "not paid; nothing else changes for you.")
+        return {"ok": True, "status": "unfit"}
     paid = sum(r["price_drops"] for r in w.store.q(
         "SELECT price_drops FROM orders WHERE buyer_id=? AND seller_id=? AND status='delivered'", study, pid))
     # Only a part still frozen can be withheld. One already paid by default (no decision within the
     # extension) stays paid on the ledger; it joins the repayment claim instead of a doomed EscrowCancel.
     late = [h for h in w.store.q("SELECT * FROM holdbacks WHERE study=? AND person=? AND request_id=? "
-                                 "AND kind='round' AND status='released'", study, pid, c["request_id"])]
+                                 "AND kind IN ('round','contribution') AND status='released'", study, pid, c["request_id"])]
     paid += sum(h["amount_drops"] for h in late)
     with w.store.tx() as x:
         x.execute("UPDATE integrity_cases SET status='confirmed', reviewer_id=?, decided_at=? WHERE id=?",
                   (reviewer_id, now, case_id))
         x.execute("UPDATE holdbacks SET status='withheld', review='fraud confirmed' WHERE study=? AND person=? "
-                  "AND request_id=? AND kind='round' AND status='suspected'", (study, pid, c["request_id"]))
+                  "AND request_id=? AND kind IN ('round','contribution') AND status='suspected'",
+                  (study, pid, c["request_id"]))
         x.execute("UPDATE holdbacks SET status='returning' WHERE study=? AND person=? AND kind='bonus' "
                   "AND status IN ('held','earned')", (study, pid))
         x.execute("INSERT OR IGNORE INTO standing (study, person) VALUES (?,?)", (study, pid))
