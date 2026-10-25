@@ -21,7 +21,7 @@ td.n,th.n{text-align:right}
 tr:last-child td{border-bottom:0}
 td.w{white-space:normal;min-width:220px}
 details{margin-top:10px} summary{cursor:pointer;font-weight:600;color:var(--brand)}
-.chart{width:100%;min-height:220px}
+.chart{width:100%}
 .chart svg{width:100%;height:auto;display:block}
 .empty{padding:16px;color:var(--text-2)}
 code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--row);padding:1px 4px;border-radius:4px}

@@ -4,3 +4,5 @@
 **/*.db
 **/__pycache__
 .git
+.venv/
+.venv-*/
