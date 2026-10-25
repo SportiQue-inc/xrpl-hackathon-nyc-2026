@@ -676,3 +676,14 @@ def test_amounts_read_as_the_configured_unit_but_the_ledger_key_stays(market, mo
     common = (static / "common.js").read_text()
     assert '${assetLabel(asset)}' in common and 'relabel(c.text)' in common and 'asset-foot' in common
     assert 'test USD' not in (static / "demo.html").read_text()
+
+
+def test_guided_tour_covers_seller_and_buyer_paths_and_can_be_replayed():
+    static = Path(__file__).resolve().parents[1] / "prototypes/data-vault-market/server/vaultmarket/static"
+    tour = (static / "tour.js").read_text()
+    for page in ("market.html", "vault.html", "assets.html", "demo.html"):
+        assert '<script src="/static/tour.js"></script>' in (static / page).read_text()
+    assert 'tourInit()' in (static / "common.js").read_text()
+    for topic in ("SHA-256(K)", "CancelAfter", "Merkle", "#buyForm", "#activity", "Link my wallet", "stands in for RLUSD"):
+        assert topic in tour
+    assert tour.count('ko: [') == tour.count('en: [') >= 15 and 'tour-skip' in tour and 'tour-link' in tour
