@@ -24,7 +24,7 @@ All people, institutions, records and amounts are synthetic. XRPL Testnet only.
 | 4 | P-017's phone | Request card: lab name, ethics-review and verified-organization badges read from the ledger, two-sentence reason, DUO chips, fatigue w3-5 "needs you", heart rate w4 "auto", reward in XRP |
 | 5 | Phone | Preview of exactly what leaves: study pseudonym, shifted days, requested items only |
 | 6 | Phone | Approve: escrow per week, P-017's agent publishes each key, reward paid, the study reads the key from the ledger and opens the bundle; P-017 issues the study a non-transferable licence (MPT); week 5 is held until the round closes |
-| 7 | Boundaries | New purpose stops for approval; unverified lab gets no answer and its direct payment fails (`tecNO_PERMISSION`); birth date + postal code + rare diagnosis refused; operator cannot open a bundle |
+| 7 | Boundaries | New purpose stops for approval; unverified lab gets no answer and its direct payment fails (`tecNO_PERMISSION`); birth date + postal code + rare diagnosis refused; a bundle sealed to the study cannot be opened with the operator key |
 | 8 | Phone | Withdrawals: another participant declines a round (nothing on the ledger); one pauses (rewards stay); P-017 revokes: licence Clawback, week-5 key withheld, EscrowCancel refund; console row greys out |
 | 9 | Other domains | Robot developer's agent closes its evaluation gaps from two sellers on Testnet with a multi-signed top-up; consent layer replaced by seller licence terms |
 
