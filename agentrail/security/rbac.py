@@ -109,6 +109,9 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/"): Rule(public=True),
     ("GET", "/participant"): Rule(public=True),
     ("GET", "/console"): Rule(public=True),
+    ("GET", "/demo"): Rule(public=True),
+    ("GET", "/try"): Rule(public=True),
+    ("GET", "/api/public/live"): Rule(public=True),
     ("GET", "/.well-known/agent-card.json"): Rule(public=True),
     ("GET", "/agents/{pid}/.well-known/agent-card.json"): Rule(public=True),
 }

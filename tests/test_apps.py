@@ -45,6 +45,31 @@ def test_pages_and_shared_modules_are_served():
         assert c.get(f"/apps/shared/{f}").status_code == 200
 
 
+def test_before_after_demo_is_served_and_frames_only_itself():
+    c = TestClient(web.app)
+    r = c.get("/demo?mode=after", follow_redirects=False)
+    assert r.status_code == 307 and r.headers["location"] == "/apps/demo/index.html?mode=after"
+    for f in ("index.html", "lab.html", "phone.html", "lab.js", "phone.js", "common.js", "demo.css"):
+        r = c.get(f"/apps/demo/{f}")
+        assert r.status_code == 200
+        assert r.headers["x-frame-options"] == "SAMEORIGIN" and "frame-ancestors 'self'" in r.headers["content-security-policy"]
+    assert c.get("/console").headers["x-frame-options"] == "DENY"
+    assert c.get("/try", follow_redirects=False).headers["location"] == "/apps/try/index.html"
+    for f in ("try/index.html", "live/index.html", "live/live.js", "live/me.html", "live/me.js"):
+        assert c.get(f"/apps/{f}").status_code == 200
+
+
+def test_try_link_preserves_the_judges_access_code():
+    c = TestClient(web.app)
+    r = c.get("/try?code=judges-2026", follow_redirects=False)
+    assert r.headers["location"] == "/apps/try/index.html?code=judges-2026"
+
+
+def test_try_researcher_link_opens_the_live_page():
+    c = TestClient(web.app)
+    assert c.get("/apps/live/").status_code == 200
+
+
 @pytest.fixture
 def c():
     reset_rate_limits()
@@ -89,3 +114,24 @@ def test_uniqdata_records_for_one_participant(c):
     after = c.get(f"/api/p/{HERO}/uniqdata", params={"privacy_epoch": 2}, headers=me).json()
     assert after["withdrawal"]["boundary"]["superseding_epoch"] == 3
     assert HERO not in str(after)
+
+
+def test_demo_devices_answer_remote_visitors_only_with_the_access_code(monkeypatch):
+    remote = TestClient(web.app, client=("203.0.113.5", 4000))
+    sub = f"researcher@{study.LAB}"
+    assert remote.post(f"/api/dev/login/{sub}").status_code == 403
+    monkeypatch.setenv("AGENTRAIL_SANDBOX_CODE", "judges-2026")
+    assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "wrong"}).status_code == 403
+    assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "judges-2026"}).status_code == 200
+    assert remote.post("/api/dev/login/operator", headers={"X-Sandbox-Code": "judges-2026"}).status_code == 403
+    monkeypatch.setattr(web.world().ledger, "name", "testnet")    # one code plays both co-signers: mock only
+    assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "judges-2026"}).status_code == 403
+    monkeypatch.undo()
+    monkeypatch.setenv("AGENTRAIL_SANDBOX_CODE", "judges-2026")
+    monkeypatch.setenv("AGENTRAIL_ENV", "prod")
+    assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "judges-2026"}).status_code != 200
+    monkeypatch.delenv("AGENTRAIL_ENV")
+    monkeypatch.setenv("AGENTRAIL_SANDBOX_CODE", "short")    # too short to count as a code
+    assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "short"}).status_code == 403
+    v = remote.get("/api/public/live").json()
+    assert {"study", "heatmap", "institution", "events"} <= set(v) and all(e["kind"] != "access" for e in v["events"])
