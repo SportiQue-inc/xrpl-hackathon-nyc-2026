@@ -451,7 +451,7 @@ TO_CATALOG = {
 # market: the catalog trades them as daily series, while a UniQdata account holds a few visits.
 
 
-def feed_market(accounts, clients: dict) -> dict:
+def feed_market(accounts, clients: dict, skip=()) -> dict:
     """Replace the generated rows of each account's health datasets with what that person's UniQdata
     account actually holds, column by column, so the pre-trade quality check sees that person's real
     completeness and bad records. Columns the account does not store at all keep their generated
@@ -460,7 +460,7 @@ def feed_market(accounts, clients: dict) -> dict:
     used = {}
     for a in accounts:
         client = clients.get(a.id)
-        if client is None:
+        if client is None or a.id in skip:
             continue
         reader = UniQdataReader(client).refresh()
         by_col = {}
