@@ -11,6 +11,11 @@ const sym = () => META?.asset || "XRP";
 const amount = (v, asset = sym()) => `${Number(v || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})} ${asset}`;
 const xrp = (units) => amount(+(units || 0) * (META?.unit_xrp || 0.01));
 const micro = (m, asset = sym()) => amount(+(m || 0) / 1e6, asset);
+function modelOptions(selected = "auto") {
+  const models = META?.models || ["auto"];
+  return (models.includes(selected) ? "" : `<option value="" disabled selected>Unavailable: ${esc(selected)} · choose a model</option>`)
+    + models.map(model => `<option value="${esc(model)}" ${model === selected ? "selected" : ""}>${esc(model === "auto" ? "Auto · service model order" : model)}</option>`).join("");
+}
 const hhmm = (t) => new Date(t * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit"});
 function showError(err) {
   const b = $("banner"); if (!b) return;
