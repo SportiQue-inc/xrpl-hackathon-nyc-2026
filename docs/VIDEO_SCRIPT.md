@@ -15,13 +15,12 @@ explorer. All data synthetic. Narration in English; on-screen captions short.
 | 2:15-2:30 | Phone: revoke | "P-017 withdraws. The study's licence token is clawed back, the unreleased week is never released, and its escrow returns to the lab. Rewards already paid stay with P-017." | Clawback, EscrowCancel links; row greys out |
 | 2:30-2:40 | Robot scene, closing line | "With a lighter consent layer the same engine runs robot data between companies on Testnet. The LLM proposes, code verifies, the ledger enforces." | scene A payments |
 
-60-second pitch version (from docs/MARKET_THESIS.md)
-1. "Data about people is traded for over $300B a year, without the people. 23andMe's 15 million customers were auctioned for about $17 each."
-2. "Three things change at once: AI is running out of public data, law gives people the right to pull their own records, and agents now have wallets."
-3. "So the next data market is one where people take part through their own agents. The hardest and most valuable record is one person's whole health record."
-4. "Today a study cannot fill a few missing weeks: re-recruiting costs over $2,000 a person and getting data takes 80 days."
-5. "In AgentRail the study's agent finds the missing person-weeks and asks. The person's agent contributes only what they agreed to, and XRPL ties consent, licence and payment together in about 3 seconds for $0.00002."
-6. "We solved the hardest boundary first. The same engine runs AI training and robot data."
+60-second pitch version (from docs/MARKET_THESIS.md; derived figures marked there)
+1. 0-10 s: "When Roche bought Flatiron, one oncology patient's record was valued at about $1,000. The person it described got nothing. 23andMe's 15 million customers were sold off at about $20 each, and 1.9 million asked to be deleted."
+2. 10-22 s: "In 2026 four things changed at once. AI ran out of public data, and OpenAI and Anthropic turned to records patients connect themselves. The US, the EU and Korea gave people the right to pull their own records. Data without consent now draws FTC orders and record fines. And agents got wallets."
+3. 22-34 s: "Yet no country has a rail where a person consents per study and is paid directly. Studies cannot fill missing weeks: replacing one dropout costs close to $20,000, and remote participants leave after 5.5 days."
+4. 34-48 s: "In AgentRail the study's agent finds the missing person-weeks and asks that person's agent. It contributes only what the person agreed to, and XRPL binds a consent hash, a revocable licence and an escrowed payment to every record. A $20 weekly contribution costs 88 cents by card and about $0.0002 on XRPL."
+5. 48-60 s: "In year 3, 300 studies settle 3.9 million contributions a year for $11.4M revenue. We solved consent and withdrawal first on the hardest data, one person's longitudinal health record. The same engine runs AI training data."
 
 Notes for recording
 - Run `scripts/run_health_demo.py` once before recording so LLM answers are recorded; recording
