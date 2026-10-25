@@ -98,6 +98,8 @@ def parse_chat(text: str) -> dict:
     intent = "sell" if re.search(r"sell|팔|판매", text, re.I) else "buy" if re.search(r"need|buy|want|필요|사|구매|구해", text, re.I) else "other"
     m = re.search(r"(\d+(?:\.\d+)?)", text)
     rule = {"intent": intent, "kind": kind, "price": float(m.group(1)) if m else None}
+    if kind and intent != "other":
+        return rule          # clear enough; save the LLM budget for the negotiations
     out = llm.ask_json("You turn a marketplace user's message into an intent.",
                        f'Message: "{text}". Kinds: {list(KINDS)}. Return {{"intent": "sell"|"buy"|"other", "kind": one of the kinds or null, "price": number or null}}.')
     if out and out.get("intent") in ("sell", "buy", "other") and (out.get("kind") in KINDS or out.get("kind") is None):

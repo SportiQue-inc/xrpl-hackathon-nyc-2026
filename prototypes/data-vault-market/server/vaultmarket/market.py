@@ -80,17 +80,40 @@ class Market:
 
     def _connect_all(self):
         """Every account gets its own XRPL wallet (Testnet faucet on first run, reused after)."""
-        for a in self.s.q("SELECT id FROM accounts ORDER BY type DESC, id"):
-            for attempt in range(3):
+        from concurrent.futures import ThreadPoolExecutor
+        def one(aid):
+            for attempt in range(4):
                 try:
-                    addr = self.rail.ensure_account(a["id"])
-                    self.addr[a["id"]] = addr
-                    self.s.x("UPDATE accounts SET address = ? WHERE id = ?", (addr, a["id"]))
+                    addr = self.rail.ensure_account(aid)
+                    self.addr[aid] = addr
+                    self.s.x("UPDATE accounts SET address = ? WHERE id = ?", (addr, aid))
                     break
                 except Exception:
-                    time.sleep(3 * (attempt + 1))
+                    time.sleep(4 * (attempt + 1))
             self.ready += 1
+            self.events += 1
         self.platform = self.rail.ensure_account("platform")
+        # orgs first (they post the demand), then people; a few faucet calls at a time
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            list(ex.map(one, [a["id"] for a in self.s.q("SELECT id FROM accounts ORDER BY type DESC, id")]))
+
+    def add_user_account(self, aid: str, name: str):
+        """A signed-up member: an empty vault, an agent that asks before every sale, and its own XRPL wallet."""
+        mins = {k: KINDS[k]["price"] for k in KINDS}
+        self.s.insert("accounts", id=aid, name=name, type="person", trust=0.8, verified=0,
+                      sell_agent={"mode": "ask", "min": mins, "blocks": ["insurance pricing"]},
+                      buy_agent={"auto_limit": 10, "min_trust": 0.7, "max_overlap": 0.3})
+        def connect():
+            for attempt in range(3):
+                try:
+                    addr = self.rail.ensure_account(aid)
+                    self.addr[aid] = addr
+                    self.s.x("UPDATE accounts SET address = ? WHERE id = ?", (addr, aid))
+                    self.chat(aid, "agent", f"Welcome. Your agent's wallet on the ledger is {addr}. Upload data in My DB; I ask you before every sale.")
+                    return
+                except Exception:
+                    time.sleep(3 * (attempt + 1))
+        threading.Thread(target=connect, daemon=True).start()
 
     # ---------------- files ----------------
     def add_file(self, account: str, kind: str, name: str, body: dict, listed: bool, source: str, cleaned=False, checks=None) -> int:
@@ -174,6 +197,15 @@ class Market:
 
     # ---------------- negotiation ----------------
     def negotiate(self, w: dict) -> int | None:
+        # the LLM writes the buyer's opening, the first seller's answer and the buyer's decision when
+        # three slots are free under the cap; otherwise the whole round runs on written rules
+        llm.budget(3 if llm.free_slots() >= 3 else 0)
+        try:
+            return self._negotiate(w)
+        finally:
+            llm.budget(None)
+
+    def _negotiate(self, w: dict) -> int | None:
         buyer = self.acct(w["buyer"])
         if not buyer or w["buyer"] not in self.addr:
             return None
@@ -190,6 +222,8 @@ class Market:
         files = self.s.q("SELECT f.*, a.trust FROM files f JOIN accounts a ON a.id = f.account WHERE f.kind = ? AND f.status = 'listed' AND f.account != ?", (w["kind"], w["buyer"]))
         by_acct: dict[str, list] = {}
         for f in files:
+            if f["account"] not in self.addr:      # wallet not funded yet: not in the market this round
+                continue
             by_acct.setdefault(f["account"], []).append(f)
         interested = {r["account"] for r in self.s.q("SELECT account FROM interests WHERE posting = ?", (w["id"],))}
         low_trust = [a for a, fs in by_acct.items() if fs[0]["trust"] < w["min_trust"]]
@@ -299,7 +333,7 @@ class Market:
             sealed, K = self.rail.seal(buyer_id, clear)
             trace["protocol"].append({"protocol": "Sealed delivery (AES-256-GCM, key wrapped with X25519 + HKDF-SHA256)", "who": a, "ok": True, "tx": None,
                                       "detail": f"{len(clear)} bytes sealed to the buyer's X25519 key; bundle SHA-256 {hashlib.sha256(clear).hexdigest()[:16]}…; content key K stays with the seller's agent"})
-            legs.append({"seller": a, "seller_addr": self.addr[a], "drops": int(price * config.DROPS_PER_XRP_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
+            legs.append({"seller": a, "seller_addr": self.addr[a], "dst_addr": self.acct(a).get("payout"), "drops": int(price * config.DROPS_PER_XRP_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
             plain[a] = clear
         res = self.rail.escrow_lot(self.addr[buyer_id], legs, f"vaultmarket/contract/{cid}")
         paid, items, fps, merged = [], 0, set(), []
@@ -310,7 +344,7 @@ class Market:
             trace["tx"].append({"seller": leg["seller"], "create": r["create"]["hash"], "finish": r["finish"]["hash"], "ok": r["finish"]["ok"]})
             cond = condition_hex(leg["K"])
             trace["protocol"].append({"protocol": "XRPL EscrowCreate (PREIMAGE-SHA-256 crypto-condition)", "who": leg["seller"], "ok": r["create"]["ok"], "tx": r["create"]["hash"],
-                                      "detail": f"buyer locks {leg['drops'] / 1e6:.3f} XRP to the seller under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
+                                      "detail": f"buyer locks {leg['drops'] / 1e6:.3f} XRP to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
             trace["protocol"].append({"protocol": "XRPL EscrowFinish (fulfillment reveals K)", "who": leg["seller"], "ok": r["finish"]["ok"], "tx": r["finish"]["hash"],
                                       "detail": f"seller's agent submits the fulfillment (the preimage K); the ledger checks SHA-256(K) against the condition and pays; {r['finish']['result']}"})
             if not r["finish"]["ok"]:
@@ -382,11 +416,11 @@ class Market:
     def tick(self):
         rng = self.rng
         # people come and go
-        for a in rng.sample(self.s.q("SELECT id FROM accounts WHERE type = 'person'"), 3):
+        for a in rng.sample(self.s.q("SELECT id FROM accounts WHERE type = 'person' AND id NOT LIKE 'u-%'"), 3):
             self.s.x("UPDATE accounts SET online = 1 - online WHERE id = ? AND id != 'dana'", (a["id"],))
         # someone uploads something new; their agent runs it through intake
         if rng.random() < 0.7:
-            a = rng.choice(self.s.q("SELECT id, name FROM accounts WHERE type = 'person' AND id != 'dana'"))
+            a = rng.choice(self.s.q("SELECT id, name FROM accounts WHERE type = 'person' AND id != 'dana' AND id NOT LIKE 'u-%'"))
             kind = rng.choice(["gps_track", "gps_track", "sleep_log", "purchase_receipts", "audio"])
             body = data.make_record(kind, rng, a["name"], rng.randint(5, 60), (40.7 + rng.random() * 0.1, -73.95 - rng.random() * 0.05))
             roll = rng.random()
@@ -397,6 +431,10 @@ class Market:
             elif roll < 0.3 and kind == "gps_track":
                 body["points"][5]["hr"] = 255
             self.upload(a["id"], data.file_name(kind, body, 0), body, auto=True)
+        # demand keeps coming: an agent posts a new request, for the kind of data with the least demand
+        if rng.random() < 0.35:
+            self.new_request(rng)
+        self.s.x("UPDATE postings SET status = 'expired' WHERE status = 'open' AND once = 1 AND created < ?", (time.time() - 1800,))
         # one negotiation: postings someone marked interest in first, then the rest
         open_ = self.s.q("SELECT p.*, (SELECT COUNT(*) FROM interests i WHERE i.posting = p.id) AS hot FROM postings p WHERE status = 'open' ORDER BY hot DESC, RANDOM()")
         if open_:
@@ -405,11 +443,32 @@ class Market:
         if rng.random() < 0.2:
             self.resell()
         if rng.random() < 0.3:
-            self.scan("dana")
+            for a in ["dana"] + [r["id"] for r in self.s.q("SELECT id FROM accounts WHERE id LIKE 'u-%'")]:
+                self.scan(a)
         self.events += 1
 
+    PURPOSES = {"gps_track": ["running-route app", "city heat-map research", "shoe wear study", "bike-lane planning"],
+                "sleep_log": ["sleep research", "mattress product study", "wearable calibration", "insurance pricing"],
+                "purchase_receipts": ["basket research", "price index", "store layout study"],
+                "audio": ["speech model training", "accent research", "voice assistant tuning"],
+                "air": ["pollution alerts", "school air study", "asthma research"]}
+
+    def new_request(self, rng) -> int:
+        """A buyer agent posts a request on its own: someone in the market (company or person) wants the
+        kind of data that has the least open demand right now, at a price near the going rate."""
+        open_by = {k: self.s.one("SELECT COUNT(*) n FROM postings WHERE kind = ? AND status = 'open'", (k,))["n"] for k in KINDS}
+        kind = min(open_by, key=lambda k: (open_by[k], rng.random()))
+        buyer = rng.choice([a for a in self.s.q("SELECT id, type FROM accounts WHERE id NOT LIKE 'u-%'") if a["id"] in self.addr] or [{"id": "atlas-maps", "type": "org"}])
+        base = KINDS[kind]["price"] * rng.uniform(0.85, 1.3)
+        offer = round(base, 1)
+        pid = self.s.insert("postings", buyer=buyer["id"], kind=kind, offer=offer, max=round(offer * rng.uniform(1.15, 1.4), 1), purpose=rng.choice(self.PURPOSES[kind]),
+                            lot=rng.choice([5, 6, 8]) if KINDS[kind]["personal"] else 2, min_trust=0.7, resale=0, status="open", once=1)
+        self.events += 1
+        return pid
+
     def run_forever(self):
-        while self.ready < len(self.s.q("SELECT id FROM accounts")):
+        # trade as soon as a handful of wallets are funded; the rest join as their faucet calls finish
+        while sum(1 for a in self.addr if not a.startswith("u-")) < min(8, len(self.s.q("SELECT id FROM accounts"))):
             time.sleep(1)
         while True:
             t = time.time()

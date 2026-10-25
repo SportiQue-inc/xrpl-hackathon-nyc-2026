@@ -33,6 +33,11 @@ CREATE TABLE IF NOT EXISTS chat (
 CREATE TABLE IF NOT EXISTS recs (
   id INTEGER PRIMARY KEY AUTOINCREMENT, account TEXT, kind TEXT, text TEXT, status TEXT, created REAL);
 CREATE TABLE IF NOT EXISTS ledger_stats (k TEXT PRIMARY KEY, v REAL);
+CREATE TABLE IF NOT EXISTS users (
+  username TEXT PRIMARY KEY, pw TEXT, salt TEXT, account TEXT,
+  wallet TEXT, wallet_tag INT, wallet_tx TEXT,   -- personal XRPL wallet; verified when wallet_tx is set
+  created REAL);
+CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT, created REAL);
 """
 
 
@@ -43,6 +48,9 @@ class Store:
         self.lock = threading.RLock()
         with self.lock:
             self.db.executescript(SCHEMA)
+            cols = {r[1] for r in self.db.execute("PRAGMA table_info(accounts)")}
+            if "payout" not in cols:          # databases from before signup
+                self.db.execute("ALTER TABLE accounts ADD COLUMN payout TEXT")
 
     def q(self, sql: str, args=()) -> list[dict]:
         with self.lock:

@@ -19,7 +19,7 @@ from nacl.signing import SigningKey
 from . import config, data
 from .rail import merkle_root
 
-_KEY_FILE = os.path.join(config.ROOT, "intake_key.local")
+_KEY_FILE = os.path.join(config.DATA_DIR, "intake_key.local")
 if not os.path.exists(_KEY_FILE):
     with open(_KEY_FILE, "wb") as f:
         f.write(bytes(SigningKey.generate()))

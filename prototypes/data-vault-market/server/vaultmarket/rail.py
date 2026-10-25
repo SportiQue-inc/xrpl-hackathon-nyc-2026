@@ -29,7 +29,7 @@ from . import config
 sys.path.insert(0, os.path.abspath(os.path.join(config.ROOT, "..", "..", "..")))
 from agentrail.ledger.conditions import condition_hex, fulfillment_hex, new_key  # noqa: E402
 
-KEYS_FILE = os.environ.get("VM_KEYS", os.path.join(config.ROOT, "keys.local.json"))
+KEYS_FILE = os.environ.get("VM_KEYS", os.path.join(config.DATA_DIR, "keys.local.json"))
 _POOL = ThreadPoolExecutor(max_workers=8)
 
 
@@ -71,6 +71,20 @@ class Rail:
     def explorer(self, tx_hash: str) -> str | None:
         return f"https://{self.name}.xrpl.org/transactions/{tx_hash}" if self.name in ("testnet", "devnet") else None
 
+    def find_link_payment(self, src: str, dst: str, tag: int) -> str | None:
+        """Hash of a validated, successful Payment src -> dst carrying DestinationTag == tag: proof that
+        whoever linked src controls it. On the mock ledger there is nothing to check."""
+        if self.name == "mock":
+            return "mock-" + hashlib.sha256(f"{src}{tag}".encode()).hexdigest()[:16]
+        from xrpl.models.requests import AccountTx
+        r = self.led.client.request(AccountTx(account=dst, limit=100)).result
+        for t in r.get("transactions", []):
+            tx = t.get("tx_json") or t.get("tx") or {}
+            ok = (t.get("meta") or {}).get("TransactionResult") == "tesSUCCESS"
+            if t.get("validated") and ok and tx.get("TransactionType") == "Payment" and tx.get("Account") == src and tx.get("DestinationTag") == tag:
+                return t.get("hash") or tx.get("hash")
+        return None
+
     # ---- sealing ----
     def seal(self, buyer_label: str, clear: bytes) -> tuple[bytes, bytes]:
         """Encrypt under a fresh K, then wrap to the buyer's key. Returns (sealed envelope, K)."""
@@ -103,7 +117,7 @@ class Rail:
         cancel_after = self.led.now() + 3600
         prepared = []
         for leg in legs:
-            p = self.led.prepare_escrow_create(buyer_addr, leg["seller_addr"], leg["drops"], condition_hex(leg["K"]), cancel_after, memo)
+            p = self.led.prepare_escrow_create(buyer_addr, leg.get("dst_addr") or leg["seller_addr"], leg["drops"], condition_hex(leg["K"]), cancel_after, memo)
             prepared.append(p)
         creates = list(_POOL.map(self._submit, prepared))
         def finish(i):

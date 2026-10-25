@@ -12,27 +12,28 @@
 </div>
 <div class="banner" id="banner" hidden></div>
 <div class="app">
-  <section class="col side left" aria-labelledby="h-u"><header><h1 id="h-u">Upload</h1></header>
+  <section class="col side left" aria-labelledby="h-me">
+    <header><h1 id="h-me">Wallet</h1><span class="mono muted small" id="addr"></span></header>
     <div class="scroll">
+      <div class="kpis" id="wallet"></div>
+      <h2>My DB over time</h2><svg id="growth" viewBox="0 0 320 70" style="width:100%;height:70px" role="img" aria-label="Files in my DB over time"></svg>
+      <h2>Bought</h2><div id="bought"></div>
+    </div>
+  </section>
+  <section class="col" aria-labelledby="h-db">
+    <header><div><h1 id="h-db">My DB</h1><span class="muted small" id="dbSub"></span></div>
+      <div class="seg" role="group" aria-label="Sort bundles"><button type="button" id="vDom" aria-pressed="true">By domain</button><button type="button" id="vDem" aria-pressed="false">By demand</button><button type="button" id="vAll" aria-pressed="false">All requests</button></div></header>
+    <div class="scroll"><div id="recs"></div><div id="bundles"></div></div>
+  </section>
+  <section class="col side right" aria-labelledby="h-u">
+    <header><h1 id="h-u">Upload</h1></header>
+    <div class="scroll">
+      <div class="chatbox" id="chat" data-open="1"></div>
       <label class="drop" id="drop" for="file">Drop a JSON file here or click to choose.<br><span class="small">The intake agent classifies it, refuses sensitive data and offers paid cleaning for raw data.</span></label>
       <input type="file" id="file" accept=".json,application/json" hidden>
       <h2>From my phone (demo files)</h2>
       <div class="acts" id="samples"></div>
       <h2>Intake results</h2><div id="uploads"></div>
-    </div>
-  </section>
-  <section class="col" aria-labelledby="h-db">
-    <header><div><h1 id="h-db">My DB</h1><span class="muted small" id="dbSub"></span></div>
-      <div class="seg" role="group" aria-label="Sort bundles"><button type="button" id="vDom" aria-pressed="true">By domain</button><button type="button" id="vDem" aria-pressed="false">By demand</button></div></header>
-    <div class="scroll"><div id="recs"></div><div id="bundles"></div></div>
-  </section>
-  <section class="col side right" aria-labelledby="h-me">
-    <header><h1 id="h-me">Wallet</h1><span class="mono muted" id="addr"></span></header>
-    <div class="scroll">
-      <div class="chatbox" id="chat" data-open="1"></div>
-      <div class="kpis" id="wallet"></div>
-      <h2>My DB over time</h2><svg id="growth" viewBox="0 0 320 70" style="width:100%;height:70px" role="img" aria-label="Files in my DB over time"></svg>
-      <h2>Bought</h2><div id="bought"></div>
     </div>
   </section>
 </div>
@@ -46,13 +47,13 @@ $("samples").querySelectorAll("[data-s]").forEach((b) => b.onclick = async () =>
 $("file").onchange = async () => { const f = $("file").files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); await api(`/api/account/${ME}/upload`, { method: "POST", body: fd }); $("file").value = ""; refresh(); };
 ["dragover", "dragleave", "drop"].forEach((ev) => $("drop").addEventListener(ev, async (e) => { e.preventDefault(); $("drop").classList.toggle("over", ev === "dragover");
   if (ev === "drop" && e.dataTransfer.files[0]) { const fd = new FormData(); fd.append("file", e.dataTransfer.files[0]); await api(`/api/account/${ME}/upload`, { method: "POST", body: fd }); refresh(); } }));
-$("vDom").onclick = () => { VIEW = "domain"; refresh(); }; $("vDem").onclick = () => { VIEW = "demand"; refresh(); };
+$("vDom").onclick = () => { VIEW = "domain"; refresh(); }; $("vDem").onclick = () => { VIEW = "demand"; refresh(); }; $("vAll").onclick = () => { VIEW = "all"; refresh(); };
 const VERDICT = { ok: ["blue", "passed"], clean: ["", "needs cleaning"], cleaned: ["blue", "cleaned"], block: ["red", "refused"] };
 async function refresh() {
   try { ACC = await api(`/api/account/${ME}`); META = await api("/api/meta"); } catch { return; }
   const a = ACC.account, k = META.kinds;
-  $("banner").hidden = META.connected >= META.accounts; $("banner").textContent = `Connecting accounts to the ledger: ${META.connected} of ${META.accounts}…`;
-  $("addr").textContent = ACC.address || ""; $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribute("aria-pressed", VIEW === "demand");
+  $("banner").hidden = META.connected >= META.accounts; $("banner").textContent = `Funding wallets on the ledger: ${META.connected} of ${META.accounts}. Funded accounts are already trading.`;
+  $("addr").textContent = ACC.address || ""; $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribute("aria-pressed", VIEW === "demand"); $("vAll").setAttribute("aria-pressed", VIEW === "all");
   $("dbSub").textContent = `${ACC.files} files · the agent sorts them into bundles by domain and by who is asking`;
   $("uploads").innerHTML = ACC.uploads.map((u) => `<div class="card"><div class="row"><span class="mono">${esc(u.name)}</span><span class="tag ${VERDICT[u.verdict]?.[0] || ""}">${VERDICT[u.verdict]?.[1] || esc(u.verdict)}</span></div>
     <span class="small muted">${esc(u.why)}</span>${u.verdict === "clean" && u.file === -1 ? `<div class="acts"><button class="primary" type="button" data-u="${u.id}">Clean it for ${u.fee}</button></div>` : ""}</div>`).join("") || '<p class="muted small">Nothing uploaded yet.</p>';
@@ -68,13 +69,19 @@ async function refresh() {
     $("bundles").innerHTML = ACC.bundles.map((b) => `<div class="card"><div class="row"><h3>${esc(b.domain)}</h3><span class="price">${b.best_offer ? `best offer ${b.best_offer}` : "no buyer yet"}</span></div>
       <span class="small muted">${esc(b.label)} · ${b.files.length} files · ${b.listed} listed · expected next sale ${b.listed && b.best_offer ? b.best_offer + " per lot" : "—"}</span>
       <div class="row small"><span>${b.offers} offers</span><span class="y">${b.agreed} agreed</span><span class="n">${b.declined} declined</span><span><b>${b.earned}</b> earned</span></div>
-      <details><summary class="small">Files</summary>${b.files.map(fileRow).join("")}</details></div>`).join("") || '<p class="muted small">Your DB is empty. Upload something on the left.</p>';
+      <details><summary class="small">Files</summary>${b.files.map(fileRow).join("")}</details></div>`).join("") || '<p class="muted small">Your DB is empty. Upload something on the right.</p>';
+  } else if (VIEW === "all") {
+    const all = (await api(`/api/market?account=${ME}`)).postings;
+    $("bundles").innerHTML = `<p class="muted small">Every open buy request on the market. Mark interest and your agent negotiates it first; otherwise it acts on its own rules.</p>` + all.map((p) => `<div class="card ${p.mine ? "hot" : ""}"><div class="row"><b>${esc(k[p.kind].label)}</b><span class="price">${p.offer}</span></div>
+      <span class="muted small">${esc(p.buyer_name)} ${p.verified ? '<span class="tag blue">verified</span>' : ""} · ${esc(p.purpose)} · up to ${p.max} · lots of ${p.lot} · ${p.settled} settled · ${p.rejected} rejected${p.interest ? ` · ${p.interest} interested` : ""}</span>
+      ${p.buyer === ME ? '<span class="tag blue">your request</span>' : p.mine ? '<span class="tag blue">Your agent is on it ✓</span>' : `<div class="acts"><button type="button" data-msg="${esc(`Sell my ${k[p.kind].label.toLowerCase()} to ${p.buyer_name} (request #${p.id}) if it fits my terms.`)}">Tell my agent</button></div>`}</div>`).join("");
+    $("bundles").querySelectorAll("[data-msg]").forEach((b) => b.onclick = () => tellAgent(b.dataset.msg));
   } else {
     $("bundles").innerHTML = ACC.demand.map((w) => `<div class="card ${w.interested ? "hot" : ""}"><div class="row"><h3>For ${esc(w.buyer_name)}</h3><span class="price">${w.offer} per person</span></div>
       <span class="small muted">${esc(k[w.kind].label)} for ${esc(w.purpose)} · ${w.listed} listed, ${w.private} private · ${w.settled} settled, ${w.rejected} rejected so far</span>
       <span class="small">${w.purpose && (a.sell_agent.blocks || []).includes(w.purpose) ? '<span class="n">Your rules decline this purpose.</span>' : w.offer >= (a.sell_agent.min?.[w.kind] ?? 0) ? `<span class="y">Meets your minimum of ${a.sell_agent.min?.[w.kind]}.</span>` : `Below your minimum of ${a.sell_agent.min?.[w.kind]}; your agent will counter.`}</span>
-      <div class="acts"><button type="button" class="${w.interested ? "on" : ""}" data-p="${w.id}" data-on="${w.interested ? 0 : 1}">${w.interested ? "Interested ✓" : "I'm interested, negotiate this first"}</button></div></div>`).join("") || '<p class="muted small">No open request matches your data yet.</p>';
-    $("bundles").querySelectorAll("[data-p]").forEach((b) => b.onclick = async () => { await post("/api/interest", { account: ME, posting: +b.dataset.p, on: b.dataset.on === "1" }); refresh(); });
+      <div class="acts">${w.interested ? '<span class="tag blue">Your agent is on it ✓</span>' : `<button type="button" data-msg="${esc(`Sell my ${k[w.kind].label.toLowerCase()} to ${w.buyer_name} (request #${w.id}) if it fits my terms.`)}">Tell my agent</button>`}</div></div>`).join("") || '<p class="muted small">No open request matches your data yet.</p>';
+    $("bundles").querySelectorAll("[data-msg]").forEach((b) => b.onclick = () => tellAgent(b.dataset.msg));
   }
   $("bundles").querySelectorAll("[data-f]").forEach((el) => el.onchange = async () => { await post(`/api/account/${ME}/file/${el.dataset.f}`, { listed: el.checked }); refresh(); });
   const earned = ACC.bundles.reduce((t, b) => t + b.earned, 0);

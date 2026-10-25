@@ -13,23 +13,26 @@
 <div class="banner" id="banner" hidden></div>
 <div class="top" style="padding-block:8px"><div class="seg" role="group" aria-label="Domain" id="domTabs"></div></div>
 <div class="app">
-  <section class="col side left" aria-labelledby="h-d"><header><h1 id="h-d">Buyer demand</h1><span class="muted small">public · mark interest to go first</span></header><div class="scroll" id="demand"></div></section>
+  <section class="col side left" aria-labelledby="h-d"><header><h1 id="h-d">You can sell now</h1><span class="muted small">requests your data qualifies for</span></header>
+    <div class="scroll"><div id="sellnow"></div><p class="small muted">Every open request, with interest settings, is in <a href="/vault">My DB</a>.</p></div></section>
   <section class="col" aria-labelledby="h-m">
-    <header><h1 id="h-m">Market</h1><span class="muted small" id="llmUse"></span></header>
+    <header><h1 id="h-m">Live trades</h1><span class="muted small" id="llmUse"></span></header>
     <div class="scroll">
-      <div class="kpis" id="kpis"></div>
-      <h2>By domain</h2><div id="domains" style="display:grid;grid-template-columns:11em minmax(0,1fr) auto;gap:6px 10px;align-items:center;font-size:12.5px"></div>
-      <h2 style="margin-top:8px">Shared ledger</h2><p class="muted small">Every contract the agents negotiated. Tap one for both sides' reasoning and the full negotiation.</p>
+      <div class="statline" id="kpis"></div>
+      <h2>For sale now</h2><div class="acts" id="listings"></div>
+      <h2 style="margin-top:8px">Trade history</h2><p class="muted small">Newest first. Open one for the protocol steps, the ledger transactions and both agents' negotiation.</p>
       <div id="ledger"></div>
     </div>
   </section>
   <section class="col side right" aria-labelledby="h-a">
-    <header><h1 id="h-a">My agents</h1><a href="/vault" class="small">Open my DB →</a></header>
-    <div class="scroll"><div class="chatbox" id="chat" data-open="0"></div><div id="agents"></div></div>
+    <header><h1 id="h-a">My agent</h1><button type="button" id="agentBtn" aria-expanded="false" aria-controls="agents">Agent settings ⚙</button></header>
+    <div class="scroll"><div id="agents" class="pop" hidden></div><div class="chatbox" id="chat" data-open="1"></div>
+      <h2>My trades</h2><div id="mine"></div></div>
   </section>
 </div>
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
 <script src="/static/common.js"></script>
+<script>$("agentBtn").onclick = () => { const h = !$("agents").hidden; $("agents").hidden = h; $("agentBtn").setAttribute("aria-expanded", String(!h)); };</script>
 <script>
 let DOMAIN = null, DATA = null, ACC = null;
 function fmtX(units) { return `${units} <span class="muted small">(${(units * META.unit_xrp).toFixed(3)} XRP)</span>`; }
@@ -38,25 +41,29 @@ async function refresh() {
     [DATA, ACC] = await Promise.all([api(`/api/market?account=${ME}${DOMAIN ? "&domain=" + DOMAIN : ""}`), api(`/api/account/${ME}`)]);
     META = await api("/api/meta");
   } catch (e) { return; }
-  $("banner").hidden = META.connected >= META.accounts; $("banner").textContent = `Connecting accounts to the ledger: ${META.connected} of ${META.accounts}…`;
+  $("banner").hidden = META.connected >= META.accounts; $("banner").textContent = `Funding wallets on the ledger: ${META.connected} of ${META.accounts}. Funded accounts are already trading.`;
   $("llmUse").textContent = `LLM calls today ${META.llm.calls} / ${META.daily_cap} · cap ${META.rpm_cap}/min`;
-  $("domTabs").innerHTML = [["", "All domains"], ...Object.entries(META.kinds).map(([k, v]) => [k, v.domain])].map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${(DOMAIN || "") === k}">${esc(l)}</button>`).join("");
+  $("domTabs").innerHTML = [["", "Everything"], ...DATA.domains.map((d) => [d.kind, `${d.label} · ${d.listed}`])].map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${(DOMAIN || "") === k}">${esc(l)}</button>`).join("");
   $("domTabs").querySelectorAll("button").forEach((b) => b.onclick = () => { DOMAIN = b.dataset.k || null; refresh(); });
   const o = DATA.overview;
-  $("kpis").innerHTML = [[`${o.online} / ${o.accounts}`, "agents online"], [o.settled, "contracts settled"], [o.rejected, "contracts rejected"], [`${o.volume}`, `paid to sellers · ${o.xrp} XRP`],
-    [o.txs, "ledger transactions"], [o.uploads, `uploads · ${o.blocked} refused`], [o.cleaned, `cleaned · ${o.fees} in fees`]].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
-  const mx = Math.max(1, ...DATA.domains.map((d) => d.volume));
-  $("domains").innerHTML = DATA.domains.map((d) => `<span>${esc(d.domain)}</span><div class="bar"><i style="width:${(100 * d.volume / mx).toFixed(1)}%"></i></div><span class="muted" style="white-space:nowrap">${Math.round(d.volume)} paid · ${d.settled} settled · ${d.rejected} rejected · ${d.listed} files from ${d.sellers} vaults</span>`).join("");
-  $("demand").innerHTML = DATA.postings.map((p) => `<div class="card ${p.mine ? "hot" : ""}"><div class="row"><b>${esc(META.kinds[p.kind].label)}</b><span class="price">${p.offer}</span></div>
+  $("kpis").innerHTML = `<span><b>${o.online}</b>/${o.accounts} agents online</span><span><b>${o.settled}</b> trades settled</span><span><b>${o.rejected}</b> rejected</span><span><b>${o.xrp.toFixed(2)} XRP</b> paid out</span><span><b>${o.txs}</b> ledger tx</span>`;
+  $("listings").innerHTML = DATA.listings.map((l) => `<span class="chip"><b>${esc(l.label)}</b> ${l.files} files · ${l.vaults} vaults${l.ask_min != null ? ` · asking ${xrp(l.ask_min)}–${xrp(l.ask_max)}` : ""}${l.bundles ? ` · ${l.bundles} resale bundle${l.bundles > 1 ? "s" : ""}` : ""}</span>`).join("") || '<p class="muted small">Nothing listed yet.</p>';
+  $("sellnow").innerHTML = DATA.sell_now.map((p) => `<div class="card ${p.interested ? "hot" : ""}"><div class="row"><b>${esc(META.kinds[p.kind].label)}</b><span class="price">+${xrp(p.expected)}</span></div>
     <span class="muted small">${esc(p.buyer_name)} ${p.verified ? '<span class="tag blue">verified</span>' : ""} · ${esc(p.purpose)}</span>
-    <span class="muted small">up to ${p.max} · lots of ${p.lot}${META.kinds[p.kind].personal ? ` (min ${META.k_min} people)` : ""} · ${p.settled} settled · ${p.rejected} rejected${p.interest ? ` · ${p.interest} interested` : ""}</span>
-    ${p.buyer === ME ? '<span class="tag blue">your request</span>' : `<div class="acts"><button type="button" class="${p.mine ? "on" : ""}" data-p="${p.id}" data-on="${p.mine ? 0 : 1}">${p.mine ? "Interested ✓" : "I'm interested"}</button></div>`}</div>`).join("") || '<p class="muted small">No open requests in this domain.</p>';
-  $("demand").querySelectorAll("[data-p]").forEach((b) => b.onclick = async () => { await post("/api/interest", { account: ME, posting: +b.dataset.p, on: b.dataset.on === "1" }); refresh(); });
+    <span class="small">You have ${p.listed + p.private} file${p.listed + p.private > 1 ? "s" : ""}${p.private ? ` (${p.private} private)` : ""} · offer ${xrp(p.offer)}, up to ${xrp(p.max)} · your minimum ${xrp(p.floor)}</span>
+    <span class="muted small">${META.kinds[p.kind].personal ? `sells in a lot of at least ${META.k_min} people; ${p.others} other vaults list this now` : `${p.others} other sellers`}</span>
+    <div class="acts">${p.interested ? '<span class="tag blue">You are first in line ✓</span>' : `<button type="button" class="primary" data-sell="${p.id}" data-msg="${esc(`Sell my ${META.kinds[p.kind].label.toLowerCase()} to ${p.buyer_name} (request #${p.id}) if it fits my terms.`)}">Tell my agent to sell</button>`}</div></div>`).join("") || '<p class="muted small">None of your data matches an open request yet. Upload in My DB and your agent will tell you when it does.</p>';
+  $("sellnow").querySelectorAll("[data-sell]").forEach((b) => b.onclick = () => tellAgent(b.dataset.msg));
   $("ledger").innerHTML = DATA.contracts.map((c) => `<div class="tx ${c.mine ? "mine" : ""} ${c.status === "settled" ? "" : "rej"}"><button type="button" data-c="${c.id}"><time>${hhmm(c.created)}</time>
     <div><b>${c.buyer === ME ? "You" : esc(c.buyer_name)}</b> → <b>${c.status === "settled" ? `${c.sellers.length} ${META.kinds[c.kind].personal ? "people" : "sellers"}${c.sellers.includes(ME) ? " incl. you" : ""}` : "no deal"}</b>
     <div class="what">${esc(META.kinds[c.kind].label)} · #${c.id}${c.status === "settled" ? ` · ${c.items} files` : ` · ${esc(c.reason || c.status)}`}</div></div>
-    <span class="amt">${c.status === "settled" ? `${c.total} · ${(c.drops / 1e6).toFixed(3)} XRP` : esc(c.status)}</span></button>${c.tx_url ? `<a class="txlink small mono" href="${c.tx_url}" target="_blank" rel="noopener">View on XRPL explorer ↗</a>` : ""}</div>`).join("") || '<p class="muted small">No contracts yet.</p>';
+    <span class="amt">${c.status === "settled" ? `${(c.drops / 1e6).toFixed(2)} XRP` : esc(c.status)}</span></button>${c.tx_url ? `<a class="txlink small mono" href="${c.tx_url}" target="_blank" rel="noopener">View on XRPL explorer ↗</a>` : ""}</div>`).join("") || '<p class="muted small">No contracts yet.</p>';
   $("ledger").querySelectorAll("[data-c]").forEach((b) => b.onclick = () => openContract(+b.dataset.c));
+  const mine = DATA.contracts.filter((c) => c.mine);
+  $("mine").innerHTML = mine.map((c) => `<div class="tx mine ${c.status === "settled" ? "" : "rej"}"><button type="button" data-c="${c.id}"><time>${hhmm(c.created)}</time>
+    <div><b>${c.buyer === ME ? "You bought" : "You sold"}</b><div class="what">${esc(META.kinds[c.kind].label)} · #${c.id}${c.status === "settled" ? "" : ` · ${esc(c.reason || c.status)}`}</div></div>
+    <span class="amt">${c.status === "settled" ? `${(c.drops / 1e6).toFixed(2)} XRP` : esc(c.status)}</span></button></div>`).join("") || '<p class="muted small">None yet. Your agent joins lots that match your rules.</p>';
+  $("mine").querySelectorAll("[data-c]").forEach((b) => b.onclick = () => openContract(+b.dataset.c));
   chatBox($("chat"), ACC);
   renderAgents();
 }
@@ -84,7 +91,7 @@ async function openContract(id) {
   const d = await api(`/api/contract/${id}`), c = d.contract, t = c.trace || {}, k = META.kinds[c.kind];
   const names = Object.fromEntries(d.messages.map((m) => [m.speaker, m.name]));
   const sellerRows = (t.seller_trace || []).map((s) => `<div class="row small"><span>${esc(names[s.seller] || s.seller)}</span><span class="${s.verdict === "agree" ? "y" : "n"}">${esc(s.verdict)}${s.price ? " " + s.price : ""}</span></div>`).join("");
-  $("dlgBody").innerHTML = `<div class="row"><div><h2>Contract #${c.id} · ${esc(k.domain)}</h2><h1 style="font-size:19px">${esc(c.buyer_name)} buying ${esc(k.label.toLowerCase())}</h1>
+  $("dlgBody").innerHTML = `<div class="row"><div><h2>Contract #${c.id} · ${esc(k.label)}</h2><h1 style="font-size:19px">${esc(c.buyer_name)} buying ${esc(k.label.toLowerCase())}</h1>
       <p class="muted small">${esc(d.posting?.purpose || "")} · offer ${d.posting?.offer} · lots of ${d.posting?.lot} · reasoning by ${esc(t.model || "rules")}</p></div>
       <div style="text-align:right"><span class="tag ${c.status === "settled" ? "blue" : "red"}" style="font-size:13px">${c.status === "settled" ? "agreed and settled" : esc(c.status)}</span><br><button type="button" id="close" style="margin-top:8px">Close</button></div></div>
     <div class="sides2">
@@ -93,7 +100,7 @@ async function openContract(id) {
       <div class="card"><div class="row"><h3>Seller agents</h3><span class="small muted">${(t.seller_trace || []).filter((s) => s.verdict === "agree").length} agreed of ${(t.seller_trace || []).length}</span></div>${sellerRows}</div>
     </div>
     <div><h2>Negotiation</h2><p class="muted small">Every message between the agents, in order. Open "thinking" to read why each agent said it.</p></div>
-    <div class="talk">${d.messages.map((m) => `<div class="say ${m.side}"><span class="who">${esc(m.name)} · ${m.side} agent${m.by ? " · " + esc(m.by) : ""}</span><div class="bubble">${esc(m.text)}</div>${m.thinking ? `<details><summary>thinking</summary>${esc(m.thinking)}</details>` : ""}</div>`).join("")}</div>
+    <div class="talk">${d.messages.map((m) => `<div class="say ${m.side}"><span class="who">${esc(m.name)} · ${m.side} agent · ${m.by && m.by !== "rules" ? `<span class="llm">${esc(m.by)} reasoning</span>` : "written rules"}</span><div class="bubble">${esc(m.text)}</div>${m.thinking ? `<details><summary>thinking</summary>${esc(m.thinking)}</details>` : ""}</div>`).join("")}</div>
     ${(t.protocol || []).length ? `<div><h2>Protocol steps</h2><p class="muted small">What each side ran, in order. Ledger steps link to the transaction on the XRPL ${esc(d.ledger)} explorer.</p>
       <ol class="proto">${t.protocol.map((x) => `<li class="${x.ok ? "" : "bad"}"><div class="row"><b>${esc(x.protocol)}</b><span class="${x.ok ? "y" : "n"}">${x.ok ? "pass" : "fail"}</span></div>
         <div class="small muted">${x.who_name ? esc(x.who_name) + " · " : ""}${esc(x.detail)}</div>${x.url ? `<a class="small mono" href="${x.url}" target="_blank" rel="noopener">${esc(x.tx)} ↗</a>` : x.tx ? `<span class="small mono">${esc(x.tx)} (test ledger)</span>` : ""}</li>`).join("")}</ol></div>` : ""}

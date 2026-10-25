@@ -44,6 +44,22 @@ def _slot() -> bool:
         return True
 
 
+_local = threading.local()
+
+
+def free_slots() -> int:
+    with _lock:
+        now = time.time()
+        recent = sum(1 for t in _calls if now - t <= 60)
+        return max(0, min(config.LLM_RPM - recent, config.LLM_DAILY_CALLS - USAGE["calls"]))
+
+
+def budget(n: int | None):
+    """Cap the LLM calls the current thread may make (None = no extra cap). A negotiation takes a few
+    slots at once so its key turns are all model-written, instead of a scatter of single calls."""
+    _local.left = n
+
+
 def _get_client():
     global _client
     if _client is None:
@@ -58,9 +74,15 @@ def _get_client():
 
 def ask_json(system: str, prompt: str, max_tokens: int = 500) -> dict | None:
     """One JSON object from the model, or None (caller falls back to its rules)."""
+    left = getattr(_local, "left", None)
+    if left is not None and left <= 0:
+        USAGE["fallbacks"] += 1
+        return None
     if config.LLM_PROVIDER not in ("anthropic", "openai") or not _slot():
         USAGE["fallbacks"] += 1
         return None
+    if left is not None:
+        _local.left = left - 1
     try:
         c = _get_client()
         if config.LLM_PROVIDER == "anthropic":
