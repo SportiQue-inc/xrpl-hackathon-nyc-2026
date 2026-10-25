@@ -194,6 +194,35 @@ def _page(*parts):
     return FileResponse(p)
 
 
+def _card(name, desc, url, skills):
+    return {"name": name, "description": desc, "version": "0.1.0",
+            "supportedInterfaces": [{"url": url, "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}],
+            "capabilities": {"streaming": False, "pushNotifications": False,
+                             "extensions": [{"uri": "https://github.com/google-agentic-commerce/ap2", "required": False},
+                                            {"uri": "https://x402.org", "required": False}]},
+            "defaultInputModes": ["application/json"], "defaultOutputModes": ["application/json"],
+            "skills": skills}
+
+
+@app.get("/.well-known/agent-card.json")
+def research_agent_card():
+    """A2A v1.0 Agent Card for the study's research agent (static; demo only)."""
+    return _card("Sleep study research agent (synthetic)",
+                 "Finds missing person-weeks in a study and sends participation requests; rewards by XRPL escrow.",
+                 "/api/study", [{"id": "research_request", "name": "Participation request",
+                                 "description": "Ask a participant's agent for protocol items and weeks.",
+                                 "tags": ["research", "consent", "xrpl"]}])
+
+
+@app.get("/agents/{pid}/.well-known/agent-card.json")
+def personal_agent_card(pid: str):
+    return _card(f"Personal agent of {pid} (synthetic)",
+                 "Answers research participation requests within the person's consent; asks the person otherwise.",
+                 f"/api/p/{pid}", [{"id": "answer_research_request", "name": "Answer participation request",
+                                    "description": "auto / ask the person / blocked, then sealed contribution.",
+                                    "tags": ["consent", "health-record", "xrpl-escrow"]}])
+
+
 @app.get("/participant")
 def participant_page():
     return _page("apps", "participant", "index.html")

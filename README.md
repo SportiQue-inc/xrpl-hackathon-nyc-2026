@@ -105,18 +105,31 @@ Only hashes go on-chain: no health values, names or consent text.
 Both pages poll `GET /api/events` and share the same engine and ledger: a tap on the phone shows
 on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 
-## 6. Track and judging fit
+## 6. Standards we align with
+
+| Standard | Where in AgentRail | Status |
+|---|---|---|
+| AP2 (Agent Payments Protocol) intent / cart / payment mandates | owner's mandate (L2) and one signed order (L3) per payment, verified before money moves (`agentrail/mandate.py`, `Engine._mandate_check`) | implemented (signed with Verifiable Intent; AP2 has no amount cap field, so the cap follows ACP `allowance.max_amount`) |
+| Verifiable Intent L1 -> L2 -> L3 (ES256 SD-JWT) | issuer credential -> owner delegation -> agent's final action; hash of L3 in each payment memo | implemented with `x402_xrpl.vi`; verification is ours |
+| [ACP delegate payment](https://raw.githubusercontent.com/agentic-commerce-protocol/agentic-commerce-protocol/main/rfcs/rfc.delegate_payment.md) `allowance.max_amount` | `per_transaction_max`, `total_max` in the owner's L2 | implemented |
+| [x402 v2](https://raw.githubusercontent.com/coinbase/x402/main/specs/x402-specification-v2.md), [XRPL exact scheme](https://github.com/x402-foundation/x402/blob/main/specs/schemes/exact/scheme_exact_xrpl.md) | `ledger/x402_rail.py` through the [T54 facilitator](https://docs.t54.ai/docs/xrpl/x402-facilitator); clinic export fee paid this way | implemented, Testnet evidence pending |
+| [A2A v1.0](https://raw.githubusercontent.com/a2aproject/A2A/main/docs/specification.md) Agent Card, task states | `/.well-known/agent-card.json`, `/agents/{id}/.well-known/agent-card.json`; each dialogue line carries `SendMessage` and `TASK_STATE_INPUT_REQUIRED` / `REJECTED` / `WORKING` | message shape only; no A2A server |
+| GA4GH Data Use Ontology (DUO) | consent documents, request cards, licence MPT metadata | implemented |
+| ISO/IEC TS 27560 consent record | `consent_document` (versioned, hashed, history kept) | aligned in structure, not certified |
+| Web Bot Auth (RFC 9421 signatures), Skyfire KYA | agent identity at the HTTP layer | future |
+
+## 7. Track and judging fit
 
 | Criterion | How | Evidence |
 |---|---|---|
 | Agentic Finance: escrow, multi-signing, on-chain credentials | all three are in the main flow, not side demos | section 4 tx links |
 | Idea | research on one person's whole record, contributed by that person's agent; the counterpart is a person, not a dataset | sections 1-2 |
-| Implementation | key-reveal escrow, MPT licence with clawback, Credentials, multi-signed treasury, idempotent payments and recovery, 48 tests | `tests/`, section 4 |
-| Demo | phone request -> contribution -> researcher heatmap fills -> revoke -> clawback and refund, all with explorer links | section 8 |
-| Potential | small, frequent contributions that cards and 80-day agreements cannot carry | section 7 |
+| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, idempotent payments and recovery, 61 tests | `tests/`, sections 4 and 6 |
+| Demo | phone request -> contribution -> researcher heatmap fills -> revoke -> clawback and refund, all with explorer links | section 9 |
+| Potential | small, frequent contributions that cards and 80-day agreements cannot carry | section 8 |
 | Bonus: QuickNode, x402 | `XRPL_RPC_URL`; `PAYMENT_RAIL=x402` | section 4 |
 
-## 7. Potential and market
+## 8. Potential and market
 
 **Data is licensed for a lot, but rarely.** The AI training dataset market grows from $3.2B (2025) to
 $16.3B (2033, 22.6% CAGR) ([Grand View Research](https://www.giikorea.co.kr/report/grvi2018158-ai-training-dataset-market-size-share-trends.html)),
@@ -152,7 +165,7 @@ $11.4M revenue, under 1% of the ~35k clinical trials started each year.
 
 Sources and the full model: market research note kept with the team's review documents.
 
-## 8. Demo and how to run
+## 9. Demo and how to run
 
 1. **Researcher console**: the sleep study is stalled at power 0.65. The LLM reads the coverage
    table and note; code keeps fatigue weeks 3-5 and heart rate weeks 4-5 and shows why. One
@@ -169,7 +182,7 @@ Sources and the full model: market research note kept with the team's review doc
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env                     # optional: OPENAI_API_KEY=... (never committed)
-python -m pytest -q                      # 48 tests on the mock ledger
+python -m pytest -q                      # 61 tests on the mock ledger
 python scripts/run_health_demo.py        # whole health study, mock ledger, JSON summary
 LEDGER=testnet python scripts/run_health_demo.py   # same on XRPL Testnet (faucet wallets)
 LEDGER=testnet python -m agentrail.scenario        # robot scene A, cohort round, failure scene
@@ -180,7 +193,7 @@ uvicorn agentrail.web:app --reload       # API + dashboard at http://127.0.0.1:8
 `OPENAI_MODEL`, `XRPL_RPC_URL`, `PAYMENT_RAIL`, `LLM_SAY`. Testnet wallets come from the faucet
 and are kept only in `wallets.local.json` (git-ignored).
 
-## 9. Safety, privacy, limits
+## 10. Safety, privacy, limits
 
 - All people, institutions, records and amounts are **synthetic**. XRPL Testnet only.
 - The service does not hold anyone's funds: the study escrows rewards to each participant's
@@ -193,7 +206,7 @@ and are kept only in `wallets.local.json` (git-ignored).
 - Unknown state never becomes "allowed": an unreadable consent store holds the round.
 - Not a medical device; no diagnosis.
 
-## 10. Legal basis (summary)
+## 11. Legal basis (summary)
 
 > Not legal advice. The demo uses synthetic data and XRPL Testnet only. Article numbers are being
 > checked against the original texts.
@@ -207,7 +220,7 @@ and are kept only in `wallets.local.json` (git-ignored).
 - **Participation compensation**: accrues per round via Escrow and is never clawed back after withdrawal; Clawback applies only to the licence token (FDA 2018 payment guidance). The platform holds no keys or funds (cf. Korea AML Act VASP rules; FinCEN FIN-2019-G001).
 - **On-chain minimization**: no personal data, study names or conditions on the ledger; the licence refers to the study by hash (PIPC Blockchain Guideline 2026).
 
-## 11. Where this goes (production targets)
+## 12. Where this goes (production targets)
 
 The two surfaces in this repository were built during the hackathon to show where the engine
 plugs in. The team runs two existing products that are the intended production targets:

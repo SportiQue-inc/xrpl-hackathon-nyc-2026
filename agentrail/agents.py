@@ -17,11 +17,30 @@ from .policy import (PURPOSE_DUO, ALLOW, AUTOMATION_LEVELS, DENY, HOLD, PARTIAL,
 
 # ---------------- conversation log ----------------
 
+# Each dialogue line also carries its A2A v1.0 shape (message between agents and the task state
+# it moves to), so the log reads as agent-to-agent protocol traffic. No A2A server is run.
+A2A_STATE = {"round": ("SendMessage", "TASK_STATE_SUBMITTED"),
+             "quote": ("SendMessage", "TASK_STATE_WORKING"),
+             "ask_person": ("SendMessage", "TASK_STATE_INPUT_REQUIRED"),
+             "approve": ("SendMessage", "TASK_STATE_WORKING"),
+             "decline": ("SendMessage", "TASK_STATE_REJECTED"),
+             "provide": ("SendMessage", "TASK_STATE_WORKING"),
+             "filter": ("SendMessage", "TASK_STATE_WORKING"),
+             "deny": ("SendMessage", "TASK_STATE_REJECTED"),
+             "hold": ("SendMessage", "TASK_STATE_REJECTED")}
+
+
 def talk(store, speaker: str, to: str | None, kind: str, facts: dict, fallback: str, extra: dict | None = None):
     """Log one line of agent dialogue. The decision is in `facts` (set by code);
     the LLM, if configured, only rewrites `fallback` as a sentence."""
     text, by = voice().say(speaker, to, facts, fallback)
-    store.log(speaker, kind, text, {"to": to, "by": by, "facts": facts, **(extra or {})})
+    a2a = None
+    if kind in A2A_STATE:
+        method, state = A2A_STATE[kind]
+        a2a = {"method": method, "taskState": state,
+               "message": {"role": "ROLE_AGENT", "parts": [{"data": {"kind": kind, **facts}}]}}
+    store.log(speaker, kind, text, {"to": to, "by": by, "facts": facts, **({"a2a": a2a} if a2a else {}),
+                                    **(extra or {})})
 
 
 def licence_text(lic: dict) -> str:
