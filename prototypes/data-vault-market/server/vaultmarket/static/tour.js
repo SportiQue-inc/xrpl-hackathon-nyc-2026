@@ -17,7 +17,11 @@ const JUDGE = [
     t: T(["Open the receipt", "Click a purple “You sold” row to open the deal's receipt."],
          ["영수증 열기", "보라색 “You sold” 줄을 눌러 거래 영수증을 여세요."])},
   {page: "/", el: ["#dlgBody .receipt-tx", "#dlgBody a[href*='xrpl.org']", "#dlgBody .settlement-summary"], dialog: true,
-    t: T(["Paid on XRPL", "The payment was locked on XRPL until the seller handed over the data key. Click a link to see the real transaction.",
+    t: () => (typeof META !== "undefined" && META?.ap4m) ? T(["Paid through Mastercard AP4M", "The buyer's agent paid with an AP4M voucher on the XRPL EVM Testnet; redeeming it released the data key. Click a link to see the real payment and its receipt.",
+          "The buyer checked the intake signature and a Merkle proof of a sampled record first. Each payment is a small AP4M voucher (at most 0.10 RLUSD); when the merchant redeems it, the seller's key K is released so the buyer can decrypt the data, and the RLUSD is forwarded to the seller."],
+         ["Mastercard AP4M로 결제", "구매자 에이전트가 XRPL EVM Testnet에서 AP4M 바우처로 결제했고, 바우처가 사용되면서 데이터 키가 풀렸어요. 링크를 눌러 실제 결제와 영수증을 보세요.",
+          "구매자는 먼저 인테이크 서명과 샘플 레코드의 Merkle 증명을 확인해요. 결제는 건당 0.10 RLUSD 이하의 AP4M 바우처이고, 가맹점이 바우처를 사용하면 판매자의 키 K가 공개되어 구매자가 복호화하고, RLUSD는 판매자에게 전달돼요."])
+      : T(["Paid on XRPL", "The payment was locked on XRPL until the seller handed over the data key. Click a link to see the real transaction.",
           "The buyer checked the intake signature and a Merkle proof of a sampled record, then locked the payment in an escrow whose condition is SHA-256(K), cancelling after one hour. The seller's EscrowFinish reveals K, which releases the money and lets the buyer decrypt the data in the same transaction."],
          ["XRPL에서 결제", "판매자가 데이터 키를 넘길 때까지 돈이 XRPL에 잠겨 있었어요. 링크를 눌러 실제 트랜잭션을 보세요.",
           "구매자는 인테이크 서명과 샘플 레코드의 Merkle 증명을 확인한 뒤, 조건 SHA-256(K)·1시간 후 취소인 에스크로에 돈을 잠가요. 판매자의 EscrowFinish가 K를 공개하면 같은 트랜잭션에서 돈이 풀리고 구매자는 복호화해요."])},
@@ -167,7 +171,7 @@ function tourShow() {
   if (!s) return tourEnd();
   if (location.pathname !== s.page) { location.href = s.page; return; }
   s.prep?.();
-  const [title, body, more] = tx(s.t);
+  const [title, body, more] = tx(typeof s.t === "function" ? s.t() : s.t);
   const host = document.querySelector("dialog[open]") || document.body;   // inside an open modal, or it would be inert
   host.insertAdjacentHTML("beforeend", `<div class="coach-box" aria-hidden="true"></div><div class="coach" role="dialog" aria-label="Guide">
     <div class="coach-row"><span class="coach-n">Step ${st.i + 1} / ${steps.length}</span><button type="button" class="coach-lang">${tourLang === "ko" ? "EN" : "한국어"}</button></div>
