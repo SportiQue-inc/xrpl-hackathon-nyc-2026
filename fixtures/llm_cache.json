@@ -1,0 +1,237 @@
+{
+ "07356042c0f9814dcb2254ff9b2a77ba575743b152088d500530de7e23d71d36": {
+  "answer": {
+   "confidence": {
+    "imu": 1.0,
+    "lidar": 0.9
+   },
+   "mapping": {
+    "imu": "imu",
+    "lidar": "point_cloud"
+   },
+   "why": {
+    "imu": "imu field matches canonical name and contains typical imu sensor data",
+    "lidar": "point_cloud contains 3D points data consistent with lidar output"
+   }
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "09388986db5c73547d9c11684a987db20bb2473a5f695da7f899857599895113": {
+  "answer": {
+   "confidence": {
+    "imu": 0.9,
+    "lidar": 0
+   },
+   "mapping": {
+    "imu": "imu_6axis",
+    "lidar": null
+   },
+   "why": {
+    "imu": "imu_6axis matches the imu data type and format (array of sensor values).",
+    "lidar": "No seller field represents lidar data; depth_cam is a depth camera, not lidar."
+   }
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "097b2bea0cc6c47780a4339427cece5363765099604abae69363019bce768f8c": {
+  "answer": {
+   "confidence": {
+    "imu": 0.9,
+    "lidar": 0.9
+   },
+   "mapping": {
+    "imu": "imu_6axis",
+    "lidar": "lidar_xyz"
+   },
+   "why": {
+    "imu": "Field 'imu_6axis' matches 'imu' as it contains six numerical values typical of a 6-axis IMU sensor.",
+    "lidar": "Field 'lidar_xyz' matches 'lidar' as it contains 3D point data typical of LiDAR sensors."
+   }
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "1cd68280af28f1c7cc503a418a28d2c4d78f59c3781ba0a21b09f4b7a367b085": {
+  "answer": {
+   "allow_sensitive_fields": false,
+   "budget_xrp": 40,
+   "gaps": [
+    {
+     "evidence": "Coverage only 40 episodes vs target 400; evaluation report: 'Night runs: collision rate 3.1x the daytime rate (12 incidents in 40 runs).' indicates poor performance due to lack of night data.",
+     "scenario": "night"
+    },
+    {
+     "evidence": "Coverage only 25 episodes vs target 400; evaluation report states 'People and forklifts crossing: 42 avoidance failures; model rarely saw moving obstacles.' indicates insufficient dynamic obstacle data.",
+     "scenario": "dynamic_obstacle"
+    },
+    {
+     "evidence": "Coverage 380 episodes vs target 400; evaluation report says 'Narrow aisles: within tolerance after last month's data.' so gap is minimal or closed.",
+     "scenario": "narrow_aisle"
+    },
+    {
+     "evidence": "Coverage 310 episodes vs target 200 (exceeds target); evaluation report: 'Loading dock and outdoor yard: within tolerance.' No gap.",
+     "scenario": "loading_dock"
+    },
+    {
+     "evidence": "Coverage 1200 episodes vs target 400 (exceeds target); serves as baseline, no gap.",
+     "scenario": "daytime"
+    },
+    {
+     "evidence": "Coverage 150 episodes vs target 150; evaluation report: 'Loading dock and outdoor yard: within tolerance.' No gap.",
+     "scenario": "outdoor"
+    }
+   ],
+   "max_missing_rate": 0.1,
+   "optional_fields": [],
+   "purpose": "commercial_training",
+   "required_fields": [
+    "lidar",
+    "imu"
+   ]
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "485575c7bf9c14c1d435ce77ac8a127c5fa62ed12c4c2d614b9ce1ecf00ce0c0": {
+  "answer": {
+   "attribution": false,
+   "commercial_training": true,
+   "evaluation": false,
+   "redistribution": false,
+   "term_months": 24
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "64cbf73fcef7a647edac19c26baa491cdc794e17b385cc38902efcb5c6932a37": {
+  "answer": {
+   "budget_xrp": 100000,
+   "do_not_request": [
+    {
+     "item": "sleep.daily",
+     "reason": "Sleep data coverage is nearly complete (48-50/50 per week) and no action needed as per analysis note."
+    },
+    {
+     "item": "activity.daily",
+     "reason": "Activity data is complete for all weeks and participants; not required by the protocol."
+    },
+    {
+     "item": "blood_pressure.daily",
+     "reason": "Blood pressure data coverage is zero; protocol states data only collected if ethics approved; no indication to start."
+    }
+   ],
+   "gaps": [
+    {
+     "evidence": "\"fatigue.survey\": {\"w3\": \"16/50\", \"w4\": \"17/50\", \"w5\": \"11/50\"}, analysis_note: \"Fatigue survey app outage during weeks 3-5; most participants have no score for those weeks.\"",
+     "item": "fatigue.survey",
+     "weeks": [
+      3,
+      4,
+      5
+     ]
+    },
+    {
+     "evidence": "\"heart_rate.daily\": {\"w4\": \"37/50\", \"w5\": \"38/50\"}, analysis_note: \"Resting heart rate missing for a subgroup in weeks 4-5 (device sync issue).\"",
+     "item": "heart_rate.daily",
+     "weeks": [
+      4,
+      5
+     ]
+    }
+   ],
+   "purpose": "To restore sufficient participant-week data coverage for primary analysis assessing the association between weekly sleep debt and fatigue score, ensuring study power is at least 80%.",
+   "summary_for_participants": "We need to collect more fatigue survey data for weeks 3 to 5 and complete missing resting heart rate data during these weeks to improve the accuracy of our sleep and fatigue study results."
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "9c3b9752863552801d8509500e5cfc0f1e5d2b4c1d392c8256c66809e5061d4c": {
+  "answer": {
+   "missing": [
+    {
+     "item": "fatigue.survey",
+     "reason": "held data missing but source has it",
+     "week": 3
+    },
+    {
+     "item": "fatigue.survey",
+     "reason": "held data missing but source has it",
+     "week": 4
+    },
+    {
+     "item": "heart_rate.daily",
+     "reason": "held data missing but source has it",
+     "week": 4
+    }
+   ]
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "9f8a5e9659838c48c4e8e2e5eb9ae9cfe3d19d296d9aba3ebd9d8bfc626cc632": {
+  "answer": {
+   "missing": [
+    {
+     "item": "fatigue.survey",
+     "reason": "Primary analysis requires fatigue.survey data alongside sleep.daily.",
+     "week": 3
+    },
+    {
+     "item": "fatigue.survey",
+     "reason": "Primary analysis requires fatigue.survey data alongside sleep.daily.",
+     "week": 4
+    }
+   ]
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "a16be3eee2b31bc2af98b2b57cfef4f4fccbcb5a00414485adda0557923cb5e6": {
+  "answer": {
+   "confidence": {
+    "imu": 1,
+    "lidar": 1
+   },
+   "mapping": {
+    "imu": "imu",
+    "lidar": "lidar"
+   },
+   "why": {
+    "imu": "Exact field name and sample data matches typical IMU data format",
+    "lidar": "Exact field name and sample data matches expected LIDAR format"
+   }
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "a4d8f80cf8b89e64c91a11ce5e79e60dba05117c2b72c62164d17959edf88d82": {
+  "answer": {
+   "attribution": true,
+   "commercial_training": true,
+   "evaluation": false,
+   "redistribution": false,
+   "term_months": null
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "c037349d7f2f99c379aa7f60a134ca99f9febc658d1966029594097fd3a9a697": {
+  "answer": {
+   "confidence": {
+    "imu": 1,
+    "lidar": 1
+   },
+   "mapping": {
+    "imu": "imu_6axis",
+    "lidar": "lidar_xyz"
+   },
+   "why": {
+    "imu": "Field imu_6axis matches IMU data format with 6-axis sensor readings",
+    "lidar": "Field lidar_xyz contains 3D point cloud data typical for lidar sensors"
+   }
+  },
+  "model": "gpt-4.1-mini"
+ },
+ "cee0570845755d5ae56f07d072ffa3d4328ea470bf023eefcabc6963bfd288d6": {
+  "answer": {
+   "attribution": false,
+   "commercial_training": false,
+   "evaluation": true,
+   "redistribution": false,
+   "term_months": null
+  },
+  "model": "gpt-4.1-mini"
+ }
+}
