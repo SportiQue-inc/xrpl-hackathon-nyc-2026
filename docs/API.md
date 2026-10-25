@@ -61,7 +61,9 @@ domains), each with problem, solution, where it is enforced, demo moment and evi
     "duo": [{"code": "DUO:0000006", "label": "HMB - health or medical or biomedical research"}],
     "items": [{"item": "fatigue.survey", "label": "Fatigue survey", "weeks": [3, 4, 5],
                "source": "survey_app", "class": "auto|approval|blocked", "reason": "..."}],
-    "reward_xrp": 0.6, "settlement": "escrow, released when your agent publishes the key"
+    "reward_xrp": 0.6, "settlement": "escrow, released when your agent publishes the key",
+    "partial_data_plan": "Stated: weeks you contribute before stopping are analyzed as planned ...",
+    "if_you_stop": [{"kind": "decline_round|pause|revoke", "label": "Skip this round", "effect": "..."}]
   }],
   "timeline": {"weeks": [1,2,3,4,5,6,7,8],
                "rows": [{"item": "sleep.daily", "label": "Sleep", "source": "wearable",
@@ -162,3 +164,15 @@ Before the key is on the ledger: `{"ok": false, "message": "..."}`.
 
 `POST /api/run/a-guarded` then `GET /api/state` (`orders` with tx `url`, `events`). Same engine,
 consent layer replaced by seller licence terms.
+
+## Agent Cards (A2A v1.0 shape)
+
+`GET /.well-known/agent-card.json` (research agent), `GET /agents/{pid}/.well-known/agent-card.json`
+(personal agent). Events from agent dialogue carry `data.a2a = {"method": "SendMessage", "taskState":
+"TASK_STATE_INPUT_REQUIRED|TASK_STATE_REJECTED|TASK_STATE_WORKING|TASK_STATE_SUBMITTED", "message": {...}}`.
+
+## Signed delegation
+
+Each order of a buyer with an owner-signed mandate has a row in `mandate_actions` (L1, L2, L3, hash,
+verdict). Events of kind `mandate` show when the owner signs; a refused order's note starts with
+`mandate check failed:`. The memo of its escrow or payment ends with `|mandate:<hash>`.
