@@ -66,7 +66,11 @@ rejects a tampered package hash, refuses an off-consent purpose or item.
    address, set up the team Merchant and its payout wallet, and fund the budget. The SDK expects this to be done
    in the portal, not in code.
 2. Fund the Agent wallet and the merchant submitter wallet with XRP for gas from the XRPL EVM Testnet faucet
-   (`https://faucet.testevm.ripple.com`). The Agent pays gas for `requestChannel`; the submitter pays gas for redemptions.
+   (`https://faucet.testevm.ripple.com` per the SDK files; the developer guide links `https://faucet.xrplevm.org/`).
+   The Agent pays gas for `requestChannel`; the submitter pays gas for redemptions. The payout wallet must be
+   a different wallet from the Agent and funding wallets (the agent refuses to start otherwise).
+   Optional: the portal's Quick Start `ap4m-agent.js` (Demo 1) has the team name, API URL and an open Channel ID
+   already filled in; copy those values into `.env` as `TEAM_NAME`, `AP4M_API_URL` and `CHANNEL_ID`.
 3. `cp .env.example .env` and fill in `TEAM_NAME`, `AGENT_PRIVATE_KEY`, `MERCHANT_ID`, `MERCHANT_PAYOUT`,
    `MERCHANT_SUBMITTER_KEY` (and `AP4M_API_URL` if it differs from `https://hackathon.ap4m.build`).
    `.env` is git-ignored. Never paste key values into chat or commits.

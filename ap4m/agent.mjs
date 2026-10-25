@@ -91,6 +91,10 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
   };
 
   const payout = dryRun ? DRY_PAYOUT : payoutAddress(env);
+  // The developer guide requires the payout wallet to differ from the Agent (and funding) wallet.
+  if (!dryRun && payout.toLowerCase() === live.wallet.address.toLowerCase()) {
+    throw new Error('MERCHANT_PAYOUT must be a different wallet from the Agent wallet');
+  }
   const balanceOf = async () => (dryRun ? null : await live.rlusd.balanceOf(payout));
   const balanceBefore = await balanceOf();
 
