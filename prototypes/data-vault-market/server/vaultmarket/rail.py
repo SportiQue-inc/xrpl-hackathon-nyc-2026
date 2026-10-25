@@ -83,7 +83,14 @@ class Rail:
         state_file = os.path.join(config.DATA_DIR, "token.local.json")
         st = json.load(open(state_file)) if os.path.exists(state_file) else {"lines": []}
         try:
-            self.issuer = self.ensure_account("issuer")
+            for attempt in range(8):        # the faucet rate-limits right after funding 50 wallets
+                try:
+                    self.issuer = self.ensure_account("issuer")
+                    break
+                except Exception:
+                    if attempt == 7:
+                        raise
+                    time.sleep(20 * (attempt + 1))
             if not st.get("flags"):
                 for flag in (AccountSetAsfFlag.ASF_DEFAULT_RIPPLE, AccountSetAsfFlag.ASF_ALLOW_TRUSTLINE_LOCKING):
                     r = self._send(AccountSet, self.issuer, set_flag=flag)
