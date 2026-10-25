@@ -27,6 +27,7 @@ async function topbar(page) {
   $("accountName").textContent = USER.user?.username || "";
   const brand=document.querySelector(".brand");if(brand)brand.after($("accountName"));
   memberBar();
+  if (!$('demoLink')) {const a=document.createElement('a');a.id='demoLink';a.href='/demo';a.textContent='Demo';if(location.pathname==='/demo')a.setAttribute('aria-current','page');document.querySelector('nav').append(a);}
   if (META.engine_url && !$("engineLink")) {
     const a=document.createElement("a");a.id="engineLink";a.href=META.engine_url;a.target="_blank";a.rel="noopener";a.textContent="Engine ↗";document.querySelector("nav").append(a);
   }

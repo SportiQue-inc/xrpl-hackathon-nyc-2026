@@ -418,7 +418,22 @@ def test_agent_comparison_uses_ledger_amounts_and_excludes_real_members(market, 
     cid=market.s.insert('contracts',buyer='buyer',seller='seller',kind='sleep_log',status='settled',sellers=['seller'])
     market.s.insert('txs',contract=cid,type='EscrowFinish (key released)',src='seller',dst='buyer',drops=80000,asset='XRP',result='tesSUCCESS')
     market.s.insert('txs',contract=cid,type='EscrowCreate',src='buyer',dst='seller',drops=80000,asset='XRP',result='tesSUCCESS')
-    styles=TestClient(web.app).get('/api/market').json()['agent_styles']
+    styles=TestClient(web.app).get('/api/demo?minutes=0').json()['agents']
     assert not any(a['id'].startswith('u-') for a in styles)
     seller=next(a for a in styles if a['id']=='seller')
     assert seller['sales']==1 and seller['income']==[{'asset':'XRP','amount':.08}]
+
+
+def test_demo_compares_the_same_window_without_mixing_assets(market, monkeypatch):
+    import time
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web,'M',market)
+    cid=market.s.insert('contracts',buyer='buyer',seller='seller',kind='sleep_log',status='settled')
+    for amount,asset,age,result in [(1000000,'test USD',10,'tesSUCCESS'),(80000,'XRP',10,'tesSUCCESS'),(9000000,'test USD',4000,'tesSUCCESS'),(6000000,'test USD',10,'tecFAILED')]:
+        market.s.insert('txs',contract=cid,type='EscrowFinish (key released)',src='seller',dst='buyer',drops=amount,asset=asset,result=result,created=time.time()-age)
+    client=TestClient(web.app);d=client.get('/api/demo?minutes=15').json();a=next(a for a in d['agents'] if a['id']=='seller')
+    assert sorted((r['asset'],r['amount']) for r in a['income'])==[('XRP',.08),('test USD',1)]
+    assert len(a['receipts'])==2 and all(d['start']<=r['at']<=d['end'] for r in a['receipts'])
+    assert client.get('/api/demo?minutes=-1').status_code==400
+    assert client.get('/demo').status_code==200

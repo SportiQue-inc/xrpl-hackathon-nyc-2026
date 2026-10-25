@@ -206,16 +206,33 @@ def _trade_summaries(contracts, account):
     return contracts
 
 
-def _agent_styles():
-    receipts=M.s.q("SELECT src,COALESCE(asset,'XRP') asset,COUNT(DISTINCT contract) sales,SUM(drops) micro FROM txs WHERE type LIKE 'EscrowFinish%' AND result='tesSUCCESS' GROUP BY src,asset")
+def _agent_styles(since=0):
+    receipts=M.s.q("SELECT src,COALESCE(asset,'XRP') asset,COUNT(DISTINCT contract) sales,SUM(drops) micro FROM txs WHERE type LIKE 'EscrowFinish%' AND result='tesSUCCESS' AND created>=? GROUP BY src,asset", (since,))
     styles=[]
     for row in M.s.q("SELECT id FROM accounts WHERE id NOT LIKE 'u-%'"):
         a=M.acct(row['id']);rules=a['sell_agent'];mins=rules.get('min',{})
         ratio=sum(mins.get(k,v['price'])/v['price'] for k,v in KINDS.items())/len(KINDS)
         style='Approval first' if rules.get('mode')=='ask' else 'Price firm' if ratio>=1 else 'Flexible pricing'
         rs=[r for r in receipts if r['src']==a['id']]
-        styles.append({'id':a['id'],'name':a['name'],'style':style,'blocked_purposes':rules.get('blocks',[]),'sales':sum(r['sales'] for r in rs),'income':[{'asset':r['asset'],'amount':r['micro']/1e6} for r in rs]})
+        styles.append({'id':a['id'],'name':a['name'],'style':style,'blocked_purposes':rules.get('blocks',[]),'approval':rules.get('mode'),'minimums':mins,'floor_ratio':round(ratio,3),'budget':a['buy_agent'].get('auto_limit') if a.get('buy_agent') else None,'sales':sum(r['sales'] for r in rs),'income':[{'asset':r['asset'],'amount':r['micro']/1e6} for r in rs]})
     return sorted(styles,key=lambda a:(-a['sales'],a['name']))
+
+
+@app.get("/demo")
+def demo_page():
+    return FileResponse(os.path.join(STATIC,"demo.html"))
+
+
+@app.get("/api/demo")
+def demo(minutes: int = 60):
+    if minutes not in (15,60,180,0):
+        raise HTTPException(400,"Choose 15, 60, 180 minutes or all history")
+    now=time.time();start=now-minutes*60 if minutes else M.s.one("SELECT COALESCE(MIN(created),?) t FROM txs",(now,))["t"]
+    styles=_agent_styles(start);ids={a['id'] for a in styles}
+    rows=M.s.q("SELECT src,COALESCE(asset,'XRP') asset,drops,created FROM txs WHERE type LIKE 'EscrowFinish%' AND result='tesSUCCESS' AND created>=? ORDER BY created",(start,))
+    for a in styles:
+        a['receipts']=[{'asset':r['asset'],'amount':r['drops']/1e6,'at':r['created']} for r in rows if r['src']==a['id']]
+    return {'start':start,'end':now,'minutes':minutes,'agents':styles,'assets':sorted({r['asset'] for r in rows if r['src'] in ids} | {M.rail.symbol()}),'unit':config.MICRO_PER_UNIT/1e6,'note':'Simulated participants. Income is the gross amount from successful escrow finishes in the selected period; XRP network fees are separate.'}
 
 
 @app.get("/api/market")
@@ -255,7 +272,7 @@ def market(request: Request, account: str = "", domain: str | None = None):
                          "volume": round(s.stat("volume"), 1), "xrp": round(s.stat("drops") / 1e6, 4), "uploads": s.stat("uploads"),
                          "blocked": s.stat("blocked"), "cleaned": s.stat("cleaned"), "fees": round(s.stat("fees"), 1),
                          "txs": s.one("SELECT COUNT(*) n FROM txs")["n"]},
-            "agent_styles": _agent_styles(), "domains": sorted(doms, key=lambda d: -(d["listed"] + 5 * d["settled"])), "postings": postings, "contracts": contracts, "listings": listings, "sell_now": _sell_now(account), "prices": {k: M.quote(k) for k in KINDS}, "events": M.events}
+            "domains": sorted(doms, key=lambda d: -(d["listed"] + 5 * d["settled"])), "postings": postings, "contracts": contracts, "listings": listings, "sell_now": _sell_now(account), "prices": {k: M.quote(k) for k in KINDS}, "events": M.events}
 
 
 def _sell_now(aid: str) -> list[dict]:
