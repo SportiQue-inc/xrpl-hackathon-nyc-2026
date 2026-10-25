@@ -73,6 +73,12 @@ def test_repeating_an_approved_goal_does_not_reset_its_budget_approval(w):
     assert study.study_view(w)["study"]["budget_xrp"] == budget
 
 
+def test_study_and_participant_expose_the_actual_settlement_asset(w):
+    from agentrail import units
+    assert study.study_view(w)["study"]["asset"] == units.UNIT
+    assert study.participant_view(w, HERO)["asset"] == units.UNIT
+
+
 def test_participant_card_classifies_items_and_shows_ledger_badge(w):
     sent(w)
     card = study.participant_view(w, HERO)["requests"][0]

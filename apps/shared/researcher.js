@@ -6,7 +6,7 @@
 import { engine, watch } from "./api.js";
 import {
   h, render, tag, icon, xrp, short, sum, ago, day, ledgerDay, weeksLabel, txLink, openReceipt, banner, busy, WEEK_STATE,
-  holdbackState, SIGNAL, codeGate,
+  holdbackState, SIGNAL, codeGate, UNIT,
 } from "./ui.js";
 
 const OPENED = new Map();   // order_id -> opened bundle result, kept across poll re-renders
@@ -190,7 +190,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
       ),
       h("div", { class: "ar-main" },
         h("header", { class: "ar-top" },
-          h("span", { class: "ar-budget" }, `Study budget ${Math.round(budget)} RLUSD`),
+          h("span", { class: "ar-budget" }, `Study budget ${Math.round(budget)} ${UNIT}`),
           tag(st.s && st.s.study.ledger === "testnet" ? "Testnet" : "Practice ledger"),
           h("button", { class: "ar-iconbtn", "aria-label": "Notifications" }, icon("bell")),
           h("div", { class: "row" }, h("span", { class: "ar-avatar" }), h("span", { style: { fontWeight: 500 } }, "Researcher A")),
@@ -690,7 +690,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
           h("td", {}, c.kept_weeks && c.kept_weeks.length ? weeksLabel(c.kept_weeks) : "—"))))),
       p.notes && p.notes.length ? h("p", { class: "tiny muted" }, p.notes.join(" · ")) : null,
       h("div", { class: "row", style: { gap: "16px" } },
-        h("b", {}, `${p.people} people · ${p.cells} cells · ${p.budget_xrp} RLUSD`),
+        h("b", {}, `${p.people} people · ${p.cells} cells · ${p.budget_xrp} ${UNIT}`),
         p.verdict === "rejected" ? tag("Nothing in the table supports this goal", "amber") : null),
       h("div", { class: "ar-banner blue", style: { flexDirection: "column", gap: "4px" } },
         h("span", { class: "tiny" }, "Participants will read"), h("span", {}, p.summary_for_participants)));

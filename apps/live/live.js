@@ -3,6 +3,7 @@
 // Actions sign with the engine's demo keys (the simulated devices); nobody needs a passkey or wallet.
 
 import { engine, watch } from "/apps/shared/api.js";
+import { UNIT } from "/apps/shared/ui.js";
 
 // Access code: visitors with it act through the demo devices; without it the page is read-only.
 const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
@@ -120,7 +121,7 @@ async function refresh() {
 function structure() {
   const s = st.study.study;
   const subs = st.inst?.subprojects || [{ id: "study", name: s.protocol.split(",")[0], status: "Live", data_types: [], paid: st.study.settlement.paid_xrp }];
-  const unit = "RLUSD";   // test token standing in for RLUSD (asset_label says so)
+  const unit = UNIT;
   return h("div", { class: "card col" },
     h("div", { class: "spread" }, h("h2", {}, "Structure"), tag("Person → Institution → Sub-projects", "blue")),
     h("div", { class: "node person" }, h("b", {}, `${st.study.heatmap.rows.length} people`), h("span", { class: "muted small" }, "each with their own agent and demo wallet")),
@@ -196,7 +197,7 @@ function actions() {
 
 function log() {
   const subRows = st.settled.map((x) => ({ ts: Date.now() / 1000, kind: "subproject", actor: x.person,
-    message: `${x.sub} · round ${x.round}: ${x.status} ${x.amount} RLUSD (EscrowCreate ${String(x.escrow_create || "").slice(0, 8)}…)`,
+    message: `${x.sub} · round ${x.round}: ${x.status} ${x.amount} ${UNIT} (EscrowCreate ${String(x.escrow_create || "").slice(0, 8)}…)`,
     tx: x.escrow_finish || x.escrow_create, url: x.url }));
   const rows = subRows.concat(st.events.filter((e) => STEP[e.kind]).slice(-200).reverse());
   return h("div", { class: "card log" },

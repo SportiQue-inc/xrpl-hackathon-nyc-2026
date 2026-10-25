@@ -649,6 +649,7 @@ def participant_view(w, pid: str) -> dict:
         lic = {**lic, "held_by_study": w.ledger.licence_held(w.engine.party(LAB)["address"], lic["mpt_id"])}
     return {
         "person": {"id": pid, "address": w.engine.party(pid)["address"], "study_pseudonym": pa.vault.pseudonym(LAB)},
+        "asset": units.UNIT,
         "requests": [request_card(w, r) for r in reqs],
         "timeline": {"weeks": WEEKS, "rows": rows},
         "gaps": s.person_claims.get(pid, []),
@@ -879,6 +880,7 @@ def study_view(w) -> dict:
     from .scenario import ETHICS_CREDENTIAL  # noqa: F401
     return {
         "study": {"id": LAB, "name": w.engine.party(LAB)["name"], "ledger": w.ledger.name,
+                  "asset": units.UNIT,
                   "protocol": __import__("agentrail.cohort", fromlist=["PROTOCOL"]).PROTOCOL,
                   "irb": IRB_NUMBER,
                   "purpose": "sleep_research",

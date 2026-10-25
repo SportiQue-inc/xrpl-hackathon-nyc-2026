@@ -44,6 +44,8 @@ def test_sensitive_approval_covers_only_one_delivery_round(w, monkeypatch):
     sp = rel.create("Fresh MRI approval", "sleep_research", ["imaging.mri"], 50_000_000, 2)
     monkeypatch.setattr(w.cohort_people[pid].vault, "extract", lambda *args, **kwargs:
                         [{"person": "synthetic-mri-participant", "imaging.mri": "synthetic-image-hash"}])
+    monkeypatch.setitem(w.cohort_people[pid].vault.by_item, "imaging.mri",
+                        w.cohort_people[pid].vault.by_item["sleep.daily"])
     rel.decide(pid, sp["id"], "imaging.mri", True)
     first = rel.run(sp["id"])
     assert any(row["person"] == pid and row["status"] == "delivered" for row in first["settled"])
