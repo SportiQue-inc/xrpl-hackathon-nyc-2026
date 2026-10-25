@@ -65,6 +65,7 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/api/engine/check"): Rule((R, O), "study"),
     ("POST", "/api/contract/round"): Rule((R, O), "study"),
     ("GET", "/api/contract/projection"): Rule((R, O), "study"),
+    ("GET", "/api/catalog"): Rule((R, O), "study"),
     ("GET", "/api/events"): Rule((R, O), "study"),
     ("GET", "/api/boundaries"): Rule((R, O), "study"),
     # treasury approvals: researcher opens one, each approver signs on their own device
