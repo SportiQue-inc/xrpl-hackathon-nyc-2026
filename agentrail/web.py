@@ -402,6 +402,16 @@ def contract_round(providers: int = Query(default=14, ge=2, le=40), target: int 
         return onledger.run(world(), providers, target, model=_forecast_model())
 
 
+@app.get("/api/catalog")
+def catalog():
+    """Every column with its tier, data use codes, retention and deletion rule; plus the approval bottleneck."""
+    from .catalog import columns, simulate
+    if "bottleneck" not in _state:
+        _state["bottleneck"] = simulate.run()
+    return {"columns": [c.card() for c in columns.CATALOG.values()], "duo": columns.DUO,
+            "bottleneck": _state["bottleneck"]}
+
+
 @app.get("/api/contract/projection")
 def contract_projection():
     """Live projection of the round (usable so far, expected final with a 90% band, power, risks)."""
