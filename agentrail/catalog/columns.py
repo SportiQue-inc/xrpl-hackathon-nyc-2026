@@ -96,6 +96,7 @@ CATALOG: dict[str, Column] = {c.id: c for c in [
     _n("resp_rate.night", "Overnight respiratory rate", "T0", "breaths/min", 6, 30),
     _n("skin_temp.delta", "Skin temperature deviation", "T0", "C", -3, 3),
     _n("screen_time", "Screen time", "T0", "min/day", 0, 1200),
+    _n("body_temp.daily", "Body temperature", "T0", "C", 34, 40),
     # T1 lifestyle
     _n("meal.kcal", "Meal energy (logged)", "T1", "kcal/day", 0, 6000),
     _n("meal.protein", "Protein (logged)", "T1", "g/day", 0, 400),
@@ -108,6 +109,7 @@ CATALOG: dict[str, Column] = {c.id: c for c in [
     _n("mood.score", "Mood (self-rated)", "T1", "0-10", 0, 10),
     _n("stress.score", "Stress (self-rated)", "T1", "0-10", 0, 10),
     _n("fatigue.survey", "Fatigue survey", "T1", "0-10", 0, 10),
+    _n("energy.survey", "Energy survey", "T1", "0-10", 0, 10),
     Column("survey.psqi", "Sleep quality questionnaire (PSQI)", "T1", "numeric", "score", 0, 21),
     Column("smoking.status", "Smoking status", "T1", "category"),
     # T2 clinical
@@ -135,6 +137,16 @@ CATALOG: dict[str, Column] = {c.id: c for c in [
 ]}
 
 
+# Names the people's store (UniQdata) uses for the same columns.
+ALIASES = {"body_weight.daily": "weight", "meal.log": "meal.kcal", "medication.taken": "med.adherence",
+           "mood.daily": "mood.score", "spo2.daily": "spo2.night", "activity.daily": "activity.minutes",
+           "diagnosis.code": "dx.codes", "prescription.active": "rx.list", "genome.variant": "genome.vcf"}
+
+
+def canon(col: str) -> str:
+    return ALIASES.get(col, col)
+
+
 def by_tier(tier: str) -> list[Column]:
     return [c for c in CATALOG.values() if c.tier == tier]
 
@@ -149,7 +161,7 @@ def duo_for(cols) -> list[str]:
 
 # ---------------- synthetic values ----------------
 
-GENES = {"BRCA1": ("chr17", 43044295), "BRCA2": ("chr13", 32315474), "CYP2C19": ("chr10", 94762681),
+GENES = {"CYP1A2": ("chr15", 74748845), "MCM6": ("chr2", 135839626), "BRCA1": ("chr17", 43044295), "BRCA2": ("chr13", 32315474), "CYP2C19": ("chr10", 94762681),
          "CYP2D6": ("chr22", 42126499), "APOE": ("chr19", 44905796), "SLCO1B1": ("chr12", 21130388)}
 PGX = ("CYP2C19", "CYP2D6", "SLCO1B1")
 
@@ -201,7 +213,10 @@ def synth_vcf(pid: str, genes=tuple(GENES)) -> list[dict]:
 def synth_dicom(pid: str, modality: str, day: int = 0, size: int = 16) -> dict:
     """DICOM-like metadata plus a tiny synthetic pixel grid (no real scan)."""
     r = _rng(pid, modality, day)
-    return {"Modality": modality, "StudyDate": f"2026-09-{1 + day % 28:02d}", "BodyPartExamined": "CHEST"
+    return {"Modality": modality, "PatientName": f"Synthetic^{pid}", "PatientID": pid,
+            "PatientBirthDate": "1990-01-01", "PatientAge": 36, "InstitutionName": "Synthetic Hospital",
+            "StudyInstanceUID": f"1.2.826.0.1.{int(hashlib.sha256(pid.encode()).hexdigest()[:8], 16)}.{day}",
+            "SeriesInstanceUID": f"1.2.826.0.1.{int(hashlib.sha256(pid.encode()).hexdigest()[:8], 16)}.{day}.1", "StudyDate": f"2026-09-{1 + day % 28:02d}", "BodyPartExamined": "CHEST"
             if modality == "CT" else "HEAD", "Rows": size, "Columns": size, "SliceThickness": 1.0,
             "pixels": [[r.randint(0, 255) for _ in range(size)] for _ in range(size)]}
 

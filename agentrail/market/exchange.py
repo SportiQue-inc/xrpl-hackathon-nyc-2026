@@ -1,0 +1,399 @@
+"""One trade pipeline for every kind of data and every direction.
+
+  need -> discover offers -> pre-trade quality check -> rank (grade x price) -> contract
+       -> policy (plug-in) -> settle (XRPL escrow, key reveal) -> fitness check -> holdback
+
+Every account has its own agent, its own data and its own needs. Agents trade among themselves with
+no human in the loop. The only thing that changes between an open market (Act 1) and healthcare
+research (Act 2) is the policy plugged into the seller's agent: `OpenPolicy` lets through what the
+owner listed; `SensitivityPolicy` adds tiered consent, safety-gate packages and the T3 rules. Same
+code path, same ledger flow.
+
+Prices are fixed quotes per tier and grade, never haggled. Payment is 80% by key-reveal escrow
+through the engine; the other 20% is paid after the buyer's fitness check passes and withheld if
+it fails.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import random
+import time
+from dataclasses import dataclass, field
+
+from ..db import Store
+from ..engine import BudgetExceeded, Engine, NeedsHumanApproval, OrderRequest
+from ..ledger.mock import MockLedger
+from ..policy import ALLOW, BuyerMandate, Decision
+from ..catalog import columns as catalog
+from . import quality
+
+# ---------------- columns any account may hold ----------------
+
+ROBOT = {
+    "robot.lidar_scan": {"unit": "points", "lo": 1000, "hi": 200000, "tier": "R"},
+    "robot.joint_torque": {"unit": "N·m", "lo": 0, "hi": 300, "tier": "R"},
+    "robot.gripper_events": {"unit": "events/h", "lo": 0, "hi": 600, "tier": "R"},
+    "fleet.battery_log": {"unit": "%", "lo": 0, "hi": 100, "tier": "R"},
+    "smarthome.energy_kwh": {"unit": "kWh/day", "lo": 0, "hi": 80, "tier": "R"},
+    "robot.lidar_points": {"unit": "points", "lo": 1000, "hi": 200000, "tier": "R"},
+    "robot.accel_x": {"unit": "m/s2", "lo": -50, "hi": 50, "tier": "R"},
+    "robot.wheel_speed": {"unit": "m/s", "lo": 0, "hi": 5, "tier": "R"},
+    "robot.arm_torque": {"unit": "N·m", "lo": 0, "hi": 300, "tier": "R"},
+    "robot.grasp_ok": {"unit": "0/1", "lo": 0, "hi": 1, "tier": "R"},
+}
+
+
+def spec(col: str) -> dict:
+    if col in ROBOT:
+        return ROBOT[col]
+    c = catalog.CATALOG[col]
+    return {"unit": c.unit, "lo": c.lo, "hi": c.hi, "tier": c.tier}
+
+
+RATE = {"T0": 10_000, "T1": 15_000, "T2": 40_000, "T3": 120_000, "R": 20_000}      # drops per column-week, grade A
+GRADE_MULT = {"A": 1.0, "B": 0.8, "C": 0.6}
+GRADE_RANK = {"A": 3, "B": 2, "C": 1}
+DAYS = 7
+SAMPLE_K = 12
+
+
+def quote(columns, weeks: int, grade: str) -> int:
+    return int(sum(RATE[spec(c)["tier"]] for c in columns) * weeks * GRADE_MULT[grade])
+
+
+# ---------------- accounts, data, needs ----------------
+
+@dataclass
+class Dataset:
+    id: str
+    owner: str
+    columns: list
+    weeks: int
+    completeness: float
+    issuer: dict
+    fault: str | None = None          # wrong_unit | drift | copy | bait
+    rows: list = field(default_factory=list)
+    salts: list = field(default_factory=list)
+    shown: object = None              # what the sample is opened from (differs only for bait)
+    meta: dict = field(default_factory=dict)   # e.g. pseudonymized imaging, genomic loci
+
+    def build(self, seed: str, copy_of: "Dataset | None" = None):
+        rng = random.Random(seed)
+        rows = []
+        n = self.meta.get("rows", self.weeks * DAYS)
+        for d in range(n):
+            r = {"day": d}
+            for c in self.columns:
+                s = spec(c)
+                if rng.random() > self.completeness:
+                    r[c] = None
+                    continue
+                if self.meta.get("transform") and c in self.meta["transform"]:
+                    v = self.meta["transform"][c](self.owner, d)
+                elif c in ROBOT:
+                    v = rng.uniform(s["lo"] + (s["hi"] - s["lo"]) * 0.2, s["lo"] + (s["hi"] - s["lo"]) * 0.6)
+                    v = round(v) if c in ("robot.lidar_points", "robot.lidar_scan", "robot.grasp_ok") else round(v, 3)
+                else:
+                    v = catalog.synth(c, self.owner, d)
+                if isinstance(v, (int, float)) and self.fault == "drift" and d >= n // 2:
+                    v = round(v + (s["hi"] - s["lo"]) * 0.25, 3)
+                r[c] = v
+            rows.append(r)
+        if copy_of is not None:
+            rows = [{**r} for r in copy_of.rows]
+        self.rows = rows
+        self.salts = [hashlib.sha256(f"{seed}|salt|{i}".encode()).hexdigest()[:16] for i in range(len(rows))]
+        self.shown = quality.Committed(rows, self.salts)
+
+    def delivered(self) -> tuple[list, list]:
+        """What the seller actually sends. Honest sellers send what they committed."""
+        if self.fault == "wrong_unit":
+            c = next(c for c in self.columns if spec(c)["tier"] != "R" and isinstance(self.rows[0].get(c), (int, float))
+                     or c in ROBOT)
+            return [{**r, c: (r[c] * 60 if isinstance(r.get(c), (int, float)) else r.get(c))} for r in self.rows], self.salts
+        if self.fault == "bait":
+            return [{**r, **{c: None for c in self.columns}} if i % 2 else r for i, r in enumerate(self.rows)], self.salts
+        return self.rows, self.salts
+
+
+@dataclass
+class Need:
+    id: str
+    buyer: str
+    columns: list
+    weeks: int
+    quantity: int
+    purpose: str
+    min_grade: str = "C"
+    match: dict = field(default_factory=dict)      # attribute filter, e.g. {"job": "nurse"}
+    posted_h: float = 0.0
+    why: str = ""
+    output: str = "raw"             # raw | aggregate (computed on the provider side)
+    loci: list = field(default_factory=list)
+
+
+@dataclass
+class Account:
+    id: str
+    name: str
+    kind: str                       # person | org
+    attrs: dict = field(default_factory=dict)
+    datasets: list = field(default_factory=list)
+    needs: list = field(default_factory=list)
+    passed: int = 0
+    failed: int = 0
+    policy: object = None
+    seller: quality.Seller = None
+    credentials: set = field(default_factory=set)
+
+
+# ---------------- policies (the only part that differs between acts) ----------------
+
+class OpenPolicy:
+    """Act 1: the owner listed the dataset for these purposes; anything listed may be traded."""
+    name = "open"
+
+    def __init__(self, refuse_purposes=("marketing_profiling", "insurance_pricing", "employment_screening")):
+        self.refuse = set(refuse_purposes)
+
+    def check(self, trade: dict) -> tuple[str, str]:
+        if trade["purpose"] in self.refuse:
+            return "refuse", f"purpose {trade['purpose']} is never allowed"
+        return "allow", "listed by the owner"
+
+
+# ---------------- the exchange ----------------
+
+class Exchange:
+    def __init__(self, accounts: list[Account], ledger=None, store: Store | None = None, seed: int = 5,
+                 owner_response_h=lambda rng: rng.expovariate(1 / 18.0)):
+        self.accounts = {a.id: a for a in accounts}
+        self.ledger = ledger or MockLedger()
+        self.engine = Engine(store or Store(":memory:"), self.ledger)
+        self.rng = random.Random(seed)
+        self.owner_response_h = owner_response_h
+        self.trades: list[dict] = []
+        self.events: list[dict] = []
+        self.pending: list[dict] = []           # waiting for an owner (safety gate)
+        self.seen_series: dict[str, str] = {}   # series hash -> seller (duplicate check)
+        self._grants: dict[tuple, Decision] = {}
+        for a in accounts:
+            a.seller = a.seller or quality.Seller(a.id)
+            self.engine.add_party(a.id, a.name, a.kind, self.ledger.new_account(a.id))
+            self.engine.policies[a.id] = _EnginePolicy(self, a.id)
+
+    # ----- offers -----
+    def offers(self) -> list[dict]:
+        out = []
+        for a in self.accounts.values():
+            for ds in a.datasets:
+                rep = quality.reputation(a.passed, a.failed, all(i in a.credentials or i == "self"
+                                                                for i in ds.issuer.values()))
+                cert = a.seller.certify(ds.id, ds.shown.rows, {c: spec(c) for c in ds.columns}, ds.issuer, rep,
+                                        ds.shown, scope="dataset" if a.kind == "org" else "person")
+                if cert["grade"] is None:
+                    continue
+                out.append({"seller": a.id, "dataset": ds, "cert": cert, "grade": cert["grade"]})
+        return out
+
+    # ----- one need, end to end -----
+    def fill(self, need: Need, now_h: float | None = None) -> dict:
+        t0 = time.time()
+        now_h = need.posted_h if now_h is None else now_h
+        buyer = self.accounts[need.buyer]
+        cands, rejected = [], []
+        for o in self.offers():
+            ds, seller = o["dataset"], self.accounts[o["seller"]]
+            if seller.id == buyer.id or not set(need.columns) <= set(ds.columns) or ds.weeks < need.weeks:
+                continue
+            if any(seller.attrs.get(k) != v for k, v in need.match.items()):
+                continue
+            if GRADE_RANK[o["grade"]] < GRADE_RANK[need.min_grade]:
+                continue
+            bad = quality.check_certificate(o["cert"])
+            nonce = f"{need.id}|{seller.id}|{self.rng.random()}"
+            opened = ds.shown.open(quality.sample_indices(len(ds.rows), SAMPLE_K, nonce))
+            ok, why = (False, bad) if bad else quality.check_sample(o["cert"], opened, {c: spec(c) for c in need.columns})
+            if not ok:
+                rejected.append({"seller": seller.id, "stage": "pre_trade", "why": why})
+                continue
+            price = quote(need.columns, need.weeks, o["grade"])
+            cands.append((GRADE_RANK[o["grade"]] / price, o, price))
+        cands.sort(key=lambda x: -x[0])
+        fills, same = [], {}
+        for _, o, price in cands:
+            if len(fills) >= need.quantity:
+                break
+            r = self._trade(need, o, price, now_h)
+            if r["status"] == "refused" and r["why"].startswith("blocked: no valid") or \
+                    r["status"] == "refused" and "credential has expired" in r["why"]:
+                rejected.append(r)
+                break           # a gate on the buyer itself: every other seller would say the same
+            (fills if r["status"] in ("settled", "settled_unfit") else rejected).append(r)
+        out = {"need": need.id, "buyer": need.buyer, "columns": need.columns, "purpose": need.purpose,
+               "wanted": need.quantity, "filled": sum(1 for f in fills if f["status"] == "settled"),
+               "unfit": sum(1 for f in fills if f["status"] == "settled_unfit"),
+               "offers_seen": len(cands) + len([r for r in rejected if r.get("stage") == "pre_trade"]),
+               "rejected": rejected, "fills": fills, "wall_s": round(time.time() - t0, 3)}
+        self.events.append({"kind": "need", **{k: v for k, v in out.items() if k not in ("fills", "rejected")}})
+        return out
+
+    def _trade(self, need: Need, o: dict, price: int, now_h: float) -> dict:
+        seller = self.accounts[o["seller"]]
+        ds = o["dataset"]
+        terms = {"buyer": need.buyer, "seller": seller.id, "dataset": ds.id, "columns": need.columns,
+                 "weeks": need.weeks, "purpose": need.purpose, "grade": o["grade"], "price_drops": price,
+                 "root": o["cert"]["root"]}
+        contract = hashlib.sha256(json.dumps(terms, sort_keys=True).encode()).hexdigest()
+        trade = {**terms, "contract": contract, "need": need.id, "posted_h": need.posted_h,
+                 "buyer_attrs": self.accounts[need.buyer].attrs, "why": need.why,
+                 "pseudonymized": ds.meta.get("pseudonymized", False), "output": need.output,
+                 "loci": need.loci}
+        verdict, why = (seller.policy or OpenPolicy()).check(trade)
+        base = {"need": need.id, "seller": seller.id, "buyer": need.buyer, "contract": contract[:16],
+                "grade": o["grade"], "price_drops": price, "policy": getattr(seller.policy, "name", "open"),
+                "columns": need.columns}
+        try:
+            from .policies import trust_grade
+            base["buyer_grade"] = trust_grade({**self.accounts[need.buyer].attrs,
+                                               "owner_country": getattr(seller.policy, "home", "KR")})[0]
+        except Exception:
+            pass
+        if verdict == "refuse":
+            return self._log({**base, "status": "refused", "stage": "policy", "why": why})
+        base["why"] = why
+        wait_h = 0.0
+        if verdict == "gate":
+            if getattr(seller.policy, "manual", False):
+                self.pending.append({**base, "trade": trade, "offer": o, "why": why})
+                return self._log({**base, "status": "awaiting_owner", "stage": "policy", "why": why})
+            ok, wait_h = seller.policy.owner_answers(trade, self.rng, self.owner_response_h)
+            if not ok:
+                return self._log({**base, "status": "declined", "stage": "policy", "why": f"owner declined ({why})"})
+            base["why"] = f"owner approved after {wait_h:.1f} h ({why})"
+        return self.settle(trade, o, price, now_h + wait_h, base)
+
+    def approve_pending(self, i: int, assertion: dict | None = None, now_h: float | None = None) -> dict:
+        """The person who approves by hand answers one queued trade. Under tiered consent the answer is
+        the Touch ID assertion over the institution's consent package."""
+        p = self.pending[i]
+        seller = self.accounts[p["seller"]]
+        owner = getattr(seller.policy, "owner", None)
+        if owner is not None:
+            inst = p["trade"]["buyer_attrs"].get("institution", p["buyer"])
+            pkg = owner.package(inst)
+            if pkg:
+                r = owner.approve(inst, assertion or {}, remember=False)
+                if not r["ok"]:
+                    return {"ok": False, "reason": r["reason"]}
+        self.pending.pop(i)
+        base = {k: v for k, v in p.items() if k not in ("trade", "offer")}
+        base["why"] = "approved by the owner"
+        return self.settle(p["trade"], p["offer"], p["price_drops"], p["trade"]["posted_h"] if now_h is None else now_h, base)
+
+    def settle(self, trade: dict, o: dict, price: int, at_h: float, base: dict) -> dict:
+        need_cols, ds, seller = trade["columns"], o["dataset"], self.accounts[o["seller"]]
+        rows, salts = ds.delivered()
+        part = [{"day": r["day"], **{c: r.get(c) for c in need_cols}} for r in rows[: trade["weeks"] * DAYS]]
+        if trade.get("output") == "aggregate":
+            from .genomic import aggregate
+            part = aggregate(part, need_cols, trade.get("loci", []))
+        main = price * 8 // 10
+        self._grants[(trade["buyer"], seller.id, trade["contract"])] = Decision(ALLOW, granted=list(need_cols))
+        req = OrderRequest(trade["buyer"], seller.id, seller.id, f"contract:{trade['contract']}",
+                           f"{ds.id}|{trade['need']}", trade["purpose"], list(need_cols), main, part,
+                           Decision(ALLOW, granted=list(need_cols), policy_version=base["policy"]), settle="escrow",
+                           extra={"contract": trade, **({"aggregate": True} if trade.get("output") == "aggregate"
+                                                         else {"full_rows": rows, "salts": salts})})
+        try:
+            oid = self.engine.place_order(req)
+            status = self.engine.process(oid)
+        except (BudgetExceeded, NeedsHumanApproval) as e:
+            return self._log({**base, "status": "no_budget", "stage": "settle", "why": str(e)})
+        if status != "delivered":
+            return self._log({**base, "status": "not_settled", "stage": "settle", "why": status})
+        pm = self.engine.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+        payload = self.engine.open_payload(trade["buyer"], oid)
+        ok, signals = self.fitness(o["cert"], payload, need_cols, seller.id)
+        held = price - main
+        txs = {"escrow_create": pm["tx_hash"], "escrow_finish": pm["finish_tx"]}
+        if ok:
+            seller.passed += 1
+            txs["holdback"] = self._pay(trade["buyer"], seller.id, held)
+        else:
+            seller.failed += 1
+        return self._log({**base, "status": "settled" if ok else "settled_unfit", "stage": "fitness",
+                          "order_id": oid, "paid_drops": main + (held if ok else 0), "withheld_drops": 0 if ok else held,
+                          "signals": signals, "txs": txs, "filled_h": round(at_h, 3),
+                          "hours_to_fill": round(at_h - trade["posted_h"], 3),
+                          "urls": {k: self.ledger.explorer_url(v) for k, v in txs.items() if v}})
+
+    def fitness(self, cert: dict, payload: dict, cols: list, seller: str) -> tuple[bool, list]:
+        sig = []
+        if payload.get("aggregate"):
+            # Computed on the provider's side; raw rows never leave, so the root cannot be re-checked here.
+            return (bool(payload["rows"]), [] if payload["rows"] else [{"code": "incomplete"}])
+        if not quality.delivery_matches(cert, payload["full_rows"], payload["salts"]):
+            sig.append({"code": "not_as_committed", "detail": "delivery does not hash to the certified root"})
+        rows = payload["rows"]
+        for c in cols:
+            s = spec(c)
+            xs = [r[c] for r in rows if isinstance(r.get(c), (int, float))]
+            if s["lo"] is not None and xs and sum(not s["lo"] <= x <= s["hi"] for x in xs) > len(xs) * 0.1:
+                sig.append({"code": "impossible_value", "column": c})
+            comp = len([r for r in rows if r.get(c) is not None]) / max(1, len(rows))
+            claim = cert["columns"][c]["completeness"]
+            if comp + 2 * (claim * (1 - claim) / max(1, len(rows))) ** 0.5 + 0.05 < claim:
+                sig.append({"code": "incomplete", "column": c, "detail": f"{comp:.2f}"})
+            if len(xs) >= 6:
+                a, b = xs[: len(xs) // 2], xs[len(xs) // 2:]
+                mu = sum(a) / len(a)
+                sd = (sum((x - mu) ** 2 for x in a) / len(a)) ** 0.5 or 1.0
+                if abs(sum(b) / len(b) - mu) / sd > 3:
+                    sig.append({"code": "drift", "column": c})
+        series = hashlib.sha256(json.dumps([{c: r.get(c) for c in cols} for r in rows], sort_keys=True).encode()).hexdigest()
+        first = self.seen_series.setdefault(series, seller)
+        if first != seller:
+            sig.append({"code": "duplicate", "detail": f"same series as {first}"})
+        return not sig, sig
+
+    def _pay(self, src: str, dst: str, drops: int) -> str | None:
+        if drops <= 0:
+            return None
+        a, b = self.engine.party(src)["address"], self.engine.party(dst)["address"]
+        p = self.ledger.prepare_payment(a, b, drops, None, "holdback:released after fitness pass")
+        self.ledger.submit(p)
+        return p.tx_hash
+
+    def _log(self, r: dict) -> dict:
+        self.trades.append(r)
+        return r
+
+    # ----- activity for the UI -----
+    def activity(self) -> dict:
+        t = self.trades
+        settled = [x for x in t if x["status"] in ("settled", "settled_unfit")]
+        by = {}
+        for x in t:
+            by[x["status"]] = by.get(x["status"], 0) + 1
+        hrs = sorted(x["hours_to_fill"] for x in settled)
+        return {"trades": len(t), "by_status": by, "needs": len([e for e in self.events if e["kind"] == "need"]),
+                "volume_xrp": round(sum(x.get("paid_drops", 0) for x in settled) / 1e6, 6),
+                "withheld_xrp": round(sum(x.get("withheld_drops", 0) for x in settled) / 1e6, 6),
+                "median_hours_to_fill": hrs[len(hrs) // 2] if hrs else None,
+                "awaiting_owner": len(self.pending), "recent": t[-30:]}
+
+
+class _EnginePolicy:
+    """What the engine re-checks right before money moves and before delivery: the decision this
+    exchange recorded for the contract (and nothing broader)."""
+
+    def __init__(self, ex: Exchange, seller: str):
+        self.ex, self.seller = ex, seller
+
+    def evaluate(self, buyer_id, purpose, fields, price_drops, week=None, for_delivery=False):
+        for (b, s, _), d in self.ex._grants.items():
+            if b == buyer_id and s == self.seller and set(fields) <= set(d.granted):
+                return d
+        return Decision("deny", reason="no recorded decision for this trade")
