@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try AgentRail</title>
+<link rel="stylesheet" href="/apps/demo/demo.css">
+<style>
+  .wrap { max-width: 980px; margin: 0 auto; padding: 48px 20px; display: flex; flex-direction: column; gap: 22px; }
+  .wrap h1 b { color: var(--brand); }
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .role { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: inherit; }
+  .role:hover { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-weak); }
+  .role .go { margin-top: auto; color: var(--brand); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div><h1><b>AgentRail</b> on UniQLab · UniQdata</h1>
+    <p class="muted">Person → institution → sub-projects. One consent to an institution's scope; each sub-project inside it is routed by the person's agent and settled on its own. Synthetic data, XRPL Testnet or a practice ledger.</p></div>
+  <div class="roles">
+    <a class="role" href="/apps/live/">
+      <span class="tag blue" style="align-self:flex-start">Researcher · UniQLab</span>
+      <h2>Run the study and watch the ledger</h2>
+      <p class="small muted">50 people, the study agent finds gaps, budget co-signed by 2, sub-projects under the institution's scope, every step in a live transaction log.</p>
+      <span class="go">Open →</span></a>
+    <a class="role" id="me" href="/apps/live/me.html">
+      <span class="tag blue" style="align-self:flex-start">Participant · UniQdata</span>
+      <h2>Be one of the 50</h2>
+      <p class="small muted" id="mePid">One relationship with the institution, each sub-project's payouts under it. Only outside-scope or T3 items ask you.</p>
+      <span class="go">Open →</span></a>
+    <a class="role" href="/demo?mode=after">
+      <span class="tag gray" style="align-self:flex-start">Story</span>
+      <h2>Before and after</h2>
+      <p class="small muted">Today's flow next to the flow with agents, side by side. Illustrative, no ledger.</p>
+      <span class="go">Open →</span></a>
+  </div>
+  <p class="tiny muted">Signatures use demo keys held by the server for the simulated people and approvers. No passkey or wallet needed.</p>
+</div>
+<script>
+  let pid = null;
+  try { pid = localStorage.getItem("ar-pid"); } catch {}
+  if (!pid) {
+    const n = 1 + Math.floor(Math.random() * 50);
+    pid = `P-${String(n).padStart(3, "0")}`;
+    try { localStorage.setItem("ar-pid", pid); } catch {}
+  }
+  document.getElementById("me").href = `/apps/live/me.html?pid=${pid}`;
+  document.getElementById("mePid").textContent += ` You are ${pid}.`;
+</script>
+</body>
+</html>

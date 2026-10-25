@@ -828,6 +828,12 @@ def console_page():
     return _page("apps", "researcher", "index.html")
 
 
+@app.get("/try")
+def try_it():
+    """Entry for visitors: pick researcher (UniQLab live view), participant (UniQdata) or the before/after story."""
+    return RedirectResponse("/apps/try/index.html")
+
+
 @app.get("/demo")
 def before_after_demo(request: Request):
     """Before/after stage: UniQLab and UniQdata side by side, today's flow and the flow with agents."""

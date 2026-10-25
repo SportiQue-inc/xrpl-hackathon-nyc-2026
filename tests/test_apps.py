@@ -54,6 +54,9 @@ def test_before_after_demo_is_served_and_frames_only_itself():
         assert r.status_code == 200
         assert r.headers["x-frame-options"] == "SAMEORIGIN" and "frame-ancestors 'self'" in r.headers["content-security-policy"]
     assert c.get("/console").headers["x-frame-options"] == "DENY"
+    assert c.get("/try", follow_redirects=False).headers["location"] == "/apps/try/index.html"
+    for f in ("try/index.html", "live/index.html", "live/live.js", "live/me.html", "live/me.js"):
+        assert c.get(f"/apps/{f}").status_code == 200
 
 
 @pytest.fixture
