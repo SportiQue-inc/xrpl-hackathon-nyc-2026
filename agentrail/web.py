@@ -368,6 +368,12 @@ def participant_payout_currency(pid: str, body: PayoutCurrency):
     return _call(study.set_payout_currency, pid, body.currency)
 
 
+@app.get("/api/study/dispute/{tx_hash}")
+def study_dispute(tx_hash: str):
+    """From one ledger tx back to the signed chain that authorized it (Verifiable Intent)."""
+    return _call(study.dispute, tx_hash)
+
+
 @app.get("/api/study/bundle/{oid}")
 def study_bundle(oid: int, use: str = "sleep_research"):
     return _call(study.open_bundle, oid, use)

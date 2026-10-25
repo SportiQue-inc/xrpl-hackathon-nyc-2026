@@ -90,3 +90,19 @@ def test_study_escrows_need_the_pi_signature():
     assert v["settlement"]["paid_xrp"] > 0
     rows = w.store.q("SELECT verdict FROM mandate_actions")
     assert rows and all(r["verdict"] == "ok" for r in rows)
+
+
+def test_dispute_view_walks_from_a_ledger_tx_back_to_who_authorized_it():
+    w = scenario.build_world("mock", ":memory:")
+    study.ensure(w)
+    study.set_goal(w, "", capable_needs)
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    study.send(w)
+    p = w.store.one("SELECT p.tx_hash FROM payments p JOIN orders o ON o.id=p.order_id "
+                    "WHERE o.status='delivered' AND p.kind='escrow' LIMIT 1")
+    v = study.dispute(w, p["tx_hash"])
+    assert v["l1"]["valid"] and v["l2"]["valid"] and v["l3"]["valid"]
+    assert v["l2"]["bound_to_l1"] and v["l3"]["bound_to_l2"] and v["ledger"]["memo_matches_l3"]
+    assert all(v["checks"][k] for k in ("amount", "invoice", "purpose")) and v["checks"]["verdict_at_payment"] == "ok"
+    assert v["l2"]["constraints"]["treasury_tx"] == w.study.approval["tx"]      # co-signed funding is signed in
+    assert "Verifiable Intent" in v["standard"]
