@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { createRail, createStore, parsePools, refuse } from '../rail-server.mjs';
+import { createRail, createStore, parsePools, refuse, settleReceipts } from '../rail-server.mjs';
 
 async function start(env, pay) {
   const store = createStore(mkdtempSync(join(tmpdir(), 'rail-')));
@@ -70,4 +70,29 @@ test('a failed payment stays pending and resumes with the same ref', async () =>
     assert.equal(store.spent.vault, 30000n);   // charged once
     assert.equal(calls, 2);
   } finally { server.close(); }
+});
+
+test('paid claims settle later in one call and the ref gets its receipt', async () => {
+  const pay = async (job) => ({ ok: true, ref: job.ref, amount_rlusd: '0.007', claim_id: job.ref === 'a' ? '0xAA' : '0xBB', settlement: 'scheduled' });
+  const { server, store, base, post } = await start({ AP4M_RAIL_TOKEN: 't', AP4M_POOLS: 'vault:1' }, pay);
+  try {
+    await post({ ref: 'a', amount_micro: 7000, pool: 'vault' });
+    await post({ ref: 'b', amount_micro: 7000, pool: 'vault' });
+    assert.deepEqual(store.unsettled(), { '0xaa': 'a', '0xbb': 'b' });
+    let settles = 0;
+    const live = { apiUrl: 'x', token: async () => 'tok', channelId: '0xch', explorer: 'https://ex', sdk: { settle: async () => {
+      settles++;
+      return { settlement_tx: '0xs', payout_tx: '0xp', receipts: [{ claim_id: '0xaa', receipt_url: 'https://r/aa.json' }, { claim_id: '0xbb', receipt_url: null }] };
+    } } };
+    assert.equal(await settleReceipts(live, store, () => {}), 1);
+    const got = await (await fetch(`${base}/pay/a`, { headers: { Authorization: 'Bearer t' } })).json();
+    assert.equal(got.receipt_url, 'https://r/aa.json');
+    assert.equal(got.payout_url, 'https://ex/tx/0xp');
+    assert.deepEqual(store.unsettled(), { '0xbb': 'b' });
+    store.clearUnsettled(['0xbb']);
+    assert.equal(await settleReceipts(live, store, () => {}), 0);
+    assert.equal(settles, 1);                       // nothing open: no settle call
+  } finally {
+    server.close();
+  }
 });

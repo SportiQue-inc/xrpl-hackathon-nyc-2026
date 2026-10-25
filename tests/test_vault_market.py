@@ -747,3 +747,21 @@ def test_extra_people_join_a_running_vault_once(market, monkeypatch):
 def test_fee_label_shows_the_fee_actually_paid():
     from vaultmarket.app import _micro
     assert _micro(5000) == "0.005" and _micro(35500) == "0.0355" and _micro(10000) == "0.01" and _micro(2_000_000) == "2.00"
+
+
+def test_receipt_settled_later_is_filled_into_the_deal(market, monkeypatch):
+    from agentrail import ap4m_rail
+    _fake_rail(monkeypatch)
+    real = ap4m_rail._post
+    monkeypatch.setattr(ap4m_rail, "_post", lambda path, body, timeout: {**real(path, body, timeout), "receipt_url": None, "settlement": "scheduled"})
+    monkeypatch.setattr(config, "MICRO_PER_UNIT", 5000)
+    c, cid = _trade(market)
+    assert c["status"] == "settled", c["reason"]
+    asked = []
+    monkeypatch.setattr(ap4m_rail, "_get", lambda path, timeout: asked.append(path) or {"ok": True, "receipt_url": "https://ap4m/r.json", "payout_tx": "0xp", "payout_url": "https://x/tx/0xp"})
+    assert market.backfill_ap4m_receipts() == 1
+    trace = json.loads(market.s.one("SELECT trace FROM contracts WHERE id=?", (cid,))["trace"])
+    assert asked == [f"/pay/vm-c{cid}-seller"]
+    assert any(p.get("receipt_url") == "https://ap4m/r.json" for p in trace["protocol"])
+    assert market.s.one("SELECT receipt FROM txs WHERE contract=? AND type='AP4M VoucherRedeemed'", (cid,))["receipt"] == "https://ap4m/r.json"
+    assert market.backfill_ap4m_receipts() == 0

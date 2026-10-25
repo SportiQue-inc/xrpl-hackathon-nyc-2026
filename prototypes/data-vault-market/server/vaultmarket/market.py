@@ -750,6 +750,28 @@ class Market:
             trace["protocol"].append({"protocol": "AP4M payment", "who": leg["seller"], "ok": False, "tx": None, "detail": r.get("reason") or "not paid"})
         return r["ok"]
 
+    def backfill_ap4m_receipts(self, limit: int = 40) -> int:
+        """AP4M settles in the background: fill receipt_url and the payout tx into recent deals paid without one."""
+        if not config.AP4M:
+            return 0
+        n = 0
+        for c in self.s.q("SELECT id, trace FROM contracts WHERE status = 'settled' AND trace LIKE '%\"ap4m\"%' AND trace LIKE '%\"receipt_url\": null%' ORDER BY id DESC LIMIT ?", (limit,)):
+            trace = json.loads(c["trace"] or "{}"); changed = False
+            for t in trace.get("tx", []):
+                for x in t.get("ap4m") or []:
+                    if x.get("receipt_url"):
+                        continue
+                    got = ap4m_rail.lookup(f"vm-c{c['id']}-{t['seller']}") or {}
+                    if got.get("receipt_url"):
+                        x.update({k: got.get(k) for k in ("receipt_url", "payout_tx", "payout_url")}); changed = True
+                        for p in trace.get("protocol", []):
+                            if p.get("tx") == x.get("voucher_redeemed_tx"):
+                                p["receipt_url"] = got["receipt_url"]
+                        self.s.x("UPDATE txs SET receipt = ? WHERE contract = ? AND hash = ?", (got["receipt_url"], c["id"], x.get("voucher_redeemed_tx")))
+            if changed:
+                self.s.x("UPDATE contracts SET trace = ? WHERE id = ?", (json.dumps(trace), c["id"])); n += 1; self.events += 1
+        return n
+
     # ---------------- restart recovery ----------------
     def recover(self):
         self._adopt_legacy()
@@ -970,6 +992,9 @@ class Market:
                         last_recover = t
                         self.recover()
                     self.tick()
+                if t - getattr(self, "_last_backfill", 0.0) > 90:   # outside the lock: it only calls the rail and fills links
+                    self._last_backfill = t
+                    self.backfill_ap4m_receipts()
             except Exception:
                 traceback.print_exc()
             # sleep until the next tick, but wake at once for a visitor's sale and negotiate only that

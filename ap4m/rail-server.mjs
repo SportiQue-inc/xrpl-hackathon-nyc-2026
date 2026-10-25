@@ -5,7 +5,10 @@
 //   1. starts a one-off x402 Merchant on loopback that sells `content` (e.g. the data key K) at the amount;
 //   2. the Agent buys it with buyResource: an EIP-712 Voucher on the open Channel, redeemed on-chain by the
 //      merchant (VoucherRedeemed on the PaymentLedger), and gets `content` back;
-//   3. reports the redemption, settles (the AP4M service pays RLUSD from the vault to the payout wallet);
+//   3. reports the redemption; settlement (the AP4M service pays RLUSD from the vault to the payout wallet) runs
+//      in the background every AP4M_SETTLE_EVERY_MS for all unsettled claims at once and fills in each ref's
+//      receipt_url, so a payment does not wait up to two minutes for payout confirmations (AP4M_SETTLE_INLINE=1
+//      settles inside the payment as before);
 //   4. optionally forwards the same amount as RLUSD from the payout wallet to `forward_to` (second hop), so a
 //      seller or participant is paid on-chain, not only the team's Merchant.
 // Results are kept per `ref` before and after paying: the same ref never pays twice.
@@ -67,6 +70,10 @@ export function createStore(dir) {
     },
     readJson: (name) => (existsSync(join(dir, name)) ? JSON.parse(readFileSync(join(dir, name), 'utf8')) : null),
     writeJson: (name, value) => write(join(dir, name), value),
+    // claims paid but not yet settled, claim_id -> ref; settleReceipts() fills their receipts in
+    unsettled: () => (existsSync(join(dir, 'unsettled.json')) ? JSON.parse(readFileSync(join(dir, 'unsettled.json'), 'utf8')) : {}),
+    markUnsettled(claim, ref) { const u = this.unsettled(); u[claim.toLowerCase()] = ref; write(join(dir, 'unsettled.json'), u); },
+    clearUnsettled(claims) { const u = this.unsettled(); for (const c of claims) delete u[c]; write(join(dir, 'unsettled.json'), u); },
   };
 }
 
@@ -149,7 +156,9 @@ export async function payOnce(live, env, body) {
     claim_id: purchase.claimId, channel_id: live.channelId, voucher_redeemed_tx: tx, voucher_url: `${live.explorer}/tx/${tx}`,
     verified, agent: live.wallet.address, merchant_payout: live.payout, content: purchase.resource?.content ?? null,
   };
-  try {
+  if (env.AP4M_SETTLE_INLINE !== '1') {
+    result.settlement = 'scheduled';   // settleReceipts() adds settlement_tx, payout_tx and receipt_url to this ref
+  } else try {
     const settled = await live.sdk.settle(live.apiUrl, tokenValue, live.channelId);
     const mine = (settled.receipts ?? []).find((r) => r.claim_id?.toLowerCase() === purchase.claimId.toLowerCase());
     Object.assign(result, {
@@ -173,6 +182,29 @@ export async function payOnce(live, env, body) {
   return result;
 }
 
+/** Settle every paid claim that has no receipt yet in one call and write the receipts into their refs. */
+export async function settleReceipts(live, store, log = console.log) {
+  const open = store.unsettled();
+  if (!Object.keys(open).length) return 0;
+  const settled = await live.sdk.settle(live.apiUrl, await live.token(), live.channelId);
+  const done = [];
+  for (const r of settled.receipts ?? []) {
+    const claim = r.claim_id?.toLowerCase();
+    const ref = claim && open[claim];
+    if (!ref || !r.receipt_url) continue;
+    const rec = store.get(ref);
+    if (rec) {
+      store.put(ref, { ...rec, settlement: 'settled', receipt_url: r.receipt_url, settlement_tx: settled.settlement_tx ?? rec.settlement_tx ?? null,
+        payout_tx: settled.payout_tx ?? rec.payout_tx ?? null,
+        settlement_url: settled.settlement_tx ? `${live.explorer}/tx/${settled.settlement_tx}` : rec.settlement_url ?? null,
+        payout_url: settled.payout_tx ? `${live.explorer}/tx/${settled.payout_tx}` : rec.payout_url ?? null });
+    }
+    done.push(claim);
+  }
+  if (done.length) { store.clearUnsettled(done); log(`[rail] settled ${done.length} claim(s), ${Object.keys(open).length - done.length} still waiting`); }
+  return done.length;
+}
+
 export function createRail({ env, store, pay, log = console.log }) {
   const pools = parsePools(env.AP4M_POOLS);
   const perPaymentMicro = BigInt(Math.round(Number(env.PER_PAYMENT_CAP_RLUSD || '0.10') * 1e6));
@@ -189,6 +221,7 @@ export function createRail({ env, store, pay, log = console.log }) {
     try {
       const result = await pay(job);
       store.put(job.ref, { ...result, status: 'paid', at: new Date().toISOString() });
+      if (result.claim_id && !result.receipt_url) store.markUnsettled(result.claim_id, job.ref);
       log(`[rail] paid ${job.ref} ${result.amount_rlusd} RLUSD claim ${result.claim_id}`);
       return result;
     } catch (error) {
@@ -237,4 +270,10 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const server = createRail({ env, store, log, pay: (job) => payOnce(live, env, job) });
   const port = Number(env.PORT || env.AP4M_RAIL_PORT || 4500);
   server.listen(port, env.AP4M_RAIL_HOST || '0.0.0.0', () => log(`[rail] listening on ${port}`));
+  const every = Number(env.AP4M_SETTLE_EVERY_MS || 60_000);
+  const tick = async () => {
+    try { await settleReceipts(live, store, log); } catch (error) { log(`[rail] settle: ${error.message.slice(0, 200)}`); }
+    setTimeout(tick, every);
+  };
+  setTimeout(tick, every);
 }
