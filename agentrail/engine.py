@@ -12,6 +12,7 @@ finishes whatever was in flight without paying twice.
 from __future__ import annotations
 
 import hashlib
+import os
 import json
 import re
 import time
@@ -139,10 +140,12 @@ class Engine:
         """Idempotent. Returns the order id. Reserves budget atomically."""
         if not req.decision.ok:
             raise ValueError(f"policy did not grant anything: {req.decision.reason}")
-        rows_json = canonical(req.rows)
+        # Each round gets its own salt inside the sealed payload: the hash on the ledger cannot be matched
+        # by guessing health values, and once the bundle is destroyed nothing links the hash to the data.
+        rows_json = canonical({"rows": req.rows, "salt": os.urandom(16).hex()})
         bundle_hash = sha256_hex(rows_json)
         order_key = sha256_hex(f"{req.buyer_id}|{req.seller_id}|{req.product_id}|{req.slot}|{req.purpose}")
-        content_hash = sha256_hex(canonical(req.content(bundle_hash)))
+        content_hash = sha256_hex(canonical(req.content(sha256_hex(canonical(req.rows)))))   # off ledger: idempotency
         buyer_pub = PublicKey(bytes.fromhex(self.party(req.buyer_id)["box_pubkey"]))
         sealed = SealedBox(buyer_pub).encrypt(rows_json.encode())
         payee_addr = self.party(req.payee_id)["address"]
@@ -567,13 +570,13 @@ class Engine:
         if opener is not None:
             # The institution's vault opens it; K comes from the validated ledger, not the contributor.
             f = self.ledger.lookup(p["finish_tx"]).fulfillment if p["kind"] == "escrow" else None
-            rows = opener.open(sealed, f)
-            assert sha256_hex(canonical(rows)) == bundle_hash
-            return rows
+            payload = opener.open(sealed, f)
+            assert sha256_hex(canonical(payload)) == bundle_hash
+            return payload["rows"]
         if p["kind"] == "escrow":
             # The key is read from the ledger, not from the contributor.
             st = self.ledger.lookup(p["finish_tx"])
             sealed = SecretBox(key_from_fulfillment(st.fulfillment)).decrypt(sealed)
-        rows = json.loads(SealedBox(self.box_keys[buyer_id]).decrypt(sealed))
-        assert sha256_hex(canonical(rows)) == bundle_hash
-        return rows
+        payload = json.loads(SealedBox(self.box_keys[buyer_id]).decrypt(sealed))
+        assert sha256_hex(canonical(payload)) == bundle_hash
+        return payload["rows"]

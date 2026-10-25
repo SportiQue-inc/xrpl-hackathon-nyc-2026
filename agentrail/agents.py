@@ -491,7 +491,7 @@ def consent_document(person_id, buyer_id, purpose, items, weeks, automation, min
         "other_studies": "Your data, even with identifiers removed, will not be used for other studies.",
         "withdrawal": "decline a round: nothing is sent; pause: no new rounds; revoke: no key is released for "
                       "pending rounds, the licence is clawed back, and the recipient must destroy person-level "
-                      "copies and confirm; aggregate statistics already produced remain; rewards paid stay",
+                      "copies and confirm; aggregate statistics already produced remain; payments made stay",
         "provision_terms": ["no re-identification", "no onward transfer", "no use in other studies",
                             "destroy person-level copies on withdrawal and confirm",
                             "security safeguards for the data received",

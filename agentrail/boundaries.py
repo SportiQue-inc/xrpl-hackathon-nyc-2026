@@ -50,7 +50,7 @@ ISSUES = [
     {"id": "withdrawal", "title": "Withdrawal",
      "problem": "People must be able to stop at any time, and it has to be clear what stops, what comes back "
                 "and what cannot be recalled.",
-     "solution": "Three kinds. Decline this round: nothing leaves. Pause: no new rounds, past rewards and licence "
+     "solution": "Three kinds. Decline this round: nothing leaves. Pause: no new rounds, past payments and licence "
                  "stay. Revoke: the study's data licence (MPT) is clawed back, rounds not yet released are "
                  "withheld and their escrow returns to the study after the deadline, the consent history stays. "
                  "Delivered rounds cannot be recalled, and the person is told so.",
@@ -238,7 +238,7 @@ def run(w) -> dict:
         study.participant_pause(w, auto)
         d = w.cohort_people[auto].handle_request(LAB, "sleep_research", ["sleep.daily"], 7, study.CELL_PRICE)
         kept = w.store.one("SELECT COUNT(*) n FROM orders WHERE seller_id=? AND status='delivered'", auto)["n"]
-        _ev(w, "withdrawal", f"2. {auto} pauses: next request {d.status}; {kept} delivered rounds and rewards stay",
+        _ev(w, "withdrawal", f"2. {auto} pauses: next request {d.status}; {kept} delivered rounds and payments stay",
             person=auto, result=d.status)
     hero_req = next((r for r in s.requests.values() if r["person"] == HERO), None)
     if hero_req and not any(o.get("hold") for o in hero_req["orders"]):

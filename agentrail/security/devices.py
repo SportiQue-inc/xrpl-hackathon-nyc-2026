@@ -97,7 +97,7 @@ class InstitutionVault:
     def public_hex(self) -> str:
         return bytes(self.ks.box_key().public_key).hex()
 
-    def open(self, sealed: bytes, fulfillment: str | None) -> list[dict]:
+    def open(self, sealed: bytes, fulfillment: str | None) -> dict:
         if fulfillment:
             sealed = SecretBox(key_from_fulfillment(fulfillment)).decrypt(sealed)
         return json.loads(SealedBox(self.ks.box_key()).decrypt(sealed))

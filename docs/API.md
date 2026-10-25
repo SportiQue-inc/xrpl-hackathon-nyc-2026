@@ -117,7 +117,7 @@ that request: study pseudonym, shifted days, requested items only.
 
 `POST /api/p/{pid}/requests/{id}/approve` body `{"items": ["fatigue.survey"]}` -> person ticks
 items; the agent contributes them, one escrow per week (created by the lab, key published,
-reward paid, licence issued on the first contribution). The last week is held in escrow until the
+payment made, licence issued on the first contribution). The last week is held in escrow until the
 round closes (`POST /api/study/close-round`), so a revoke in between shows the refund path.
 Returns the updated `GET /api/p/{pid}`.
 
@@ -169,6 +169,8 @@ participant's heatmap row shows `withdrawn`. Returns
 `POST /api/study/goal` body `{"goal": "..."}` -> LLM proposes gaps from the coverage table and
 analysis note; code recomputes and narrows. Sets `spec_status = draft`.
 
+The study must have an ethics committee (IRB) approval number registered (`STUDY_IRB_APPROVAL`; the demo uses a synthetic value). Without it, approve and send return `ok: false`, and the request card shows it as `ethics_approval`.
+
 `POST /api/study/approve` body `{"signers": ["owner", "compliance"]}` -> co-signed approval of
 the spec budget (multi-signed top-up from the treasury to the agent account). One signer is
 refused by the ledger; HTTP 200 with `{"ok": false, "engine_result": "tefBAD_QUORUM" (mock) or
@@ -177,7 +179,7 @@ refused by the ledger; HTTP 200 with `{"ok": false, "engine_result": "tefBAD_QUO
 `POST /api/study/send` -> participation requests to every participant in the spec. Their agents
 answer: auto, needs the person, or blocked. Auto ones contribute right away.
 
-`POST /api/study/close-round` -> participants' agents publish the keys of held rounds (rewards
+`POST /api/study/close-round` -> participants' agents publish the keys of held rounds (payments
 paid, bundles open). A revoked participant's held round is withheld instead.
 
 `POST /api/study/sweep` -> `{"refunded": [order ids]}`. On the mock ledger the clock jumps past the

@@ -73,8 +73,14 @@ def _review_keys(w):
 
 
 def _send(w, prep):
-    w.ledger.submit(prep)
-    return w.ledger.wait_validated(prep.tx_hash)
+    """Submit and wait. A refusal or a lost response comes back as a failed status (logged by the
+    caller), so one bad escrow never stops the rest of a release run."""
+    try:
+        w.ledger.submit(prep)
+        return w.ledger.wait_validated(prep.tx_hash)
+    except Exception as e:
+        from types import SimpleNamespace
+        return SimpleNamespace(validated=False, success=False, result=f"{type(e).__name__}: {e}")
 
 
 # ---------------- standing (off ledger) ----------------
@@ -170,6 +176,7 @@ def _cancel(w, hb) -> bool:
     prep = w.ledger.prepare_escrow_cancel(hb["owner"], hb["owner"], hb["offer_sequence"])
     st = _send(w, prep)
     if not (st.validated and st.success):
+        w.store.log(hb["study"], "error", f"{hb['person']}: {hb['kind']} EscrowCancel {st.result}")
         return False
     with w.store.tx() as c:
         c.execute("UPDATE holdbacks SET status='returned', cancel_tx=? WHERE id=?", (prep.tx_hash, hb["id"]))

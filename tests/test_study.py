@@ -234,3 +234,15 @@ def test_compliance_runs_again_before_delivery(w):
     pa.policy.compliance.verified_check = lambda buyer: False      # credential lost after the order
     d = pa.policy.evaluate(LAB, "sleep_research", ["sleep.daily"], study.CELL_PRICE, 4, for_delivery=True)
     assert d.status == "deny"
+
+
+def test_no_budget_or_request_without_an_ethics_approval_number():
+    w = scenario.build_world("mock", ":memory:")
+    s = study.ensure(w)
+    study.set_goal(w, "", capable_needs)
+    s.irb_approval = ""
+    assert "IRB" in study.approve(w, ["owner", "compliance"])["message"]
+    s.irb_approval = "IRB-2026-001"
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    rid = study.send(w) and next(iter(s.requests))
+    assert study.participant_view(w, s.requests[rid]["person"])["requests"][0]["ethics_approval"] == "IRB-2026-001"

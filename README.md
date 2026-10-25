@@ -1,4 +1,4 @@
-# AgentRail - research on one person's whole record, with consent, licence and reward bound on XRPL
+# AgentRail - research on one person's whole record, with consent, licence and payment bound on XRPL
 
 XRPL AI & Fintech Hackathon NYC 2026 (Oct 24-25) - SportiQue team.
 Track: **Agentic Finance**. Everything in this repository was built during the hackathon
@@ -9,12 +9,12 @@ Track: **Agentic Finance**. Everything in this repository was built during the h
 **Not big data, but one person's whole record.** A study's research agent asks people to take
 part. Each person's own agent gathers their scattered records (wearable, clinic visits, surveys)
 on one time axis and contributes only what they agreed to. **The LLM proposes, code verifies, the
-ledger enforces**: consent, a per-study data licence and the reward are bound to every
+ledger enforces**: consent, a per-study data licence and the payment are bound to every
 contribution on XRPL.
 
 Health research increasingly needs the same person followed over weeks, not a large
 pooled table. Today a study that loses three weeks of fatigue surveys for half its cohort has no way to
-fill those gaps: getting data takes a median of 80 days of agreements, a $20 weekly reward costs
+fill those gaps: getting data takes a median of 80 days of agreements, a $20 weekly payment costs
 $0.88 in card fees, and nobody can check what each person agreed to round by round. So the study
 recruits more people instead, at $2,000+ each.
 
@@ -33,7 +33,7 @@ and the evidence. `POST /api/run/boundaries` runs every check and returns the ev
 |---|---|---|---|---|---|
 | **Consent** | Use is allowed only for the purpose, period and recipient the person agreed to, checked every round | Per-study consent document with GA4GH DUO codes (HMB, NCU, IRB, NPOA), versioned and hashed. The person's agent answers every request: inside consent runs automatically, outside waits for the person, prohibited purposes are refused | Code: `PersonalConsentPolicy.evaluate` on order and again before the key is published. Ledger: consent hash in every escrow memo; ethics-review Credential read from the ledger before sensitive items | The same lab asks for a commercial product: DUO drops NCU, the request stops at "needs your approval", nothing sent, no escrow | `test_new_purpose_waits_for_the_person`, `test_prohibited_purpose_refused_even_with_consent`, `test_payment_memo_carries_consent_version_hash`; Credential tx below |
 | **Re-identification** | The more of one life is joined, the easier it is to tell who it is | Only the protocol's items and weeks leave the device; per-study pseudonym (studies cannot link records); per-study date shift known only to the person's agent; bundle sealed to the study's key; two or more quasi-identifiers (birth date, postal code, rare diagnosis) never released together; the ledger sees hashes only | Code: `PersonalVaultConnector.extract`, `ComplianceRules.check`, SealedBox. Ledger: memo = order id, bundle hash, consent hash | Birth date + postal code + rare diagnosis refused; the operator fails to open a bundle with its own key; the same person has different IDs in two studies | `test_quasi_identifier_combination_is_never_released`, `test_pseudonym_differs_per_study`, `test_locked_bundle_cannot_be_opened_before_finish` |
-| **Withdrawal** | People must be able to stop, and know what stops, what comes back and what cannot be recalled | Three kinds. **Decline this round**: nothing leaves, nothing on the ledger. **Pause**: no new rounds; rewards and licence stay. **Revoke**: the study's data licence (MPT) is clawed back, rounds not yet released are withheld and their escrow is refunded after the deadline, consent history kept. Delivered rounds cannot be recalled, and the person is told so | Ledger: `Clawback` of the per-(study, participant) MPT; `EscrowCancel` after `CancelAfter`. Code: key published only after re-checking consent and that the study still holds the licence | P-017 taps revoke: Clawback tx, held week-5 escrow withheld, EscrowCancel refund, P-017's row greys out on the researcher heatmap | `test_approve_contributes_and_issues_a_licence_then_revoke_claws_back_and_refunds`, `test_clawed_back_licence_alone_stops_the_key`, `test_three_withdrawals_on_one_study`; Escrow cancel tx below |
+| **Withdrawal** | People must be able to stop, and know what stops, what comes back and what cannot be recalled | Three kinds. **Decline this round**: nothing leaves, nothing on the ledger. **Pause**: no new rounds; payments and licence stay. **Revoke**: the study's data licence (MPT) is clawed back, rounds not yet released are withheld and their escrow is refunded after the deadline, consent history kept. Delivered rounds cannot be recalled, and the person is told so | Ledger: `Clawback` of the per-(study, participant) MPT; `EscrowCancel` after `CancelAfter`. Code: key published only after re-checking consent and that the study still holds the licence | P-017 taps revoke: Clawback tx, held week-5 escrow withheld, EscrowCancel refund, P-017's row greys out on the researcher heatmap | `test_approve_contributes_and_issues_a_licence_then_revoke_claws_back_and_refunds`, `test_clawed_back_licence_alone_stops_the_key`, `test_three_withdrawals_on_one_study`; Escrow cancel tx below |
 | **Fair pay and penalties** | Stopping must never cost anything, yet a study needs protection against fabricated data, and paid money cannot be pulled back from a wallet | Each round pays **80%** when the contribution is confirmed and holds **20%** in its own escrow for a short review (7 days, +14 if fraud is suspected). Default is to pay, also after withdrawal. Code flags fraud signals (impossible values, a series already contributed by someone else); a **named reviewer** decides only after the person was told why and could respond. Then the held part returns to the study, the person is excluded for a period, and a repayment claim is recorded off the ledger. Two missed accepted rounds only pause automatic requests. Completion bonus in a separate escrow, returned on withdrawal | Ledger: `EscrowCreate` with `FinishAfter` and a condition held by the review service; `EscrowFinish` pays, `EscrowCancel` returns. Code: `payout.decision_inputs` is the only input to pay and sanction decisions and has no decline, pause or withdrawal fields; confirmation refused without a reviewer id or before the response period ends; trust level never on the ledger | A synthetic participant's survey says 12 on a 0-10 scale: held part frozen, notice, reviewer confirms, EscrowCancel. P-017 withdrew, yet P-017's held part is paid (EscrowFinish); only the bonus returns | `tests/test_payout.py` (9 tests), incl. `test_withdrawal_history_is_never_an_input` |
 | **Other domains are easier** | Does it carry over where data is not about a person? | Robot sensor data between companies: seller licence terms replace personal consent; schema matching, licence reading, budget, multi-signed top-up and settlement unchanged | Code: `SellerPolicy`. Ledger: multi-signed treasury, payment memo with terms hash | The robot company's agent closes its evaluation gaps from two sellers | Scene A payments below |
 
@@ -57,7 +57,7 @@ flowchart LR
   RA -->|participation request| PA
   PA -->|answer: auto / ask person / blocked| POL --> ORD --> OB
   OB -->|EscrowCreate with sha256 of key| XRPL[(XRPL)]
-  PA -->|EscrowFinish publishes key = reward paid| XRPL
+  PA -->|EscrowFinish publishes key = payment made| XRPL
   RA -->|reads key from ledger, opens sealed bundle| XRPL
   PA -->|licence MPT, Clawback on revoke| XRPL
   ETH[Ethics board] -->|Credential| XRPL
@@ -66,8 +66,8 @@ flowchart LR
 
 | Agent | Given by its owner | Does |
 |---|---|---|
-| Research agent (`study.py`, `cohort.py`) | goal, protocol, budget cap, allowed purposes | reads the coverage table and the analysis note, proposes which person-weeks are missing (code recomputes each one from the table), sends participation requests, escrows rewards, opens bundles with the key from the ledger, tracks study power |
-| Personal agent (`PersonalAgent`, `PersonalVaultConnector`) | the person's consent per study, automation level, pause / revoke | joins the person's sources on a time axis, answers each request (auto / ask / block), previews exactly what would leave, seals and contributes, publishes the key to get the reward, issues and claws back the study's licence |
+| Research agent (`study.py`, `cohort.py`) | goal, protocol, budget cap, allowed purposes | reads the coverage table and the analysis note, proposes which person-weeks are missing (code recomputes each one from the table), sends participation requests, escrows payments, opens bundles with the key from the ledger, tracks study power |
+| Personal agent (`PersonalAgent`, `PersonalVaultConnector`) | the person's consent per study, automation level, pause / revoke | joins the person's sources on a time axis, answers each request (auto / ask / block), previews exactly what would leave, seals and contributes, publishes the key to get the payment, issues and claws back the study's licence |
 | Seller agents (scene A only) | catalog, fixed prices, licence text | fixed quotes, confirm the buyer's reading of the licence |
 
 **LLM proposes, code verifies, ledger enforces.** The LLM reads the coverage table and analysis
@@ -83,7 +83,7 @@ agents fall back to rules, and recorded LLM answers are replayed when a live cal
 
 | XRPL feature | Why | How | Code | Testnet evidence |
 |---|---|---|---|---|
-| **Escrow (key reveal)** | reward is paid only when the data can be opened, and refunded if the person withdraws | bundle encrypted with key K and sealed to the study; `EscrowCreate` with a PREIMAGE-SHA-256 condition on K and `CancelAfter`; the personal agent publishes K in `EscrowFinish` to get paid; the study reads K from the ledger; withheld key -> `EscrowCancel` refund | `engine._escrow_*`, `ledger/conditions.py` | [EscrowCreate](https://testnet.xrpl.org/transactions/04C820C4EC1CC1A586F26CEE455BBD1CEAF8DE72C6D0CB308574F6FF4A068AAC), [EscrowFinish with key](https://testnet.xrpl.org/transactions/6A96310816B9EC9F7B445C113FFBB719E794A588AC20BE06D71C086C435706C4), [EscrowCreate 15 s](https://testnet.xrpl.org/transactions/E8ED3C1F14BD44C9F895E88B862041E1BBA2E568254FC658DE8156352795D7FB), [EscrowCancel refund](https://testnet.xrpl.org/transactions/6BD9AF3ACF2EADEEF650BC06E2358894AFC6ED0F8606C953ADDB641A10C76587) |
+| **Escrow (key reveal)** | payment is paid only when the data can be opened, and refunded if the person withdraws | bundle encrypted with key K and sealed to the study; `EscrowCreate` with a PREIMAGE-SHA-256 condition on K and `CancelAfter`; the personal agent publishes K in `EscrowFinish` to get paid; the study reads K from the ledger; withheld key -> `EscrowCancel` refund | `engine._escrow_*`, `ledger/conditions.py` | [EscrowCreate](https://testnet.xrpl.org/transactions/04C820C4EC1CC1A586F26CEE455BBD1CEAF8DE72C6D0CB308574F6FF4A068AAC), [EscrowFinish with key](https://testnet.xrpl.org/transactions/6A96310816B9EC9F7B445C113FFBB719E794A588AC20BE06D71C086C435706C4), [EscrowCreate 15 s](https://testnet.xrpl.org/transactions/E8ED3C1F14BD44C9F895E88B862041E1BBA2E568254FC658DE8156352795D7FB), [EscrowCancel refund](https://testnet.xrpl.org/transactions/6BD9AF3ACF2EADEEF650BC06E2358894AFC6ED0F8606C953ADDB641A10C76587) |
 | **MPT data licence** | the study holds a licence per (study, participant) that cannot be passed on and is taken back on revoke | issuer = participant's agent; `MPTokenIssuanceCreate` (supply 1, RequireAuth, CanClawback, no CanTransfer, metadata = study hash, DUO codes, consent hash); holder and issuer `MPTokenAuthorize`; MPT `Payment`; `Clawback` on revoke; the key is published only while the study holds it | `ledger/licence.py`, `study._after_contribution`, `study.participant_revoke` | health run: [MPTokenIssuanceCreate](https://testnet.xrpl.org/transactions/76C15EB2769A5F732BF0B33C0B419C54D580EAAA990CDC17F21F31D4EEB63BC9), [MPTokenAuthorize (study)](https://testnet.xrpl.org/transactions/AF466D9FB5A949D705484FF9FEF179F58E79D4CB5790FEC50BFD37D49ECF9F22), [MPTokenAuthorize (participant)](https://testnet.xrpl.org/transactions/2AB7D64D62E761247AA7118DC88B3127432D511CAD0036121A9D5DC9DD641C5B), [MPT Payment](https://testnet.xrpl.org/transactions/AF090722504F115A807D99FE788E4E9A5809F062007CD559B47884FCDD7EA483), [Clawback on revoke](https://testnet.xrpl.org/transactions/9E180A4E6F31A4E76CB3281D478ABA98AE79C4EFA56A73601C335AA6040079AF); onward transfer refused: [tecNO_AUTH](https://testnet.xrpl.org/transactions/6BE571AF3D33F761410CCDE9AE93FD9FAE44BB01D242757EA96D2B57E2DCFDF1) |
 | **Credentials** | sensitive items only for an ethics-approved study; verified organization badge | ethics board issues `ETHICS_REVIEW` (an attestation by the issuer; the ethics board, not the ledger, decides approval); the consent gate reads the accepted credential from the ledger | `ledger/xrpl_extras.py`, `ComplianceRules` | [CredentialCreate](https://testnet.xrpl.org/transactions/58656AB4E6ABEC47BAA92F90C3F304B8959D1FDAE03AE6ED193FA2D98CBD1A37), [CredentialAccept](https://testnet.xrpl.org/transactions/FC7710C97C3783157778952291A28B2322E2FD65DBBDB5B52F4662DF9D514218) |
 | **Multi-signing** | an agent cannot raise its own budget | study and buyer treasuries have a SignerList (owner + compliance, quorum 2), master key disabled; agent-only top-up refused by the ledger | `ledger/xrpl_extras.py`, `scenario.top_up`, `study.approve` | [SignerListSet](https://testnet.xrpl.org/transactions/6812EB098980EFEA7478517484AFDD082BD119CF32E9128D630B6D7AECFA029A), [master key off](https://testnet.xrpl.org/transactions/5FAAF7FE40D30E9558B120E27A49BAA55443F53BBF400C7596437864D620C8F8), [co-signed top-up](https://testnet.xrpl.org/transactions/E6F9FD3BB14245F7ED3ADF79FAA185C83155C1D40F70241FACDDA7178AB16D1C); agent alone: `tefBAD_SIGNATURE` |
@@ -106,7 +106,7 @@ also checked on its own, with the expected refusals: [xrpl_checks/RESULTS.md](xr
 
 | Surface | For | Flow | API |
 |---|---|---|---|
-| Participant app: research participation request | one participant on their phone | request with verified-institution badges from the ledger, LLM summary of why, DUO codes -> each item marked auto / needs you / blocked -> preview of exactly what leaves (pseudonym, shifted dates, requested items only) -> approve -> sealed contribution, reward by escrow -> licence -> decline / pause / revoke with the ledger result | `GET /api/p/{pid}`, `/preview`, `POST .../approve`, `/decline`, `/pause`, `/revoke` |
+| Participant app: research participation request | one participant on their phone | request with verified-institution badges from the ledger, LLM summary of why, DUO codes -> each item marked auto / needs you / blocked -> preview of exactly what leaves (pseudonym, shifted dates, requested items only) -> approve -> sealed contribution, payment by escrow -> licence -> decline / pause / revoke with the ledger result | `GET /api/p/{pid}`, `/preview`, `POST .../approve`, `/decline`, `/pause`, `/revoke` |
 | Researcher console | the study team | goal and protocol -> 50 x 8 coverage heatmap and LLM gap reading next to the code verdict -> co-signed budget approval (one signer refused) -> participation requests -> responses (auto / approval / blocked) -> sealed bundles opened with the key from the ledger -> power before and after -> settlement record | `GET /api/study`, `POST /api/study/goal`, `/approve`, `/send`, `/close-round`, `/sweep`, `GET /api/study/bundle/{id}` |
 
 Both pages poll `GET /api/events` and share the same engine and ledger: a tap on the phone shows
@@ -176,7 +176,7 @@ Getting research data takes a median of 80 days, 35 of them to sign the data use
 **Research needs small gaps filled.** Recruiting one trial participant costs $2,273-6,533, and
 15-40% drop out. In remote wearable studies, median retention is 5.5 days
 ([Pratap et al. 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7026051/)). Filling a few missing
-weeks is too small for an 80-day agreement, and paying for it by card costs more than the reward
+weeks is too small for an 80-day agreement, and paying for it by card costs more than the payment
 ($0.30 fixed fee, [Stripe](https://stripe.com/nl/help/pricing)). So that contribution does not
 happen today, and studies over-recruit instead.
 
@@ -198,7 +198,7 @@ Sources and the full model: [docs/MARKET.md](docs/MARKET.md).
    Requests go out; auto contributions fill the heatmap; power rises.
 2. **P-017's phone**: a request from a lab with an ethics-review badge read from the ledger, a
    two-sentence reason, DUO chips, fatigue weeks 3-5 "needs you", heart rate week 4 "auto". Preview
-   shows what leaves. Approve: three escrows, keys published, rewards paid, licence issued.
+   shows what leaves. Approve: three escrows, keys published, payments made, licence issued.
 3. **Boundaries**: new purpose stops for approval; quasi-identifier combination refused; operator
    cannot open a bundle; decline / pause / revoke with Clawback and EscrowCancel links.
 4. **Other domains**: robot company's agent buys two datasets on Testnet with a multi-signed top-up.
@@ -331,7 +331,7 @@ turns engine results into the records those products already store, without call
 |---|---|---|
 | Separate consents: third-party provision, sensitive data | Consent lanes `research_participation`, `sensitive_health_collection` | International transfer has no UniQdata lane: a granted one blocks the hand-off |
 | Revoke | New `privacy_epoch`; queued commands from older epochs superseded; withdrawal deletion audit | Pause holds new commands only; declining a round touches nothing |
-| Rewards after revoke | Paid and pending research rewards are kept | Rounds not delivered at revoke are refunded to the study by the escrow, so they map to `not_earned`, never to kept pending rewards. The held 20% of delivered rounds maps to `pending` (paid when review ends); the completion bonus returns, so `not_earned`. An unknown status is reported as unmapped, never as earned |
+| Payments after revoke | Paid and pending research rewards are kept | Rounds not delivered at revoke are refunded to the study by the escrow, so they map to `not_earned`, never to kept pending rewards. The held 20% of delivered rounds maps to `pending` (paid when review ends); the completion bonus returns, so `not_earned`. An unknown status is reported as unmapped, never as earned |
 | EscrowFinish of a delivered round, of a released held part or bonus | One `payout_receipt` per payout intent | `receipt_ref_hash` = SHA-256 of the XRPL tx hash; amounts in drops (`amount_minor`, currency `XRP`) |
 
 More: [docs/API.md](docs/API.md), [docs/PLAN.md](docs/PLAN.md), [docs/DESIGN.md](docs/DESIGN.md),

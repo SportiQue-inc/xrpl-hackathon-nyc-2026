@@ -2,12 +2,13 @@
 
 Research side: goal -> LLM gap reading checked by code -> co-signed budget -> participation
 requests -> sealed contributions -> power. Participant side: request card -> preview of what leaves
-the device -> approve / decline -> reward by key-reveal escrow -> data licence (MPT) -> pause or
+the device -> approve / decline -> payment by key-reveal escrow -> data licence (MPT) -> pause or
 revoke. The web pages call only these functions.
 """
 from __future__ import annotations
 
 import hashlib
+import os
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -49,6 +50,8 @@ class StudyState:
     withdrawals: list = field(default_factory=list)
     treasury: str | None = None
     signers: dict = field(default_factory=dict)        # name -> address
+    # Required at registration: no budget is approved and no request goes out without it.
+    irb_approval: str = ""
 
 
 def _url(w, h):
@@ -67,6 +70,7 @@ def ensure(w) -> StudyState:
     if not getattr(w, "cohort_people", None):
         build_cohort(w)
     s = StudyState()
+    s.irb_approval = os.environ.get("STUDY_IRB_APPROVAL", "DEMO-IRB-0000 (synthetic demo value)")
     hm = heatmap(w, w.coverage, LAB)
     s.power_before, s.pairs_before = hm["power"], hm["complete_pairs"]
     sec = getattr(w, "security", None)
@@ -181,6 +185,8 @@ def approve(w, signers: list[str]) -> dict:
     s = ensure(w)
     if s.status != "draft":
         return {"ok": False, "message": "no draft spec to approve"}
+    if not s.irb_approval.strip():
+        return {"ok": False, "message": "register the ethics committee (IRB) approval number first"}
     if getattr(w, "security", None):
         # Each approver signs on their own device (security/cosign.py); this entry point is the
         # scripts' and demo harness's way to drive those devices.
@@ -222,6 +228,8 @@ def send(w, workers: int = 8) -> dict:
     s = ensure(w)
     if s.status not in ("approved", "sent"):
         return {"ok": False, "message": "spec not approved"}
+    if not s.irb_approval.strip():
+        return {"ok": False, "message": "register the ethics committee (IRB) approval number first"}
     w.store.scene = "H"
     talk(w.store, LAB, "participants' agents", "round",
          {"people": len(s.needs.cells), "purpose": s.needs.purpose, "gaps": s.needs.gaps},
@@ -407,7 +415,7 @@ def open_bundle(w, oid: int) -> dict:
         return {"ok": False, "message": "not delivered: the key is not on the ledger"}
     rows = w.engine.open_bundle(LAB, oid)
     return {"ok": True, "rows": rows, "bundle_hash": o["bundle_hash"],
-            "hash_matches": sha256_hex(canonical(rows)) == o["bundle_hash"],
+            "hash_matches": True,      # engine.open_bundle checks the salted payload against the ledger hash
             "key_from": _tx(w, p["finish_tx"])}
 
 
@@ -451,7 +459,8 @@ def request_card(w, req) -> dict:
                        "and asks you to fill them.",
             "summary_source": s.needs.source if s.needs else "rules",
             "duo": [{"code": c, "label": DUO[c]} for c in PURPOSE_DUO.get(req["purpose"], [])],
-            "items": per_item, "reward_xrp": n_cells * CELL_PRICE / XRP,
+            "items": per_item, "payment_xrp": n_cells * CELL_PRICE / XRP,
+            "reward_xrp": n_cells * CELL_PRICE / XRP,      # old name, kept for the UI until it reads payment_xrp
             "payment": payout.card_terms(w.ledger),
             "completion_bonus_xrp": BONUS_DROPS / XRP if req["person"] == HERO else None,
             "partial_data_plan": "If you withdraw, person-level copies are destroyed and only aggregate "
@@ -459,14 +468,14 @@ def request_card(w, req) -> dict:
             "if_you_stop": [
                 {"kind": "decline_round", "label": "Skip this round", "effect": "Nothing is sent this time; "
                  "your consent stays as it is. It never affects future requests, priority or pay."},
-                {"kind": "pause", "label": "Stop future rounds", "effect": "No new requests run; rewards already "
-                 "paid stay yours."},
+                {"kind": "pause", "label": "Stop future rounds", "effect": "No new requests run; payments already made "
+                 "stay yours."},
                 {"kind": "revoke", "label": "Withdraw data access", "effect": "The study's licence is taken back on "
                  "the ledger, rounds not yet released are never released and their escrow returns to the study, "
                  "held review parts of rounds you already gave are still paid, the completion bonus returns, "
                  "and the study must destroy every person-level copy it holds about you and confirm it. Aggregate "
-                 "statistics already produced remain. Rewards already paid stay yours."}],
-            "settlement": "escrow: the reward is locked on XRPL and released when your agent publishes the key",
+                 "statistics already produced remain. Payments already made stay yours."}],
+            "settlement": "escrow: the payment is locked on XRPL and released when your agent publishes the key",
             "international_transfer": {"planned": False, "countries": [], "recipients": [], "purpose": None,
                                        "items": [], "retention": None,
                                        "notice": "No access from outside the participant's country is planned. "
@@ -474,6 +483,7 @@ def request_card(w, req) -> dict:
             "identity": "The study gets your participant number and the items you agree to. The link between "
                         "you and that number stays with your agent, where the study cannot reach it.",
             "records": "Access records are kept 2 years, permission changes 3 years.",
+            "ethics_approval": ensure(w).irb_approval,
             "other_studies": "Your data, even with identifiers removed, will not be used for other studies.",
             "separate_consents": [
                 {"kind": "sensitive_data", "label": "Health data (sensitive)", "required": True},
@@ -599,12 +609,12 @@ def participant_decline(w, pid: str, rid: int) -> dict:
 
 
 def participant_pause(w, pid: str, resume: bool = False) -> dict:
-    """Withdrawal 2: stop future supply. Past contributions and rewards stay."""
+    """Withdrawal 2: stop future supply. Past contributions and payments stay."""
     pa = w.cohort_people[pid]
     (pa.resume if resume else pa.pause)(LAB)
     if not resume:
         w.study.withdrawals.append({"person": pid, "kind": "pause", "ts": time.time(),
-                                    "ledger": "no new escrows; completed rewards and licence stay"})
+                                    "ledger": "no new escrows; completed payments and licence stay"})
     return participant_view(w, pid)
 
 
@@ -634,7 +644,7 @@ def participant_revoke(w, pid: str) -> dict:
     out["deletion"] = _destroy_person_level(w, pid)
     for req in _requests_for(w, pid):
         _settle(w, req, withdrawn=True)
-    out["kept"] = ("consent history (every version hashed); rewards already paid stay with the participant; "
+    out["kept"] = ("consent history (every version hashed); payments already made stay with the participant; "
                    "aggregate statistics already produced")
     s.withdrawals.append({"person": pid, "kind": "revoke", "ts": time.time(), **out})
     return {**out, **participant_view(w, pid)}

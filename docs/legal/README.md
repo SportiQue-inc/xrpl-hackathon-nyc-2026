@@ -59,5 +59,5 @@ Implemented in `agentrail/payout.py`, tested in `tests/test_payout.py`:
 
 - [verified-articles-kr.md](verified-articles-kr.md): Korean articles checked against the preserved original texts
 - [verified-articles-us.md](verified-articles-us.md): US rules checked against the original texts
-- [background.md](background.md): summary of a prior regulatory consultation and where it shows in the design
+- [background.md](background.md): summary of a prior regulatory consultation, public precedents for each mechanism, and where they show in the design
 - [payment-and-penalty-policy.md](payment-and-penalty-policy.md): penalty scope, holdback and consent wording (Korean; [미검증] marks kept)

@@ -454,7 +454,7 @@ def _card(name, desc, url, skills):
 def research_agent_card():
     """A2A v1.0 Agent Card for the study's research agent (static; demo only)."""
     return _card("Sleep study research agent (synthetic)",
-                 "Finds missing person-weeks in a study and sends participation requests; rewards by XRPL escrow.",
+                 "Finds missing person-weeks in a study and sends participation requests; pays by XRPL escrow.",
                  "/api/study", [{"id": "research_request", "name": "Participation request",
                                  "description": "Ask a participant's agent for protocol items and weeks.",
                                  "tags": ["research", "consent", "xrpl"]}])

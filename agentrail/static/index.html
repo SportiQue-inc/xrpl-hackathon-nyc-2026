@@ -187,7 +187,7 @@ async function loadStudy() {
   document.getElementById('study-nums').innerHTML = [
     [h.power_before, 'power at start'], [h.power, 'power now (plan 0.80)'],
     [st.responses.auto + ' / ' + st.responses.approval, 'auto / asked person'],
-    [st.settlement.paid_xrp + ' XRP', 'rewards paid by escrow']].map(([v, l]) => `<div class="num"><b>${v}</b><span>${l}</span></div>`).join('');
+    [st.settlement.paid_xrp + ' XRP', 'paid by escrow']].map(([v, l]) => `<div class="num"><b>${v}</b><span>${l}</span></div>`).join('');
   document.getElementById('heat').innerHTML = '<div class="lbl"></div>' + h.weeks.map(w => `<div class="lbl">w${w}</div>`).join('') +
     h.rows.map(r => `<div class="lbl">${r.person}</div>` + r.cells.map(c => `<div class="c-${c.s}" title="${r.person} ${c.s}"></div>`).join('')).join('');
 }

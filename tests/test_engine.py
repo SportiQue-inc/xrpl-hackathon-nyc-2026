@@ -390,3 +390,11 @@ def test_wrong_key_cannot_finish_the_escrow(w):
                                           p["condition"], fulfillment_hex(new_key()), "")
     w.ledger.submit(prep)
     assert w.ledger.lookup(prep.tx_hash).result == "tecCRYPTOCONDITION_ERROR"
+
+
+def test_ledger_hash_is_salted_per_round(w):
+    from agentrail.engine import canonical, sha256_hex
+    req = escrow_request(w)
+    oid = w.engine.place_order(req)
+    o = w.store.one("SELECT bundle_hash FROM orders WHERE id=?", oid)
+    assert o["bundle_hash"] != sha256_hex(canonical(req.rows))      # guessing the values does not reproduce it
