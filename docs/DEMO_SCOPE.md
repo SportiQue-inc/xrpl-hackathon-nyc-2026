@@ -1,47 +1,50 @@
 # Demo scope
 
-All parties, records and amounts are synthetic. XRPL Testnet only.
+All people, institutions, records and amounts are synthetic. XRPL Testnet only.
 
 ## Cast
 
-- Buyer: a robot developer (scene A) and a sleep research lab (scene B).
-- Organization holders: Alpha Sim, Beta Logistics, Gamma Robotics, Delta Fleet.
-- Personal holders: participants P017 (`auto_standard`), P023 (`auto_all`),
-  P031 (`confirm_each`).
-- An ad network with a prohibited purpose (refused by the compliance layer).
+- **Northside Sleep Lab** (synthetic): an 8-week sleep and fatigue study, 50 participants, stalled
+  at power 0.65. Holds an ethics-review Credential and a verified-organization Credential; its
+  treasury is multi-signed (principal investigator + compliance officer).
+- **P-017**, the participant the demo follows: wearable, survey app and clinic records joined on
+  one time axis by their personal agent. Missing in the study: fatigue survey weeks 3-5, heart rate
+  week 4. Consent: sleep, activity, heart rate, automatic; anything else asks P-017.
+- 49 other participants with different automation levels (automatic, standard only, every round).
+- An unverified lab, and an ad network with a prohibited purpose.
+- Scene A (other domains): a robot developer and four data sellers.
 
 ## Flow (about 3 minutes)
 
-| # | Scene | What must really happen |
-|---|-------|-------------------------|
-| A1 | Buyer gives one goal: night warehouse navigation, LiDAR + IMU, dynamic obstacles + narrow aisles, commercial training, budget 50 XRP | Goal and mandate stored; agent queries 4 sellers |
-| A2 | Agent evaluates | A1 excluded (no LiDAR), C2 excluded (licence: evaluation only), D1 excluded (20% missing in sample); raw video not requested (sensitive, buyer setting); fixed quotes compared |
-| A3 | Agent confirms contract terms (fields, purpose, licence, policy version) and buys B1 + C1 for 35 XRP | Two Payments on Testnet, validated; sealed bundles delivered; report shows spent 35 / remaining 15 |
-| A4 | Live variation: budget 30 | Agent buys nothing, reports it needs +5 XRP and asks a human |
-| B1 | Three people sign consents (sleep, activity, heart rate) with different automation levels | Consent documents hashed, versions kept |
-| B2 | Week 1 | P017, P023 paid and delivered automatically; P031 confirms by hand, then paid |
-| B3 | Week 2: lab also asks for fatigue survey + blood pressure at 2 XRP/item | Consented items still run; extra items not sent, people asked |
-| B4 | P017 approves fatigue only | Week 3 includes fatigue for P017; blood pressure stays blocked |
-| B5 | P023 pauses | Week 4 skips P023; its past payments remain |
-| B6 | Ad network asks P017 | Refused: prohibited purpose |
-| C | Same order sent twice, payment response lost, delivery ack lost, server restart | One order, one payment, same bundle re-delivered, recovered from outbox |
+| # | Surface | What really happens |
+|---|---|---|
+| 1 | Researcher console | Goal typed; the LLM reads the coverage table and analysis note and proposes gaps; code keeps fatigue w3-5 and heart rate w4-5 and shows the table cells; per-person reading for P-017 shown next to the code verdict |
+| 2 | Console | One signer cannot release the budget (ledger refuses); PI + compliance co-sign the top-up |
+| 3 | Console | Participation requests sent; agents answer auto / ask the person / blocked; auto contributions settle by key-reveal escrow; heatmap fills; power rises |
+| 4 | P-017's phone | Request card: lab name, ethics-review and verified-organization badges read from the ledger, two-sentence reason, DUO chips, fatigue w3-5 "needs you", heart rate w4 "auto", reward in XRP |
+| 5 | Phone | Preview of exactly what leaves: study pseudonym, shifted days, requested items only |
+| 6 | Phone | Approve: escrow per week, P-017's agent publishes each key, reward paid, the study reads the key from the ledger and opens the bundle; P-017 issues the study a non-transferable licence (MPT); week 5 is held until the round closes |
+| 7 | Boundaries | New purpose stops for approval; unverified lab gets no answer and its direct payment fails (`tecNO_PERMISSION`); birth date + postal code + rare diagnosis refused; operator cannot open a bundle |
+| 8 | Phone | Withdrawals: another participant declines a round (nothing on the ledger); one pauses (rewards stay); P-017 revokes: licence Clawback, week-5 key withheld, EscrowCancel refund; console row greys out |
+| 9 | Other domains | Robot developer's agent closes its evaluation gaps from two sellers on Testnet with a multi-signed top-up; consent layer replaced by seller licence terms |
 
-## Checks enforced by code (not by an LLM)
+## Checks enforced by code or the ledger (never by the LLM)
 
-- Holder permission, buyer mandate, budget and data availability all required.
-- Payee, amount and InvoiceID verified on a validated ledger before release.
-- Permission re-checked just before payment and just before delivery.
-- Order key unique; different content under the same key is a conflict.
-- Sensitive items: never auto-approved, filtered for buyers without ethics approval.
+- LLM proposals are recomputed from the coverage table; anything without support is removed.
+- Consent, period, purpose (DUO), compliance, verified organization, sensitivity: code, on order and
+  again before the key is published.
+- The study must still hold the licence MPT for the key to be published.
+- Budget only through a multi-signed treasury; per-order limit and reservation in the engine.
+- Escrow condition = sha256 of the bundle key; refund only after `CancelAfter`.
+- Payments carry order id, bundle hash and consent or terms hash; no health data on the ledger.
 
-## Screens
+## Surfaces
 
-One dashboard (`uvicorn agentrail.web:app`): mandate numbers per buyer
-(budget / reserved / spent / available), candidate evaluation, consents with document
-hashes, orders with Testnet explorer links, agent decision log, approvals asked of
-people, exceptions, buyer account settings.
+- Participant app and researcher console: UI by the team on the API in [API.md](API.md).
+- Dashboard (`/`): boundary tabs with this run's evidence, study heatmap, orders with explorer
+  links, agent conversation.
 
 ## Out of scope
 
-Real hospital or device APIs, mainnet funds, RLUSD, arbitrary queries from buyers,
-price negotiation between agents, LLM in the decision path, recall of already delivered copies.
+Real device, clinic or survey APIs; mainnet funds; RLUSD; recall of already delivered rounds;
+medical interpretation of any kind.

@@ -101,6 +101,18 @@ stateDiagram-v2
   paid --> paid: ack lost -> resend same bundle
 ```
 
+Escrow orders (health study, `settle="escrow"`):
+
+```mermaid
+stateDiagram-v2
+  [*] --> reserved: place_order (bundle encrypted with key K, then sealed to the study)
+  reserved --> escrowed: EscrowCreate validated (condition = sha256 K, CancelAfter)
+  escrowed --> escrowed: locked bundle delivered (cannot be opened without K)
+  escrowed --> delivered: personal agent re-checks consent + licence, publishes K in EscrowFinish (reward paid)
+  escrowed --> withheld: consent revoked or licence clawed back -> K never published
+  withheld --> refunded: EscrowCancel after CancelAfter
+```
+
 Payment step detail: sign -> **store hash + signed blob** -> submit -> look up by hash.
 Lost response: look up. Not found and not expired: resubmit the same blob (applies at
 most once). Expired (past `LastLedgerSequence`): re-sign. Restart: `recover()` drives
@@ -122,6 +134,9 @@ every pending outbox row.
 | compliance layer: prohibited purposes; sensitive items only for ethics-approved buyers | platform | `ComplianceRules` | [done] |
 | ethics approval as an XRPL **Credential** instead of a config list | ethics board | ledger lookup | [done] |
 | settlement through the **x402** facilitator (T54, Testnet) | engine | `PAYMENT_RAIL=x402` | [wip] |
+| verified organization (`VERIFIED_ORG` Credential) before any answer; DepositAuth on the participant account | registry / person | `ComplianceRules.verified_check`, XRPL DepositPreauth | [done] |
+| per-(study, participant) licence MPT, clawback on revoke | person | `ledger/licence.py`, licence check before key | [done] |
+| quasi-identifier combination refused | platform | `ComplianceRules.check` | [done] |
 | buyer treasury with **multi-signing**; agent spends from a capped account; top-ups need human co-sign (production: approval signatures from a hardware wallet such as Ledger) | buyer org | XRPL SignerList | [done] |
 | pause (forward only) / revoke (also withholds undelivered) | person | consent status | [done] |
 
@@ -145,13 +160,28 @@ every pending outbox row.
 | 14 | payment memo carries consent doc hash | `test_payment_memo_...` |
 | 15 | scene A picks B1 + C1 within budget, excludes A1 / C2 / D1 for the right reasons | `test_scene_a_...` |
 
-## 6. Open items
+## 6. Health study: both sides (`study.py`, `cohort.py`, `boundaries.py`)
 
-- **[open]** Escrow with crypto-condition so payment releases on delivery (stronger
-  than pay-then-deliver; adds latency). Candidate if time allows.
+| Step | Research side | Participant side | Ledger |
+|---|---|---|---|
+| set up | coverage table 50 x 8, protocol, treasury SignerList | consent per study (DUO codes), automation level | SignerListSet, ethics Credential, VERIFIED_ORG Credential, DepositAuth + DepositPreauth (P-017) |
+| gap reading | LLM proposes gaps (table + note) and per-person gaps; code recomputes; stored in `proposals` | - | - |
+| approval | budget via co-signed treasury payment | - | multisigned Payment; single signer refused |
+| request | one participation request per person | agent answers auto / ask / blocked; card + preview | - |
+| contribution | escrow per week | agent extracts (pseudonym, date shift, minimization), seals, publishes K | EscrowCreate, EscrowFinish (fulfillment = K) |
+| licence | holds 1 unit | issues on first contribution | MPTokenIssuanceCreate, MPTokenAuthorize x2, MPT Payment |
+| withdrawal | row greys out; refund | decline / pause / revoke | Clawback, EscrowCancel |
+
+Per-study identity: `S-` + sha256(study, person)[:8]; day shift = sha256(study, person) mod 90 + 30,
+kept only by the personal agent. Two quasi-identifiers in one request are refused by the compliance
+layer before consent is read.
+
+## 7. Open items
+
+- **[done]** Key-reveal escrow (PREIMAGE-SHA-256) so the reward releases with the key.
 - **[open]** RLUSD instead of XRP (needs trust lines and test RLUSD).
-- **[done]** LLM (GPT API or Claude API via `LLM_PROVIDER`) writes agent sentences only;
-  rule sentences when no key or on error. Never on the permission or payment path.
+- **[done]** LLM (GPT by default) proposes gaps, schema mappings and licence readings; code
+  verifies and can only narrow; answers recorded and replayed; rules when no key.
 - **[open]** Retention / deletion of delivered copies after revoke: contract + audit,
   not technically enforceable.
 - **[open]** Who pays account reserve for new personal accounts.
