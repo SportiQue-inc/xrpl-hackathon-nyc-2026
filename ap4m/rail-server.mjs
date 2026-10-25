@@ -5,10 +5,10 @@
 //   1. starts a one-off x402 Merchant on loopback that sells `content` (e.g. the data key K) at the amount;
 //   2. the Agent buys it with buyResource: an EIP-712 Voucher on the open Channel, redeemed on-chain by the
 //      merchant (VoucherRedeemed on the PaymentLedger), and gets `content` back;
-//   3. reports the redemption; settlement (the AP4M service pays RLUSD from the vault to the payout wallet) runs
-//      in the background every AP4M_SETTLE_EVERY_MS for all unsettled claims at once and fills in each ref's
-//      receipt_url, so a payment does not wait up to two minutes for payout confirmations (AP4M_SETTLE_INLINE=1
-//      settles inside the payment as before);
+//   3. reports the redemption; the AP4M service settles it on its own (pays RLUSD from the vault to the payout
+//      wallet), and every AP4M_SETTLE_EVERY_MS the rail looks up each paid claim's published receipt and fills in
+//      the ref's receipt_url, so a payment does not wait for payout confirmations (AP4M_SETTLE_INLINE=1 calls
+//      settle() inside the payment as before);
 //   4. optionally forwards the same amount as RLUSD from the payout wallet to `forward_to` (second hop), so a
 //      seller or participant is paid on-chain, not only the team's Merchant.
 // Results are kept per `ref` before and after paying: the same ref never pays twice.
@@ -18,7 +18,7 @@
 //   GET  /health   public: channel, per-pool spend and caps, payment count (no keys, no content)
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -172,7 +172,7 @@ export async function payOnce(live, env, body) {
     verified, agent: live.wallet.address, merchant_payout: live.payout, content: purchase.resource?.content ?? null,
   };
   if (env.AP4M_SETTLE_INLINE !== '1') {
-    result.settlement = 'scheduled';   // settleReceipts() adds settlement_tx, payout_tx and receipt_url to this ref
+    result.settlement = 'scheduled';   // settleReceipts() adds receipt_url to this ref once the service publishes it
   } else try {
     const settled = await live.sdk.settle(live.apiUrl, tokenValue, live.channelId);
     const mine = (settled.receipts ?? []).find((r) => r.claim_id?.toLowerCase() === purchase.claimId.toLowerCase());
@@ -197,27 +197,38 @@ export async function payOnce(live, env, body) {
   return result;
 }
 
-/** Settle every paid claim that has no receipt yet in one call and write the receipts into their refs. */
-export async function settleReceipts(live, store, log = console.log) {
+/** The service settles every redeemed claim on its own. Find each paid claim's published receipt
+ *  (GET /public/evidence/claims/<claimId>, public) and write it into its ref; claims not published yet stay open. */
+export async function settleReceipts(live, store, log = console.log, fetchText = async (url) => {
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  return res.ok ? res.text() : '';
+}) {
   const open = store.unsettled();
-  if (!Object.keys(open).length) return 0;
-  const settled = await live.sdk.settle(live.apiUrl, await live.token(), live.channelId);
   const done = [];
-  for (const r of settled.receipts ?? []) {
-    const claim = r.claim_id?.toLowerCase();
-    const ref = claim && open[claim];
-    if (!ref || !r.receipt_url) continue;
+  for (const [claim, ref] of Object.entries(open).slice(0, 50)) {
+    let text = '';
+    try { text = await fetchText(`${live.apiUrl}/public/evidence/claims/${claim}`); } catch { continue; }
+    const m = text.match(new RegExp(`(?:https?://[^"\\s]+)?/public/evidence/claims/${claim}/0x[0-9a-fA-F]{64}\\.json`, 'i'));
+    if (!m) continue;
+    const receiptUrl = m[0].startsWith('http') ? m[0] : live.apiUrl + m[0];
     const rec = store.get(ref);
-    if (rec) {
-      store.put(ref, { ...rec, settlement: 'settled', receipt_url: r.receipt_url, settlement_tx: settled.settlement_tx ?? rec.settlement_tx ?? null,
-        payout_tx: settled.payout_tx ?? rec.payout_tx ?? null,
-        settlement_url: settled.settlement_tx ? `${live.explorer}/tx/${settled.settlement_tx}` : rec.settlement_url ?? null,
-        payout_url: settled.payout_tx ? `${live.explorer}/tx/${settled.payout_tx}` : rec.payout_url ?? null });
-    }
+    if (rec) store.put(ref, { ...rec, settlement: 'settled', receipt_url: receiptUrl });
     done.push(claim);
   }
-  if (done.length) { store.clearUnsettled(done); log(`[rail] settled ${done.length} claim(s), ${Object.keys(open).length - done.length} still waiting`); }
+  if (done.length) { store.clearUnsettled(done); log(`[rail] receipts for ${done.length} claim(s), ${Object.keys(open).length - done.length} still waiting`); }
   return done.length;
+}
+
+/** Paid refs stored without a receipt (before background settlement, or when settle() failed) are looked up too. */
+export function adoptUnsettled(store) {
+  const dir = join(store.dir, 'refs');
+  let n = 0;
+  for (const name of existsSync(dir) ? readdirSync(dir) : []) {
+    if (!name.endsWith('.json')) continue;
+    const rec = JSON.parse(readFileSync(join(dir, name), 'utf8'));
+    if (rec.status === 'paid' && rec.claim_id && !rec.receipt_url && !store.unsettled()[rec.claim_id.toLowerCase()]) { store.markUnsettled(rec.claim_id, rec.ref); n++; }
+  }
+  return n;
 }
 
 export function createRail({ env, store, pay, log = console.log }) {
@@ -285,6 +296,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const server = createRail({ env, store, log, pay: (job) => payOnce(live, env, job) });
   const port = Number(env.PORT || env.AP4M_RAIL_PORT || 4500);
   server.listen(port, env.AP4M_RAIL_HOST || '0.0.0.0', () => log(`[rail] listening on ${port}`));
+  log(`[rail] ${adoptUnsettled(store)} paid ref(s) without a receipt queued for lookup`);
   const every = Number(env.AP4M_SETTLE_EVERY_MS || 60_000);
   const tick = async () => {
     try { await settleReceipts(live, store, log); } catch (error) { log(`[rail] settle: ${error.message.slice(0, 200)}`); }
