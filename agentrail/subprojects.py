@@ -45,32 +45,54 @@ class SubProject:
     refused: dict = field(default_factory=dict)    # pid -> items the person refused
 
 
+# The study protocol's items: the scope before the study has read its gaps (scenario.STANDARD_ITEMS + EXTRA_ITEMS).
+PROTOCOL_ITEMS = ["sleep.daily", "activity.daily", "heart_rate.daily", "fatigue.survey", "blood_pressure.daily"]
+
+
 class Relationships:
     def __init__(self, w):
         self.w = w
-        s = ensure(w)
-        cells = s.needs.cells if s.needs else {}
-        types = sorted({i for wk in cells.values() for its in wk.values() for i in its})
-        self.scope = {"purposes": [s.needs.purpose] if s.needs else ["sleep_research"],
-                      "data_types": [t for t in types if _tier(t) not in T3_TIERS],
-                      "tiers_allowed": sorted({_tier(t) for t in types} - T3_TIERS)}
-        self.consents: dict[str, dict] = {}        # pid -> {at, tx}
+        self.own: dict[str, dict] = {}             # consents given through this API: pid -> {at, tx}
         self.subprojects: dict[str, SubProject] = {}
-        for pid in list(w.engine.policies):        # the scope covers sub-project orders; the person's rules still run
-            if pid in w.cohort_people:
-                w.engine.policies[pid] = _ScopePolicy(self, pid, w.engine.policies[pid])
-        for r in s.requests.values():              # people who already contribute hold the relationship
-            if r["status"] in ("contributed", "partly_open") and r["person"] not in self.consents:
-                tx = next((o for o in r["orders"]), None)
-                pm = w.store.one("SELECT tx_hash FROM payments WHERE order_id=?", tx["order_id"]) if tx else None
-                self.consents[r["person"]] = {"at": r["created"], "tx": pm["tx_hash"] if pm else None}
+        ensure(w)
+        self.wrap()
+
+    def wrap(self):
+        """The scope covers sub-project orders; the person's own rules still run first."""
+        for pid in list(self.w.engine.policies):
+            p = self.w.engine.policies[pid]
+            if pid in getattr(self.w, "cohort_people", {}) and not isinstance(p, _ScopePolicy):
+                self.w.engine.policies[pid] = _ScopePolicy(self, pid, p)
+
+    @property
+    def scope(self) -> dict:
+        """Read on every access: the study's current needs, or the protocol before it has read its gaps."""
+        s = ensure(self.w)
+        cells = s.needs.cells if s.needs else {}
+        types = sorted({i for wk in cells.values() for its in wk.values() for i in its}) or PROTOCOL_ITEMS
+        types = [catalog.canon(t) if catalog.canon(t) in catalog.CATALOG else t for t in types]
+        return {"purposes": [s.needs.purpose] if s.needs else ["sleep_research"],
+                "data_types": sorted({t for t in types if _tier(t) not in T3_TIERS}),
+                "tiers_allowed": sorted({_tier(t) for t in types} - T3_TIERS)}
+
+    @property
+    def consents(self) -> dict:
+        """People who contribute to the study hold the relationship (read on every access), plus those
+        who consented here."""
+        out = {}
+        for r in ensure(self.w).requests.values():
+            if r["status"] in ("contributed", "partly_open") and r["person"] not in out:
+                first = next(iter(r["orders"]), None)
+                pm = self.w.store.one("SELECT tx_hash FROM payments WHERE order_id=?", first["order_id"]) if first else None
+                out[r["person"]] = {"at": r["created"], "tx": pm["tx_hash"] if pm else None}
+        return {**out, **self.own}
 
     # ----- consent and routing -----
     def consent(self, pid: str) -> dict:
-        self.consents.setdefault(pid, {"at": time.time(), "tx": None})
+        self.own.setdefault(pid, {"at": time.time(), "tx": None})
         self.w.store.log(pid, "consent", f"{pid} consented to {LAB}'s scope: {', '.join(self.scope['purposes'])}; "
                          f"{', '.join(self.scope['data_types'])}")
-        return self.consents[pid]
+        return self.own[pid]
 
     def _withdrawn(self, pid: str) -> bool:
         c = self.w.store.one("SELECT status FROM consents WHERE person_id=? AND buyer_id=?", pid, LAB)
@@ -216,4 +238,5 @@ class _ScopePolicy:
 def of(w) -> Relationships:
     if getattr(w, "relationships", None) is None:
         w.relationships = Relationships(w)
+    w.relationships.wrap()                 # policies a later step replaced
     return w.relationships

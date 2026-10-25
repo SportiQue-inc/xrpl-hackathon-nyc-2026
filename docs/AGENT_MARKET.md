@@ -133,12 +133,12 @@ payouts are listed per sub-project in the person's relationship view and in UniQ
 | needs formed by the accounts with a budget | 74 |
 | offer book | 477 listings, root anchored on the ledger before trading (re-anchored when agents collect new data) |
 | candidates per need | median 34 sampled and scored |
-| already held | 127 offers refused before trading (same certified root as data the buyer bought); 3 copies bought at the new part only |
-| trade attempts | 141: 109 paid (escrow finished, key revealed), 23 blocked by the seller's rules, 6 declined by the owner, 3 waiting for the owner |
-| paid trades | 109: 99 passed the buyer's delivery check, 10 failed it (refund claim recorded); 87 of the 109 needed no owner decision |
-| volume | 1.72 XRP paid at negotiated prices (about 9% under the asks) |
+| already held | 129 offers refused before trading (same certified root as data the buyer bought); 3 copies bought at the new part only |
+| trade attempts | 153: 109 paid (escrow finished, key revealed), 36 refused before payment (6 because the delivery did not match the certified rows), 5 declined by the owner, 3 waiting for the owner |
+| paid trades | 109: 105 passed the buyer's delivery check, 4 failed it (refund claim recorded); 80 of the 109 needed no owner decision |
+| volume | 1.43 USD (test token) at market prices: median 0.70 of the rate card, near the owners' floors because listings outnumber needs |
 | hours from need to fill | median 0 (agent), p90 11.3 (owner answered) |
-| unfit deliveries caught | 10 after delivery (not as committed, incomplete or impossible values), each with a refund claim |
+| unfit deliveries caught | 6 before payment (delivery did not match the certified rows, nothing paid); 4 after delivery (incomplete or impossible values), each with a refund claim |
 
 Health columns, robot logs (lidar, joint torque, gripper events), fleet battery logs and smart-home meters trade side by side. **Reverse direction:** a person buys a wellness trait report (caffeine metabolism, lactose tolerance) from a provider credentialed for wellness reports. The person's agent sends only the variants at the loci the report needs (3 of about 30). The person's payment is escrowed and released by the provider's key reveal. The report says "wellness information, not a diagnosis". The provider signs a deletion confirmation. A request outside the credential ("disease_risk") is refused.
 

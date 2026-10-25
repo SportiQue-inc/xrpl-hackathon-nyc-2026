@@ -19,8 +19,10 @@ them, negotiates with the best, and pays on XRPL with a key-reveal escrow: the p
 publishes the key that opens the data. What it buys accumulates in its own store and can be sold on.
 A buyer never pays twice for data it already holds: an offer with a root it bought before is
 refused, and copied rows are priced at the new part only. In our simulated market of 50 synthetic
-accounts (mock ledger, seed 11), agents completed 109 paid trades, 87 of them without an owner
-decision; 10 deliveries failed the buyer's check and were recorded as refund claims. `python scripts/export_network.py` replays it as a node network.
+accounts (mock ledger, seed 11), agents completed 109 paid trades, 80 of them without an owner
+decision, at prices the market set inside the owners' floors and budgets; 6 offers whose delivery did
+not match the certified rows were refused before payment, and 4 deliveries failed the buyer's check
+after opening and were recorded as refund claims. `python scripts/export_network.py` replays it as a node network.
 
 ![One Act 1 trade: need and offer book, check before paying, owner's rules, EscrowCreate, sealed push, EscrowFinish reveals K, bundle opens](docs/img/agentrail-flow.png)
 
