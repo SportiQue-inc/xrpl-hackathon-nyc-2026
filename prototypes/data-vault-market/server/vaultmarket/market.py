@@ -82,7 +82,8 @@ class Market:
         # 'settling' may have escrows on the ledger; recover() finishes or refunds them once wallets connect.
         self.s.x("UPDATE contracts SET status = 'rejected', reason = 'interrupted by a server restart' WHERE status = 'negotiating'")
         self.s.x("UPDATE contracts SET status = 'rejected', reason = 'interrupted by a server restart before any escrow' "
-                 "WHERE status = 'settling' AND id NOT IN (SELECT contract FROM escrows)")
+                 "WHERE status = 'settling' AND id NOT IN (SELECT contract FROM escrows) "
+                 "AND id NOT IN (SELECT contract FROM txs WHERE type = 'EscrowCreate')")
         threading.Thread(target=self._connect_all, daemon=True).start()
 
     def _connect_all(self):
@@ -445,13 +446,22 @@ class Market:
         it was submitted, so: a create that never validated is void; an open escrow is finished now by the
         seller's agent with K (the sale goes through); if it cannot be finished, the buyer cancels it after
         CancelAfter and gets the money back. The buyer receives the finished legs' records from the vault."""
-        for c in self.s.q("SELECT * FROM contracts WHERE status = 'settling' AND id IN (SELECT contract FROM escrows WHERE state = 'open')"):
+        self._adopt_legacy()
+        for c in self.s.q("SELECT * FROM contracts WHERE status IN ('settling', 'interrupted') AND id IN (SELECT contract FROM escrows WHERE state = 'open')"):
             for e in self.s.q("SELECT * FROM escrows WHERE contract = ? AND state = 'open'", (c["id"],)):
                 ok = self.rail.created_ok(e["create_hash"])
                 if ok is None:
                     continue
                 if not ok:
                     self.s.x("UPDATE escrows SET state = 'void' WHERE id = ?", (e["id"],)); continue
+                if not e["k"]:                   # created before keys were saved: it can only be refunded
+                    x = self.rail.cancel_escrow(e["owner"], e["seq"])
+                    if x["ok"]:
+                        self.s.x("UPDATE escrows SET state = 'refunded', finish_hash = ? WHERE id = ?", (x["hash"], e["id"]))
+                        self.s.insert("txs", contract=c["id"], type="EscrowCancel (refund)", hash=x["hash"], src=e["buyer"], dst=e["buyer"], drops=e["drops"], result=x["result"])
+                    elif x["result"] == "tecNO_TARGET":
+                        self.s.x("UPDATE escrows SET state = 'void' WHERE id = ?", (e["id"],))   # already finished or cancelled on the ledger
+                    continue                     # tecNO_PERMISSION: CancelAfter has not passed yet
                 if e["seller"] not in self.addr:
                     continue                     # the seller's wallet has not reconnected yet
                 f = self.rail.finish_escrow(self.addr[e["seller"]], e["owner"], e["seq"], bytes.fromhex(e["k"]), f"vaultmarket/contract/{c['id']}")
@@ -468,6 +478,27 @@ class Market:
                 continue                          # try again on a later tick
             self._close_recovered(c)
 
+    def _adopt_legacy(self):
+        """Contracts stranded before escrow legs were written down (status 'settling' or 'interrupted', with
+        EscrowCreate rows in txs): read each escrow's sequence from the ledger so recover() can refund it."""
+        for c in self.s.q("SELECT * FROM contracts WHERE status IN ('settling', 'interrupted') AND id NOT IN (SELECT contract FROM escrows)"):
+            rows = []
+            for t in self.s.q("SELECT * FROM txs WHERE contract = ? AND type = 'EscrowCreate'", (c["id"],)):
+                owner = t["src"] if str(t["src"]).startswith("r") and len(t["src"]) > 24 else self.addr.get(t["src"])
+                try:
+                    st = self.rail.led.lookup(t["hash"])
+                except Exception:
+                    st = None
+                if not owner or st is None or (st.found and not st.validated):
+                    return                       # wallets still connecting or ledger unsure: try on a later pass
+                if st.found and st.success:
+                    rows.append(dict(contract=c["id"], buyer=t["src"], seller=t["dst"], owner=owner, seq=st.sequence, create_hash=t["hash"], k=None,
+                                     cancel_after=0, drops=t["drops"], price=(t["drops"] or 0) / config.MICRO_PER_UNIT, files=[], state="open"))
+            for r in rows:
+                self.s.insert("escrows", **r)
+            if not rows:
+                self.s.x("UPDATE contracts SET status = 'rejected', reason = 'interrupted by a server restart; no escrow validated' WHERE id = ?", (c["id"],))
+
     def _close_recovered(self, c: dict):
         cid, buyer_id = c["id"], c["buyer"]
         done = self.s.q("SELECT * FROM escrows WHERE contract = ? AND state = 'finished'", (cid,))
@@ -475,7 +506,9 @@ class Market:
         trace.setdefault("protocol", []).append({"protocol": "Restart recovery", "who": "platform", "ok": bool(done), "tx": None,
             "detail": f"the server restarted mid-settlement; {len(done)} escrow(s) finished from the saved key K, the rest void or refunded after CancelAfter"})
         if not done:
-            self.s.x("UPDATE contracts SET status = 'rejected', reason = 'interrupted by a server restart; escrows refunded or never created', trace = ? WHERE id = ?", (json.dumps(trace), cid))
+            n = self.s.one("SELECT COUNT(*) n FROM escrows WHERE contract = ? AND state = 'refunded'", (cid,))["n"]
+            why = f"interrupted by a server restart; {n} escrow(s) refunded to the buyer by EscrowCancel" if n else "interrupted by a server restart; no escrow was left on the ledger"
+            self.s.x("UPDATE contracts SET status = 'rejected', reason = ?, trace = ? WHERE id = ?", (why, json.dumps(trace), cid))
             return
         merged, fps, people, items = [], set(), 0, 0
         for e in done:
