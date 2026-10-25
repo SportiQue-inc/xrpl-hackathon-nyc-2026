@@ -103,6 +103,22 @@ def person_record(pid: str, rng: random.Random) -> dict:
     return r
 
 
+WEARABLE = ("heart_rate.daily", "steps.daily", "sleep.daily", "spo2.night", "body_temp.daily")
+DIARY = ("meal.kcal", "mood.score", "fatigue.survey")
+
+
+def connected_sources(pid: str) -> dict:
+    """Sources the person connected (a wearable, a diary app), from which their agent may collect.
+    Drawn from the id, so it leaves the other random draws of the act unchanged."""
+    h = hashlib.sha256(f"sources|{pid}".encode()).digest()
+    out = {}
+    if h[0] < 128:
+        out.update({c: ISSUERS["T0"] for c in WEARABLE})
+    if h[1] < 90:
+        out.update({c: ISSUERS["T1"] for c in DIARY})
+    return {c: s for c, s in out.items() if c in catalog.CATALOG}
+
+
 def participants(prof: dict, act: int, seed: int = 11) -> list[Account]:
     rng = random.Random(seed)
     out = []
@@ -125,6 +141,7 @@ def participants(prof: dict, act: int, seed: int = 11) -> list[Account]:
             a.policy = policies.SensitivityPolicy(Owner(pid, home=home, grants=[grant],
                                                         device=TouchID(hashlib.sha256(pid.encode()).digest())),
                                                   **common)
+        a.attrs["sources"] = connected_sources(pid)
         a.needs_spec = p.get("wants", []) if p.get("budget_xrp", 0) > 0 else []
         a.budget_xrp = p.get("budget_xrp", 2)
         out.append(a)
@@ -169,8 +186,15 @@ def act1(seed: int = 11, ledger=None, store=None, prof: dict | None = None, roun
     buyers = [a for a in accounts if any(d.columns == ["genome.vcf"] for d in a.datasets)][:3]
     for a, rt in zip(buyers, ["caffeine_metabolism", "lactose_tolerance", "disease_risk"]):
         reports.append(buy_report(ex, a.id, provider, rt))
+    from . import products
+    agents = {}
+    for pid in (MANUAL, "P-017", sorted(prof["participants"])[-1]):     # one per kind of rules, plus Mongolia
+        r = products.scene(pid, prof)
+        agents[pid] = {"collected": [c["column"] for c in r["collected"] if c["collected"]], "listed": r["listed"],
+                       "sold": r["sold"], "waiting": r["waiting"], "reid_check": r["k_anonymity"][-1],
+                       "postings_matched": [x["posting"] for x in r["postings_searched"] if x["matched"]]}
     return {"act": 1, "activity": ex.activity(), "needs": results, "reports": reports, "exchange": ex,
-            "uniqdata_records_used": uq}
+            "uniqdata_records_used": uq, "person_agents": agents}
 
 
 ALLOWED_REPORTS = {"DTC_WELLNESS": {"caffeine_metabolism", "lactose_tolerance", "ancestry", "trait"}}

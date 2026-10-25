@@ -253,6 +253,8 @@ def send(w, workers: int = 8) -> dict:
         if len(got) > 1 and not any(o.get("hold") for o in req["orders"]):
             w.engine.escrow_create_batch(got)      # all of this person's weeks, or none
         oids += got
+        if len(s.requests) % 10 == 0:
+            w.store.log(LAB, "progress", f"requests answered: {len(s.requests)} of {len(s.needs.cells)}")
     with ThreadPoolExecutor(workers) as ex:
         list(ex.map(w.engine.process, oids))
     for req in s.requests.values():

@@ -197,12 +197,20 @@ class XrplLedger(Ledger):
         return self._sign(EscrowCancel(account=submitter, owner=owner, offer_sequence=offer_sequence,
                                        sequence=self._next_sequence(submitter)), submitter)
 
-    def submit(self, prepared: Prepared) -> None:
-        try:
-            resp = self.client.request(SubmitOnly(tx_blob=prepared.blob))
-        except Exception as e:  # network error: outcome unknown
-            raise LostResponse(str(e)) from e
-        engine = resp.result.get("engine_result", "")
+    def submit(self, prepared: Prepared, pre_seq_tries: int = 20) -> None:
+        # Parallel orders from one account (the lab's escrows) get their sequences in order but can reach
+        # the network out of order. A public node answers terPRE_SEQ and may drop the tx, which then sits
+        # until LastLedgerSequence and re-signs, pushing every later sequence along with it. Resubmit
+        # briefly instead: the earlier sequence is usually a moment behind.
+        for i in range(pre_seq_tries):
+            try:
+                resp = self.client.request(SubmitOnly(tx_blob=prepared.blob))
+            except Exception as e:  # network error: outcome unknown
+                raise LostResponse(str(e)) from e
+            engine = resp.result.get("engine_result", "")
+            if engine != "terPRE_SEQ":
+                break
+            time.sleep(0.5)
         # tef/tem codes mean the tx can never apply; anything else -> check the ledger.
         if engine.startswith(("tem", "tef")) and engine != "tefPAST_SEQ":
             raise RuntimeError(f"payment rejected: {engine}")
