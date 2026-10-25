@@ -37,6 +37,10 @@ def _load_dotenv(path: str = ".env"):
                 os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
 
+# Marks hackathon traffic in the provider's usage logs (shared organization key).
+TAG = os.environ.get("LLM_USER_TAG", "xrpl-hackathon-demo")
+
+
 class Voice:
     def __init__(self):
         _load_dotenv()
@@ -94,7 +98,7 @@ class Voice:
     def _ask(self, prompt: str) -> str:
         if self.provider == "openai":
             r = self._client.chat.completions.create(
-                model=self.model, max_completion_tokens=400,
+                model=self.model, max_completion_tokens=400, user=TAG,
                 messages=[{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}])
             return (r.choices[0].message.content or "").strip()
         r = self._client.messages.create(
@@ -105,7 +109,7 @@ class Voice:
     def _ask_json(self, system: str, prompt: str) -> dict:
         if self.provider == "openai":
             r = self._client.chat.completions.create(
-                model=self.model, max_completion_tokens=1500, response_format={"type": "json_object"},
+                model=self.model, max_completion_tokens=1500, response_format={"type": "json_object"}, user=TAG,
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}])
             text = r.choices[0].message.content or ""
         else:

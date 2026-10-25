@@ -62,6 +62,19 @@
   code { font-size: 12px; }
   a { color: var(--accent); }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tabs button.on { background: var(--accent); color: #fff; }
+  .issue { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  @media (max-width: 900px) { .issue { grid-template-columns: minmax(0, 1fr); } }
+  .issue h3 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin: 8px 0 4px; letter-spacing: .04em; }
+  .issue ul { margin: 0; padding-left: 18px; }
+  .evd { padding: 4px 0; border-bottom: 1px dashed var(--line); overflow-wrap: anywhere; }
+  .hm { display: grid; grid-template-columns: 52px repeat(8, 1fr); gap: 2px; font-size: 10px; max-width: 420px; }
+  .hm div { height: 9px; border-radius: 2px; }
+  .hm .lbl { height: auto; color: var(--muted); }
+  .c-held { background: color-mix(in srgb, var(--muted) 35%, var(--panel)); }
+  .c-contributed { background: var(--ok); } .c-waiting { background: var(--warn); }
+  .c-missing { background: transparent; border: 1px dashed var(--line); }
   input { width: 70px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
 </style>
 </head>
@@ -82,6 +95,20 @@
   </div>
 </header>
 <main>
+  <section class="wide">
+    <h2>Hard boundaries, solved first</h2>
+    <div class="row" style="margin-bottom:8px">
+      <button onclick="act('/api/run/boundaries')">Run boundary checks</button>
+      <span class="badge">consent - re-identification - withdrawal - other domains</span>
+    </div>
+    <div class="tabs" id="btabs"></div>
+    <div id="bissue" class="issue"></div>
+  </section>
+  <section class="wide">
+    <h2>Sleep study - 50 participants x 8 weeks (sleep + fatigue in the same week)</h2>
+    <div class="nums" id="study-nums"></div>
+    <div id="heat" class="hm"></div>
+  </section>
   <section>
     <h2>Robot developer - buyer agent mandate</h2>
     <div class="nums" id="m-org_robodev"></div>
@@ -120,7 +147,35 @@ function table(el, cols, rows) {
     (rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td>${c[1](r)}</td>`).join('') + '</tr>').join('')
                  : `<tr><td colspan="${cols.length}" style="color:var(--muted)">nothing yet</td></tr>`);
 }
+let B = null, btab = 'consent';
+function renderIssue() {
+  if (!B) return;
+  document.getElementById('btabs').innerHTML = B.issues.map(i =>
+    `<button class="ghost ${i.id === btab ? 'on' : ''}" onclick="btab='${i.id}';renderIssue()">${esc(i.title)}</button>`).join('');
+  const i = B.issues.find(x => x.id === btab);
+  const link = e => e.url ? ` <a href="${e.url}" target="_blank">tx</a>` : (e.tx ? ` <code>${esc(e.tx.slice(0, 10))}</code>` : '');
+  document.getElementById('bissue').innerHTML = `
+    <div><h3>Problem</h3>${esc(i.problem)}<h3>Our answer</h3>${esc(i.solution)}
+      <h3>Enforced by</h3><ul>${i.enforced.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+      <h3>Demo moment</h3>${esc(i.moment)}</div>
+    <div><h3>Evidence from this run</h3>${i.evidence.length ? i.evidence.map(e =>
+        `<div class="evd">${esc(e.label)}${e.reason ? ` <span style="color:var(--muted)">(${esc(e.reason)})</span>` : ''}${link(e)}</div>`).join('')
+        : '<div style="color:var(--muted)">Run boundary checks</div>'}
+      <h3>Tests</h3><ul>${i.tests.map(t => `<li><code>${esc(t)}</code></li>`).join('')}</ul></div>`;
+}
+async function loadStudy() {
+  B = await (await fetch('/api/boundaries')).json(); renderIssue();
+  const st = await (await fetch('/api/study')).json();
+  const h = st.heatmap;
+  document.getElementById('study-nums').innerHTML = [
+    [h.power_before, 'power at start'], [h.power, 'power now (plan 0.80)'],
+    [st.responses.auto + ' / ' + st.responses.approval, 'auto / asked person'],
+    [st.settlement.paid_xrp + ' XRP', 'rewards paid by escrow']].map(([v, l]) => `<div class="num"><b>${v}</b><span>${l}</span></div>`).join('');
+  document.getElementById('heat').innerHTML = '<div class="lbl"></div>' + h.weeks.map(w => `<div class="lbl">w${w}</div>`).join('') +
+    h.rows.map(r => `<div class="lbl">${r.person}</div>` + r.cells.map(c => `<div class="c-${c.s}" title="${r.person} ${c.s}"></div>`).join('')).join('');
+}
 async function load() {
+  loadStudy().catch(() => {});
   const s = await (await fetch('/api/state')).json();
   const L = document.getElementById('ledger');
   L.textContent = s.ledger === 'testnet' ? 'XRPL Testnet (real)' : 'Mock ledger';
