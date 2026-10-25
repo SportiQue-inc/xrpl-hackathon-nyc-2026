@@ -468,6 +468,14 @@ class Exchange:
         if trade.get("output") == "aggregate":
             from .genomic import aggregate
             part = aggregate(part, need_cols, trade.get("loci", []))
+        if trade.get("output") != "aggregate" and not quality.delivery_matches(o["cert"], rows, salts):
+            # The gate holds the plain rows here: a seller who opened good samples but sends other rows is
+            # stopped before any escrow exists, instead of being paid and leaving the buyer a refund claim.
+            seller.failed += 1
+            return self._log({**base, "status": "refused", "stage": "binding", "paid_drops": 0,
+                              "why": "delivery does not hash to the certified root; no escrow created",
+                              "signals": [{"code": "not_as_committed",
+                                           "detail": "delivery does not hash to the certified root"}]})
         main = payout_schedule.retrospective(price)["upfront_drops"]
         self._grants[(trade["buyer"], seller.id, trade["contract"])] = Decision(ALLOW, granted=list(need_cols))
         req = OrderRequest(trade["buyer"], seller.id, seller.id, f"contract:{trade['contract']}",
@@ -505,6 +513,11 @@ class Exchange:
         if not quality.delivery_matches(cert, payload["full_rows"], payload["salts"]):
             sig.append({"code": "not_as_committed", "detail": "delivery does not hash to the certified root"})
         rows = payload["rows"]
+        # The rows the buyer uses must be the certified rows, not a second list sent alongside them.
+        from_full = [{"day": r["day"], **{c: r.get(c) for c in cols}} for r in payload["full_rows"][: len(rows)]]
+        if from_full != rows:
+            sig.append({"code": "not_as_committed", "detail": "delivered rows differ from the certified rows"})
+            rows = from_full
         for c in cols:
             s = spec(c)
             xs = [r[c] for r in rows if isinstance(r.get(c), (int, float))]
