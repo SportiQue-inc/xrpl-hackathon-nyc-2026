@@ -837,6 +837,50 @@ def test_receipt_settled_later_is_filled_into_the_deal(market, monkeypatch):
     assert any(p.get("receipt_url") == "https://ap4m/r.json" for p in trace["protocol"])
     assert market.s.one("SELECT receipt FROM txs WHERE contract=? AND type='AP4M VoucherRedeemed'", (cid,))["receipt"] == "https://ap4m/r.json"
     assert market.backfill_ap4m_receipts() == 0
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web, 'M', market)
+    def no_native_rpc(*_):
+        raise AssertionError('EVM receipt URLs must never call native XRPL RPC')
+    monkeypatch.setattr(market.rail, 'receipt', no_native_rpc)
+    response = TestClient(web.app, raise_server_exceptions=False).get(f'/api/contract/{cid}')
+    assert response.status_code == 200
+    receipt = next(t for t in response.json()['txs'] if t['type'] == 'AP4M VoucherRedeemed')
+    assert receipt['receipt'] is None and receipt['receipt_url'] == 'https://ap4m/r.json'
+
+
+
+@pytest.mark.parametrize('evm,cached,refetch', [
+    (False, {'validated': True, 'result': 'tesSUCCESS', 'currency': 'XRP', 'gross_amount': '0.08'}, False),
+    (False, '{bad JSON', True),
+    (True, '{bad JSON', False),
+])
+def test_contract_receipt_cache_keeps_native_json_and_tolerates_malformed_cache(market, monkeypatch, evm, cached, refetch):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web, 'M', market)
+    cid = market.s.insert('contracts', posting=market.test_post, buyer='buyer', seller='seller',
+                          sellers=['seller'], kind='sleep_log', status='settled', trace={'protocol': []})
+    stored = json.dumps(cached) if isinstance(cached, dict) else cached
+    tx_hash = '0x' + 'a' * 64 if evm else 'native-hash'
+    tid = market.s.insert('txs', contract=cid, type='AP4M VoucherRedeemed' if evm else 'EscrowFinish (key released)',
+                         hash=tx_hash, src='seller', dst='buyer', drops=80000, result='tesSUCCESS', receipt=stored)
+    fetched = {'validated': True, 'result': 'tesSUCCESS', 'currency': 'XRP', 'gross_amount': '0.08', 'refetched': True}
+    calls = []
+    def native_receipt(h):
+        assert not evm, 'Malformed EVM caches must never call native XRPL RPC'
+        calls.append(h)
+        return fetched
+    monkeypatch.setattr(market.rail, 'receipt', native_receipt)
+
+    response = TestClient(web.app, raise_server_exceptions=False).get(f'/api/contract/{cid}')
+
+    assert response.status_code == 200
+    tx = next(t for t in response.json()['txs'] if t['id'] == tid)
+    assert tx['receipt'] == (fetched if refetch else cached if isinstance(cached, dict) else None)
+    assert calls == ([tx_hash] if refetch else [])
+    if isinstance(cached, dict):
+        assert market.s.one('SELECT receipt FROM txs WHERE id=?', (tid,))['receipt'] == stored
 
 
 def test_ap4m_deal_counts_as_paid_in_summaries_and_income(market, monkeypatch):

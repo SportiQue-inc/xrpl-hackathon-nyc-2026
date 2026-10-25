@@ -420,7 +420,14 @@ def contract(cid: int, request: Request):
     for t in txs:
         t["reference"] = f"C{cid}-T{t['id']}"
         evm = (t.get("type") or "").startswith(("AP4M", "RLUSD forward"))
-        evidence = json.loads(t["receipt"]) if t.get("receipt") else None
+        cached = t.get("receipt")
+        t["receipt_url"] = cached if isinstance(cached, str) and cached.startswith(("https://", "http://")) else None
+        try:
+            evidence = json.loads(cached) if cached and not t["receipt_url"] else None
+        except (ValueError, TypeError):
+            evidence = None
+        if not isinstance(evidence, dict):
+            evidence = None
         if not evidence and t.get("hash") and not evm:
             try:
                 evidence = M.rail.receipt(t["hash"])
