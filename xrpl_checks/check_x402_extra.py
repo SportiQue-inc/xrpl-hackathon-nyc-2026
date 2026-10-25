@@ -9,6 +9,7 @@ import time
 import uuid
 
 from common import run
+from agentrail.ledger.x402_rail import SOURCE_TAG
 from x402_xrpl import FacilitatorClient, FacilitatorClientOptions, PaymentRequirements
 from x402_xrpl.client.presigned_payment_payer import XRPLPresignedPaymentPayer, XRPLPresignedPaymentPayerOptions
 from xrpl.core.binarycodec import decode
@@ -20,7 +21,7 @@ FEE = 10_000
 def pay_once(c, L, fac, buyer, api, binding, label):
     invoice = f"export:hospital_A:{label}:{uuid.uuid4().hex[:8]}"
     req = PaymentRequirements(scheme="exact", network="xrpl:1", amount=str(FEE), asset="XRP", pay_to=api,
-                              max_timeout_seconds=300, extra={"invoiceId": invoice})
+                              max_timeout_seconds=300, extra={"invoiceId": invoice, "sourceTag": SOURCE_TAG})
     payer = XRPLPresignedPaymentPayer(XRPLPresignedPaymentPayerOptions(
         wallet=L.wallets[buyer], network="xrpl:1", rpc_url=L.client.url, invoice_binding=binding), client=L.client)
     prep = payer.prepare_payment(req)

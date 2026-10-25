@@ -17,6 +17,8 @@ def main():
     if os.path.exists(am):
         out += ["## Amendments on Testnet", "", "| amendment | status |", "|---|---|"]
         out += [f"| {k} | {v} |" for k, v in json.load(open(am)).items()] + [""]
+        out += ["`Escrow` reads \"not enabled\" because it is a retired amendment: its logic is always on and it is "
+                "no longer listed in the Amendments object. Check 3 shows escrows work.", ""]
     res = [json.load(open(p)) for p in sorted(glob.glob(os.path.join(HERE, "results", "[1-9]*_*.json")))]
     out += ["## Summary", "", "| # | feature | status | success tx | failure tx (expected refusal) | time | conclusion |",
             "|---|---|---|---|---|---|---|"]

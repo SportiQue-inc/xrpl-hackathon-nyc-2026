@@ -23,18 +23,26 @@ def amm_info(L, cur: IssuedCurrency):
     return r.get("amm")
 
 
+def xrp_needed_drops(L, cur: IssuedCurrency, value: str) -> str:
+    """SendMax for buying `value` of `cur` from the XRP/cur pool: spot price + 50% for fee and slippage."""
+    info = amm_info(L, cur)
+    price = int(info["amount"]) / float(info["amount2"]["value"])  # drops per token
+    return str(int(price * float(value) * 1.5) + 1)
+
+
 def pay_through_amm(c, L, payer, part, cur: IssuedCurrency, value: str, label: str):
     t = time.time()
     h, code, _ = submit_capture(L.client, TrustSet(account=part, limit_amount=IssuedCurrencyAmount(
         currency=cur.currency, issuer=cur.issuer, value="1000000")), L.wallets[part])
     c.step(f"[{label}] participant TrustSet to the stablecoin", h, code, "tesSUCCESS", t, "setup")
     t = time.time()
+    send_max = xrp_needed_drops(L, cur, value)
     h, code, r = submit_capture(L.client, Payment(
-        account=payer, destination=part, send_max="5000000",
+        account=payer, destination=part, send_max=send_max,
         amount=IssuedCurrencyAmount(currency=cur.currency, issuer=cur.issuer, value=value)), L.wallets[payer])
     delivered = r.get("meta", {}).get("delivered_amount")
     c.step(f"[{label}] Payment XRP -> {value} stablecoin to participant via AMM", h, code, "tesSUCCESS", t,
-           "success", f"delivered {delivered}")
+           "success", f"delivered {delivered}, SendMax {send_max} drops")
     return code == "tesSUCCESS"
 
 

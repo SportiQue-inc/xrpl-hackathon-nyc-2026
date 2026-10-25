@@ -1,0 +1,148 @@
+{
+ "key": "1_kyb",
+ "title": "KYB credential + DepositPreauth",
+ "status": "pass",
+ "amendments": {
+  "Credentials": "enabled",
+  "DepositAuth": "enabled",
+  "DepositPreauth": "enabled"
+ },
+ "accounts": {
+  "kyb_registry (credential issuer)": "rNguCcHJefj3DXx8ZH8u6tAySNxUEjMJFa",
+  "participant_agent (DepositAuth)": "rhyAwXeUhW91Xzn4jo4Eeqx9jksYTrSsi8",
+  "org_verified": "rhQcGLD4NvUpkphNX2hjRNAArzBk4nbw95",
+  "org_unverified": "rnWSkAGvx6UDHQiE5prKZGLJamGMRgp47D"
+ },
+ "steps": [
+  {
+   "label": "CredentialCreate (registry -> verified org)",
+   "kind": "setup",
+   "tx": "F61FDB96736164B29E6D024631404247540B124813D1DA2F2C3CD5D44328CB71",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 28.8,
+   "explorer": "https://testnet.xrpl.org/transactions/F61FDB96736164B29E6D024631404247540B124813D1DA2F2C3CD5D44328CB71",
+   "note": ""
+  },
+  {
+   "label": "CredentialAccept (verified org)",
+   "kind": "setup",
+   "tx": "B69DCB6640E15AD074DF2CC87983AA2F2891B241017CA6669F04FF855ECEEB75",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 28.8,
+   "explorer": "https://testnet.xrpl.org/transactions/B69DCB6640E15AD074DF2CC87983AA2F2891B241017CA6669F04FF855ECEEB75",
+   "note": ""
+  },
+  {
+   "label": "participant DepositAuth / DepositPreauth(AuthorizeCredentials)",
+   "kind": "setup",
+   "tx": "44C872C549B48EE0BEF13A0B015EC55E6D94CEA348136A0DB99E673E0C890009",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 29.9,
+   "explorer": "https://testnet.xrpl.org/transactions/44C872C549B48EE0BEF13A0B015EC55E6D94CEA348136A0DB99E673E0C890009",
+   "note": ""
+  },
+  {
+   "label": "participant DepositAuth / DepositPreauth(AuthorizeCredentials)",
+   "kind": "setup",
+   "tx": "07CD426FAF9F3E7A3400C9DCF94FC208D3B391039E7701DBCE5F178E12C65D64",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 29.9,
+   "explorer": "https://testnet.xrpl.org/transactions/07CD426FAF9F3E7A3400C9DCF94FC208D3B391039E7701DBCE5F178E12C65D64",
+   "note": ""
+  },
+  {
+   "label": "Payment verified org -> participant (engine attaches CredentialIDs)",
+   "kind": "success",
+   "tx": "92CB153F56235DB9508AE87E639FFA0B7FB8348B57B6A40E14963F29E31697C2",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 13.1,
+   "explorer": "https://testnet.xrpl.org/transactions/92CB153F56235DB9508AE87E639FFA0B7FB8348B57B6A40E14963F29E31697C2",
+   "note": ""
+  },
+  {
+   "label": "Payment unverified org -> participant",
+   "kind": "failure",
+   "tx": "ABBD54E9EFCC707F9183A883219E7E909C73885CE204234A9871D6EE9222CEB6",
+   "result": "tecNO_PERMISSION",
+   "expect": "tecNO_PERMISSION",
+   "ok": true,
+   "seconds": 12.9,
+   "explorer": "https://testnet.xrpl.org/transactions/ABBD54E9EFCC707F9183A883219E7E909C73885CE204234A9871D6EE9222CEB6",
+   "note": ""
+  },
+  {
+   "label": "Payment verified org WITHOUT CredentialIDs",
+   "kind": "failure",
+   "tx": "6697D09BD41EEFBC9A1084FA67B1BC643CB498F85B2981EBF66E1259DA3523CD",
+   "result": "tecNO_PERMISSION",
+   "expect": "tecNO_PERMISSION",
+   "ok": true,
+   "seconds": 11.5,
+   "explorer": "https://testnet.xrpl.org/transactions/6697D09BD41EEFBC9A1084FA67B1BC643CB498F85B2981EBF66E1259DA3523CD",
+   "note": "holding the credential is not enough; the tx must cite it"
+  },
+  {
+   "label": "EscrowCreate unverified org -> participant",
+   "kind": "observe",
+   "tx": "5568A06E838BBFDE864BD0202AF7AFE256C3D8639E44B3FD139D022860EADB09",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 11.6,
+   "explorer": "https://testnet.xrpl.org/transactions/5568A06E838BBFDE864BD0202AF7AFE256C3D8639E44B3FD139D022860EADB09",
+   "note": "EscrowCreate is not gated by DepositAuth"
+  },
+  {
+   "label": "EscrowFinish submitted by unverified org",
+   "kind": "failure",
+   "tx": "E2EF9E9D6EEF7B64E2824A1D984604A359230C5701BC117F48FBC84FF3093B03",
+   "result": "tecNO_PERMISSION",
+   "expect": "tecNO_PERMISSION",
+   "ok": true,
+   "seconds": 13.3,
+   "explorer": "https://testnet.xrpl.org/transactions/E2EF9E9D6EEF7B64E2824A1D984604A359230C5701BC117F48FBC84FF3093B03",
+   "note": ""
+  },
+  {
+   "label": "EscrowCreate verified org -> participant",
+   "kind": "observe",
+   "tx": "6DB0899211555FBBFA3A80E4DB16F5DF115B9F3DA4E762E1DB6F2291F6D4BD46",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 11.6,
+   "explorer": "https://testnet.xrpl.org/transactions/6DB0899211555FBBFA3A80E4DB16F5DF115B9F3DA4E762E1DB6F2291F6D4BD46",
+   "note": ""
+  },
+  {
+   "label": "EscrowFinish submitted by verified org with CredentialIDs",
+   "kind": "success",
+   "tx": "DCDAEC2B4FF47237977A60ACC49B0AE0E85E23E40F07D07DB38D0F29CA6C725F",
+   "result": "tesSUCCESS",
+   "expect": "tesSUCCESS",
+   "ok": true,
+   "seconds": 12.8,
+   "explorer": "https://testnet.xrpl.org/transactions/DCDAEC2B4FF47237977A60ACC49B0AE0E85E23E40F07D07DB38D0F29CA6C725F",
+   "note": ""
+  }
+ ],
+ "notes": [
+  "VERIFIED_ORG credential ledger index (goes in CredentialIDs): 30E3B5CF7960DD4D8356F423A1673F1317D95F3E9A9EF9EC2BBCAD156C3B04E3",
+  "If the participant (the escrow destination) submits EscrowFinish itself, DepositAuth does not apply. So on the escrow route the KYB gate is the participant agent checking has_credential() before it reveals the key; on the Payment/x402 route the ledger enforces it."
+ ],
+ "conclusion": "Unverified orgs are refused on the ledger (tecNO_PERMISSION) for Payment and third-party EscrowFinish; verified orgs pass only when the tx carries CredentialIDs.",
+ "blocker": null,
+ "alternative": null,
+ "total_seconds": 190.0,
+ "ran_at": "2026-10-25T03:04:57Z"
+}
