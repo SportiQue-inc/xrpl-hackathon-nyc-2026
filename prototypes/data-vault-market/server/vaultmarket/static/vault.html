@@ -28,7 +28,10 @@
       <details class="sample-options"><summary>Try a sample file</summary><div class="acts" id="samples"></div></details>
       <h2>Intake results</h2><div id="uploads"></div></section><details class="buy-request"><summary>Buy data for my DB</summary><form id="buyForm"><label>Category <select id="buyKind"></select></label><label>Offer <input id="buyPrice" type="number" min="0.000001" step="any" required></label><label class="small"><input type="checkbox" id="buyResale"> Request permission to bundle and resell</label><button class="primary">Ask agent to buy</button></form></details><div id="bundles"></div><h2>Purchased data</h2><p class="small muted">A completed purchase is decrypted into your DB. Download the complete stored payload below; previews show only a sample. Organizing it into a collection preserves the original file, receipt and permission.</p><div id="bought"></div>
 <section class="intake-work" aria-labelledby="collectionsTitle"><h2 id="collectionsTitle">Collections · your whole DB</h2><p class="small muted">Group your own and acquired records into a named collection. Each save creates an immutable version of file references and hashes; it never changes or copies the original records. Organizing files grants no additional resale rights.</p>
-<form id="collectionForm"><label class="small">Collection <select id="collectionTarget"><option value="">New collection</option></select></label><label class="small" id="collectionNameLabel">Name <input id="collectionName" maxlength="80" placeholder="e.g. Running and recovery" required></label><div class="acts"><button type="button" id="selectAllDb">Select all my DB</button><button type="button" id="clearDbSelection">Clear selection</button><span class="small muted" id="collectionCount">0 files selected</span></div><div id="collectionFiles"></div><button type="submit" class="primary" id="saveCollection">Save collection version</button></form><div id="collections"></div></section></div>
+<form id="collectionForm"><label class="small">Collection <select id="collectionTarget"><option value="">New collection</option></select></label><label class="small" id="collectionNameLabel">Name <input id="collectionName" maxlength="80" placeholder="e.g. Running and recovery" required></label><div class="acts"><button type="button" id="selectAllDb">Select all my DB</button><button type="button" id="clearDbSelection">Clear selection</button><span class="small muted" id="collectionCount">0 files selected</span></div><div id="collectionFiles"></div><button type="submit" class="primary" id="saveCollection">Save collection version</button></form><div id="collections"></div>
+<details class="card" id="packagePublisher"><summary>Publish a data package from a saved version</summary><p class="small muted">Own records use their cleaned, approved payloads. Acquired records need resale permission and must keep the purpose recorded in every source purchase. Publishing freezes this package snapshot and its price; your source files and collection versions stay unchanged. A buyer who already has any included record is refused before payment.</p><form id="packageForm" style="display:grid;gap:9px"><label class="small">Saved collection version <select id="packageVersion" required><option value="">Select a saved version</option></select></label><label class="small">Asking price · <span id="packageAsset"></span><input id="packagePrice" type="number" min="0.000001" step="0.000001" required></label><label class="small">Permitted purpose <input id="packagePurpose" maxlength="160" required placeholder="e.g. running and recovery research"></label><label class="small"><input id="packageResale" type="checkbox"> Permit the buyer to bundle and resell this package</label><button class="primary" id="publishPackage">Publish immutable package</button></form><p id="publishPackageStatus" class="small" role="status"></p></details>
+<section aria-labelledby="packageCatalogTitle"><h2 id="packageCatalogTitle">Data packages</h2><p class="small muted">Buy the complete package for the displayed amount and permitted purpose. Its records join your DB after verified payment and decryption. Any overlap with records you already hold rejects the entire package before payment.</p><div id="packageCatalog"></div><p id="packageCatalogStatus" class="small muted" role="status"></p></section>
+</section></div>
   </section>
   <section class="col side right" aria-labelledby="h-u">
     <header><h1 id="h-u">Your agent</h1></header>
@@ -75,7 +78,7 @@ $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribut
     $("bundles").innerHTML = ACC.bundles.map((b) => `<div class="card"><div class="row"><h3>${esc(b.domain)}</h3><span class="price">${b.best_offer ? `best offer ${xrp(b.best_offer)}` : "no buyer yet"}</span></div>
       <span class="small muted">${esc(b.label)} · ${b.files.length} files · ${b.listed} listed · expected next sale ${b.listed && b.best_offer ? xrp(b.best_offer) : "—"}</span>
       <div class="row small"><span>${b.offers} offers</span><span class="y">${b.agreed} agreed</span><span class="n">${b.declined} declined</span></div>
-      <details><summary class="small">Files</summary>${b.files.map(fileRow).join("")}</details></div>`).join("") || '<p class="muted small">Your DB is empty. Upload something on the right.</p>';
+      <details><summary class="small">Files</summary>${b.files.map(fileRow).join("")}</details></div>`).join("") || `<p class="muted small">${ACC.bought.length?'Your acquired records are part of your DB and appear below. Import original records above when you want to add your own.':'Import records above to start your DB.'}</p>`;
   } else if (VIEW === "all") {
     const all = (await api(`/api/market?account=${ME}`)).postings;
     $("bundles").innerHTML = `<p class="muted small">Every open buy request on the market. Mark interest and your agent negotiates it first; otherwise it acts on its own rules.</p>` + all.map((p) => `<div class="card ${p.mine ? "hot" : ""}"><div class="row"><b>${esc(k[p.kind].label)}</b><span class="price">${xrp(p.offer)}</span></div>
@@ -97,9 +100,10 @@ $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribut
   if(ACC.bought.some(f=>f.resale&&f.status==='bought')) $('bought').innerHTML+='<button class="primary" id="bundleBuy">Bundle selected purchases for resale</button>';
   $('bundleBuy')?.addEventListener('click',async()=>{try{const files=[...document.querySelectorAll('[data-bundle]:checked')].map(e=>+e.dataset.bundle);await post(`/api/account/${ME}/bundle`,{files});await refresh();}catch(e){showError(e);}});
   $('discoverData').onclick=()=>tellAgent('What can I sell from my DB?','discover');
-  if(!$('buyKind').options.length){$('buyKind').innerHTML=Object.entries(k).map(([id,v])=>`<option value="${id}">${esc(v.label)}</option>`).join('');$('buyPrice').value=(k[$('buyKind').value].price*(META.unit_xrp||.01)).toFixed(2);}
+  if(!$('buyKind').options.length){$('buyKind').innerHTML=Object.entries(k).filter(([id])=>id!=='data_package').map(([id,v])=>`<option value="${id}">${esc(v.label)}</option>`).join('');$('buyPrice').value=(k[$('buyKind').value].price*(META.unit_xrp||.01)).toFixed(2);}
   $('buyForm').onsubmit=async(e)=>{e.preventDefault();try{await post(`/api/account/${ME}/chat`,{text:'buy '+k[$('buyKind').value].label,price:Number($('buyPrice').value)/(META.unit_xrp||.01),resale:$('buyResale').checked});await refresh();}catch(err){showError(err);}};
   await refreshCollections();
+  await refreshPackages();
   chatBox($("chat"), ACC);$("banner").hidden=true;return true;
 }
 
@@ -128,11 +132,77 @@ async function refreshCollections(){
  $('selectAllDb').onclick=()=>{COLLECTION_FILES=new Set(allFiles.map(f=>f.id));collectionSelection();};
  const key=JSON.stringify(COLLECTIONS);
  if($('collections').dataset.collections!==key){const open=new Set([...$('collections').querySelectorAll('details[open]')].map(el=>el.dataset.collection));$('collections').innerHTML=COLLECTIONS.map(c=>`<details class="card" data-collection="${c.id}" ${open.has(String(c.id))?'open':''}><summary><b>${esc(c.name)}</b> · ${c.versions.length} version${c.versions.length===1?'':'s'} · latest v${c.versions[0].version}</summary>${c.versions.map(v=>`<div style="padding:9px 0;border-top:1px solid var(--line)"><div class="row"><b>Version ${v.version} · ${v.files} files</b><span class="small muted">${new Date(v.created*1000).toLocaleString()}</span></div><div class="acts"><a href="${esc(v.manifest_url)}" download>Download immutable manifest ↓</a><button type="button" data-use-collection="${c.id}" data-version="${v.version}">Use these files for the next version</button></div><span class="small mono muted" style="overflow-wrap:anywhere">SHA-256 ${esc(v.sha256)}</span></div>`).join('')}</details>`).join('')||'<p class="small muted">No collections yet. Select any of your own or acquired files and save the first version.</p>';$('collections').dataset.collections=key;$('collections').querySelectorAll('[data-use-collection]').forEach(el=>el.onclick=()=>useCollectionVersion(el.dataset.useCollection,el.dataset.version).catch(showError));}
- collectionSelection();collectionTargetChanged(false);
+ collectionSelection();collectionTargetChanged(false);packageChoices();
 }
 $('collectionTarget').onchange=()=>collectionTargetChanged();
 $('clearDbSelection').onclick=()=>{COLLECTION_FILES.clear();collectionSelection();};
 $('collectionForm').onsubmit=async e=>{e.preventDefault();const button=$('saveCollection');button.disabled=true;try{const target=$('collectionTarget').value,path=`/api/account/${ME}/collections${target?'/'+target+'/versions':''}`;const result=await post(path,{name:$('collectionName').value,files:[...COLLECTION_FILES]});await refreshCollections();$('collectionTarget').value=String(result.id);collectionTargetChanged(false);}catch(err){showError(err);}finally{button.disabled=false;}};
+
+// Commercial packages accept the exact displayed snapshot and budget.
+let PACKAGE_CATALOG=[], OWN_PACKAGES=new Set(), PACKAGE_BUYS=new Map(), PACKAGE_REFRESH=null, PACKAGE_FETCHED=0;
+function packageChoices(){
+ const value=$('packageVersion').value,key=JSON.stringify(COLLECTIONS.map(c=>[c.id,c.name,c.versions.map(v=>[v.version,v.files])]));
+ if($('packageVersion').dataset.options!==key){$('packageVersion').innerHTML='<option value="">Select a saved version</option>'+COLLECTIONS.map(c=>`<optgroup label="${esc(c.name)}">${c.versions.map(v=>`<option value="${c.id}:${v.version}">${esc(c.name)} · v${v.version} · ${v.files} files</option>`).join('')}</optgroup>`).join('');$('packageVersion').dataset.options=key;$('packageVersion').value=value;}
+ $('packageAsset').textContent=sym();
+}
+function packageBuyStatus(card,p){
+ const state=PACKAGE_BUYS.get(p.id),button=card.querySelector('[data-buy-package]'),out=card.querySelector('[data-package-status]');
+ const own=OWN_PACKAGES.has(p.id)||p.mine,otherAsset=p.asset!==sym(),paid=state?.status==='settled',working=!!state?.contract&&!['settled','rejected','refunded','cancelled'].includes(state.status);
+ button.disabled=own||otherAsset||!!state?.pending||!!state?.uncertain||working||paid;
+ button.textContent=own?'Your published package':otherAsset?`Uses ${p.asset}`:state?.pending?'Checking overlap & payment…':state?.uncertain?'Check activity before retrying':working?'Settlement in progress':paid?'Purchased':`Buy complete package · ${amount(p.price,p.asset)}`;
+ out.className=`small ${paid?'success':['rejected','refunded','cancelled'].includes(state?.status)?'n':'muted'}`;
+ out.innerHTML=state?`${state.pending?'Checking the snapshot, record overlap and payment. Keep this page open.':`${esc(state.status||'Recorded')}${state.reason?' · '+esc(state.reason):''}`}${state.contract?` · <a href="/?contract=${Number(state.contract)}">Open C${Number(state.contract)} negotiation & settlement →</a>`:state.uncertain?' · <a href="/">Check recorded activity →</a>':''}`:'';
+}
+function renderPackages(){
+ const catalog=$('packageCatalog'),existing=new Map([...catalog.querySelectorAll('[data-package]')].map(c=>[Number(c.dataset.package),c]));
+ if(!PACKAGE_CATALOG.length){if(!catalog.querySelector('[data-package-empty]'))catalog.innerHTML='<p class="small muted" data-package-empty>No published packages are available yet. Save a collection version above, then publish its permitted use and asking price.</p>';return;}
+ catalog.querySelector('[data-package-empty]')?.remove();
+ for(const p of PACKAGE_CATALOG){
+  let card=existing.get(p.id);if(!card){card=document.createElement('article');card.className='card';card.dataset.package=p.id;catalog.append(card);}
+  const key=JSON.stringify([p,OWN_PACKAGES.has(p.id)]);
+  if(card.dataset.summary!==key&&!PACKAGE_BUYS.get(p.id)?.pending&&!card.contains(document.activeElement)){
+   const kinds=(p.kinds||[]).map(k=>META.kinds[k]?.label||k),count=Array.isArray(p.files)?p.files.length:p.files;
+   card.innerHTML=`<div class="row"><h3>${esc(p.name)}</h3><strong class="price">${esc(amount(p.price,p.asset))}</strong></div><span class="small muted">${kinds.map(esc).join(' + ')} · ${Number(count||0)} files · ${Number(p.records||0)} records</span><p class="small">Permitted purpose: <b>${esc(p.purpose)}</b><br>${p.resale?'Onward bundling and resale permitted under this package’s terms.':'Use for this purpose; onward resale is not permitted.'}</p>${p.resale&&!OWN_PACKAGES.has(p.id)?'<label class="small"><input type="checkbox" data-package-resale> Include the offered onward resale permission</label>':''}<button class="primary" type="button" data-buy-package></button><p class="small muted" data-package-status role="status"></p>`;
+   card.dataset.summary=key;card.displayedPackage=p;card.querySelector('[data-buy-package]').onclick=()=>buyPackage(p,card);
+  }
+  if(card.querySelector('[data-buy-package]'))packageBuyStatus(card,card.displayedPackage||p);existing.delete(p.id);
+ }
+ existing.forEach(card=>{if(!PACKAGE_BUYS.get(Number(card.dataset.package))?.pending)card.remove();});
+}
+async function readPackageContract(state){
+ if(!state.contract||state.pending||['settled','rejected','refunded','cancelled'].includes(state.status))return;
+ const data=await api(`/api/contract/${state.contract}`);state.status=data.contract.status;state.reason=data.contract.reason||state.reason;
+}
+async function buyPackage(p,card){
+ if(OWN_PACKAGES.has(p.id)||p.mine||PACKAGE_BUYS.get(p.id)?.pending||PACKAGE_BUYS.get(p.id)?.uncertain||p.asset!==sym())return;
+ const resale=!!p.resale&&!!card.querySelector('[data-package-resale]')?.checked;
+ const state={pending:true,status:'Checking package'};PACKAGE_BUYS.set(p.id,state);packageBuyStatus(card,p);
+ try{
+  const result=await post(`/api/account/${ME}/packages/${p.id}/buy`,{sha256:p.sha256,price:Number(p.price),purpose:p.purpose,resale});
+  Object.assign(state,{pending:false,contract:result.contract,status:result.status,reason:result.reason});
+  await readPackageContract(state);await refresh();
+ }catch(err){state.pending=false;state.uncertain=!state.contract;if(!state.contract)state.status='Confirmation unavailable';state.reason=(state.contract?'The contract was recorded. Its latest status could not be refreshed: ':'Check market activity before retrying: ')+(err.message||String(err));}
+ finally{packageBuyStatus(card,p);}
+}
+async function refreshPackages(force=false){
+ if(PACKAGE_REFRESH)return PACKAGE_REFRESH;
+ if(!force&&Date.now()-PACKAGE_FETCHED<4000)return;
+ PACKAGE_FETCHED=Date.now();
+ PACKAGE_REFRESH=(async()=>{try{
+  const [own,catalog]=await Promise.all([api(`/api/account/${ME}/packages`),api(`/api/packages?account=${encodeURIComponent(ME)}`)]);
+  OWN_PACKAGES=new Set(own.packages.map(p=>p.id));PACKAGE_CATALOG=catalog.packages;
+  await Promise.all([...PACKAGE_BUYS.values()].map(readPackageContract));renderPackages();$('packageCatalogStatus').textContent='';
+ }catch(err){$('packageCatalogStatus').textContent=err.message||String(err);}finally{PACKAGE_REFRESH=null;}})();
+ return PACKAGE_REFRESH;
+}
+$('packageForm').onsubmit=async e=>{
+ e.preventDefault();const [collection,version]=$('packageVersion').value.split(':').map(Number),button=$('publishPackage');button.disabled=true;$('publishPackageStatus').textContent='Checking ownership, cleaning and resale permissions…';
+ try{
+  const p=await post(`/api/account/${ME}/packages`,{collection,version,price:Number($('packagePrice').value),purpose:$('packagePurpose').value.trim(),resale:$('packageResale').checked});
+  $('publishPackageStatus').textContent=`Published ${p.name} · ${amount(p.price,p.asset)} · ${p.records} records. The snapshot is fixed.`;
+  await refreshPackages(true);
+ }catch(err){$('publishPackageStatus').textContent=err.message||String(err);}finally{button.disabled=false;}
+};
 
 async function startVault(){
   $('vaultStartup').hidden=false;$('retryVault').hidden=true;

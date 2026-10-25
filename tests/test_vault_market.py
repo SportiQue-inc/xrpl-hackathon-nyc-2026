@@ -571,7 +571,7 @@ def test_discovery_questions_never_authorize_a_sale(market, monkeypatch, body):
     from vaultmarket import app as web, agents
     monkeypatch.setattr(web, 'M', market)
     monkeypatch.setattr(config, 'PUBLIC', False)
-    monkeypatch.setattr(agents, 'parse_chat', lambda text: {'intent': 'sell', 'kind': 'sleep_log', 'price': 1})
+    monkeypatch.setattr(agents, 'parse_chat', lambda text, **_: {'intent': 'sell', 'kind': 'sleep_log', 'price': 1})
     request = {**body, 'text': body['text'].format(posting=market.test_post)}
     client = TestClient(web.app)
     assert client.post('/api/account/seller/chat', json=request).status_code == 200

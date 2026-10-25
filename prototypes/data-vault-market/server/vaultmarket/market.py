@@ -165,6 +165,8 @@ class Market:
     # ---------------- files ----------------
     @staticmethod
     def record_fps(kind: str, body: dict) -> set[str]:
+        if kind == data.PACKAGE_KIND and 'payload' in body:
+            return Market.record_fps(body['kind'], body['payload'])
         if "records" in body:
             return set().union(*(Market.record_fps(kind,row) for row in body["records"]))
         return {hashlib.sha256(leaf.encode()).hexdigest() for leaf in intake.leaves(kind,body)}
@@ -240,7 +242,8 @@ class Market:
 
     def owned_fps(self, aid: str, kind: str) -> set:
         fps = set()
-        for f in self.s.q("SELECT fps FROM files WHERE account = ? AND kind = ?", (aid, kind)):
+        # The same record may have arrived alone, in a different category, or in a mixed package.
+        for f in self.s.q("SELECT fps FROM files WHERE account = ?", (aid,)):
             fps.update(json.loads(f["fps"] or "[]"))
         return fps
 
@@ -251,6 +254,9 @@ class Market:
         fields, dates, count = set(), set(), 0
         def walk(value):
             if isinstance(value, dict):
+                if 'payload' in value and 'kind' in value:
+                    walk(value['payload'])
+                    return
                 for key, item in value.items():
                     if key.startswith("_") or key in data.DIRECT:
                         continue
@@ -303,7 +309,7 @@ class Market:
             reason = "Your wallet is connecting; the request is saved."
         else:
             requests = self.s.q("SELECT * FROM postings WHERE status='open' AND kind=? AND buyer!=? ORDER BY max DESC", (q["kind"], q["account"]))
-            own_fps=self.owned_fps(q["account"],q["kind"])
+            own_fps=set().union(*(json.loads(f['fps'] or '[]') for f in self.s.q("SELECT fps FROM files WHERE account=? AND kind=? AND status='listed'", (q['account'], q['kind']))))
             requests=[w for w in requests if not (q["account"]=="demo-vault" and w["buyer"].startswith("u-")) and len(own_fps & self.owned_fps(w["buyer"],q["kind"])) == 0]
             w = next((w for w in requests if (q["posting"] is None or w["id"]==q["posting"]) and w["purpose"] not in a["sell_agent"].get("blocks", []) and w["max"]>=a["sell_agent"]["min"].get(q["kind"],0)), None)
             if w:
@@ -359,9 +365,9 @@ class Market:
         def say(who, side, text, thinking="", by=""):
             self.s.insert("messages", contract=cid, speaker=who, side=side, text=text, thinking=json.dumps({"t": thinking, "by": by}))
             self.events += 1
-        op = agents.buyer_open(buyer["name"], w, len(owned))
+        op = agents.buyer_open(buyer["name"], w, len(owned), model=buyer['buy_agent'].get('model', 'auto'))
         say(w["buyer"], "buyer", op["message"], op["thinking"], op["by"])
-        trace = {"asset": self.rail.symbol(), "unit_micro": config.MICRO_PER_UNIT, "buyer_trace": [op["thinking"]], "seller_trace": [], "verdicts": {"sellers": {}}, "tx": [], "protocol": [], "model": llm.model_name()}
+        trace = {"asset": self.rail.symbol(), "unit_micro": config.MICRO_PER_UNIT, "buyer_trace": [op["thinking"]], "seller_trace": [], "verdicts": {"sellers": {}}, "tx": [], "protocol": [], "model": op['by']}
         def step(protocol, detail, ok=True, who=None, tx=None):
             trace["protocol"].append({"protocol": protocol, "detail": detail, "ok": ok, "who": who, "tx": tx})
         step("Price discovery (shared ledger)", f"market price {q['price']}: median {q['median']} of the last {q['n']} clearing prices"
@@ -460,7 +466,7 @@ class Market:
         if personal:
             step("One-to-one agreement", "One buyer negotiates with one seller for this record bundle.", len(verified) == 1)
         outcome = {"agreed": len(agreed), "declined": declined, "overlap": overlap, "people": people_eff, "total": total, "ok": not reason, "reason": reason}
-        cl = agents.buyer_close(buyer["name"], w, outcome)
+        cl = agents.buyer_close(buyer["name"], w, outcome, model=buyer['buy_agent'].get('model', 'auto'))
         say(w["buyer"], "buyer", cl["message"], cl["thinking"], cl["by"])
         trace["buyer_trace"].append(cl["thinking"])
         trace["verdicts"]["buyer"] = "agree" if not reason else "reject"
@@ -506,6 +512,21 @@ class Market:
 
     def settle(self, cid: int, w: dict, verified: list, trace: dict, total: float):
         buyer_id = w["buyer"]
+        current = self.s.one('SELECT status FROM contracts WHERE id=?', (cid,))
+        if current and current['status'] in ('settled', 'refunded'):
+            return
+        owned = self.owned_fps(buyer_id, w['kind'])
+        # Saved in-flight escrows reserve identity before delivery is committed, including after a crash.
+        for pending in self.s.q("SELECT e.files FROM escrows e JOIN contracts c ON c.id=e.contract WHERE e.buyer=? AND e.contract!=? AND c.status IN ('settling','interrupted') AND e.state IN ('open','finished')", (buyer_id, cid)):
+            for fid in json.loads(pending['files'] or '[]'):
+                row = self.s.one('SELECT fps FROM files WHERE id=?', (fid,))
+                if row:
+                    owned.update(json.loads(row['fps'] or '[]'))
+        if any(owned & set(json.loads(f['fps'] or '[]')) for _, fs, _ in verified for f in fs):
+            self.s.x("UPDATE contracts SET status='rejected',reason='The buyer already owns or is settling some of these records; no repeat payment' WHERE id=?", (cid,))
+            self.s.x("UPDATE postings SET status='rejected' WHERE id=? AND once=1", (w['id'],))
+            self.events += 1
+            return
         self.s.x("UPDATE contracts SET status='settling', total=? WHERE id=?", (total, cid))
         self.events += 1
         legs, plain = [], {}
@@ -576,7 +597,7 @@ class Market:
                 self.s.bump(f"earned:{l['seller']}:{w['kind']}", l["price"])
                 self.s.insert("prices", kind=w["kind"], price=l["price"], contract=cid)
                 if self.acct(l["seller"])["type"] == "person" and self.acct(l["seller"])["sell_agent"].get("mode") == "ask":
-                    self.chat(l["seller"], "agent", f"Sale completed: {KINDS[w['kind']]['label']} to {self.acct(buyer_id)['name']}: +{l['drops'] / 1e6:.6f} {self.rail.symbol()} on the ledger. Contract #{cid}.")
+                    self.chat(l["seller"], "agent", f"Sale completed: {data.kind_info(w['kind'])['label']} to {self.acct(buyer_id)['name']}: +{l['drops'] / 1e6:.6f} {self.rail.symbol()} on the ledger. Contract #{cid}.")
             for a in {l["seller"] for l in paid}:
                 self._bal.pop(a, None)
             self._bal.pop(buyer_id, None)
@@ -725,7 +746,7 @@ class Market:
                       for w in self.s.q("SELECT * FROM postings WHERE kind = ? AND status = 'open' AND buyer != ?", (p["kind"], aid))
                       if w["purpose"] not in a["sell_agent"].get("blocks", [])]
             if demand and not self.s.one("SELECT id FROM recs WHERE account = ? AND kind = ? AND status = 'open'", (aid, p["kind"])):
-                self.s.insert("recs", account=aid, kind=p["kind"], text=agents.recommend(a["name"], p["kind"], p["n"], demand), status="open")
+                self.s.insert("recs", account=aid, kind=p["kind"], text=agents.recommend(a["name"], p["kind"], p["n"], demand, model=a['sell_agent'].get('model', 'auto')), status="open")
 
     # ---------------- the loop ----------------
     def tick(self):
