@@ -114,7 +114,8 @@ def export(request: Request, person: str, items: str, nonce: str,
         except Exception:
             pass                             # outcome unknown: the ledger lookup below decides
     st = L.wait_validated(tx_hash)
-    if not (st.validated and st.success and st.destination == _cfg["pay_to"] and st.amount_drops == _cfg["fee"]):
+    paid = st.xrp_drops if st.xrp_drops is not None else st.amount_drops     # the fee is in XRP (asset above)
+    if not (st.validated and st.success and st.destination == _cfg["pay_to"] and paid == _cfg["fee"]):
         with _lock:
             _used.discard(tx_hash)
         return _payment_required(str(request.url), req, f"not_settled:{st.result}")
@@ -167,5 +168,7 @@ def _payment_header(L, payer: str, req: dict) -> str:
             return payer_.prepare_payment(PaymentRequirements.from_dict(req)).payment_header
         except ImportError:
             pass
-    prep = L.prepare_payment(payer, req["payTo"], int(req["amount"]), invoice_field(inv), "clinic records export")
+    # the fee is XRP (asset above) even when orders settle in a token
+    prep = L.prepare_payment(payer, req["payTo"], int(req["amount"]), invoice_field(inv), "clinic records export",
+                             xrp=True)
     return b64({"x402Version": 2, "accepted": req, "payload": {"signedTxBlob": prep.blob, "invoiceId": inv}})
