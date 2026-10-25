@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My DB · Data Vault Market</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/static/ui.css">
+</head><body>
+<div class="top">
+  <span class="brand">Data Vault Market</span><span class="small" id="accountName">Loading vault…</span>
+  <nav aria-label="Main navigation"><a href="https://agentrail-try-production.up.railway.app/apps/try/index.html">Home</a><a href="/">Market</a><a href="/vault">My DB</a><a href="/assets">Assets</a><a href="/demo">Demo</a><a href="/report">Report</a></nav>
+  <span class="tag" id="ledgerTag"></span><span class="tag" id="modelTag"></span>
+  
+</div>
+<div class="banner" id="banner" hidden></div>
+<section id="vaultStartup" class="vault-startup" aria-live="polite"><h1>Opening your vault</h1><p id="vaultStartupText">Your records, purchases and collections are loading.</p><button type="button" id="retryVault" hidden>Try again</button></section>
+<div class="app vault-app" hidden>
+  <section class="col side left" aria-labelledby="h-me">
+    <header><h1 id="h-me">For your data</h1></header>
+    <div class="scroll">
+      <div class="onboarding"><h2>Start here</h2><ol><li>Connect your payout wallet.</li><li>Import your own records below.</li><li>Ask your agent what you can sell.</li></ol><a href="/assets">Wallet, budget & transfers →</a></div>
+      <h2>Recommendations</h2><div id="recs"></div><h2>Market demand</h2><div id="marketHints"></div>
+    </div>
+  </section>
+  <section class="col" aria-labelledby="h-db">
+    <header><div><h1 id="h-db">My DB</h1><span class="muted small" id="dbSub"></span></div>
+      <div class="acts db-actions"><button type="button" class="primary" id="openUpload">Upload data</button><button type="button" id="openHistory">Intake history <span class="tag" id="histCount"></span></button></div></header>
+    <div class="scroll">
+      <div class="seg db-tabs" role="group" aria-label="My DB views" id="dbTabs"><button type="button" data-tab="files" aria-pressed="true">My files</button><button type="button" data-tab="offers" aria-pressed="false">Offers on my data</button><button type="button" data-tab="purchased" aria-pressed="false">Purchased</button><button type="button" data-tab="collections" aria-pressed="false">Collections</button></div>
+      <section data-pane="files"><div class="file-tools"><input type="search" id="fileSearch" placeholder="Search by name or source" aria-label="Search files"><select id="fileKind" aria-label="Domain"><option value="">All domains</option></select></div><div id="fileTable"></div></section>
+      <section data-pane="offers" hidden><div class="seg" role="group" aria-label="Sort bundles"><button type="button" id="vDom" aria-pressed="true">By domain</button><button type="button" id="vDem" aria-pressed="false">By demand</button><button type="button" id="vAll" aria-pressed="false">All requests</button></div><div id="bundles"></div></section>
+      <section data-pane="purchased" hidden><details class="buy-request"><summary>Buy data for my DB</summary><form id="buyForm"><label>Category <select id="buyKind"></select></label><label>Offer <input id="buyPrice" type="number" min="0.000001" step="any" required></label><label class="small"><input type="checkbox" id="buyResale"> Request permission to bundle and resell</label><button class="primary">Ask agent to buy</button></form></details><h2>Purchased data</h2><p class="small muted">A completed purchase is decrypted into your DB. Download the complete stored payload below; previews show only a sample. Organizing it into a collection preserves the original file, receipt and permission.</p><div id="bought"></div></section>
+      <section data-pane="collections" hidden class="intake-work" aria-labelledby="collectionsTitle"><h2 id="collectionsTitle">Collections · your whole DB</h2><p class="small muted">Group your own and acquired records into a named collection. Each save creates an immutable version of file references and hashes; it never changes or copies the original records. Organizing files grants no additional resale rights.</p>
+<form id="collectionForm"><label class="small">Collection <select id="collectionTarget"><option value="">New collection</option></select></label><label class="small" id="collectionNameLabel">Name <input id="collectionName" maxlength="80" placeholder="e.g. Running and recovery" required></label><div class="acts"><button type="button" id="selectAllDb">Select all my DB</button><button type="button" id="clearDbSelection">Clear selection</button><span class="small muted" id="collectionCount">0 files selected</span></div><div id="collectionFiles"></div><button type="submit" class="primary" id="saveCollection">Save collection version</button></form><div id="collections"></div></section>
+    </div>
+    <dialog id="uploadDlg" class="db-dlg"><div class="dlg"><div class="row"><h2>Upload data</h2><button type="button" data-close>Close</button></div><section class="intake-work">      <label class="drop" id="drop" for="file">Drop a JSON file here or click to choose.<br><span class="small">The intake agent classifies it, refuses sensitive data and offers paid cleaning for raw data.</span></label>
+      <input type="file" id="file" accept=".json,application/json" hidden>
+      <details class="sample-options" open><summary>Try a sample file</summary><div class="acts" id="samples"></div></details></section></div></dialog>
+    <dialog id="historyDlg" class="db-dlg"><div class="dlg"><div class="row"><h2>Intake history</h2><button type="button" data-close>Close</button></div><p class="small muted">Every upload and what intake decided. “Needs cleaning” means raw data with problems that would fail buyers' quality checks; pay the cleaning agent a small fee and the cleaned file lists as passed.</p><div id="uploads"></div></div></dialog>
+  </section>
+  <section class="col side right" aria-labelledby="h-u">
+    <header><h1 id="h-u">Your agent</h1></header>
+    <div class="scroll">
+      <button id="discoverData" type="button">Find what I can sell</button><div class="chatbox" id="chat" data-open="1"></div>
+<details class="audit"><summary>Network & model diagnostics</summary><div id="diagnostics" class="small muted"></div></details>
+    </div>
+  </section>
+</div>
+<script src="/static/common.js"></script><script src="/static/tour.js"></script>
+<script>
+let VIEW = "domain", ACC = null, COLLECTIONS = [], COLLECTION_FILES = new Set();
+const SAMPLES = [["gps_track", null, "A run"], ["gps_track", "spikes", "A run with strap spikes"], ["sleep_log", "duplicates", "Raw sleep export"],
+  ["sleep_log", "diagnosis", "Sleep clinic report"], ["purchase_receipts", null, "Receipts"], ["audio", "minor", "Kid's voice clips"], ["audio", null, "Voice clips"]];
+$("samples").innerHTML = SAMPLES.map(([k, f, l], i) => `<button type="button" data-s="${i}">${esc(l)}</button>`).join("");
+$("samples").querySelectorAll("[data-s]").forEach((b) => b.onclick = async () => { const [kind, flaw] = SAMPLES[+b.dataset.s]; await post(`/api/account/${ME}/upload-sample`, { kind, flaw }); refresh(); });
+$("file").onchange = async () => { const f = $("file").files[0]; if (!f) return; const fd = new FormData(); fd.append("file", f); await api(`/api/account/${ME}/upload`, { method: "POST", body: fd }); $("file").value = ""; refresh(); };
+["dragover", "dragleave", "drop"].forEach((ev) => $("drop").addEventListener(ev, async (e) => { e.preventDefault(); $("drop").classList.toggle("over", ev === "dragover");
+  if (ev === "drop" && e.dataTransfer.files[0]) { const fd = new FormData(); fd.append("file", e.dataTransfer.files[0]); await api(`/api/account/${ME}/upload`, { method: "POST", body: fd }); refresh(); } }));
+$("vDom").onclick = () => { VIEW = "domain"; refresh(); }; $("vDem").onclick = () => { VIEW = "demand"; refresh(); }; $("vAll").onclick = () => { VIEW = "all"; refresh(); };
+const VERDICT = { ok: ["blue", "passed"], clean: ["", "needs cleaning"], cleaned: ["blue", "cleaned"], block: ["red", "refused"] };
+let TAB = "files", LAST_UPLOADS = null;
+const openDlg = (id) => { const d = $(id); if (!d.open) d.showModal(); };
+document.querySelectorAll(".db-dlg [data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
+$("openUpload").onclick = () => openDlg("uploadDlg"); $("openHistory").onclick = () => openDlg("historyDlg");
+$("dbTabs").querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { TAB = b.dataset.tab; showTab(); });
+function showTab() { $("dbTabs").querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", b.dataset.tab === TAB)); document.querySelectorAll("[data-pane]").forEach(p => p.hidden = p.dataset.pane !== TAB); }
+$("fileSearch").oninput = () => drawFiles(); $("fileKind").onchange = () => drawFiles();
+const FILE_STATUS = { listed: ["blue", "listed"], private: ["", "private"], bought: ["green", "bought"], bundled: ["green", "bundled"] };
+function drawFiles() {
+  if (!ACC) return;
+  const q = $("fileSearch").value.trim().toLowerCase(), kind = $("fileKind").value;
+  const files = ACC.bundles.flatMap(b => b.files.map(f => ({...f, offers: b.best_offer}))).filter(f => (!kind || f.kind === kind) && (!q || `${f.name} ${f.source || ""}`.toLowerCase().includes(q)));
+  const groups = {}; files.forEach(f => (groups[f.kind] ||= []).push(f));
+  $("fileTable").innerHTML = Object.entries(groups).map(([k, fs]) => `<details class="file-group" open><summary><b>${esc(META.kinds[k]?.label || k)}</b> <span class="small muted">${fs.length} file${fs.length === 1 ? "" : "s"}${fs[0].offers ? ` · best open offer ${xrp(fs[0].offers)}` : ""}</span></summary>
+    <div class="table-wrap"><table class="file-table"><thead><tr><th>File</th><th>Source</th><th>Records</th><th>Status</th><th>Added</th></tr></thead><tbody>${fs.map(f => `<tr><td class="mono">${esc(f.name)} <span class="muted">#${f.id}</span></td><td>${esc(f.source || "Your record")}</td><td>${f.attestation?.records ?? "—"}</td><td><span class="tag ${FILE_STATUS[f.status]?.[0] || ""}">${esc(FILE_STATUS[f.status]?.[1] || f.status)}</span>${f.attestation?.cleaned ? ' <span class="tag">cleaned</span>' : ""}</td><td class="small">${f.created ? new Date(f.created * 1000).toLocaleDateString() : ""}</td></tr>`).join("")}</tbody></table></div></details>`).join("") || '<p class="muted small">No files match. Use “Upload data” to add some.</p>';
+}
+async function refresh() {
+  if (!META || !ME) return false;
+  try { ACC = await api(`/api/account/${ME}`); META = await api("/api/meta"); } catch (err) { showError(err); return false; }
+  const a = ACC.account, k = META.kinds;
+  $('file').disabled=!!USER.user?.demo;
+  if(USER.user?.demo){document.querySelector('.onboarding').innerHTML='<h2>Your demo vault</h2><p class="small">Synthetic files are ready below. Ask your agent what to sell, then approve a request. Use your own vault to import personal files or link a wallet.</p>';$('file').closest('.intake-work')?.querySelector('.drop span').replaceChildren(document.createTextNode('Demo uses synthetic samples. Use your own vault to import personal files.'));}
+
+  $('diagnostics').textContent=`${META.connected}/${META.accounts} wallets connected · provider ${META.llm.provider} · ${META.llm.calls} calls · ${META.llm.out_tokens} generated tokens · ${META.llm.fallbacks} rule fallbacks. ${META.asset_note||''}`;
+
+$("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribute("aria-pressed", VIEW === "demand"); $("vAll").setAttribute("aria-pressed", VIEW === "all");
+  $("dbSub").textContent = `${ACC.files} files · the agent sorts them into bundles by domain and by who is asking`;
+  $("uploads").innerHTML = ACC.uploads.map((u) => `<div class="card"><div class="row"><span class="mono">${esc(u.name)}</span><span class="tag ${VERDICT[u.verdict]?.[0] || ""}">${VERDICT[u.verdict]?.[1] || esc(u.verdict)}</span></div>
+    <span class="small muted">${esc(u.why)}</span>${u.verdict === "clean" && u.file === -1 ? `<p class="small clean-why">Buyers' agents check quality before paying, so “${esc(u.why)}” would fail their checks. Pay the cleaning agent ${xrp(u.fee)} on the ledger to filter these records; the cleaned file then lists as passed.</p><div class="acts"><button class="primary" type="button" data-u="${u.id}">Clean it for ${xrp(u.fee)}</button></div>` : ""}</div>`).join("") || '<p class="muted small">Nothing uploaded yet.</p>';
+  $("histCount").textContent = ACC.uploads.length || "";
+  const top = ACC.uploads[0]?.id || 0;
+  if (LAST_UPLOADS !== null && top > LAST_UPLOADS && $("uploadDlg").open) { $("uploadDlg").close(); openDlg("historyDlg"); }   // show what intake decided
+  LAST_UPLOADS = top;
+  if (!$("fileKind").options[1]) $("fileKind").insertAdjacentHTML("beforeend", Object.entries(k).map(([id, v]) => `<option value="${id}">${esc(v.label)}</option>`).join(""));
+  drawFiles(); showTab();
+  $("uploads").querySelectorAll("[data-u]").forEach((b) => b.onclick = async () => { b.disabled = true; await post(`/api/account/${ME}/upload/${b.dataset.u}/clean`); refresh(); });
+  $("recs").innerHTML = ACC.recs.map((r) => `<div class="card hot"><h2>Agent recommendation · ${esc(k[r.kind].domain)}</h2><p>${esc(r.text)}</p>
+    <div class="acts"><button class="primary" type="button" data-r="${r.id}" data-a="1">Pseudonymize and list</button><button type="button" data-r="${r.id}" data-a="0">Keep private</button></div></div>`).join("");
+  $("recs").querySelectorAll("[data-r]").forEach((b) => b.onclick = async () => { await post(`/api/account/${ME}/rec/${b.dataset.r}`, { accept: b.dataset.a === "1" }); refresh(); });
+  const fileRow = (f) => `<div style="border-top:1px solid var(--line);padding-top:6px;display:grid;gap:3px"><div class="row"><span class="mono">${esc(f.name)}</span>
+      <label class="small muted"><input type="checkbox" data-f="${f.id}" ${f.status === "listed" ? "checked" : ""}> list</label></div>
+      <span class="small muted">${f.status === "listed" ? "listed as a pseudonymized copy" : "private"}${f.sold ? ` · sold ${f.sold}×` : ""}${f.attestation ? ` · attested: ${f.attestation.records} records, root ${f.attestation.merkle_root.slice(0, 10)}…${f.attestation.cleaned ? ", cleaned" : ""}` : ""}</span>
+      <details class="small"><summary>What a buyer would get</summary><pre>${esc(f.preview)}</pre></details></div>`;
+  if (VIEW === "domain") {
+    $("bundles").innerHTML = ACC.bundles.map((b) => `<div class="card"><div class="row"><h3>${esc(b.domain)}</h3><span class="price">${b.best_offer ? `best offer ${xrp(b.best_offer)}` : "no buyer yet"}</span></div>
+      <span class="small muted">${esc(b.label)} · ${b.files.length} files · ${b.listed} listed · expected next sale ${b.listed && b.best_offer ? xrp(b.best_offer) : "—"}</span>
+      <div class="row small"><span>${b.offers} offers</span><span class="y">${b.agreed} agreed</span><span class="n">${b.declined} declined</span></div>
+      <details><summary class="small">Files</summary>${b.files.map(fileRow).join("")}</details></div>`).join("") || '<p class="muted small">Your DB is empty. Upload something on the right.</p>';
+  } else if (VIEW === "all") {
+    const all = (await api(`/api/market?account=${ME}`)).postings;
+    $("bundles").innerHTML = `<p class="muted small">Every open buy request on the market. Mark interest and your agent negotiates it first; otherwise it acts on its own rules.</p>` + all.map((p) => `<div class="card ${p.mine ? "hot" : ""}"><div class="row"><b>${esc(k[p.kind].label)}</b><span class="price">${xrp(p.offer)}</span></div>
+      <span class="muted small">${esc(p.buyer_name)} ${p.verified ? '<span class="tag blue">verified</span>' : ""} · ${esc(p.purpose)} · up to ${xrp(p.max)} · one-to-one · ${p.settled} settled · ${p.rejected} rejected${p.interest ? ` · ${p.interest} interested` : ""}</span>
+      ${p.buyer === ME ? '<span class="tag blue">your request</span>' : p.mine ? '<span class="tag blue">Your agent is on it ✓</span>' : `<div class="acts"><button type="button" data-msg="${esc(`Sell my ${k[p.kind].label.toLowerCase()} to ${p.buyer_name} (request #${p.id}) if it fits my terms.`)}">Tell my agent</button></div>`}</div>`).join("");
+    $("bundles").querySelectorAll("[data-msg]").forEach((b) => b.onclick = () => tellAgent(b.dataset.msg));
+  } else {
+    $("bundles").innerHTML = ACC.demand.map((w) => `<div class="card ${w.interested ? "hot" : ""}"><div class="row"><h3>For ${esc(w.buyer_name)}</h3><span class="price">${xrp(w.offer)} per purchase</span></div>
+      <span class="small muted">${esc(k[w.kind].label)} for ${esc(w.purpose)} · ${w.listed} listed, ${w.private} private · ${w.settled} settled, ${w.rejected} rejected so far</span>
+      <span class="small">${w.purpose && (a.sell_agent.blocks || []).includes(w.purpose) ? '<span class="n">Your rules decline this purpose.</span>' : w.offer >= (a.sell_agent.min?.[w.kind] ?? 0) ? `<span class="y">Meets your minimum of ${a.sell_agent.min?.[w.kind]}.</span>` : `Below your minimum of ${a.sell_agent.min?.[w.kind]}; your agent will counter.`}</span>
+      <div class="acts">${w.interested ? '<span class="tag blue">Your agent is on it ✓</span>' : `<button type="button" data-msg="${esc(`Sell my ${k[w.kind].label.toLowerCase()} to ${w.buyer_name} (request #${w.id}) if it fits my terms.`)}">Tell my agent</button>`}</div></div>`).join("") || '<p class="muted small">No open request matches your data yet.</p>';
+    $("bundles").querySelectorAll("[data-msg]").forEach((b) => b.onclick = () => tellAgent(b.dataset.msg));
+  }
+  $("bundles").querySelectorAll("[data-f]").forEach((el) => el.onchange = async () => { await post(`/api/account/${ME}/file/${el.dataset.f}`, { listed: el.checked }); refresh(); });
+  memberBalance(ACC);
+  $('marketHints').innerHTML=ACC.demand.slice(0,8).map(w=>`<div class="card"><b>${esc(k[w.kind].label)}</b><span class="small muted">${esc(w.purpose)}</span><span>${xrp(w.offer)} offer · ${w.listed+w.private} matching files</span></div>`).join('')||'<p class="small muted">Your agent checks demand after you import records.</p>';
+  const resaleSelected=new Set([...document.querySelectorAll('[data-bundle]:checked')].map(e=>Number(e.dataset.bundle)));
+  $("bought").innerHTML = ACC.bought.map((f) => `<div class="card"><div class="row"><span class="mono">${esc(f.name)}</span><a href="/api/account/${ME}/file/${f.id}/download" download>Download complete JSON ↓</a></div><span class="small muted">${esc(f.source)} · ${f.resale?'Resale permission recorded':'Use under the original purchase terms'}${f.status === "bundled" ? " · original retained after resale bundling" : ""}</span>${f.resale&&f.status==='bought'?`<label class="small"><input type="checkbox" data-bundle="${f.id}" data-kind="${f.kind}" ${resaleSelected.has(f.id)?'checked':''}> Select for a licensed resale bundle</label>`:''}<details class="small"><summary>Preview sample</summary><pre>${esc(f.preview)}</pre></details></div>`).join("") || '<p class="muted small">Completed purchases will appear here with their complete payload download.</p>';
+  if(ACC.bought.some(f=>f.resale&&f.status==='bought')) $('bought').innerHTML+='<button class="primary" id="bundleBuy">Bundle selected purchases for resale</button>';
+  $('bundleBuy')?.addEventListener('click',async()=>{try{const files=[...document.querySelectorAll('[data-bundle]:checked')].map(e=>+e.dataset.bundle);await post(`/api/account/${ME}/bundle`,{files});await refresh();}catch(e){showError(e);}});
+  $('discoverData').onclick=()=>tellAgent('What can I sell from my DB?','discover');
+  if(!$('buyKind').options.length){$('buyKind').innerHTML=Object.entries(k).map(([id,v])=>`<option value="${id}">${esc(v.label)}</option>`).join('');$('buyPrice').value=(k[$('buyKind').value].price*(META.unit_xrp||.01)).toFixed(2);}
+  $('buyForm').onsubmit=async(e)=>{e.preventDefault();try{await post(`/api/account/${ME}/chat`,{text:'buy '+k[$('buyKind').value].label,price:Number($('buyPrice').value)/(META.unit_xrp||.01),resale:$('buyResale').checked});await refresh();}catch(err){showError(err);}};
+  await refreshCollections();
+  chatBox($("chat"), ACC);$("banner").hidden=true;return true;
+}
+
+function collectionSelection(){
+ $('collectionCount').textContent=`${COLLECTION_FILES.size} files selected`;
+ document.querySelectorAll('[data-collection-file]').forEach(el=>el.checked=COLLECTION_FILES.has(Number(el.dataset.collectionFile)));
+}
+async function useCollectionVersion(id,version){
+ const saved=await api(`/api/account/${ME}/collections/${id}/versions/${version}/manifest`);
+ $('collectionTarget').value=String(id);COLLECTION_FILES=new Set(saved.files.map(f=>f.id));collectionTargetChanged(false);collectionSelection();
+}
+function collectionTargetChanged(load=true){
+ const id=$('collectionTarget').value;$('collectionNameLabel').hidden=!!id;$('collectionName').required=!id;
+ $('saveCollection').textContent=id?'Save as a new version':'Create collection · version 1';
+ const latest=COLLECTIONS.find(c=>String(c.id)===id)?.versions[0];
+ if(load&&latest)useCollectionVersion(id,latest.version).catch(showError);
+}
+async function refreshCollections(){
+ const data=await api(`/api/account/${ME}/collections`);COLLECTIONS=data.collections;
+ const target=$('collectionTarget').value,options=JSON.stringify(COLLECTIONS.map(c=>[c.id,c.name]));
+ if($('collectionTarget').dataset.options!==options){$('collectionTarget').innerHTML='<option value="">New collection</option>'+COLLECTIONS.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');$('collectionTarget').dataset.options=options;$('collectionTarget').value=target;}
+ const allFiles=[...new Map([...ACC.bundles.flatMap(b=>b.files),...ACC.bought].map(f=>[f.id,f])).values()].sort((a,b)=>b.created-a.created||b.id-a.id);
+ const valid=new Set(allFiles.map(f=>f.id));COLLECTION_FILES=new Set([...COLLECTION_FILES].filter(id=>valid.has(id)));
+ const filesKey=JSON.stringify(allFiles.map(f=>[f.id,f.name,f.status,f.source]));
+ if($('collectionFiles').dataset.files!==filesKey){$('collectionFiles').innerHTML=allFiles.map(f=>`<label class="small" style="display:block;padding:7px 0;border-bottom:1px solid var(--line)"><input type="checkbox" data-collection-file="${f.id}"> ${esc(f.name)} <span class="muted">· ${esc(META.kinds[f.kind]?.label||f.kind)} · ${esc(f.source||'Your record')}</span></label>`).join('')||'<p class="small muted">Import or buy data to create a collection.</p>';$('collectionFiles').dataset.files=filesKey;$('collectionFiles').querySelectorAll('[data-collection-file]').forEach(el=>el.onchange=()=>{const id=Number(el.dataset.collectionFile);el.checked?COLLECTION_FILES.add(id):COLLECTION_FILES.delete(id);collectionSelection();});}
+ $('selectAllDb').onclick=()=>{COLLECTION_FILES=new Set(allFiles.map(f=>f.id));collectionSelection();};
+ const key=JSON.stringify(COLLECTIONS);
+ if($('collections').dataset.collections!==key){const open=new Set([...$('collections').querySelectorAll('details[open]')].map(el=>el.dataset.collection));$('collections').innerHTML=COLLECTIONS.map(c=>`<details class="card" data-collection="${c.id}" ${open.has(String(c.id))?'open':''}><summary><b>${esc(c.name)}</b> · ${c.versions.length} version${c.versions.length===1?'':'s'} · latest v${c.versions[0].version}</summary>${c.versions.map(v=>`<div style="padding:9px 0;border-top:1px solid var(--line)"><div class="row"><b>Version ${v.version} · ${v.files} files</b><span class="small muted">${new Date(v.created*1000).toLocaleString()}</span></div><div class="acts"><a href="${esc(v.manifest_url)}" download>Download immutable manifest ↓</a><button type="button" data-use-collection="${c.id}" data-version="${v.version}">Use these files for the next version</button></div><span class="small mono muted" style="overflow-wrap:anywhere">SHA-256 ${esc(v.sha256)}</span></div>`).join('')}</details>`).join('')||'<p class="small muted">No collections yet. Select any of your own or acquired files and save the first version.</p>';$('collections').dataset.collections=key;$('collections').querySelectorAll('[data-use-collection]').forEach(el=>el.onclick=()=>useCollectionVersion(el.dataset.useCollection,el.dataset.version).catch(showError));}
+ collectionSelection();collectionTargetChanged(false);
+}
+$('collectionTarget').onchange=()=>collectionTargetChanged();
+$('clearDbSelection').onclick=()=>{COLLECTION_FILES.clear();collectionSelection();};
+$('collectionForm').onsubmit=async e=>{e.preventDefault();const button=$('saveCollection');button.disabled=true;try{const target=$('collectionTarget').value,path=`/api/account/${ME}/collections${target?'/'+target+'/versions':''}`;const result=await post(path,{name:$('collectionName').value,files:[...COLLECTION_FILES]});await refreshCollections();$('collectionTarget').value=String(result.id);collectionTargetChanged(false);}catch(err){showError(err);}finally{button.disabled=false;}};
+
+async function startVault(){
+  $('vaultStartup').hidden=false;$('retryVault').hidden=true;
+  $('vaultStartupText').textContent='Your records, purchases and collections are loading.';
+  try{await topbar('vault');if(!await refresh())throw new Error('The vault could not finish loading. Try again.');document.querySelector('.vault-app').hidden=false;$('vaultStartup').hidden=true;}
+  catch(err){$('vaultStartupText').textContent='We could not open your vault. Your records are preserved; try the connection again.';$('retryVault').hidden=false;showError(err);}
+}
+$('retryVault').onclick=startVault;startVault();live();
+</script></body></html>
