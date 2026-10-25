@@ -285,6 +285,81 @@ def participant_revoke(pid: str):
     return _call(study.participant_revoke, pid)
 
 
+class PushPrepareBody(Strict):
+    institution: str = Field(pattern=ID)
+    columns: list[str] = Field(min_length=1, max_length=20)
+    purpose: str = Field(pattern=ITEM)
+    contract: str = Field(pattern=r"^[0-9a-f]{16,64}$")
+    price_drops: int = Field(ge=1, le=10**9)
+    days: int = Field(default=7, ge=1, le=56)
+
+
+class PushSealedBody(Strict):
+    record: dict
+    condition: str = Field(pattern=r"^[0-9A-Fa-f]{78}$")
+
+
+class PushRevealBody(Strict):
+    order_id: str = Field(pattern=ID)
+    key_b64u: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
+
+
+class PushRevokeBody(Strict):
+    institution: str = Field(pattern=ID)
+
+
+def _push():
+    """Push delivery on the study's engine. The receiving institutions' keys live with them; this demo
+    process stands in for their stores."""
+    if _state.get("push_world") is not world():
+        from .market.acts import load
+        from .vault import delivery, keys
+        pd = delivery.PushDelivery(world().engine)
+        for inst in load()["institutions"]:
+            pd.register_institution(inst["id"], inst["country"], keys.InstitutionKey())
+        _state["push"], _state["push_world"] = pd, world()
+    return _state["push"]
+
+
+@app.post("/api/p/{pid}/push/prepare")
+def push_prepare(pid: str, body: PushPrepareBody):
+    """The agreed rows as canonical bytes for the person's page to seal, and the institution's public key."""
+    from .catalog import columns as cat
+    pd = _push()
+    cols = [cat.canon(c) for c in body.columns]
+    if any(c not in cat.CATALOG for c in cols) or body.institution not in pd.institutions:
+        raise HTTPException(400, "unknown column or institution")
+    with _lock:
+        if (pid, body.institution) not in pd.consents:
+            pd.consent(pid, body.institution, cols, body.purpose)
+        rows = [{"day": d, **{c: cat.synth(c, pid, d) for c in cols}} for d in range(body.days)]
+        try:
+            return pd.prepare(pid, body.institution, rows, cols, body.contract, body.price_drops)
+        except PermissionError as e:
+            raise HTTPException(403, str(e))
+
+
+@app.post("/api/p/{pid}/push/sealed")
+def push_sealed(pid: str, body: PushSealedBody):
+    """The page's sealed bundle and escrow condition: the engine creates the escrow and pushes the bundle."""
+    with _lock:
+        return _push().accept_sealed(pid, body.record, body.condition)
+
+
+@app.post("/api/p/{pid}/push/reveal")
+def push_reveal(pid: str, body: PushRevealBody):
+    """K published in EscrowFinish: the person is paid; the institution opens what it already holds."""
+    from .vault.keys import unb64u
+    with _lock:
+        return _push().reveal(pid, body.order_id, unb64u(body.key_b64u))
+
+
+@app.post("/api/p/{pid}/push/revoke")
+def push_revoke(pid: str, body: PushRevokeBody):
+    with _lock:
+        return _push().revoke(pid, body.institution)
+
+
 @app.get("/api/study")
 def study_state():
     return _call(study.study_view)
@@ -467,6 +542,19 @@ def _forecast_model():
         from .contract import measure
         _state["forecast"] = measure.train()[0]
     return _state["forecast"]
+
+
+@app.get("/api/report")
+def run_report():
+    """One self-contained HTML page for this run: contract, negotiation, checks, projection, payments,
+    holdbacks, tx links, and the market acts if they ran."""
+    from fastapi.responses import HTMLResponse
+    from . import engine_check as ec, report
+    from .contract import onledger
+    with _lock:
+        w = world()
+        markets = [_market_view(a) for a in (1, 2) if f"market{a}" in _state]
+        return HTMLResponse(report.render(onledger.view(w), markets, {"flows": ec.flows(w)}, ledger=w.ledger.name))
 
 
 @app.get("/api/engine/check")

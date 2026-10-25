@@ -302,3 +302,48 @@ same app in process through a full HTTP exchange.
 "l2": {"signed_by": "owner", "valid", "bound_to_l1", "constraints": {"per_transaction_max", "total_max",
 "allowed_purposes", "allowed_payees", "treasury_tx"}, "treasury_tx_url"}, "l1": {"signed_by": "issuer",
 "credential": {"spendingCeiling", ...}}, "checks": {"amount", "invoice", "purpose", "verdict_at_payment"}}`.
+
+## Push delivery sealed in the person's page (`agentrail/vault/`)
+
+The page seals; the engine never sees the clear bundle or the key K. Every call needs the participant's own token (`SELF`).
+
+**1. `POST /api/p/{pid}/push/prepare`**
+
+Request: `{institution, columns[], purpose, contract (hex), price_drops, days?}`.
+
+Response: `{order_id, bundle_b64u, bundle_hash, institution_jwk, institution, country, contract}`.
+- `bundle_b64u` holds the exact bytes to seal: canonical JSON with sorted keys, no spaces and ASCII escapes, `{"columns":[..],"contract":"..","rows":[{"day":0,"<column>":v},..],"salt":"<hex16>","trade":"<order_id>"}`. Only the agreed columns and days are in it.
+- `bundle_hash` is the SHA-256 hex of those bytes.
+- `institution_jwk` is the receiving institution's registered P-256 public key (`{"kty":"EC","crv":"P-256","x","y"}`).
+
+**2. The page seals.** This is `apps/shared/passkey.js` `sealBundle`, with one change: K must be raw bytes, so the page can publish it later.
+- `K = HKDF-SHA256(root, salt = empty, info = "trade|<order_id>|<bundle_hash>")`, 32 bytes. Use `deriveBits(256)`, then import K as an AES-GCM key.
+- `root` is the passkey PRF output for `SHA-256("agentrail-vault-v1|" + pid)`, or the device-bound fallback.
+- inner = `AES-256-GCM(K, iv1, bundle)`.
+- outer = `AES-256-GCM(HKDF(ECDH(eph, institution), info = "seal|<order_id>|<bundle_hash>"), iv2, iv1 ‖ inner)`.
+- Record: `{order_id, bundle_hash, epk (JWK), iv (b64u iv2), sealed (b64u outer), root: "passkey"|"device"}`.
+- Escrow condition: `condition = "A0258020" + hex(SHA-256(K)) + "810120"`, in upper case (the PREIMAGE-SHA-256 crypto-condition).
+
+**3. `POST /api/p/{pid}/push/sealed`**
+
+Request: `{record, condition}`.
+
+The engine checks that `bundle_hash` is the prepared one and that consent is active. It then creates the EscrowCreate with that condition, with the contract hash in the memo, and pushes the sealed record into the institution's store.
+
+Response: `{ok, order_id, institution, country, escrow_create, status}`.
+
+**4. `POST /api/p/{pid}/push/reveal`**
+
+Request: `{order_id, key_b64u}`.
+
+The engine re-checks consent. K must hash to the condition. K is then published in EscrowFinish: the person is paid, and the institution reads K from the validated ledger and opens what it already holds.
+
+Response: `{ok, status, escrow_finish}`.
+
+**5. `POST /api/p/{pid}/push/revoke`**
+
+Request: `{institution}`.
+
+Future pushes stop. A key not yet revealed is never published. For copies already delivered, a deletion request goes out, answered by a signed deletion confirmation.
+
+There is no access route of any kind into the person's store. Each round is a new push with its own consent check and contract.
