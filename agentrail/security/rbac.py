@@ -52,6 +52,10 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("POST", "/api/p/{pid}/resume-requests"): SELF,
     ("POST", "/api/p/{pid}/payout-currency"): SELF,
     ("GET", "/api/p/{pid}/uniqdata"): SELF,
+    ("POST", "/api/p/{pid}/requests/{rid}/challenge"): SELF,
+    ("GET", "/api/p/{pid}/passkey"): SELF,
+    ("POST", "/api/p/{pid}/passkey/register/options"): SELF,
+    ("POST", "/api/p/{pid}/passkey/register/complete"): SELF,
     # researcher console
     ("GET", "/api/study"): Rule((R, A, V, O), "study"),
     ("POST", "/api/study/goal"): STUDY_TEAM,

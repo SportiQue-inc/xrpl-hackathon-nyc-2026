@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from . import payout, scenario, study
 from . import uniqdata_port as port
 from .llm import voice
-from .security import audit, consent as signed_consent, cosign, rbac
+from .security import audit, consent as signed_consent, cosign, passkey, rbac
 from .security.auth import AuthError
 from .security.http import AccessAudit, RateLimit, SecurityHeaders, cors_origins
 from .security.masking import install_logging_filter
@@ -73,6 +73,24 @@ class TokenBody(Strict):
     sub: str = Field(pattern=ID)
     nonce: str = Field(min_length=16, max_length=64)
     signature: str = Field(pattern=r"^[0-9a-f]{128}$")
+
+
+class PasskeyRegistration(Strict):
+    credentialId: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    rawId: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    attestationObject: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    clientDataJson: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    transports: list[str] | str | None = None
+
+
+class PasskeyAssertion(Strict):
+    challengeId: str | None = Field(None, max_length=128)
+    credentialId: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    rawId: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    authenticatorData: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    clientDataJson: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    signature: str = Field(max_length=8192, pattern=r"^[A-Za-z0-9_-]*$")
+    userHandle: str | None = Field(None, max_length=1024, pattern=r"^[A-Za-z0-9_-]*$")
 
 
 class ItemsBody(Strict):
@@ -244,9 +262,37 @@ def participant_preview(pid: str, request: int):
     return _call(study.preview, pid, request)
 
 
+class ApproveBody(ItemsBody):
+    assertion: PasskeyAssertion | None = None
+
+
 @app.post("/api/p/{pid}/requests/{rid}/approve")
-def participant_approve(pid: str, rid: int, body: ItemsBody = ItemsBody()):
-    return _call(study.participant_approve, pid, rid, body.clean())
+def participant_approve(pid: str, rid: int, body: ApproveBody = ApproveBody()):
+    """With a registered passkey, the body must carry the assertion over this request's statement."""
+    a = body.assertion.model_dump() if body.assertion else None
+    return _call(study.participant_approve, pid, rid, body.clean(), assertion=a)
+
+
+@app.post("/api/p/{pid}/requests/{rid}/challenge")
+def participant_challenge(pid: str, rid: int, body: ItemsBody = ItemsBody()):
+    """The approval statement for these items and the WebAuthn options to sign it with."""
+    return _call(study.approval_challenge, pid, rid, body.clean())
+
+
+@app.get("/api/p/{pid}/passkey")
+def participant_passkey(pid: str):
+    return _call(lambda w: {"registered": passkey.has_passkey(w, pid), "held_by": passkey.backend(w, pid).name,
+                            "rp_id": passkey.rp_id()})
+
+
+@app.post("/api/p/{pid}/passkey/register/options")
+def participant_passkey_options(pid: str):
+    return _call(lambda w: passkey.register_options(w, pid, w.cohort_people[pid].vault.pseudonym(study.LAB)))
+
+
+@app.post("/api/p/{pid}/passkey/register/complete")
+def participant_passkey_complete(pid: str, body: PasskeyRegistration):
+    return _call(passkey.register_complete, pid, body.model_dump())
 
 
 @app.post("/api/p/{pid}/requests/{rid}/decline")

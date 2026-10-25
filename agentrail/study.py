@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from . import payout
+from .security import passkey
 from .agents import talk
 from .cohort import (HERO, PRIMARY, WEEKS, apply_deliveries, heatmap, infer_needs, person_gaps, power)
 from .connectors import HospitalExportSource
@@ -639,7 +640,34 @@ def participant_view(w, pid: str) -> dict:
         "withdrawals": [x for x in s.withdrawals if x["person"] == pid],
         "export_fees": [x for x in s.export_fees if x["person"] == pid],
         "payout": payout.view(w, LAB, pid),
+        "passkey": {"registered": passkey.has_passkey(w, pid), "held_by": passkey.backend(w, pid).name}
+                   if _has_passkeys(w) else None,
+        "approvals": passkey.approvals(w.store, pid) if _has_passkeys(w) else [],
+        "audit": audit_trail(w, pid),
     }
+
+
+def _has_passkeys(w) -> bool:
+    return getattr(w, "security", None) is not None
+
+
+def audit_trail(w, pid: str, limit: int = 200) -> list[dict]:
+    """The participant's own rows of the hash-chained event log, with each row's hash and its link."""
+    rows = w.store.q("SELECT id, ts, actor, kind, message, prev_hash, hash FROM events WHERE kind != 'access' AND "
+                     "(actor=? OR actor=?) ORDER BY id DESC LIMIT ?", pid, f"person {pid}", limit)
+    return [dict(r) for r in reversed(rows)]
+
+
+def approval_challenge(w, pid: str, rid: int, items: list[str]) -> dict:
+    """The statement the participant signs with their passkey, and the WebAuthn options for it."""
+    req = _own_request(w, pid, rid)
+    pa = w.cohort_people[pid]
+    cells = sum(len([i for i in its if i in items]) for its in req["weeks"].values())
+    stmt = passkey.statement(w, pid, req, items, cells * CELL_PRICE, pa.vault.pseudonym(LAB), LAB,
+                             w.engine.party(pid)["address"])
+    if not stmt["items"]:
+        raise ValueError("pick at least one item this request asks for")
+    return passkey.begin_approval(w, pid, rid, stmt)
 
 
 def _own_request(w, pid: str, rid: int) -> dict:
@@ -664,9 +692,33 @@ def preview(w, pid: str, rid: int) -> dict:
             "sealed_for": LAB}
 
 
-def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool = True) -> dict:
+def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool = True,
+                        assertion: dict | None = None) -> dict:
     req = _own_request(w, pid, rid)
     pa = w.cohort_people[pid]
+    signed = None
+    if _has_passkeys(w) and passkey.has_passkey(w, pid):
+        # A person with a passkey approves only by signing the statement for exactly these items.
+        if not assertion:
+            raise PermissionError("this participant approves with their passkey; ask for a challenge first")
+        signed = passkey.verify_approval(w, pid, rid, items, assertion)
+    before = {o["order_id"] for o in req.get("orders", [])}
+    try:
+        out = _apply_approval(w, pid, req, pa, items, hold_last)
+    except Exception:
+        if signed:
+            passkey.bind(w.store, pid, signed["statement_hash"], [], failed=True)
+        raise
+    if signed:
+        passkey.bind(w.store, pid, signed["statement_hash"],
+                     [{"order_id": c["order_id"], "weeks": c["weeks"], "items": c["items"],
+                       "escrow_tx": (c["escrow"] or {}).get("tx")} for c in out["contributions"]
+                      if c["order_id"] in {o["order_id"] for o in req.get("orders", [])} - before])
+        out = {**participant_view(w, pid), "signed": signed}
+    return out
+
+
+def _apply_approval(w, pid, req, pa, items, hold_last):
     asked = {wk: [i for i in its if i in items] for wk, its in req["weeks"].items()}
     req["weeks_approved"] = {wk: its for wk, its in asked.items() if its}
     # Ticking an item by name approves the scope and, for sensitive items, this round as well.

@@ -72,7 +72,8 @@ def install(w) -> SecurityContext:
     from .audit import ANCHOR_SCHEMA
     from .consent import SCHEMA as CONSENT_SCHEMA
     from .cosign import SCHEMA
-    w.store._keepalive.executescript(SCHEMA + ANCHOR_SCHEMA + CONSENT_SCHEMA)
+    from .passkey import SCHEMA as PASSKEY_SCHEMA
+    w.store._keepalive.executescript(SCHEMA + ANCHOR_SCHEMA + CONSENT_SCHEMA + PASSKEY_SCHEMA)
     sc = SecurityContext(w)
     w.security = sc
     sc.enrol_staff()
