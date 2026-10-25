@@ -21,10 +21,11 @@ from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
 
 from .ledger.base import Prepared
+from .ledger.source_tag import source_tag
 
 NETWORK_TESTNET = "xrpl:1"
 FACILITATOR_URL = os.environ.get("X402_FACILITATOR_URL", "https://xrpl-facilitator-testnet.t54.ai")
-SOURCE_TAG = int(os.environ.get("X402_SOURCE_TAG", "804681468"))
+SOURCE_TAG = int(os.environ.get("X402_SOURCE_TAG") or source_tag() or 804681468)  # team tag (see ledger/source_tag.py)
 
 app = FastAPI(title="Clinic records export (synthetic)")
 CLINIC_PATH = "/export"          # mounted at /clinic by the API server: GET /clinic/export
