@@ -157,3 +157,24 @@ def test_trust_and_case_details_never_reach_the_ledger(w):
     for word in ("trust", "fraud", "restricted", "impossible", "reviewer"):
         assert word not in memos
     assert "trust" not in payout.view(w, LAB, case["person"])
+
+
+def test_round_escrow_refused_because_finish_after_passed_is_retried_with_fresh_times(w, monkeypatch):
+    """With parallel settle a round EscrowCreate can queue past its FinishAfter; the ledger then answers
+    tecNO_PERMISSION. One retry with the times moved forward creates it."""
+    from types import SimpleNamespace
+    real, calls = payout._send, []
+
+    def send(w_, prep):
+        calls.append(prep)
+        if len(calls) == 1:
+            w_.ledger.clock = w_.ledger.now() + 60           # the queue took a minute
+            return SimpleNamespace(validated=True, success=False, result="tecNO_PERMISSION")
+        return real(w_, prep)
+    monkeypatch.setattr(payout, "_send", send)
+    now = w.ledger.now()
+    req = honest(w)
+    hid = payout._create(w, "bonus", LAB, req["person"], 999, 1, 1000, now + 20, now + 620, now + 680, "held")
+    assert hid and len(calls) == 2
+    h = w.store.one("SELECT * FROM holdbacks WHERE id=?", hid)
+    assert h["finish_after"] > w.ledger.now() and h["create_tx"] == calls[1].tx_hash
