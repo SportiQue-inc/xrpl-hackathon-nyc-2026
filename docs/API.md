@@ -199,8 +199,9 @@ A refused budget release returns the server's answer as evidence: `{"ok": false,
 
 ## Pay in two parts, review, penalties
 
-Each round pays 80% with each week's key-reveal escrow (`amount_xrp` on contributions is that 80%).
-The other 20% of the round is held in its own escrow (`kind: "round"`) until the review ends; the
+Each verified week pays on the continuity curve with its key-reveal escrow: 50% for the first week of a
+streak, +10 points per consecutive week, up to 90% (`amount_xrp` on contributions is that share).
+The rest of the round is held in its own escrow (`kind: "round"`) until the review ends; the
 default is to pay. A completion bonus (`kind: "bonus"`) is a separate escrow on the followed
 participant's request. Mock ledger: review 7 days, +14 days if fraud is suspected, response period
 3 days. Testnet: the same steps in seconds (`HOLDBACK_REVIEW_S`, `HOLDBACK_EXTEND_S`,

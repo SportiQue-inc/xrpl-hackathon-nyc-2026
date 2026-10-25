@@ -4,7 +4,7 @@
 
 ```
 need -> discover offers -> pre-trade quality certificate -> rank (grade x fixed price) -> contract
-     -> seller agent's policy (plug-in) -> XRPL escrow, key reveal -> fitness check -> 20% holdback
+     -> seller agent's policy (plug-in) -> XRPL escrow, key reveal -> fitness check (a market dataset exists in full: bought whole after inspection, retrospective schedule)
 ```
 
 `agentrail/market/exchange.py` is the pipeline. `agentrail/market/acts.py` runs it twice on the same 50 synthetic accounts from `fixtures/market_profiles.json`. Act 2 is Act 1 plus a policy: the exchange class is the same object, and only the policy in each seller's agent changes (`AutonomyPolicy` → `SensitivityPolicy`, a subclass). Tests check this.
@@ -17,7 +17,7 @@ The agent is a tool that executes what its owner set and signed. It never consen
 |---|---|
 | profile | per column: completeness, sampling rate, drift, source issuer; signed by the seller's agent (Ed25519) |
 | commitment | each row hashed with its own salt into a Merkle root inside the certificate. After the root is fixed, the buyer picks 12 random rows; the seller opens them with proofs; the buyer checks the proofs, value ranges, and completeness within two binomial SDs of the claim |
-| delivery | must hash to the same root, or the fitness check fails (`not_as_committed`) and the 20% holdback is withheld |
+| delivery | must hash to the same root, or the fitness check fails (`not_as_committed`) the seller's pass rate and grade fall and a refund claim is recorded off the ledger |
 | reputation | issuer credential × Beta(1+passed, 1+failed) mean of past fitness checks |
 | grade | A/B/C from checked completeness and reputation; the price is a fixed quote per tier × grade |
 

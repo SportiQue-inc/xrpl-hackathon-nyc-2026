@@ -28,13 +28,17 @@ def honest(w):
                 if r["status"] == "contributed" and r["person"] not in (HERO, fx))
 
 
-def test_round_pays_80_now_and_releases_the_held_20_by_default(w):
+def test_round_pays_on_the_continuity_curve_and_releases_the_held_part_by_default(w):
     req = honest(w)
-    o = w.store.one("SELECT price_drops FROM orders WHERE id=?", req["orders"][0]["order_id"])
-    assert o["price_drops"] == len(req["orders"][0]["items"]) * study.CELL_PRICE * 80 // 100
+    paid = []
+    for i, x in enumerate(req["orders"]):
+        o = w.store.one("SELECT price_drops FROM orders WHERE id=?", x["order_id"])
+        assert o["price_drops"] == len(x["items"]) * study.CELL_PRICE * min(90, 50 + 10 * i) // 100
+        paid.append(o["price_drops"])
     hb = holdbacks(w, req["person"])[0]
     assert hb["status"] == "held" and hb["review"] == "pass" and hb["create"]["tx"]
-    assert hb["amount_xrp"] == pytest.approx(sum(len(x["items"]) for x in req["orders"]) * 0.2 * 0.2)
+    full = sum(len(x["items"]) * study.CELL_PRICE for x in req["orders"])
+    assert hb["amount_xrp"] == pytest.approx((full - sum(paid)) / 1e6)
     before = w.ledger.balance_drops(w.engine.party(req["person"])["address"])
     r = payout.release_due(w)
     assert any(x["person"] == req["person"] for x in r["released"])

@@ -138,10 +138,9 @@ class AutonomyPolicy:
         bad = hard_gate(trade, b, self.excluded)
         if bad:
             return "refuse", f"blocked: {bad}"
-        if self.home == "MN" and b.get("country") != "MN" and trade.get("output") != "aggregate":
-            return "refuse", ("blocked: original sensitive data of participants in Mongolia is processed inside Mongolia "
-                              "(server requirement A/90); abroad only the results a study needs, under the separate "
-                              "transfer-abroad consent (PDPL 14.1)")
+        if self.home == "MN" and b.get("country") != "MN":
+            return "refuse", ("blocked in this demo: transfer abroad for participants in Mongolia rests on their PDPL art. 14.1 consent, "
+                              "and the A/90 server and access requirements are reviewed separately before a real service")
         g, score, why = trust_grade(b)
         classes = {data_class(c, trade) for c in trade["columns"]}
         nv = {k for k in classes if k in self.never or (k in ("genomic", "imaging", "imaging_pseudo") and "T3" in self.never)}

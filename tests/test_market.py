@@ -27,7 +27,7 @@ def test_act1_agents_trade_among_themselves(a1):
     assert sensor, "non-health data trades in the same market"
     for t in a1["exchange"].trades:
         if t["status"] == "settled":
-            assert t["txs"]["escrow_create"] and t["txs"]["escrow_finish"] and t["txs"]["holdback"]
+            assert t["txs"]["escrow_create"] and t["txs"]["escrow_finish"] and t["schedule"] == "retrospective"
 
 
 def test_act1_shows_sold_queued_and_blocked_with_reasons(a1):
@@ -36,9 +36,12 @@ def test_act1_shows_sold_queued_and_blocked_with_reasons(a1):
     assert all(t.get("why") for t in a1["exchange"].trades)
 
 
-def test_unfit_delivery_withholds_the_holdback(a1):
-    unfit = [t for t in a1["exchange"].trades if t["status"] == "settled_unfit"]
-    assert unfit and all(t["withheld_drops"] > 0 and t["signals"] for t in unfit)
+def test_retrospective_purchase_is_one_shot_and_an_unfit_delivery_lowers_the_seller(a1):
+    trades = a1["exchange"].trades
+    assert all(t["withheld_drops"] == 0 for t in trades if t["status"] in ("settled", "settled_unfit"))
+    unfit = [t for t in trades if t["status"] == "settled_unfit"]
+    assert unfit and all(t["signals"] and t["refund_claim_drops"] == t["paid_drops"] for t in unfit)
+    assert all(a1["exchange"].accounts[t["seller"]].failed > 0 for t in unfit)
 
 
 def test_reverse_direction_genetic_report(a1):

@@ -303,14 +303,14 @@ def _answer(w, req, hold_last=False) -> list[int]:
                         "record_hashes_sha256": sha256_hex(canonical(prov["record_hashes"]))})
         last = hold_last and i == len(granted) - 1
         r = OrderRequest(LAB, pa.id, pa.id, "cohort.fill", f"{pa.id}|w{wk}:{'+'.join(its)}", req["purpose"],
-                         sorted(its), payout.immediate(len(its) * CELL_PRICE), rows, decisions[wk], settle="escrow",
+                         sorted(its), payout.immediate(len(its) * CELL_PRICE, i), rows, decisions[wk], settle="escrow",
                          escrow_window_s=HOLD_WINDOW_S if last else 600)
         try:
             oid = w.engine.place_order(r)
         except (BudgetExceeded, NeedsHumanApproval) as e:
             w.store.log(LAB, "stop", f"{pa.id}: {e}")
             continue
-        req["orders"].append({"order_id": oid, "week": wk, "items": its, "hold": last})
+        req["orders"].append({"order_id": oid, "week": wk, "items": its, "hold": last, "full": len(its) * CELL_PRICE})
         oids.append(oid)
     req["status"] = "partly_open" if pending else "contributed"
     return oids

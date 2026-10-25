@@ -16,7 +16,7 @@ The agent is a tool that executes the person's signed consent; it is never a pro
 - Inside a study the person signed in advance (institution, purpose, loci, period), the agent delivers computed or aggregate outputs each round.
 - Anything new goes back to the person: a new institution, a new purpose, or a request for raw data.
 - There is no "proceed unless refused" mode.
-- Participants in Mongolia: their raw genomic data is out of this MVP. Transfer abroad is a separate consent (PDPL art. 14.1); the original sensitive data is processed inside Mongolia (server requirement A/90), and only the results a study needs go abroad.
+- Participants in Mongolia: their raw genomic data is out of this MVP. The legal basis for transfer abroad is consent under PDPL art. 14.1; the A/90 server and access requirements are reviewed separately before a real service. The demo uses synthetic data and Testnet only.
 
 ## Design (`agentrail/vault/genomic.py`)
 

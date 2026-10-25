@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import hashlib
 
-from .. import deid
+from .. import deid, payout_schedule
 from ..catalog import columns as catalog
 from ..catalog.scope import TouchID, verify_assertion
 from ..db import Store
@@ -103,20 +103,27 @@ def collect(pid: str, holds: list[str], sources: dict, opt_in_t2: bool = False) 
     return sorted(have), log
 
 
-def candidates(pid: str, cols: list[str], issuer_of) -> list[dict]:
+def bundles(cols: list[str]) -> list[tuple[str, str, list[str]]]:
+    """One bundle per (domain, tier): never two domains, never two tiers in one product."""
     out = []
     for dom, dcols in DOMAINS.items():
-        mine = [c for c in dcols if c in cols]
-        if not mine:
-            continue
-        tier = _tier(mine)
+        for t in ("T0", "T1", "T2", "T3"):
+            mine = [c for c in dcols if c in cols and catalog.CATALOG[c].tier == t]
+            if mine:
+                out.append((dom, t, mine))
+    return out
+
+
+def candidates(pid: str, cols: list[str], issuer_of) -> list[dict]:
+    out = []
+    for dom, tier, mine in bundles(cols):
         kind = {catalog.CATALOG[c].kind for c in mine}
         if kind & {"image", "variants"}:
             out.append({"domain": dom, "columns": mine, "weeks": 1, "tier": tier, "grade": "A", "rows": None,
                         "price_drops": quote(mine, 1, "A"),
                         "note": "pseudonymized imaging" if dom == "imaging" else "aggregate only, inside a signed study"})
             continue
-        ds = Dataset(f"{pid}:{dom}", pid, mine, WEEKS, 0.93, {c: issuer_of(c) for c in mine})
+        ds = Dataset(f"{pid}:{dom}:{tier}", pid, mine, WEEKS, 0.93, {c: issuer_of(c) for c in mine})
         ds.build(ds.id)
         cert = quality.Seller(pid).certify(ds.id, ds.shown.rows, {c: _spec(c) for c in mine}, ds.issuer,
                                            quality.reputation(0, 0, True), ds.shown, scope="person")
@@ -201,8 +208,8 @@ def match(post: dict, holds: list[str], home: str, never: list[str]) -> tuple[li
     if any(DOMAIN_OF.get(c) == "genomic" for c in cols):
         return [], "raw genomic data is never sold; only aggregates inside a study you signed"
     if home == "MN" and post["country"] != "MN":
-        return [], ("original sensitive data of participants in Mongolia is processed inside Mongolia; "
-                    "abroad only the results a study needs")
+        return [], ("not in this demo: transfer abroad for participants in Mongolia rests on their PDPL art. 14.1 "
+                    "consent, and the A/90 server and access requirements are reviewed separately before a real service")
     return cols, None
 
 
@@ -236,11 +243,19 @@ def scene(pid: str = "P-017", prof: dict | None = None, tap: bool = True, ledger
                          "matched": mc, "why": why or "matches your rules: prepared for your review"})
         if mc and post["country"] != home:
             searched[-1]["why"] += "; delivery abroad also needs your separate transfer-abroad consent"
-        if mc and not any(c.get("posting") and set(c["columns"]) == set(mc) for c in cands):
-            c = _sensitive_candidate(pid, post, mc, issuer)
+        for dom, tier, part in bundles(mc):          # a posting spanning domains becomes one product per domain
+            if any(c.get("posting") and set(c["columns"]) == set(part) for c in cands):
+                continue
+            c = _sensitive_candidate(pid, post, part, issuer)
             if c:
                 cands.append({**c, "direction": "demand", "buyer": post["institution"], "study": post["study"],
                               "transfer_abroad": post["country"] != home})
+    for c in cands:
+        # same rail, different schedule: what exists is bought whole after inspection; a study that
+        # also follows the person pays a baseline once and then follow-up weeks on the continuity curve
+        c["payout"] = (payout_schedule.hybrid(c["price_drops"], c["price_drops"] // max(1, c["weeks"]), [])
+                       if c["direction"] == "demand" and not c.get("image")
+                       else payout_schedule.retrospective(c["price_drops"]))
     device = TouchID(hashlib.sha256(pid.encode()).digest())
     for c in cands:
         c["review"] = review(c, p.get("auto_tiers", ["T0"]), never, device, tap)

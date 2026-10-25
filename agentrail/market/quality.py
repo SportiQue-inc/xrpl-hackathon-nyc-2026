@@ -11,9 +11,8 @@
   reputation  the issuer's Credential (on the ledger) and the seller's past fitness pass rate, as a
               Beta(1+pass, 1+fail) mean so a newcomer starts at 0.5, not at 0 or 1.
   grade       A, B or C from the sample-checked completeness and the reputation. The offer carries the
-              grade; price per grade is a fixed quote. The contract and the per-contribution holdback
-              make the grade binding: a delivery below it fails the fitness check and the held part is
-              withheld.
+              grade; price per grade is a fixed quote. A delivery below the grade fails the fitness
+              check: the seller's grade falls for every later offer and a refund claim is recorded.
 """
 from __future__ import annotations
 

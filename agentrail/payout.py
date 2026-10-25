@@ -1,7 +1,10 @@
 """Participant payment in two parts, integrity review, and the only penalties allowed.
 
-Each round: 80% is paid when the contribution is confirmed (the key-reveal escrow of each week);
-20% is held per round in a separate XRPL escrow until a short review ends. The default is to pay:
+Each round: every check that can run before payment runs first (consent, provenance, schema, units,
+ranges); a contribution that fails gets nothing. A verified week is paid by its key-reveal escrow on
+the continuity curve (payout_schedule.py): 50% for the first week, rising with each consecutive
+week; the rest is held per round in a separate XRPL escrow until a short review of what is visible
+only after opening. The default is to pay:
 the held part is released when the review passes or when its time runs out without a decision.
 It stays unpaid only when fraud is confirmed by a named person after the participant was told why
 and had time to respond. Code finds the signals; the LLM never judges.
@@ -28,7 +31,9 @@ from .engine import canonical
 from .ledger.conditions import condition_hex, fulfillment_hex, new_key
 
 XRP = 1_000_000
-IMMEDIATE_PCT = 80
+IMMEDIATE_PCT = 80          # only for orders placed without a streak (legacy callers)
+SPLIT = {"schedule": "prospective continuity curve", "first_week_pct": 50, "step_pct": 10, "max_pct": 90,
+         "held_covers": "what is visible only after opening"}
 MISSED_LIMIT = 2            # accepted rounds missed in a row -> automatic requests paused (not a penalty)
 BLOCK_DAYS = 180
 DAY = 86400
@@ -46,8 +51,14 @@ BOUNDS = {"sleep.daily": ("minutes", 0, 1000), "heart_rate.daily": ("resting_bpm
           "activity.daily": ("steps", 0, 100_000), "fatigue.survey": ("score_0_10", 0, 10)}
 
 
-def immediate(price_drops: int) -> int:
-    return price_drops * IMMEDIATE_PCT // 100
+def immediate(price_drops: int, streak: int | None = None) -> int:
+    """Share paid when the key is revealed. With a streak (consecutive verified weeks before this one)
+    it follows the continuity curve of payout_schedule: 50% for the first week, rising with each
+    consecutive week; the rest is held only for what can be seen after opening."""
+    if streak is None:
+        return price_drops * IMMEDIATE_PCT // 100
+    from .payout_schedule import FIRST_SHARE, MAX_SHARE, STEP_SHARE
+    return price_drops * min(MAX_SHARE, FIRST_SHARE + STEP_SHARE * streak) // 100
 
 
 def held(price_drops: int) -> int:
@@ -147,7 +158,7 @@ def _create(w, kind, study, pid, rid, cells, amount, finish_after, review_until,
         return None
     owner, dest = e.party(study)["address"], e.party(pid)["address"]
     key = new_key()
-    memo = f"{kind}:r{rid}|share:{100 - IMMEDIATE_PCT if kind == 'round' else 0}"
+    memo = f"{kind}:r{rid}|held_drops:{amount if kind == 'round' else 0}"
     prep = L.prepare_escrow_create(owner, dest, amount, condition_hex(key), cancel_after, memo,
                                    finish_after=finish_after)
     st = _send(w, prep)
@@ -215,8 +226,10 @@ def settle_round(w, study: str, req: dict, withdrawn: bool = False):
     if not delivered:
         return None
     cells = sum(len(o["items"]) for o in delivered)
-    full = sum(st[o["order_id"]]["price_drops"] for o in delivered) * 100 // IMMEDIATE_PCT
-    amount = full - sum(st[o["order_id"]]["price_drops"] for o in delivered)
+    full = sum(o["full"] if "full" in o else st[o["order_id"]]["price_drops"] * 100 // IMMEDIATE_PCT
+               for o in delivered)
+    paid_now = sum(st[o["order_id"]]["price_drops"] for o in delivered)
+    amount = full - paid_now
     win, now = windows(w.ledger), w.ledger.now()
     fa = now + win["review"]
     hid = _create(w, "round", study, pid, rid, cells, amount, fa, fa + win["extend"],
@@ -226,9 +239,9 @@ def settle_round(w, study: str, req: dict, withdrawn: bool = False):
     with w.store.tx() as c:
         c.execute("UPDATE standing SET missed_in_row=0 WHERE study=? AND person=?", (study, pid))
     h = w.store.one("SELECT * FROM holdbacks WHERE id=?", hid)
-    w.store.log(study, "holdback", f"{pid}: {IMMEDIATE_PCT}% paid with each week; {amount / XRP:g} XRP "
-                f"({100 - IMMEDIATE_PCT}%) held in escrow until review ends", {"tx_hash": h["create_tx"],
-                                                                                "url": _url(w, h["create_tx"])})
+    w.store.log(study, "holdback", f"{pid}: {paid_now / XRP:g} XRP paid with the weeks (continuity curve, "
+                f"{round(100 * paid_now / full)}% of {full / XRP:g}); {amount / XRP:g} XRP held in escrow until "
+                "review ends", {"tx_hash": h["create_tx"], "url": _url(w, h["create_tx"])})
     review(w, h, delivered, withdrawn)
     return hid
 
@@ -289,7 +302,7 @@ def open_case(w, study: str, pid: str, request_id: int, signals: list[dict]) -> 
         case = cur.lastrowid
     codes = sorted({s["code"] for s in signals})
     talk(w.store, study, pid, "integrity_notice", {"case": case, "signals": codes},
-         f"We are holding the {100 - IMMEDIATE_PCT}% review part of this round for up to "
+         f"We are holding the review part of this round for up to "
          f"{(win['review'] + win['extend']) // DAY or win['review'] + win['extend']}"
          f"{' days' if w.ledger.name == 'mock' else ' s (Testnet)'}: "
          + "; ".join(REASONS.get(c, c.replace("_", " ")) for c in codes)
@@ -503,7 +516,7 @@ def view(w, study: str, pid: str | None = None) -> dict:
               "signals": json.loads(c["signals"]), "status": c["status"], "respond_by": c["respond_by"],
               "response": c["response"], "reviewer_id": c["reviewer_id"]}
              for c in w.store.q(cq, *([study, pid] if pid else [study]))]
-    out = {"split": {"immediate_pct": IMMEDIATE_PCT, "held_pct": 100 - IMMEDIATE_PCT}, "holdbacks": hbs,
+    out = {"split": SPLIT, "holdbacks": hbs,
            "cases": cases}
     if pid:
         inp = decision_inputs(w.store, study, pid)
@@ -518,10 +531,12 @@ def card_terms(ledger) -> dict:
     win = windows(ledger)
     unit = "days" if ledger.name == "mock" else "s (Testnet)"
     k = DAY if ledger.name == "mock" else 1
-    return {"immediate_pct": IMMEDIATE_PCT, "held_pct": 100 - IMMEDIATE_PCT,
+    return {**SPLIT,
             "review": f"{win['review'] // k} {unit}", "extension_if_fraud_suspected": f"{win['extend'] // k} {unit}",
-            "text": (f"{IMMEDIATE_PCT}% of each round is paid when your contribution is confirmed. "
-                     f"{100 - IMMEDIATE_PCT}% is held for a short review and then paid, also if you withdraw. "
+            "text": ("Every check that can run before payment runs first; a week that fails it is not paid. "
+                     "A verified week pays 50% when your contribution is confirmed, and more with each "
+                     "consecutive week (up to 90%). The rest is held for a short review and then paid, also if "
+                     "you withdraw. "
                      "It is not paid only if fraud (fabricated data, someone else's device or data, several "
                      "accounts) is confirmed by a staff member after you were told why and could respond."),
             "you_can_always_stop": "Declining or withdrawing never affects future study requests, priority or "

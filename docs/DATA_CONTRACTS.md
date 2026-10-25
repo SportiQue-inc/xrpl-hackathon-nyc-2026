@@ -58,10 +58,12 @@ counts) is signed by the holder key. A file hash alone would only show the bytes
 
 `fitness.py`, `round.py`. Before any escrow (nothing paid yet): manifest signature, contract hash,
 issuer signatures and Credentials, export made for this holder, slots inside the window
-(`wrong_source`, `different_person`, `wrong_period`). After the key is revealed (80% paid): values
+(`wrong_source`, `different_person`, `wrong_period`), and the source's provenance seal: the sealed
+bytes are the ones the issuer signed and they open with this escrow's condition (`tampered`, 0 paid).
+After the key is revealed (the continuity-curve share paid): values
 match the attestation (`tampered`), completeness per column (`incomplete`), unit range with a
 factor-60 check (`wrong_unit`), drift from the profile the contract was agreed on (`drift`), the same
-series from another provider (`duplicate`). The 20% held for that contribution, in its own escrow,
+series from another provider (`duplicate`). The part held for that contribution, in its own escrow,
 is released only after a pass. A failure goes to a named reviewer; if the reviewer confirms it is
 unfit but not fraud, the held part returns to the study and nothing else changes for the provider
 (no exclusion, no repayment claim). A failed provider is replaced for the remaining windows.
