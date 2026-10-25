@@ -182,7 +182,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
         })),
         h("div", { class: "ew-navs" },
           h("p", { class: "ew-cap" }, "RESEARCHER WORKSPACE"),
-          nav("overview", "home", "Overview"), nav("directory", "users", "Directory"), nav("rounds", "layers", "Rounds"), nav("subprojects", "building", "Sub-projects"), nav("evidence", "shield", "Evidence"), nav("study", "list", "Study details")),
+          nav("overview", "home", "Overview"), nav("directory", "users", "Directory"), nav("rounds", "layers", "Rounds"), nav("subprojects", "building", "Sub-projects"), nav("evidence", "shield", "Evidence"), h("a", { class: "ew-nav", href: "/apps/contracts/post.html", target: "_blank", rel: "noopener" }, icon("gavel", 20), h("span", { class: "lbl" }, "Contracts ↗")), nav("study", "list", "Study details")),
         h("div", { class: "ew-div" }),
         h("div", { class: "ew-study" }, h("span", { class: "n" }, "Sleep and fatigue"), h("span", { class: "s" }, "Synthetic · live"),
           h("span", { class: "i" }, st.s ? st.s.study.irb : ""))),
