@@ -28,6 +28,17 @@ def _hex(s: str) -> str:
     return s.encode().hex().upper()
 
 
+def _retry(fn, tries: int = 4):
+    """Public Testnet nodes drop or stall requests under parallel load: retry read-only calls."""
+    for i in range(tries):
+        try:
+            return fn()
+        except Exception:  # httpx connect/read timeouts and similar transport errors
+            if i == tries - 1:
+                raise
+            time.sleep(0.5 * 2 ** i)
+
+
 class XrplLedger(Ledger):
     name = "testnet"
 
@@ -61,7 +72,7 @@ class XrplLedger(Ledger):
         """Local sequence counter so many payments can be signed and in flight at once."""
         with self._seq_lock:
             if account not in self._seq:
-                r = self.client.request(AccountInfo(account=account, ledger_index="current")).result
+                r = _retry(lambda: self.client.request(AccountInfo(account=account, ledger_index="current"))).result
                 self._seq[account] = int(r["account_data"]["Sequence"])
             seq = self._seq[account]
             self._seq[account] = seq + 1
@@ -71,7 +82,7 @@ class XrplLedger(Ledger):
         tx = Payment(account=source, destination=destination, amount=str(amount_drops),
                      invoice_id=invoice_id, sequence=self._next_sequence(source),
                      memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))])
-        signed = autofill_and_sign(tx, self.client, self.wallets[source])
+        signed = _retry(lambda: autofill_and_sign(tx, self.client, self.wallets[source]))
         return Prepared(tx_hash=signed.get_hash(), blob=encode(signed.to_xrpl()))
 
     def can_sign(self, address: str) -> bool:
@@ -113,7 +124,7 @@ class XrplLedger(Ledger):
             raise RuntimeError(f"payment rejected: {engine}")
 
     def lookup(self, tx_hash: str) -> TxStatus:
-        resp = self.client.request(Tx(transaction=tx_hash))
+        resp = _retry(lambda: self.client.request(Tx(transaction=tx_hash)))
         r = resp.result
         if not resp.is_successful() or r.get("error") == "txnNotFound":
             return TxStatus(found=False)
@@ -135,7 +146,7 @@ class XrplLedger(Ledger):
     def is_expired(self, blob: str) -> bool:
         tx = decode(blob)
         lls = tx.get("LastLedgerSequence")
-        expired = lls is not None and get_latest_validated_ledger_sequence(self.client) > lls
+        expired = lls is not None and _retry(lambda: get_latest_validated_ledger_sequence(self.client)) > lls
         if expired:
             with self._seq_lock:  # the sequence was never consumed: re-read it from the ledger
                 self._seq.pop(tx["Account"], None)
@@ -143,11 +154,15 @@ class XrplLedger(Ledger):
 
     def wait_validated(self, tx_hash: str, timeout: float = 30.0) -> TxStatus:
         end = time.time() + timeout
-        st = self.lookup(tx_hash)
-        while not st.validated and time.time() < end:
+        st = TxStatus(found=False)
+        while True:
+            try:
+                st = self.lookup(tx_hash)
+            except Exception:  # still unreachable after retries: keep polling until the deadline
+                pass
+            if st.validated or time.time() >= end:
+                return st
             time.sleep(1.0)
-            st = self.lookup(tx_hash)
-        return st
 
     def balance_drops(self, address: str) -> int:
         r = self.client.request(AccountInfo(account=address, ledger_index="validated")).result
