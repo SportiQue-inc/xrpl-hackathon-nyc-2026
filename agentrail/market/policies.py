@@ -139,8 +139,9 @@ class AutonomyPolicy:
         if bad:
             return "refuse", f"blocked: {bad}"
         if self.home == "MN" and b.get("country") != "MN" and trade.get("output") != "aggregate":
-            return "refuse", ("blocked: data of participants in Mongolia is stored and processed only in Mongolia; "
-                              "abroad only aggregate results that do not identify anyone")
+            return "refuse", ("blocked: original sensitive data of participants in Mongolia is processed inside Mongolia "
+                              "(server requirement A/90); abroad only the results a study needs, under the separate "
+                              "transfer-abroad consent (PDPL 14.1)")
         g, score, why = trust_grade(b)
         classes = {data_class(c, trade) for c in trade["columns"]}
         nv = {k for k in classes if k in self.never or (k in ("genomic", "imaging", "imaging_pseudo") and "T3" in self.never)}
