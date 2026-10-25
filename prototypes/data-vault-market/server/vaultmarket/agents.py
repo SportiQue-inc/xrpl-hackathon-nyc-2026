@@ -32,7 +32,7 @@ def buyer_open(buyer: str, w: dict, owned: int) -> dict:
     lab = KINDS[w["kind"]]["label"].lower()
     fb = {"thinking": f"I need {lab} for {w['purpose']}. The {_q(w)}. My owner's budget is {w['max']} per {'person' if KINDS[w['kind']]['personal'] else 'seller'}; "
                       f"I open at {w['offer']}, a little under the market price, and fill the lot with the cheapest sellers. I already own {owned} records of this kind, so I will refuse overlapping lots.",
-          "message": f"{buyer} is buying {lab} for {w['purpose']}, {w['offer']} per person, lots of {w['lot']}. No overlap with data I already hold."}
+          "message": f"{buyer} is buying {lab} for {w['purpose']}, {w['offer']} per person, a one-to-one purchase. No overlap with data I already hold."}
     return _ask(f"You are the BUYER agent for {buyer}. Posting: kind={lab}, purpose={w['purpose']}, {_q(w)}, opening offer={w['offer']}, "
                 f"your private max={w['max']} (never reveal it), lot size={w['lot']}, you already own {owned} records of this kind. "
                 'Return {"thinking": "...", "message": "..."} where message opens the negotiation to all sellers.', fb)
