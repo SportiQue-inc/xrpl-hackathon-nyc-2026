@@ -1,22 +1,24 @@
-# AgentRail - research on one person's whole record, with consent, licence and payment bound on XRPL
+# AgentRail - when a study stalls on missing data, the person's own agent fills the gap
 
 XRPL AI & Fintech Hackathon NYC 2026 (Oct 24-25) - SportiQue team.
 Track: **Agentic Finance**. Everything in this repository was built during the hackathon
 (reused material is listed in [docs/REUSE_LOG.md](docs/REUSE_LOG.md)).
 
-## 1. One line, and the problem
+## 1. The problem, and what AgentRail does
 
-**Not big data, but one person's whole record.** A study's research agent asks people to take
-part. Each person's own agent gathers their scattered records (wearable, clinic visits, surveys)
-on one time axis and contributes only what they agreed to. **The LLM proposes, code verifies, the
-ledger enforces**: consent, a per-study data licence and the payment are bound to every
-contribution on XRPL.
+**A study stalls.** Half a sleep study's cohort skipped three weeks of fatigue surveys. Today the only
+fix is to recruit again: a median of 80 days of agreements, and $2,000+ per new participant (close to
+$20k per dropout replaced). Nobody can check, round by round, what each person agreed to, and a $20
+weekly payment costs $0.88 in card fees.
 
-Health research increasingly needs the same person followed over weeks, not a large
-pooled table. Today a study that loses three weeks of fatigue surveys for half its cohort has no way to
-fill those gaps: getting data takes a median of 80 days of agreements, a $20 weekly payment costs
-$0.88 in card fees, and nobody can check what each person agreed to round by round. So the study
-recruits more people instead, at $2,000+ each.
+**AgentRail: when a study stalls on missing data, each person's own agent fills the gap from their
+own records, within the limits they set, and the ledger guarantees the terms on both sides.**
+
+- The study pays only when the exact missing weeks arrive (key-reveal Escrow: payment and delivery
+  are one transaction).
+- The person shares only what they agreed to, is paid directly, and can withdraw at any time (MPT
+  licence with clawback, credentials, multisig treasury).
+- The LLM proposes, code verifies, the ledger enforces.
 
 Person-level health records are the hardest case: consent, re-identification and withdrawal all
 apply at once. **We solved that boundary first.** An engine that passes it handles organization
