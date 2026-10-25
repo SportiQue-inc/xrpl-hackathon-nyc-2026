@@ -779,3 +779,13 @@ def test_ap4m_deal_counts_as_paid_in_summaries_and_income(market, monkeypatch):
     assert s["drops"] == round(c["total"] * 1000) > 0 and s["rail"] == "AP4M" and s["tx_url"].startswith(app.EVM_EXPLORER)
     income = market.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND (type LIKE 'EscrowFinish%' AND result='tesSUCCESS' OR type='AP4M VoucherRedeemed') GROUP BY asset", ("seller",))
     assert income and income[0]["amount"] == s["drops"] / 1e6
+
+
+def test_negotiation_prices_read_in_rlusd_when_a_unit_is_not_one_rlusd(monkeypatch):
+    from vaultmarket import app as web
+    class R: asset = "USD"; symbol = staticmethod(lambda: "test USD"); label = staticmethod(lambda: "RLUSD")
+    monkeypatch.setattr(web.M, "rail", R)
+    text = "4.3 is under the market. I can do 8.4 RLUSD; median of the last 30 trades, 36 vaults, 1 file, fit 80%."
+    out = web._units_to_asset(text, 5000, "test USD")
+    assert "0.0215 RLUSD is under" in out and "0.042 RLUSD;" in out and "30 trades" in out and "36 vaults" in out and "80%" in out
+    assert web._units_to_asset(text, 1_000_000, "test USD") == text

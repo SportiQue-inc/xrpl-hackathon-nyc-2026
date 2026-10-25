@@ -399,6 +399,18 @@ def sell_now(aid: str, pid: int, request: Request):
     return {"ok": True, "request": M.enqueue_sale(aid, w["kind"], pid)}
 
 
+_PRICE = re.compile(r"(?<![\w#.])(\d+\.\d+)(?![\d%])(\s*(?:RLUSD|test USD|USD|units?)\b)?")
+
+
+def _units_to_asset(text, unit_micro, asset):
+    """Agents negotiate in price units; when one unit is not one RLUSD (AP4M micro-prices), show their prices
+    in RLUSD like the cards do. Prices are the decimal numbers; counts (records, trades, files) are whole."""
+    if not text or not unit_micro or asset != M.rail.symbol() or unit_micro == 1_000_000 or M.rail.asset != "USD":
+        return text
+    k = unit_micro / 1e6
+    return _PRICE.sub(lambda g: f"{float(g.group(1)) * k:.4f}".rstrip("0").rstrip(".") + " " + M.rail.label(), text)
+
+
 @app.get("/api/contract/{cid}")
 def contract(cid: int, request: Request):
     c = M.s.one("SELECT * FROM contracts WHERE id = ?", (cid,))
@@ -414,6 +426,7 @@ def contract(cid: int, request: Request):
     for m in msgs:
         th = json.loads(m["thinking"] or "{}"); m["thinking"] = th.get("t", ""); m["by"] = th.get("by", "")
         m["name"] = _name(m["speaker"])
+        m["text"] = _units_to_asset(m["text"], c.get("unit_micro"), c.get("asset")); m["thinking"] = _units_to_asset(m["thinking"], c.get("unit_micro"), c.get("asset"))
     txs = M.s.q("SELECT * FROM txs WHERE contract = ? ORDER BY id", (cid,))
     for t in txs:
         t["reference"] = f"C{cid}-T{t['id']}"
