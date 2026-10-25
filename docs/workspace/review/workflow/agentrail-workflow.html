@@ -1,0 +1,350 @@
+<title>AgentRail 정본 워크플로</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; the swimlane and the tables scroll sideways inside their own boxes */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --fg:#17202b; --muted:#5a6675; --line:#d9dee5;
+  --accent:#1f5fbf; --accent-weak:#e6eefb; --person:#0f7a5c; --person-weak:#e3f4ee;
+  --ledger:#eef0f4; --warn:#a15c00; --warn-weak:#fdf1df; --bad:#b4232c; --bad-weak:#fbe7e8; --ok:#0f7a5c;
+  --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161d; --surface:#18202a; --fg:#e6ebf1; --muted:#9aa6b4; --line:#2c3743;
+  --accent:#7aa8f0; --accent-weak:#1c2b42; --person:#5cc9a4; --person-weak:#143229;
+  --ledger:#1d2530; --warn:#e8a54b; --warn-weak:#33261a; --bad:#f07a80; --bad-weak:#3a1d20; --ok:#5cc9a4; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161d; --surface:#18202a; --fg:#e6ebf1; --muted:#9aa6b4; --line:#2c3743;
+  --accent:#7aa8f0; --accent-weak:#1c2b42; --person:#5cc9a4; --person-weak:#143229;
+  --ledger:#1d2530; --warn:#e8a54b; --warn-weak:#33261a; --bad:#f07a80; --bad-weak:#3a1d20; --ok:#5cc9a4; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.65;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+main{max-width:1080px;margin:0 auto;display:grid;gap:40px}
+h1,h2,h3{text-wrap:balance;line-height:1.3;margin:0}
+h1{font-size:28px;font-weight:700}
+h2{font-size:20px;font-weight:700;padding-bottom:8px;border-bottom:1px solid var(--line)}
+h3{font-size:16px;font-weight:600}
+p{margin:0;max-width:68ch}
+section{display:grid;gap:16px;min-width:0}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.lead{color:var(--muted)}
+code,.mono{font-family:var(--mono);font-size:.88em}
+code{background:var(--ledger);padding:1px 5px;border-radius:3px}
+a{color:var(--accent)}
+.decide{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.dcard{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:6px;align-content:start}
+.dcard b{font-size:15px}
+.dcard .rec{font-size:13px;color:var(--accent);font-weight:600}
+.dcard p{font-size:14px;color:var(--muted)}
+.scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.scroll.svgbox{padding:8px}
+svg text{font-family:var(--sans)}
+.lane{fill:var(--surface)} .lane.alt{fill:var(--bg)} .lane.ledger{fill:var(--ledger)}
+.lanelabel{font-size:12.5px;font-weight:600;fill:var(--muted)}
+.box{fill:var(--accent-weak);stroke:var(--accent);stroke-width:1.2}
+.box.person{fill:var(--person-weak);stroke:var(--person)}
+.num{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+.bt{font-size:12.5px;font-weight:700;fill:var(--fg)}
+.bs{font-size:10.5px;fill:var(--muted)}
+.flow{fill:none;stroke:var(--fg);stroke-width:1.3;opacity:.7}
+.ahead{fill:var(--fg)}
+.loop{fill:none;stroke:var(--warn);stroke-width:1.2;stroke-dasharray:5 4}
+.looplabel{font-size:11px;fill:var(--warn)}
+.txline{stroke:var(--muted);stroke-dasharray:2 3;stroke-width:1}
+.txchip{fill:var(--surface);stroke:var(--muted);stroke-width:1}
+.txtext{font-family:var(--mono);font-size:10.5px;fill:var(--fg)}
+.note{font-size:13px;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:860px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-size:12px;font-weight:600;color:var(--muted);background:var(--bg);white-space:nowrap}
+td.n{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+td .tx{font-family:var(--mono);font-size:12px}
+.surfaces{display:grid;gap:16px}
+.surf{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px 18px;display:grid;gap:12px;min-width:0}
+.surf header{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline;justify-content:space-between}
+.src{font-family:var(--mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.steps{display:flex;flex-wrap:wrap;gap:4px}
+.st{font-family:var(--mono);font-size:11.5px;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.st.on{background:var(--accent-weak);border-color:var(--accent);color:var(--accent)}
+.st.part{background:var(--warn-weak);border-color:var(--warn);color:var(--warn)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.cols>div{min-width:0}
+.cols h4{margin:0 0 6px;font-size:12px;letter-spacing:.05em;text-transform:uppercase}
+.cols .miss h4{color:var(--warn)} .cols .contra h4{color:var(--bad)}
+ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--muted);align-items:center}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px}
+.pill.bad{background:var(--bad-weak);color:var(--bad)} .pill.warn{background:var(--warn-weak);color:var(--warn)} .pill.ok{background:var(--person-weak);color:var(--ok)}
+.handoff{display:grid;gap:10px}
+.handoff div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px;font-size:14px}
+.handoff b{display:block;margin-bottom:4px}
+</style>
+
+<main>
+<header style="display:grid;gap:10px">
+  <span class="eyebrow">SportiQue · AgentRail · 2026-10-25 12:30 UTC 기준</span>
+  <h1>AgentRail 정본 워크플로와 화면별 갭</h1>
+  <p class="lead">연구자가 기관과 서브 프로젝트를 정하는 순간부터 참여자가 철회하는 순간까지, 모든 화면이 따라야 할 한 가지 흐름입니다. 그 아래에 vault, /try, UniQLab 콘솔, 참여자 웹, UniQdata 앱, Figma가 이 흐름과 어디서 다른지 적었습니다.</p>
+  <p class="note">확인 방법: railway 사이트는 이 작업 환경의 네트워크에서 막혀 있어서, 배포된 커밋의 소스를 직접 읽었습니다. vault는 <code>claude/project-thread-06we25</code> a9570ed, /try·콘솔·참여자 웹은 main dbbf23b (PR #61), UniQdata 앱은 <code>fix/home-dailyq-routine-figma</code> e02cf27a입니다. Figma는 직접 열지 않았고, 앱 스레드가 Figma와 비교한 내용을 옮겼습니다.</p>
+</header>
+
+<section>
+  <h2>먼저 정해야 할 것 4가지</h2>
+  <div class="decide">
+    <div class="dcard"><b>1. 지급 비율</b><span class="rec">결정: 엔진 곡선으로 통일 (80/20 문구는 모두 수정)</span><p>엔진과 README는 연속성 곡선(첫 주 50%, 연속 주마다 +10%p, 최대 90%)인데, 콘솔·/demo·법률 매핑은 "80% 지급, 20% 검토"라고 씁니다.</p></div>
+    <div class="dcard"><b>2. 금액 단위</b><span class="rec">추천: 어디서나 RLUSD + 각주 한 줄</span><p>앱·/demo는 RLUSD, 콘솔·참여자 웹은 test USD, vault는 test USD와 XRP, Figma는 RLU입니다. 테스트넷에서는 "test USD가 RLUSD 대신"이라고 각주로만 밝히면 됩니다.</p></div>
+    <div class="dcard"><b>3. 연구자 콘솔 하나로</b><span class="rec">추천: /console(UniQLab)로 통일</span><p>/try의 "study console" 버튼은 /apps/live로 가고, Figma 기반 UniQLab 콘솔은 /console에 따로 있습니다. 서브 프로젝트는 /apps/live에만 있습니다.</p></div>
+    <div class="dcard"><b>4. vault의 자리</b><span class="rec">추천: 트랙 01(일반 데이터 거래) 전용으로 표시</span><p>vault는 진단 기록을 받지 않는 일반 데이터 마켓이라 건강 연구 흐름의 시작점이 될 수 없습니다. /try는 vault를 "personal data vault", 곧 UniQdata 역할처럼 소개합니다.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>정본 흐름 한 장</h2>
+  <div class="legend"><span class="pill ok">초록</span> 참여자가 직접 하는 단계 <span class="pill" style="background:var(--accent-weak);color:var(--accent)">파랑</span> 연구자·에이전트 단계 · 맨 아래 줄은 그 단계에서 원장에 남는 tx</div>
+  <div class="scroll svgbox"><svg viewBox="0 0 1414 440" width="1414" height="440" role="img" aria-label="정본 워크플로 스윔레인: 연구 정의부터 철회까지 11단계">
+<defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="ahead"/></marker></defs>
+<rect x="0" y="10" width="1414" height="84" class="lane"/>
+<text x="12" y="57.0" class="lanelabel">연구자 · UniQLab</text>
+<rect x="0" y="94" width="1414" height="84" class="lane alt"/>
+<text x="12" y="141.0" class="lanelabel">연구 에이전트</text>
+<rect x="0" y="178" width="1414" height="84" class="lane"/>
+<text x="12" y="225.0" class="lanelabel">참여자 에이전트</text>
+<rect x="0" y="262" width="1414" height="84" class="lane alt"/>
+<text x="12" y="309.0" class="lanelabel">참여자 · UniQdata</text>
+<rect x="0" y="346" width="1414" height="84" class="lane ledger"/>
+<text x="12" y="393.0" class="lanelabel">XRPL 원장</text>
+<path d="M238,52.0 H248" class="flow" marker-end="url(#ah)"/>
+<path d="M354,52.0 H360.0 V136.0 H364" class="flow" marker-end="url(#ah)"/>
+<path d="M470,136.0 H476.0 V220.0 H480" class="flow" marker-end="url(#ah)"/>
+<path d="M586,220.0 H592.0 V304.0 H596" class="flow" marker-end="url(#ah)"/>
+<path d="M702,304.0 H708.0 V136.0 H712" class="flow" marker-end="url(#ah)"/>
+<path d="M818,136.0 H824.0 V220.0 H828" class="flow" marker-end="url(#ah)"/>
+<path d="M934,220.0 H944" class="flow" marker-end="url(#ah)"/>
+<path d="M1050,220.0 H1056.0 V52.0 H1060" class="flow" marker-end="url(#ah)"/>
+<path d="M1166,52.0 H1176" class="flow" marker-end="url(#ah)"/>
+<path d="M1282,52.0 H1288.0 V304.0 H1292" class="flow" marker-end="url(#ah)"/>
+<path d="M1230.0,25.0 V14 H534.0 V191.0" class="loop" marker-end="url(#ah)"/>
+<text x="882.0" y="26" class="looplabel" text-anchor="middle">새 서브 프로젝트 요청은 4단계(범위 확인)로 다시 들어감</text>
+<rect x="134" y="25.0" width="104" height="54" rx="6" class="box"/>
+<text x="142" y="43.0" class="num">1</text>
+<text x="156" y="43.0" class="bt">연구 정의</text>
+<text x="142" y="65.0" class="bs">항목·주차·목적·IRB</text>
+<path d="M302.0,79.0 V366" class="txline"/>
+<rect x="250" y="366" width="104" height="44" rx="4" class="txchip"/>
+<text x="302.0" y="384" text-anchor="middle" class="txtext">multisig Payment</text>
+<rect x="250" y="25.0" width="104" height="54" rx="6" class="box"/>
+<text x="258" y="43.0" class="num">2</text>
+<text x="272" y="43.0" class="bt">예산 공동서명</text>
+<text x="258" y="65.0" class="bs">PI + 컴플라이언스</text>
+<rect x="366" y="109.0" width="104" height="54" rx="6" class="box"/>
+<text x="374" y="127.0" class="num">3</text>
+<text x="388" y="127.0" class="bt">요청 발송</text>
+<text x="374" y="149.0" class="bs">맞는 사람에게만</text>
+<rect x="482" y="193.0" width="104" height="54" rx="6" class="box"/>
+<text x="490" y="211.0" class="num">4</text>
+<text x="504" y="211.0" class="bt">범위 확인</text>
+<text x="490" y="233.0" class="bs">안=자동 · 밖=묻기</text>
+<path d="M650.0,331.0 V366" class="txline"/>
+<rect x="598" y="366" width="104" height="44" rx="4" class="txchip"/>
+<text x="650.0" y="384" text-anchor="middle" class="txtext">MPT 라이선스</text>
+<rect x="598" y="277.0" width="104" height="54" rx="6" class="box person"/>
+<text x="606" y="295.0" class="num">5</text>
+<text x="620" y="295.0" class="bt">동의 + 패스키</text>
+<text x="606" y="317.0" class="bs">끝까지 읽기 → 1회 서명</text>
+<path d="M766.0,163.0 V366" class="txline"/>
+<rect x="714" y="366" width="104" height="44" rx="4" class="txchip"/>
+<text x="766.0" y="377" text-anchor="middle" class="txtext">EscrowCreate</text>
+<text x="766.0" y="392" text-anchor="middle" class="txtext">Batch</text>
+<rect x="714" y="109.0" width="104" height="54" rx="6" class="box"/>
+<text x="722" y="127.0" class="num">6</text>
+<text x="736" y="127.0" class="bt">예치</text>
+<text x="722" y="149.0" class="bs">RLUSD 잠금</text>
+<rect x="830" y="193.0" width="104" height="54" rx="6" class="box"/>
+<text x="838" y="211.0" class="num">7</text>
+<text x="852" y="211.0" class="bt">봉인 전달</text>
+<text x="838" y="233.0" class="bs">출처 확인 먼저</text>
+<path d="M998.0,247.0 V366" class="txline"/>
+<rect x="946" y="366" width="104" height="44" rx="4" class="txchip"/>
+<text x="998.0" y="377" text-anchor="middle" class="txtext">EscrowFinish(K)</text>
+<text x="998.0" y="392" text-anchor="middle" class="txtext">holdback</text>
+<rect x="946" y="193.0" width="104" height="54" rx="6" class="box"/>
+<text x="954" y="211.0" class="num">8</text>
+<text x="968" y="211.0" class="bt">키 공개 = 지급</text>
+<text x="954" y="233.0" class="bs">50%→90% 곡선</text>
+<rect x="1062" y="25.0" width="104" height="54" rx="6" class="box"/>
+<text x="1070" y="43.0" class="num">9</text>
+<text x="1084" y="43.0" class="bt">번들 열람</text>
+<text x="1070" y="65.0" class="bs">원장에서 K 읽기</text>
+<rect x="1178" y="25.0" width="104" height="54" rx="6" class="box"/>
+<text x="1186" y="43.0" class="num">10</text>
+<text x="1200" y="43.0" class="bt">서브 프로젝트</text>
+<text x="1186" y="65.0" class="bs">범위 안이면 계약 없음</text>
+<path d="M1346.0,331.0 V366" class="txline"/>
+<rect x="1294" y="366" width="104" height="44" rx="4" class="txchip"/>
+<text x="1346.0" y="377" text-anchor="middle" class="txtext">Clawback</text>
+<text x="1346.0" y="392" text-anchor="middle" class="txtext">EscrowCancel</text>
+<rect x="1294" y="277.0" width="104" height="54" rx="6" class="box person"/>
+<text x="1302" y="295.0" class="num">11</text>
+<text x="1316" y="295.0" class="bt">철회</text>
+<text x="1302" y="317.0" class="bs">3가지 중 선택</text>
+</svg>
+</div>
+  <p class="note">0단계(한 번만): 기관은 <code>VERIFIED_ORG</code> Credential과 DepositPreauth, IRB는 만료일 있는 윤리 Credential, 연구 금고는 SignerList(PI + 컴플라이언스, 2명 중 2명)와 master key off. 참여자는 UniQdata intake로 기록을 모으고(출처 서명 stamp, MRI·CT·유전체는 DataQ 경로), 에이전트 규칙(자동으로 처리할 범위)을 정합니다.</p>
+</section>
+
+<section>
+  <h2>단계별 정본</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>#</th><th>단계</th><th>누가</th><th>화면</th><th>화면에 보이는 데이터</th><th>원장 tx</th></tr></thead>
+    <tbody>
+    <tr><td class="n">1</td><td><b>연구 정의</b></td><td>연구자</td><td>UniQLab 콘솔 · Rounds</td><td>기관 → 서브 프로젝트, 목표, 항목(heart_rate.daily 등), 주차, 목적(DUO), IRB 번호. 연구 에이전트가 빈칸(person-week)을 제안하고 코드가 다시 계산해 확인</td><td>없음</td></tr>
+    <tr><td class="n">2</td><td><b>예산 공동서명</b></td><td>PI + 컴플라이언스, 각자 기기에서</td><td>콘솔 · Budget</td><td>예산, 1회 한도, 목적, 만료(Verifiable Intent L2). "2명 중 1명 서명, 대기 중"</td><td class="tx">multisig Payment (금고 → 에이전트 계정). 한 명만: tefBAD_QUORUM</td></tr>
+    <tr><td class="n">3</td><td><b>요청 발송</b></td><td>연구 에이전트</td><td>콘솔 "Requests sent" · 앱 "받은 연구 제안"</td><td>받는 기관, 목적, 항목, 주차, 회차당 지급액(RLUSD). 사람이 수락하기 전에는 연구실이 그 사람을 모름</td><td>없음</td></tr>
+    <tr><td class="n">4</td><td><b>범위 확인</b></td><td>참여자 에이전트</td><td>앱 연구 기여 · "확인 필요" 목록</td><td>승인한 범위(기관·항목·목적·기간) 안이면 자동 처리. 범위 밖이나 새 목적은 사람에게. MRI·CT·유전체는 늘 새로 묻기. 금지 목적, 만료된 IRB는 차단</td><td>없음 (Credential을 읽기만 함)</td></tr>
+    <tr><td class="n">5</td><td><b>동의 + 패스키</b></td><td>참여자</td><td>동의 시트 (화면 위쪽이 보이는 bottom sheet)</td><td>기관과 처음 맺을 때 동의서 3~4장(연구 참여, 제3자 제공, 민감정보, 국외 이전은 예정된 경우만). 장마다 끝까지 읽어야 체크됨. 여러 요청을 골라 패스키 한 번으로 서명하되 기록은 동의마다 따로. MRI·CT·유전체는 일괄에서 빠짐</td><td class="tx">MPT 라이선스 발급. statement_hash는 6단계 memo로</td></tr>
+    <tr><td class="n">6</td><td><b>예치</b></td><td>연구 에이전트</td><td>앱 "지급액이 예치됐어요" · 콘솔 Escrow</td><td>회차별 금액, 잠금 조건, 마감(CancelAfter)</td><td class="tx">EscrowCreate (RLUSD, 조건 SHA-256(K)), 여러 주는 Batch. memo: 주문 id, 번들 해시, 동의 해시, statement_hash, L3, sub:&lt;id&gt;</td></tr>
+    <tr><td class="n">7</td><td><b>봉인 전달</b></td><td>참여자 에이전트</td><td>앱 전달 상태 · 콘솔 heatmap</td><td>보낸 항목과 주차, UniQdata 기록 해시. 지급 전에 출처 stamp 확인, 변조된 주는 0</td><td>없음 (원장 밖)</td></tr>
+    <tr><td class="n">8</td><td><b>키 공개 = 지급</b></td><td>참여자 에이전트</td><td>앱 지급 내역 · 콘솔 Settlement</td><td>지금 받은 몫(연속성 곡선 50%→90%)과 검토 중인 몫(7일 뒤 기본 지급). 원하면 받은 코인을 AMM으로 바꿈</td><td class="tx">EscrowFinish (K 공개) + holdback EscrowCreate → 7일 뒤 EscrowFinish</td></tr>
+    <tr><td class="n">9</td><td><b>번들 열람</b></td><td>연구자</td><td>콘솔 "Open bundle"</td><td>원장에서 읽은 K로 연 번들, "Opened · contents match what was sent". 라이선스가 없으면 키가 나오지 않음</td><td>없음 (K는 8단계 tx에서 읽음)</td></tr>
+    <tr><td class="n">10</td><td><b>서브 프로젝트 추가</b></td><td>연구자</td><td>콘솔 · 기관 구조</td><td>같은 기관 아래 새 서브 프로젝트. 승인한 범위 안이면 새 계약 없이 4단계로, 범위 밖은 사람에게</td><td class="tx">6·8단계와 같은 tx, memo에 sub:&lt;id&gt;</td></tr>
+    <tr><td class="n">11</td><td><b>철회</b></td><td>참여자</td><td>앱 "참여 관리" · 콘솔에서 그 사람 행이 회색으로</td><td>① 이번 회차 건너뛰기 ② 이후 요청 중단 ③ 열람 권한 철회(패스키). ③은 삭제 요청과 기관 확인 해시, 이미 받은 금액과 검토 중인 몫은 그대로</td><td class="tx">③만: Clawback (MPT), 안 풀린 예치는 EscrowCancel. 삭제 확인은 원장 밖</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>화면별 갭</h2>
+  <div class="legend"><span class="st on">파랑</span> 보여줌 <span class="st part">주황</span> 일부만 <span class="st">회색</span> 없음</div>
+  <div class="surfaces">
+
+  <article class="surf">
+    <header><h3>vault (Data Vault Market)</h3><span class="src">data-vault-market-production · 06we25 a9570ed</span></header>
+    <div class="steps"><span class="st">1 연구 정의</span><span class="st">2 예산</span><span class="st part">3 요청</span><span class="st part">4 범위 확인</span><span class="st part">5 동의</span><span class="st on">6 예치</span><span class="st on">7 전달</span><span class="st on">8 지급</span><span class="st on">9 열람</span><span class="st">10 서브 프로젝트</span><span class="st">11 철회</span></div>
+    <div class="cols">
+      <div class="miss"><h4>빠진 것</h4><ul>
+        <li>기관, IRB, 서브 프로젝트, 예산 공동서명이 없음. 구매자 예산만 있음</li>
+        <li>동의 시트와 패스키가 없음. 사람의 승인은 OK/Decline 버튼</li>
+        <li>MRI·CT·유전체, 철회와 Clawback, holdback이 없음</li>
+      </ul></div>
+      <div class="contra"><h4>정본과 어긋남</h4><ul>
+        <li>intake가 진단·처방·의무기록번호가 든 파일을 거절함(<code>intake.py</code> SENSITIVE_KEYS). 그런데 /try는 vault를 "personal data vault"로 소개해 UniQdata 역할로 읽힘</li>
+        <li>단위가 test USD와 XRP. 데모 리포트 페이지는 "Simulated XRP"와 "rewards"를 씀</li>
+        <li>prototype README는 k=5 묶음(lot)으로 판다고 하는데, 마켓 화면은 "one-to-one" 거래</li>
+        <li>UniQdata, UniQLab 이름이 화면 어디에도 없음</li>
+      </ul></div>
+    </div>
+  </article>
+
+  <article class="surf">
+    <header><h3>/try 허브</h3><span class="src">agentrail-try · apps/try/index.html · main dbbf23b</span></header>
+    <div class="steps"><span class="st part">1 연구 정의</span><span class="st on">2 예산</span><span class="st part">3 요청</span><span class="st on">4 범위 확인</span><span class="st part">5 동의</span><span class="st part">6 예치</span><span class="st">7 전달</span><span class="st part">8 지급</span><span class="st on">9 열람</span><span class="st on">10 서브 프로젝트</span><span class="st">11 철회</span></div>
+    <div class="cols">
+      <div class="miss"><h4>빠진 것</h4><ul>
+        <li>헬스케어 트랙에 철회 단계가 없음</li>
+        <li>"끝까지 읽어야 일괄 서명" 규칙이 설명에 없음</li>
+        <li>RLUSD 대체 각주가 트랙 01에만 있음</li>
+      </ul></div>
+      <div class="contra"><h4>정본과 어긋남</h4><ul>
+        <li>헬스케어 1번 "Set the scope and budget"이 참여자 범위(5단계)와 연구자 예산(2단계)을 한 단계로 섞음. 원칙은 "사람이 범위를 승인"인데 실행은 콘솔에서 예산 서명이라 순서가 거꾸로 읽힘</li>
+        <li>"Open the study console"이 <code>/apps/live/</code>로 감. Figma 기반 UniQLab 콘솔(<code>/console</code>)과 다른 화면</li>
+        <li>참여자 쪽 링크가 두 개(<code>/participant</code>, <code>/apps/live/me.html</code>)이고 동의 방식이 서로 다름(아래 참여자 웹)</li>
+        <li>3번 제목은 "Add a project", 본문과 다른 화면은 "sub-project"</li>
+      </ul></div>
+    </div>
+  </article>
+
+  <article class="surf">
+    <header><h3>UniQLab 콘솔</h3><span class="src">/console · apps/shared/researcher.js · 로고 수정 #63 배포 대기</span></header>
+    <div class="steps"><span class="st on">1 연구 정의</span><span class="st on">2 예산</span><span class="st on">3 요청</span><span class="st part">4 범위 확인</span><span class="st">5 동의</span><span class="st on">6 예치</span><span class="st on">7 전달</span><span class="st on">8 지급</span><span class="st on">9 열람</span><span class="st">10 서브 프로젝트</span><span class="st on">11 철회</span></div>
+    <div class="cols">
+      <div class="miss"><h4>빠진 것</h4><ul>
+        <li>기관 → 서브 프로젝트 구조와 서브 프로젝트 추가(10단계)가 없음. 지금은 <code>/apps/live</code>에만 있음</li>
+        <li>4단계 결과 중 "MRI·CT·유전체라서 다시 물음"이 따로 구분되어 보이지 않음</li>
+      </ul></div>
+      <div class="contra"><h4>정본과 어긋남</h4><ul>
+        <li>금액이 "test USD"(<code>ui.js</code> UNIT). 같은 엔진의 서브 프로젝트 로그는 "RLUSD"</li>
+        <li>"20% held for review", "Pay held 20% parts" 문구. 엔진은 연속성 곡선(<code>payout.py</code>: 50%에서 시작해 최대 90%)</li>
+        <li>라이브 로고가 아직 "UniQdata"(PR #63 머지됨, #61 배포 때 같이 올라감)</li>
+      </ul></div>
+    </div>
+  </article>
+
+  <article class="surf">
+    <header><h3>참여자 웹</h3><span class="src">/participant (participant.js) · /apps/live/me.html (me.js)</span></header>
+    <div class="steps"><span class="st">1 연구 정의</span><span class="st">2 예산</span><span class="st on">3 요청</span><span class="st on">4 범위 확인</span><span class="st on">5 동의</span><span class="st on">6 예치</span><span class="st on">7 전달</span><span class="st on">8 지급</span><span class="st">9 열람</span><span class="st part">10 서브 프로젝트</span><span class="st on">11 철회</span></div>
+    <div class="cols">
+      <div class="miss"><h4>빠진 것</h4><ul>
+        <li><code>/participant</code>에는 기관 관계와 서브 프로젝트가 안 보임</li>
+        <li><code>me.html</code>에는 요청별 화면, 예치·전달 상태, Tx 링크가 없음</li>
+      </ul></div>
+      <div class="contra"><h4>정본과 어긋남</h4><ul>
+        <li><code>/participant</code>는 정본과 가장 가까움(동의서마다 끝까지 읽기, 민감 항목은 일괄 제외, 철회 3종, 패스키). 금액은 test USD, 지급 타임라인은 20% 검토 몫 기준</li>
+        <li><code>me.html</code>은 "Agree once to this institution's scope" 한 번 서명(데모 키). 동의서별 읽기와 체크가 없음</li>
+        <li><code>me.html</code>의 철회는 "서브 프로젝트 중단 / 관계 전체 철회" 2가지. 정본은 3가지</li>
+      </ul></div>
+    </div>
+  </article>
+
+  <article class="surf">
+    <header><h3>UniQdata 앱 · 연구 기여 탭</h3><span class="src">Flutter · fix/home-dailyq-routine-figma e02cf27a (빌드 169) · 엔진 연결 캡처는 feat/research-consent-sheet-rlusd</span></header>
+    <div class="steps"><span class="st">1 연구 정의</span><span class="st">2 예산</span><span class="st on">3 요청</span><span class="st part">4 범위 확인</span><span class="st on">5 동의</span><span class="st">6 예치</span><span class="st">7 전달</span><span class="st part">8 지급</span><span class="st">9 열람</span><span class="st part">10 서브 프로젝트</span><span class="st">11 철회</span></div>
+    <div class="cols">
+      <div class="miss"><h4>빠진 것</h4><ul>
+        <li>빌드 169의 수락 흐름은 서버에 쓰지 않음(데모 서명). 예치, 전달 상태, 실제 지급 내역, Tx 링크가 없음. 엔진과 붙은 일괄 승인은 로컬 엔진 캡처(10~15번)에만 있음</li>
+        <li>철회 3종과 "참여 관리" 화면이 없음</li>
+        <li>에이전트 규칙(자동으로 처리할 범위) 설정 화면이 없음. 4단계의 "범위 안 = 자동"을 사람이 볼 곳이 없음</li>
+      </ul></div>
+      <div class="contra"><h4>정본과 어긋남</h4><ul>
+        <li>제안 금액이 680, 520 RLUSD 같은 한 번에 받는 금액이고 버튼은 "680 RLUSD 받고 수락". 정본은 전달한 주마다 예치하고 지급(엔진 데모는 회차당 0.1~1.2)</li>
+        <li>"Raw medical data is never shared with the institution" 문구. 유전체는 집계 통계만 가지만, 다른 연구는 가명 처리한 개인 단위 주간 기록이 전달되므로 범위를 좁혀 써야 함</li>
+      </ul></div>
+    </div>
+  </article>
+
+  <article class="surf">
+    <header><h3>Figma</h3><span class="src">UniQdata Research Proposal KR·EN Fixed · Research Contribution · English (앱 스레드의 비교 기준)</span></header>
+    <div class="steps"><span class="st part">1 연구 정의</span><span class="st">2 예산</span><span class="st on">3 요청</span><span class="st part">4 범위 확인</span><span class="st on">5 동의</span><span class="st part">6 예치</span><span class="st part">7 전달</span><span class="st part">8 지급</span><span class="st">9 열람</span><span class="st">10 서브 프로젝트</span><span class="st part">11 철회</span></div>
+    <div class="cols">
+      <div class="miss"><h4>빠진 것</h4><ul>
+        <li>Research Proposal 프레임은 제안 → 상세 → 수락까지. 예치·지급·철회 프레임은 Research Contribution · English 쪽(P3~P6)에만 있음</li>
+      </ul></div>
+      <div class="contra"><h4>정본과 어긋남</h4><ul>
+        <li>단위 "RLU". 앱은 RLUSD로 바꿔 구현함</li>
+        <li>"예상 보상": 앱은 "예상 지급액"으로 바꿈(보상/reward는 쓰지 않는 표현)</li>
+        <li>"식별 불가능한 변이 수준 통계": 재식별 불가 주장에 가까워 앱은 "개인 단위가 아닌 변이 수준 집계 통계"로 바꿈</li>
+        <li>P4 지급 화면이 20% 검토 몫 기준(콘솔과 같은 문제)</li>
+      </ul></div>
+    </div>
+  </article>
+  </div>
+</section>
+
+<section>
+  <h2>용어 정본</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>개념</th><th>정본 표기</th><th>지금 다르게 쓰는 곳</th></tr></thead>
+    <tbody>
+      <tr><td>결제 단위</td><td><b>RLUSD</b>. 테스트넷 화면에는 각주 "Testnet: test USD stands in for RLUSD" 한 줄</td><td>콘솔·참여자 웹 "test USD", vault "test USD"/XRP/"Simulated XRP", Figma "RLU"</td></tr>
+      <tr><td>연구자 제품</td><td><b>UniQLab</b></td><td>콘솔 라이브 로고 "UniQdata"(#63으로 수정, 배포 대기)</td></tr>
+      <tr><td>참여자 제품</td><td><b>UniQdata</b> (연구 기여 탭)</td><td>vault는 "Data Vault Market"이라 UniQdata와 연결이 안 보임</td></tr>
+      <tr><td>범위</td><td><b>승인한 범위</b> = 기관·항목·목적·기간. 범위 안은 에이전트가 처리, 범위 밖이나 새 목적은 다시 묻기, MRI·CT·유전체는 매번 새 패스키</td><td>me.html "institution's scope"(항목·기간 표시 약함), /try 3번 "project"</td></tr>
+      <tr><td>단위 조직</td><td><b>기관 → 서브 프로젝트</b> (sub-project)</td><td>/try "project", "follow-up"</td></tr>
+      <tr><td>돈</td><td><b>참여 지급액 / payment</b></td><td>Figma "예상 보상", vault 리포트 "rewards"</td></tr>
+      <tr><td>지급 방식</td><td>전달한 주마다 예치. 키 공개 때 연속성 곡선 몫(50%→90%), 나머지는 7일 검토 뒤 기본 지급</td><td>콘솔·/demo·Figma "80% / 20%", 앱 "N RLUSD 받고 수락"(한 번에)</td></tr>
+      <tr><td>철회</td><td><b>이번 회차 건너뛰기 · 이후 요청 중단 · 열람 권한 철회</b></td><td>me.html 2가지, 앱·vault 없음</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>담당 스레드에 보내는 것</h2>
+  <div class="handoff">
+    <div><b>Prototype a personal data vault marketplace</b>vault를 트랙 01(일반 데이터 거래) 화면이라고 상단에 표시하고, 건강 기록은 받지 않는다는 점을 /try 설명과 맞추기. 단위는 RLUSD + 테스트넷 각주. 리포트의 "rewards"와 "Simulated XRP" 정리. README의 k=5 묶음과 화면의 one-to-one 중 하나로 맞추기.</div>
+    <div><b>Build app pages for before/after video</b> (/try, 콘솔, 참여자 웹)/try 헬스케어 1번을 "연구자 예산"과 "참여자 범위" 두 단계로 나누고 철회 단계 추가. "study console" 링크를 /console로 통일하고 서브 프로젝트 패널을 /console로 옮기기. 콘솔·참여자 웹 금액을 RLUSD + 각주로. 20% 문구를 엔진 곡선에 맞추기. me.html 동의를 /participant의 동의서별 읽기 방식으로, 철회를 3가지로. PR #61 배포가 끝난 뒤에 진행.</div>
+    <div><b>Build research contribution UI from Figma</b> (UniQdata 앱)"N RLUSD 받고 수락"을 "주마다 지급, 최대 N RLUSD"로. "Raw medical data is never shared" 문구 범위 좁히기. 철회 3종과 에이전트 규칙 화면은 홈 수정 뒤 다음 순서로. Figma의 RLU·보상·식별 불가 문구는 앱처럼 바꾸도록 Figma에도 반영.</div>
+    <div><b>Build LLM data procurement agents on XRPL</b> (엔진)지급 비율 결정만 필요. 화면을 곡선에 맞추면 엔진 변경 없음. 80/20으로 가면 <code>payout.py</code>와 README를 바꿔야 함.</div>
+  </div>
+</section>
+</main>
