@@ -2,7 +2,7 @@
 // weekly status (P3), payment timeline (P4), stop or withdraw (P5), review notice (P6), and the
 // ledger receipt (R3). Talks to the participant's own agent endpoints: GET /api/p/{pid} and friends.
 
-import { engine, watch } from "./api.js";
+import { engine, watchSelf } from "./api.js";
 import {
   h, render, tag, icon, xrp, short, sum, day, ledgerDay, weeksLabel, txLink, banner, busy, WEEK_STATE, holdbackState,
   ITEM_CLASS, SIGNAL,
@@ -10,8 +10,8 @@ import {
 
 const SOURCE = { wearable: "Wearable", survey_app: "Survey app", clinic_export: "Clinic export" };
 
-export function mountParticipant(root, { base = "", pid = "P-017", embedded = false } = {}) {
-  const api = engine(base);
+export function mountParticipant(root, { base = "", pid = "P-017", embedded = false, token } = {}) {
+  const api = engine(base, { token });
   const st = { p: null, view: "request", rid: null, picked: null, consent: { sensitive: false, sharing: true },
                preview: null, sent: null, anim: 0, revoke: null, error: null, toast: null, showAll: false,
                sheet: null, open: new Set(), details: false };
@@ -27,9 +27,9 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     }
     draw();
   }
-  const watcher = watch(api, () => {
+  const watcher = watchSelf(api, pid, (v) => {
     const typing = document.activeElement && root.contains(document.activeElement) && /INPUT|TEXTAREA/.test(document.activeElement.tagName);
-    if (!typing && !st.sheet && !st.anim) load();
+    if (!typing && !st.sheet && !st.anim) { st.p = v; st.error = null; draw(); }
   });
 
   const current = () => {

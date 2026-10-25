@@ -122,10 +122,10 @@ const ACTIVITY = {
 
 // ---------------- app ----------------
 
-export function mountResearcher(root, { base = "", embedded = false, basePath = "" } = {}) {
-  const api = engine(base);
+export function mountResearcher(root, { base = "", embedded = false, basePath = "", token } = {}) {
+  const api = engine(base, { token });
   const st = { s: null, events: [], model: null, route: parseRoute(), filters: { q: "", status: "", consent: "" },
-               studyMenu: false, signers: new Set(["owner"]), lastApprove: null, sendResult: null, error: null,
+               studyMenu: false, approvalReq: null, lastApprove: null, sendResult: null, error: null,
                goal: "", flash: new Set() };
   root.classList.add("ar");
   if (embedded) root.classList.add("embedded");
@@ -142,6 +142,10 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
     try {
       st.s = await api.study();
       if (!st.s.approval || !st.s.approval.tx) st.s.approval = null;   // {} until the budget is signed
+      // Contributions and withdrawals carry the study pseudonym only; the cohort table maps it to a row.
+      const byPseudonym = new Map(st.s.heatmap.rows.map((r) => [r.pseudonym, r.person]));
+      for (const x of [...st.s.contributions, ...st.s.withdrawals]) if (!x.person) x.person = byPseudonym.get(x.pseudonym);
+      if (st.approvalReq && st.approvalReq.status === "open") st.approvalReq = await api.approval(st.approvalReq.id);
       st.model = buildModel(st.s, st.events);
       st.error = null;
     } catch (e) {
@@ -590,17 +594,22 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
         h("div", { class: stepCls(3) }, h("span", { class: "n" }, "3"), h("div", { class: "ar-card col" },
           h("h2", {}, "Budget approval"),
           h("p", { class: "small muted" }, `Treasury ${short(s.study.treasury.address, 4, 3)} · needs ${s.study.treasury.quorum} of ${s.study.treasury.signers.length} signers`),
-          h("div", { class: "ar-grid k2e" }, s.study.treasury.signers.map((who) => h("label", {
-            class: `ar-signer${st.signers.has(who) ? " on" : ""}` },
-            h("input", { type: "checkbox", checked: st.signers.has(who), disabled: status !== "draft",
-              onchange: (e) => { e.target.checked ? st.signers.add(who) : st.signers.delete(who); draw(); } }),
-            h("div", { class: "col", style: { gap: "2px" } }, h("b", {}, who === "owner" ? "Owner" : "Compliance"),
-              h("span", { class: "small muted" }, s.approval && s.approval.signers.includes(who) ? "Signed" : st.signers.has(who) ? "Will sign" : "Waiting"))))),
+          h("div", { class: "ar-grid k2e" }, s.study.treasury.signers.map((who) => {
+            const req = st.approvalReq;
+            const signed = (s.approval && s.approval.signers.includes(who)) || (req && req.signatures.some((x) => x.signer === who));
+            return h("div", { class: `ar-signer${signed ? " on" : ""}` },
+              h("div", { class: "col", style: { gap: "2px" } }, h("b", {}, who === "owner" ? "Owner" : "Compliance"),
+                h("span", { class: "small muted" }, signed ? "Signed on their device" : req ? "Waiting for their signature" : "Not asked yet")),
+              req && req.status === "open" && !signed && h("button", { class: "ar-btn sm", onclick: async (e) => {
+                const r = await busy(e.target, "Signing on their device", () => api.signApproval(who, req.id), err);
+                if (r) { st.approvalReq = r; st.lastApprove = r; load(); }
+              } }, "Sign on their device"));
+          })),
           approveBanner(),
-          h("button", { class: "ar-btn primary", disabled: status !== "draft" || !st.signers.size, onclick: async (e) => {
-            const r = await busy(e.target, "Confirming on XRPL", () => api.approveBudget([...st.signers]), err);
-            if (r) { st.lastApprove = r; load(); }
-          } }, `Approve budget with ${st.signers.size} signer${st.signers.size === 1 ? "" : "s"}`))),
+          h("button", { class: "ar-btn primary", disabled: status !== "draft" || (st.approvalReq && st.approvalReq.status === "open"), onclick: async (e) => {
+            const r = await busy(e.target, "Asking both signers", () => api.openApproval(), err);
+            if (r) { st.approvalReq = r; st.lastApprove = null; draw(); }
+          } }, "Ask both signers to approve the budget"))),
         h("div", { class: stepCls(4) }, h("span", { class: "n" }, "4"), h("div", { class: "ar-card col" },
           h("h2", {}, "Send participation requests"),
           status === "sent" ? h("div", { class: "col" },
@@ -628,7 +637,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
       h("div", { class: "ar-card" }, h("div", { class: "spread" },
         h("span", { class: "small muted" }, "Demo: start again with a fresh synthetic cohort (50 participants)."),
         h("button", { class: "ar-btn sm", onclick: async (e) => {
-          if (await busy(e.target, "Resetting", () => api.reset(), err)) { watcher.restart(); st.lastApprove = null; st.signers = new Set(["owner"]); load(); }
+          if (await busy(e.target, "Resetting", () => api.reset(), err)) { watcher.restart(); st.lastApprove = null; st.approvalReq = null; load(); }
         } }, "Reset demo"))));
   }
 
@@ -638,10 +647,15 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
       return banner("green", icon("check", 16), h("span", {}, `Approved by ${st.s.approval.signers.length} signers · ${xrp(st.s.approval.amount_xrp)} `,
         txLink(st.s.approval, { title: "Study budget approved by 2 signers", kind: "Payment", kindNote: "multi-signed", amount: st.s.approval.amount_xrp })));
     }
-    if (r && !r.ok) {
-      return banner("amber", h("div", {}, h("b", {}, `Refused by the ledger: ${r.signers ? r.signers.length : 1} of 2 signatures`),
-        h("div", { class: "small" }, "The rules worked: the treasury needs both signers."),
-        h("div", { class: "tiny" }, r.engine_result || "")));
+    const req = st.approvalReq;
+    if (req && req.status === "open") {
+      const n = req.signatures.length;
+      return banner("amber", h("div", {}, h("b", {}, `${n} of ${req.quorum} signed, waiting`),
+        h("div", { class: "small" }, n ? "Nothing moves on the ledger until the second signer signs on their own device."
+          : "Each signer sees the amount and destination on their own device before signing.")));
+    }
+    if (r && r.ok === false) {
+      return banner("amber", h("div", {}, h("b", {}, "Refused"), h("div", { class: "tiny" }, r.message || r.result || "")));
     }
     return null;
   }
