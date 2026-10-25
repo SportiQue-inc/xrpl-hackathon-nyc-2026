@@ -369,3 +369,9 @@ def test_clinic_export_is_paid_over_real_http_402(w):
     assert ok.status_code == 200 and ok.json()["receipt"]["success"] and "PAYMENT-RESPONSE" in ok.headers
     again = c.get("/export", params=q, headers={"PAYMENT-SIGNATURE": hdr})
     assert again.status_code == 402 and again.json()["error"] == "payment_already_used"
+
+
+@pytest.mark.parametrize("network", ["mock", "testnet"])
+def test_participant_reports_the_configured_ledger(w, monkeypatch, network):
+    monkeypatch.setattr(w.ledger, "name", network)
+    assert study.participant_view(w, HERO)["ledger"] == network
