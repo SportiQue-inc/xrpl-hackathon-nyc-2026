@@ -678,12 +678,37 @@ def test_amounts_read_as_the_configured_unit_but_the_ledger_key_stays(market, mo
     assert 'test USD' not in (static / "demo.html").read_text()
 
 
-def test_guided_tour_covers_seller_and_buyer_paths_and_can_be_replayed():
+def test_judge_walkthrough_clicks_real_controls_and_every_screen_has_help():
     static = Path(__file__).resolve().parents[1] / "prototypes/data-vault-market/server/vaultmarket/static"
     tour = (static / "tour.js").read_text()
     for page in ("market.html", "vault.html", "assets.html", "demo.html"):
         assert '<script src="/static/tour.js"></script>' in (static / page).read_text()
     assert 'tourInit()' in (static / "common.js").read_text()
-    for topic in ("SHA-256(K)", "CancelAfter", "Merkle", "#buyForm", "#activity", "Link my wallet", "stands in for RLUSD"):
+    for topic in ("SHA-256(K)", "CancelAfter", "Merkle", "#buyForm", "#activity", "stands in for RLUSD", "Judge walkthrough", "help-btn", "coach-skip"):
         assert topic in tour
-    assert tour.count('ko: [') == tour.count('en: [') >= 15 and 'tour-skip' in tour and 'tour-link' in tour
+    assert tour.count("click: true") >= 8 and "wait: tourSaleDone" in tour and 'tourGet("vm_tour_lang") || "en"' in tour
+    for path in ('"/"', '"/vault"', '"/assets"', '"/demo"', '"/report"'):
+        assert f"{path}: {{help:" in tour
+    assert "vm_seen_" in tour and "SETTINGS_HELP" in tour
+
+
+def test_chat_buttons_are_distinct_and_dismissable(market, monkeypatch):
+    client, web = _demo_client(market, monkeypatch)
+    offers = [{"id": 1, "kind": "gps_track", "purpose": "route-safety model", "buyer_name": "Atlas Maps", "expected": 12},
+              {"id": 2, "kind": "gps_track", "purpose": "route-safety model", "buyer_name": "Atlas Maps", "expected": 12},
+              {"id": 3, "kind": "gps_track", "purpose": "aggregation and resale", "buyer_name": "DataCo-op", "expected": 12}]
+    labels = [b["t"] for b in web._offer_buttons(offers)]
+    assert len(labels) == len(set(labels)) == 2 and all(l.startswith("Sell to ") for l in labels)
+    market.chat("demo-vault", "agent", "pick one", [{"t": "x", "do": "interest", "posting": 1}])
+    cid = market.s.one("SELECT MAX(id) id FROM chat WHERE account='demo-vault'")["id"]
+    r = client.post(f"/api/account/demo-vault/chat/{cid}/act", json={"dismiss": True})
+    assert r.json()["ok"] and market.s.one("SELECT done FROM chat WHERE id=?", (cid,))["done"] == 1
+
+
+def test_demo_explains_each_agents_result_from_recorded_reasons(market, monkeypatch):
+    client, web = _demo_client(market, monkeypatch)
+    a = client.get("/api/demo?minutes=0").json()["agents"][0]
+    assert {"why", "declines", "files", "floor_ratio"} <= set(a) and a["name"] in a["why"]
+    line = web._why("Ravi", 0, [], 1.1, {"mode": "auto", "blocks": []}, [{"kind": "gps_track", "n": 3}], {"decline": 4, "agree": 1})
+    assert "budgets stayed under its floor" in line and "4 of 4" in line
+    assert client.get("/manual").status_code == 200

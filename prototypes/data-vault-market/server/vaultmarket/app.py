@@ -232,19 +232,59 @@ def _trade_summaries(contracts, account):
 
 def _agent_styles(since=0):
     receipts=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,COUNT(DISTINCT t.contract) sales,SUM(t.drops) micro FROM txs t JOIN contracts c ON c.id=t.contract WHERE t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' GROUP BY t.src,t.asset", (since,))
-    styles=[]
+    styles=[];verdicts=_seller_verdicts(since)
     for row in M.s.q("SELECT id FROM accounts WHERE id NOT LIKE 'u-%' AND id!='demo-vault'"):
         a=M.acct(row['id']);rules=a['sell_agent'];mins=rules.get('min',{})
         ratio=sum(mins.get(k,v['price'])/v['price'] for k,v in KINDS.items())/len(KINDS)
         style='Approval first' if rules.get('mode')=='ask' else 'Price firm' if ratio>=1 else 'Flexible pricing'
         rs=[r for r in receipts if r['src']==a['id']]
-        styles.append({'id':a['id'],'name':a['name'],'style':style,'blocked_purposes':rules.get('blocks',[]),'approval':rules.get('mode'),'minimums':mins,'floor_ratio':round(ratio,3),'budget':a['buy_agent'].get('auto_limit') if a.get('buy_agent') else None,'sales':sum(r['sales'] for r in rs),'income':[{'asset':r['asset'],'amount':r['micro']/1e6} for r in rs]})
+        held=M.s.q("SELECT kind,COUNT(*) n FROM files WHERE account=? AND status='listed' GROUP BY kind",(a['id'],))
+        sales=sum(r['sales'] for r in rs);v=verdicts.get(a['id'],{})
+        styles.append({'id':a['id'],'name':a['name'],'style':style,'blocked_purposes':rules.get('blocks',[]),'approval':rules.get('mode'),'minimums':mins,'floor_ratio':round(ratio,3),'budget':a['buy_agent'].get('auto_limit') if a.get('buy_agent') else None,'sales':sales,'income':[{'asset':r['asset'],'amount':r['micro']/1e6} for r in rs],
+                       'files':sum(h['n'] for h in held),'kinds':len(held),'declines':{k:n for k,n in v.items() if k!='agree'},'why':_why(a['name'],sales,rs,ratio,rules,held,v)})
     return sorted(styles,key=lambda a:(-a['sales'],a['name']))
+
+
+DECLINE_WHY={'decline':"buyers' budgets stayed under its floor",'conditions not met':"its files didn't meet buyers' record and field conditions",
+             'refused by buyer: overlap':"buyers already owned its records",'waiting for owner':"each sale waits for its owner's approval",'outbid':"cheaper sellers filled the lot"}
+
+
+def _seller_verdicts(since):
+    """What each seller's agent answered in recorded negotiations: {seller: {verdict: count}}."""
+    out={}
+    for c in M.s.q("SELECT trace FROM contracts WHERE created>=? AND trace IS NOT NULL",(since,)):
+        try:
+            for a,verdict in (json.loads(c['trace'] or '{}').get('verdicts',{}).get('sellers',{}) or {}).items():
+                d=out.setdefault(a,{});d[verdict]=d.get(verdict,0)+1
+        except (ValueError,TypeError,AttributeError):
+            continue
+    return out
+
+
+def _why(name,sales,rs,ratio,rules,held,v):
+    """One plain line, built only from the agent's settings and its recorded negotiation outcomes."""
+    setting=f"floor {ratio:.0%} of list price, {'asks the owner first' if rules.get('mode')=='ask' else 'sells on its own'}, {sum(h['n'] for h in held)} listed files in {len(held)} kinds"
+    if rules.get('blocks'):
+        setting+=f", refuses {len(rules['blocks'])} purpose{'s' if len(rules['blocks'])>1 else ''}"
+    lost={k:n for k,n in v.items() if k!='agree'}
+    top=max(lost,key=lost.get) if lost else None
+    if sales:
+        earned=" + ".join(f"{r['micro']/1e6:.2f} {M.rail.label() if r['asset']=='test USD' else r['asset']}" for r in rs)
+        tail=f"; {lost[top]} other negotiation{'s' if lost[top]>1 else ''} failed because {DECLINE_WHY.get(top,top)}" if top else ""
+        return f"{name}: {sales} sale{'s' if sales>1 else ''}, {earned}. {setting}{tail}."
+    if top:
+        return f"{name}: no sales. Mostly because {DECLINE_WHY.get(top,top)} ({lost[top]} of {sum(lost.values())} negotiations). {setting}."
+    return f"{name}: no sales yet; no buyer has asked for its data in this period. {setting}."
 
 
 @app.get("/demo")
 def demo_page():
     return FileResponse(os.path.join(STATIC,"demo.html"))
+
+
+@app.get("/manual")
+def manual_page():
+    return FileResponse(os.path.join(STATIC,"manual.html"))
 
 
 @app.get("/report")
@@ -617,7 +657,30 @@ def _amt(w) -> str:
 
 
 def _offer_buttons(offers) -> list[dict]:
-    return [{"t":f"{KINDS[w['kind']]['label']} · {w['purpose']} · ~{_amt(w)}","do":"interest","posting":w["id"]} for w in offers]
+    seen, out = set(), []
+    for w in offers:   # one button per buyer and purpose; three identical labels read as a bug
+        key = (w["kind"], w["purpose"], w.get("buyer_name"))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"t": f"Sell to {w.get('buyer_name') or 'buyer'} · {w['purpose']} · ~{_amt(w)}", "do": "interest", "posting": w["id"]})
+    return out
+
+
+def _retire_suggestions(aid: str):
+    """A new list of offers replaces the last one; old suggestion buttons stop counting as 'waiting for you'."""
+    for c in M.s.q("SELECT id, actions FROM chat WHERE account = ? AND done = 0 AND actions IS NOT NULL", (aid,)):
+        acts = json.loads(c["actions"] or "[]")
+        if acts and all(x.get("do") == "interest" for x in acts):
+            M.s.x("UPDATE chat SET done = 1 WHERE id = ?", (c["id"],))
+
+
+def _distinct(offers) -> list[dict]:
+    seen, out = set(), []
+    for w in offers:
+        if (w["kind"], w["purpose"], w["buyer_name"]) not in seen:
+            seen.add((w["kind"], w["purpose"], w["buyer_name"])); out.append(w)
+    return out
 
 
 def _set_min(aid: str, kind: str, price: float):
@@ -648,9 +711,10 @@ def _rules_chat(aid: str, text: str, body: dict, discovery: bool):
     if p["intent"] == "other":
         M.chat(aid, "agent", "Tell me what to sell or what you need, for example 'sell my sleep logs' or 'I need air-quality data'.")
     elif not p["kind"]:
-        offers=_sell_now(aid)[:3]
+        offers=_distinct(_sell_now(aid))[:3]
         if offers:
-            M.chat(aid,"agent",f"{len(offers)} buyer request{'s' if len(offers)>1 else ''} fit your data and your minimums: "+"; ".join(f"{KINDS[w['kind']]['label']} for {w['purpose']} (~{_amt(w)})" for w in offers)+". Pick one and I'll negotiate it for you. The price is an estimate until the deal settles.",
+            _retire_suggestions(aid)
+            M.chat(aid,"agent",f"{len(offers)} buyer{'s' if len(offers)>1 else ''} want data you have: "+"; ".join(f"{w['buyer_name']} wants {KINDS[w['kind']]['label'].lower()} for {w['purpose']} (~{_amt(w)})" for w in offers)+". Which one should I negotiate? The price is an estimate until the deal settles.",
                    _offer_buttons(offers))
         else:
             M.chat(aid,"agent","I found no matching sale yet. Add records in My DB; I will classify them and compare them with buyers' requests. Your files stay private until you choose to sell.")
@@ -672,7 +736,7 @@ def _converse(aid: str, text: str, body: dict, discovery: bool):
         a = M.acct(aid); u = config.MICRO_PER_UNIT/1000000
         files = M.s.q("SELECT kind, status, COUNT(*) n FROM files WHERE account = ? AND status IN ('listed','private') GROUP BY kind, status", (aid,))
         sold = M.s.one("SELECT COUNT(*) n, COALESCE(SUM(total),0) t FROM contracts WHERE seller = ? AND status = 'settled' AND asset = ?", (aid, M.rail.symbol()))
-        offers = _sell_now(aid)[:12]
+        offers = _distinct(_sell_now(aid))[:12]
         demand = [{"kind": d["kind"], "n": d["n"], "best": d["best"]} for d in M.s.q("SELECT kind, COUNT(*) n, MAX(max) best FROM postings WHERE status='open' AND buyer != ? GROUP BY kind", (aid,))]
         history = [{"who": c["role"], "text": c["text"][:300]} for c in M.s.q("SELECT role, text FROM chat WHERE account = ? ORDER BY id DESC LIMIT 8", (aid,))][::-1]
         ctx = {"asset": M.rail.label(), "my_files": [dict(f) for f in files], "deals_sold": sold["n"], "sold_total": sold["t"],
@@ -696,6 +760,8 @@ def _converse(aid: str, text: str, body: dict, discovery: bool):
         buy = out.get("buy") or {}
         if buy.get("kind") in KINDS and isinstance(buy.get("budget"), (int, float)) and 0 < buy["budget"] < 1e6:
             acts.append({"t": f"Post a request: {KINDS[buy['kind']]['label'].lower()} up to {buy['budget']:g} {M.rail.label()}", "do": "post_buy", "kind": buy["kind"], "budget": float(buy["budget"])})
+        if picks:
+            _retire_suggestions(aid)
         M.chat(aid, "agent", reply[:800], acts or None)
     except Exception:
         try:
@@ -711,6 +777,9 @@ def chat_act(aid: str, cid: int, request: Request, body: dict = Body(...)):
     c = M.s.one("SELECT * FROM chat WHERE id = ? AND account = ? AND done = 0", (cid, aid))
     if not c:
         return {"ok": False}
+    if body.get("dismiss"):   # the owner declines the suggestion or request; nothing else happens
+        M.s.x("UPDATE chat SET done = 1 WHERE id = ?", (cid,))
+        return {"ok": True}
     act = json.loads(c["actions"])[int(body["i"])]
     M.s.x("UPDATE chat SET done = 1 WHERE id = ?", (cid,))
     if act["do"] == "interest":

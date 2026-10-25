@@ -410,6 +410,9 @@ class Market:
         cands = [a for a in by_acct if a not in low_trust and w["purpose"] not in self.acct(a)["sell_agent"].get("blocks", [])]
         self.rng.shuffle(cands)
         cands.sort(key=lambda a: a not in interested)
+        if not seller_id:   # ask a seller with records the buyer doesn't own yet; a repeat lot is refused anyway
+            fresh = [a for a in cands if not set().union(*(json.loads(f["fps"] or "[]") for f in by_acct[a])) & owned]
+            cands = fresh or cands
         if "demo-vault" in cands and self.rng.random() < 0.5:
             cands.remove("demo-vault");cands.insert(0,"demo-vault")  # the demo vault trades often so its history fills in
         cands = [seller_id] if seller_id in cands else [] if seller_id else cands[:1]

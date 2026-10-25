@@ -22,13 +22,19 @@
   </section>
   <section class="col" aria-labelledby="h-db">
     <header><div><h1 id="h-db">My DB</h1><span class="muted small" id="dbSub"></span></div>
-      <div class="seg" role="group" aria-label="Sort bundles"><button type="button" id="vDom" aria-pressed="true">By domain</button><button type="button" id="vDem" aria-pressed="false">By demand</button><button type="button" id="vAll" aria-pressed="false">All requests</button></div></header>
-    <div class="scroll"><section class="intake-work"><h2>Import your data</h2>      <label class="drop" id="drop" for="file">Drop a JSON file here or click to choose.<br><span class="small">The intake agent classifies it, refuses sensitive data and offers paid cleaning for raw data.</span></label>
+      <div class="acts db-actions"><button type="button" class="primary" id="openUpload">Upload data</button><button type="button" id="openHistory">Intake history <span class="tag" id="histCount"></span></button></div></header>
+    <div class="scroll">
+      <div class="seg db-tabs" role="group" aria-label="My DB views" id="dbTabs"><button type="button" data-tab="files" aria-pressed="true">My files</button><button type="button" data-tab="offers" aria-pressed="false">Offers on my data</button><button type="button" data-tab="purchased" aria-pressed="false">Purchased</button><button type="button" data-tab="collections" aria-pressed="false">Collections</button></div>
+      <section data-pane="files"><div class="file-tools"><input type="search" id="fileSearch" placeholder="Search by name or source" aria-label="Search files"><select id="fileKind" aria-label="Domain"><option value="">All domains</option></select></div><div id="fileTable"></div></section>
+      <section data-pane="offers" hidden><div class="seg" role="group" aria-label="Sort bundles"><button type="button" id="vDom" aria-pressed="true">By domain</button><button type="button" id="vDem" aria-pressed="false">By demand</button><button type="button" id="vAll" aria-pressed="false">All requests</button></div><div id="bundles"></div></section>
+      <section data-pane="purchased" hidden><details class="buy-request"><summary>Buy data for my DB</summary><form id="buyForm"><label>Category <select id="buyKind"></select></label><label>Offer <input id="buyPrice" type="number" min="0.000001" step="any" required></label><label class="small"><input type="checkbox" id="buyResale"> Request permission to bundle and resell</label><button class="primary">Ask agent to buy</button></form></details><h2>Purchased data</h2><p class="small muted">A completed purchase is decrypted into your DB. Download the complete stored payload below; previews show only a sample. Organizing it into a collection preserves the original file, receipt and permission.</p><div id="bought"></div></section>
+      <section data-pane="collections" hidden class="intake-work" aria-labelledby="collectionsTitle"><h2 id="collectionsTitle">Collections · your whole DB</h2><p class="small muted">Group your own and acquired records into a named collection. Each save creates an immutable version of file references and hashes; it never changes or copies the original records. Organizing files grants no additional resale rights.</p>
+<form id="collectionForm"><label class="small">Collection <select id="collectionTarget"><option value="">New collection</option></select></label><label class="small" id="collectionNameLabel">Name <input id="collectionName" maxlength="80" placeholder="e.g. Running and recovery" required></label><div class="acts"><button type="button" id="selectAllDb">Select all my DB</button><button type="button" id="clearDbSelection">Clear selection</button><span class="small muted" id="collectionCount">0 files selected</span></div><div id="collectionFiles"></div><button type="submit" class="primary" id="saveCollection">Save collection version</button></form><div id="collections"></div></section>
+    </div>
+    <dialog id="uploadDlg" class="db-dlg"><div class="dlg"><div class="row"><h2>Upload data</h2><button type="button" data-close>Close</button></div><section class="intake-work">      <label class="drop" id="drop" for="file">Drop a JSON file here or click to choose.<br><span class="small">The intake agent classifies it, refuses sensitive data and offers paid cleaning for raw data.</span></label>
       <input type="file" id="file" accept=".json,application/json" hidden>
-      <details class="sample-options"><summary>Try a sample file</summary><div class="acts" id="samples"></div></details>
-      <h2>Intake results</h2><div id="uploads"></div></section><details class="buy-request"><summary>Buy data for my DB</summary><form id="buyForm"><label>Category <select id="buyKind"></select></label><label>Offer <input id="buyPrice" type="number" min="0.000001" step="any" required></label><label class="small"><input type="checkbox" id="buyResale"> Request permission to bundle and resell</label><button class="primary">Ask agent to buy</button></form></details><div id="bundles"></div><h2>Purchased data</h2><p class="small muted">A completed purchase is decrypted into your DB. Download the complete stored payload below; previews show only a sample. Organizing it into a collection preserves the original file, receipt and permission.</p><div id="bought"></div>
-<section class="intake-work" aria-labelledby="collectionsTitle"><h2 id="collectionsTitle">Collections · your whole DB</h2><p class="small muted">Group your own and acquired records into a named collection. Each save creates an immutable version of file references and hashes; it never changes or copies the original records. Organizing files grants no additional resale rights.</p>
-<form id="collectionForm"><label class="small">Collection <select id="collectionTarget"><option value="">New collection</option></select></label><label class="small" id="collectionNameLabel">Name <input id="collectionName" maxlength="80" placeholder="e.g. Running and recovery" required></label><div class="acts"><button type="button" id="selectAllDb">Select all my DB</button><button type="button" id="clearDbSelection">Clear selection</button><span class="small muted" id="collectionCount">0 files selected</span></div><div id="collectionFiles"></div><button type="submit" class="primary" id="saveCollection">Save collection version</button></form><div id="collections"></div></section></div>
+      <details class="sample-options" open><summary>Try a sample file</summary><div class="acts" id="samples"></div></details></section></div></dialog>
+    <dialog id="historyDlg" class="db-dlg"><div class="dlg"><div class="row"><h2>Intake history</h2><button type="button" data-close>Close</button></div><p class="small muted">Every upload and what intake decided. “Needs cleaning” means raw data with problems that would fail buyers' quality checks; pay the cleaning agent a small fee and the cleaned file lists as passed.</p><div id="uploads"></div></div></dialog>
   </section>
   <section class="col side right" aria-labelledby="h-u">
     <header><h1 id="h-u">Your agent</h1></header>
@@ -50,6 +56,22 @@ $("file").onchange = async () => { const f = $("file").files[0]; if (!f) return;
   if (ev === "drop" && e.dataTransfer.files[0]) { const fd = new FormData(); fd.append("file", e.dataTransfer.files[0]); await api(`/api/account/${ME}/upload`, { method: "POST", body: fd }); refresh(); } }));
 $("vDom").onclick = () => { VIEW = "domain"; refresh(); }; $("vDem").onclick = () => { VIEW = "demand"; refresh(); }; $("vAll").onclick = () => { VIEW = "all"; refresh(); };
 const VERDICT = { ok: ["blue", "passed"], clean: ["", "needs cleaning"], cleaned: ["blue", "cleaned"], block: ["red", "refused"] };
+let TAB = "files", LAST_UPLOADS = null;
+const openDlg = (id) => { const d = $(id); if (!d.open) d.showModal(); };
+document.querySelectorAll(".db-dlg [data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
+$("openUpload").onclick = () => openDlg("uploadDlg"); $("openHistory").onclick = () => openDlg("historyDlg");
+$("dbTabs").querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { TAB = b.dataset.tab; showTab(); });
+function showTab() { $("dbTabs").querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-pressed", b.dataset.tab === TAB)); document.querySelectorAll("[data-pane]").forEach(p => p.hidden = p.dataset.pane !== TAB); }
+$("fileSearch").oninput = () => drawFiles(); $("fileKind").onchange = () => drawFiles();
+const FILE_STATUS = { listed: ["blue", "listed"], private: ["", "private"], bought: ["green", "bought"], bundled: ["green", "bundled"] };
+function drawFiles() {
+  if (!ACC) return;
+  const q = $("fileSearch").value.trim().toLowerCase(), kind = $("fileKind").value;
+  const files = ACC.bundles.flatMap(b => b.files.map(f => ({...f, offers: b.best_offer}))).filter(f => (!kind || f.kind === kind) && (!q || `${f.name} ${f.source || ""}`.toLowerCase().includes(q)));
+  const groups = {}; files.forEach(f => (groups[f.kind] ||= []).push(f));
+  $("fileTable").innerHTML = Object.entries(groups).map(([k, fs]) => `<details class="file-group" open><summary><b>${esc(META.kinds[k]?.label || k)}</b> <span class="small muted">${fs.length} file${fs.length === 1 ? "" : "s"}${fs[0].offers ? ` · best open offer ${xrp(fs[0].offers)}` : ""}</span></summary>
+    <div class="table-wrap"><table class="file-table"><thead><tr><th>File</th><th>Source</th><th>Records</th><th>Status</th><th>Added</th></tr></thead><tbody>${fs.map(f => `<tr><td class="mono">${esc(f.name)} <span class="muted">#${f.id}</span></td><td>${esc(f.source || "Your record")}</td><td>${f.attestation?.records ?? "—"}</td><td><span class="tag ${FILE_STATUS[f.status]?.[0] || ""}">${esc(FILE_STATUS[f.status]?.[1] || f.status)}</span>${f.attestation?.cleaned ? ' <span class="tag">cleaned</span>' : ""}</td><td class="small">${f.created ? new Date(f.created * 1000).toLocaleDateString() : ""}</td></tr>`).join("")}</tbody></table></div></details>`).join("") || '<p class="muted small">No files match. Use “Upload data” to add some.</p>';
+}
 async function refresh() {
   if (!META || !ME) return false;
   try { ACC = await api(`/api/account/${ME}`); META = await api("/api/meta"); } catch (err) { showError(err); return false; }
@@ -62,7 +84,13 @@ async function refresh() {
 $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribute("aria-pressed", VIEW === "demand"); $("vAll").setAttribute("aria-pressed", VIEW === "all");
   $("dbSub").textContent = `${ACC.files} files · the agent sorts them into bundles by domain and by who is asking`;
   $("uploads").innerHTML = ACC.uploads.map((u) => `<div class="card"><div class="row"><span class="mono">${esc(u.name)}</span><span class="tag ${VERDICT[u.verdict]?.[0] || ""}">${VERDICT[u.verdict]?.[1] || esc(u.verdict)}</span></div>
-    <span class="small muted">${esc(u.why)}</span>${u.verdict === "clean" && u.file === -1 ? `<div class="acts"><button class="primary" type="button" data-u="${u.id}">Clean it for ${xrp(u.fee)}</button></div>` : ""}</div>`).join("") || '<p class="muted small">Nothing uploaded yet.</p>';
+    <span class="small muted">${esc(u.why)}</span>${u.verdict === "clean" && u.file === -1 ? `<p class="small clean-why">Buyers' agents check quality before paying, so “${esc(u.why)}” would fail their checks. Pay the cleaning agent ${xrp(u.fee)} on the ledger to filter these records; the cleaned file then lists as passed.</p><div class="acts"><button class="primary" type="button" data-u="${u.id}">Clean it for ${xrp(u.fee)}</button></div>` : ""}</div>`).join("") || '<p class="muted small">Nothing uploaded yet.</p>';
+  $("histCount").textContent = ACC.uploads.length || "";
+  const top = ACC.uploads[0]?.id || 0;
+  if (LAST_UPLOADS !== null && top > LAST_UPLOADS && $("uploadDlg").open) { $("uploadDlg").close(); openDlg("historyDlg"); }   // show what intake decided
+  LAST_UPLOADS = top;
+  if (!$("fileKind").options[1]) $("fileKind").insertAdjacentHTML("beforeend", Object.entries(k).map(([id, v]) => `<option value="${id}">${esc(v.label)}</option>`).join(""));
+  drawFiles(); showTab();
   $("uploads").querySelectorAll("[data-u]").forEach((b) => b.onclick = async () => { b.disabled = true; await post(`/api/account/${ME}/upload/${b.dataset.u}/clean`); refresh(); });
   $("recs").innerHTML = ACC.recs.map((r) => `<div class="card hot"><h2>Agent recommendation · ${esc(k[r.kind].domain)}</h2><p>${esc(r.text)}</p>
     <div class="acts"><button class="primary" type="button" data-r="${r.id}" data-a="1">Pseudonymize and list</button><button type="button" data-r="${r.id}" data-a="0">Keep private</button></div></div>`).join("");

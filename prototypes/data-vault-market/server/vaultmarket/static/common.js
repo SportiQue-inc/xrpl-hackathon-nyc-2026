@@ -29,9 +29,9 @@ async function topbar(page) {
   if (!USER.user) {await post('/api/demo-session');USER=await api('/api/me');}
   ME = USER.user?.account || null;
   const nav=document.querySelector('.top nav');
-  if(nav)nav.innerHTML=[['/','Market'],['/vault','My DB'],['/assets','Assets'],['/demo','Demo'],['/report','Report']].map(([h,t])=>`<a href="${h}">${t}</a>`).join('');
+  if(nav)nav.innerHTML=[['/','Market'],['/vault','My DB'],['/assets','Assets'],['/demo','Demo']].map(([h,t])=>`<a href="${h}">${t}</a>`).join('');
   if(nav)nav.insertAdjacentHTML('beforeend',`<a class="home-link" href="${esc(META.engine_url||'https://agentrail-try-production.up.railway.app/apps/try/index.html')}" target="_blank" rel="noopener" title="The AgentRail engine this market runs on">About AgentRail ↗</a>`);
-  document.querySelectorAll('nav a').forEach(a=>{if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+  document.querySelectorAll('nav a').forEach(a=>{if(a.getAttribute('href')===location.pathname||(location.pathname==='/report'&&a.getAttribute('href')==='/demo'))a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   $("accountName").textContent = USER.user?.username || "";
   const brand=document.querySelector(".brand");if(brand)brand.after($("accountName"));
   memberBar();
@@ -47,6 +47,11 @@ function memberBalance(account) {
   const el=$("accountName");
   if (USER.user) el.innerHTML=`<span class="account-label">${esc(USER.user.demo?'Demo (synthetic)':USER.user.username)}</span><strong class="account-balance">${esc(account.balance==null?'Wallet connecting':amount(account.balance))}</strong>`;
 }
+function approvalsDlg(items) {   // everything waiting for the owner, each with its own buttons and a Dismiss
+  const d = dlg(`<h2>Waiting for your OK</h2><p class="small muted">Your agent never acts on these without you. Approve one, or dismiss what you don't want.</p><div class="wait-list">${items.map(c => `<div class="msg agent"><div>${esc(relabel(c.text))}</div><div class="acts">${c.actions.map((a, i) => `<button type="button" class="primary" data-c="${c.id}" data-i="${i}">${esc(relabel(a.t))}</button>`).join("")}<button type="button" data-dismiss="${c.id}">Dismiss</button></div></div>`).join("") || '<p class="muted small">Nothing is waiting.</p>'}</div>`);
+  d.querySelectorAll("[data-c]").forEach(b => b.onclick = async () => { if (!canAct()) return; b.disabled = true; try { await post(`/api/account/${ME}/chat/${b.dataset.c}/act`, {i: +b.dataset.i}); b.closest(".msg").remove(); refresh(); } catch (err) { showError(err); } });
+  d.querySelectorAll("[data-dismiss]").forEach(b => b.onclick = async () => { if (!canAct()) return; try { await post(`/api/account/${ME}/chat/${b.dataset.dismiss}/act`, {dismiss: true}); b.closest(".msg").remove(); refresh(); } catch (err) { showError(err); } });
+}
 function chatBox(el, data) {
   const draft = $("say")?.value || "", focused = document.activeElement?.id === "say";
   const prior = $("msgs"), scrollTop = prior?.scrollTop || 0;
@@ -60,12 +65,13 @@ function chatBox(el, data) {
   const approvals=data.chat.filter(c=>c.actions&&!c.done);   // shown inline with their buttons; only counted in the header
   const conversation=data.chat;
   const message=(c)=>`<div class="msg ${c.role==='me'?'me':'agent'}"><div>${c.done&&/lot of at least \d+ people/.test(c.text)?'<span class="small muted">Earlier group request · inactive</span><br>':''}${esc(relabel(c.text))}</div>${c.actions?`<div class="acts">${c.actions.map((a,i)=>`<button type="button" data-c="${c.id}" data-i="${i}" ${c.done?'disabled':''}>${esc(relabel(a.t))}</button>`).join('')}</div>`:''}</div>`;
-  el.innerHTML = `<div class="head"><span>Ask my agent</span>${approvals.length ? `<span class="tag red">${approvals.length} waiting for you</span>` : ""}</div>
+  el.innerHTML = `<div class="head"><span>Ask my agent</span>${approvals.length ? `<button type="button" class="tag red wait-jump" title="Requests your agent needs you to approve">${approvals.length} need your OK · view</button>` : ""}</div>
     ${open ? `<div class="msgs" id="msgs">${conversation.map(message).join('') || '<p class="muted small">Tell me what you want to do, or ask what you can sell.</p>'}</div>
     <form id="chatForm"><input type="text" id="say" placeholder="e.g. sell my sleep logs, or I need air-quality data" aria-label="Message to my agent"><button class="primary">Send</button></form>` : ""}`;
   if (open) {
     $("msgs").scrollTop = follow ? 1e9 : scrollTop; $("say").value = draft; if (focused) $("say").focus();
     el.querySelectorAll("[data-c]").forEach((b) => b.onclick = async () => { if (!canAct()) return; try { await post(`/api/account/${ME}/chat/${b.dataset.c}/act`, { i: +b.dataset.i }); await refresh(); } catch (err) { showError(err); } });
+    el.querySelector(".wait-jump")?.addEventListener("click", () => approvalsDlg(approvals));
     $("chatForm").onsubmit = async (e) => { e.preventDefault(); const t = $("say").value.trim(); if (!t) return; if (await tellAgent(t)) $("say").value = ""; };
   }
 }
