@@ -123,7 +123,6 @@ def reset(ledger: Literal["mock", "testnet"] | None = None):
     with _lock:
         kind = ledger or default
         _state["w"] = scenario.build_world(kind, os.environ.get("AGENTRAIL_DB", ":memory:"))
-        study.ensure(_state["w"])        # the study's participants and approvers are enrolled up front
         _state["results"] = {}
     return {"ok": True, "ledger": kind}
 

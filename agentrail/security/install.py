@@ -69,4 +69,8 @@ def install(w) -> SecurityContext:
     sc.install_institutions()
     sc.enrol_staff()
     sc.enrol_participants(list(getattr(w, "people", {})))
+    from ..scenario import FIXTURE
+    import json
+    with open(FIXTURE) as f:      # the study's synthetic participants enrol their phones up front
+        sc.enrol_participants([a["account_id"] for a in json.load(f)["accounts"] if a["role"] == "participant"])
     return sc

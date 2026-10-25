@@ -38,6 +38,15 @@ class SecurityHeaders(BaseHTTPMiddleware):
         return resp
 
 
+_HITS: dict[str, deque] = defaultdict(deque)
+_HITS_LOCK = threading.Lock()
+
+
+def reset_rate_limits():
+    with _HITS_LOCK:
+        _HITS.clear()
+
+
 class RateLimit(BaseHTTPMiddleware):
     """Sliding window per client: login routes per IP, everything else per token (or IP)."""
 
@@ -45,8 +54,7 @@ class RateLimit(BaseHTTPMiddleware):
         super().__init__(app)
         self.per_min = per_min or int(os.environ.get("AGENTRAIL_RATE_PER_MIN", "600"))
         self.login_per_min = login_per_min or int(os.environ.get("AGENTRAIL_LOGIN_RATE_PER_MIN", "30"))
-        self.hits: dict[str, deque] = defaultdict(deque)
-        self.lock = threading.Lock()
+        self.hits, self.lock = _HITS, _HITS_LOCK
 
     def _key(self, request) -> tuple[str, int]:
         ip = request.client.host if request.client else "?"
