@@ -198,18 +198,34 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
   function openSheet(spec) { st.sheet = { ...spec, phase: "review", error: null }; draw(); }
   function closeSheet() { if (st.sheet && st.sheet.phase !== "busy") { st.sheet = null; draw(); } }
 
+  // 시트 모양과 문구는 UniQdata 앱의 동의·패스키 시트를 따릅니다(/mnt/project-files/uniqdata-consent-sheet.md):
+  // 핸들, 제목, 부제, 공시 카드(아이콘 + 라벨 + 값), 패스키 안내 박스, 전체 폭 버튼 두 개.
   function approveSheet(r, send, price) {
     const per = cellPrice(r);
     const sens = send.filter((i) => i.sensitive);
+    const abroad = r.international_transfer && r.international_transfer.planned ? r.international_transfer : null;
+    const itemList = h("div", { class: "col", style: { gap: "6px" } }, send.map((i) => h("div", { class: "spread" },
+      h("span", {}, itemName(i.item), " ", h("span", { class: "muted small" }, weeks(i.weeks)), i.sensitive ? [" ", tag("민감", "red")] : null),
+      h("b", { style: { whiteSpace: "nowrap" } }, won(per * i.weeks.length)))));
     return {
-      title: "연구 참여 승인", org: lab(r), badge: tag("IRB 승인 확인", "green"),
-      rows: send.map((i) => ({ name: itemName(i.item), sub: `${weeks(i.weeks)} · ${SOURCE[i.source] || i.source || ""}`,
-                               value: won(per * i.weeks.length), sensitive: !!i.sensitive })),
-      summary: [["목적", PURPOSE[r.purpose] || r.purpose], ["기간", weeks(send.flatMap((i) => i.weeks))],
-                ["참여 지급액", h("b", {}, won(price))]],
-      note: sens.length ? `${sens.map((i) => itemName(i.item)).join(", ")}은 민감 정보예요. 이 서명으로 별도 동의까지 해요.`
-        : `전달될 때 ${r.payment.immediate_pct}%, 검토 후 ${r.payment.held_pct}%가 지급돼요.`,
-      confirm: "패스키로 승인",
+      title: abroad ? "해외 기관 연구 참여 동의" : "연구 참여 동의",
+      sub: `${lab(r)}에 아래 항목을 보내는 데 동의합니다.${sens.length ? " 민감한 건강정보가 포함되어 있어, 확인하고 동의해 주세요." : ""}`,
+      rows: [
+        { icon: "building", label: "요청 기관", value: [lab(r), " ", tag("IRB 승인 확인", "green")] },
+        { icon: "spark", label: "처리 목적", value: PURPOSE[r.purpose] || r.purpose },
+        { icon: "list", label: "보내는 항목", value: itemList },
+        { icon: "coin", label: "참여 지급액", value: [h("b", {}, won(price)), h("span", { class: "muted small" }, ` · 전달 시 ${r.payment.immediate_pct}%, 검토 후 ${r.payment.held_pct}%`)] },
+        ...(abroad ? [
+          { icon: "globe", label: "전송 대상 국가", value: (abroad.countries || []).join(", ") },
+          { icon: "server", label: "수신자", value: (abroad.recipients || []).join(", ") },
+          { icon: "gavel", label: "이전 근거", value: "이전 계약과 동등수준 보호조치, 그리고 귀하의 명시적 동의에 근거합니다." },
+        ] : []),
+        { icon: "timer", label: "보관·삭제", value: "연구 기관은 참여 번호와 동의한 항목만 받습니다. 철회하면 개인 단위 사본을 지우고 확인합니다." },
+        { icon: "shield", label: "내 권리", value: "언제든 철회할 수 있습니다. 철회해도 이미 받은 지급액은 그대로입니다." },
+        { icon: "ban", label: "동의하지 않으면", value: "이번 회차는 아무것도 보내지 않습니다. 다른 요청과 지급에는 영향이 없어요." },
+      ],
+      passkeyNote: "동의하면 패스키(생체·PIN)로 본인 확인 후, 동의 기록이 안전하게 봉인·기록됩니다.",
+      confirm: "동의하고 패스키로 인증", cancel: "보내지 않고 닫기",
       sign: async () => {
         const items = send.map((i) => i.item);
         const ch = await api.challenge(pid, r.id, items);
@@ -217,7 +233,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
       },
       unsigned: () => api.approve(pid, r.id, send.map((i) => i.item)),
       done: (res) => { st.p = res; st.lastSigned = res.signed; go("done"); },
-      cancelled: "승인을 취소했어요. 아무것도 보내지 않았어요.",
+      cancelled: "동의를 취소했어요. 아무것도 보내지 않았어요.",
     };
   }
 
@@ -227,16 +243,17 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     const kept = sum(p.contributions.filter((c) => c.status === "delivered"), (c) => c.amount_xrp);
     const r = p.requests[p.requests.length - 1];
     return {
-      title: "이 연구에서 철회", org: r ? lab(r) : "", danger: true,
+      title: "연구 참여 철회", danger: true,
+      sub: `${r ? lab(r) : "연구 기관"}의 열람 권한을 회수하고, 아직 보내지 않은 회차를 멈춥니다.`,
       rows: [
-        { name: "열람 권한 회수", sub: "원장에서 바로 회수해요" },
-        locked.length ? { name: "예치금 반환", sub: `아직 전달 전인 ${locked.length}회차`, value: won(sum(locked, (c) => c.amount_xrp)) } : null,
-        { name: "사본 삭제 확인", sub: "연구 기관이 개인 단위 사본을 지워요" },
-        { name: "받은 지급액", sub: "그대로 유지돼요", value: won(kept) },
+        { icon: "unlock", label: "열람 권한", value: "원장에서 바로 회수합니다." },
+        locked.length ? { icon: "coin", label: "예치금", value: `아직 전달 전인 ${locked.length}회차 ${won(sum(locked, (c) => c.amount_xrp))}는 연구로 돌아갑니다.` } : null,
+        { icon: "timer", label: "보관·삭제", value: "연구 기관은 개인 단위 사본을 지우고 확인해야 합니다. 이미 만들어진 집계 통계만 남습니다." },
+        { icon: "shield", label: "받은 지급액", value: `이미 받은 ${won(kept)}는 그대로예요.` },
+        { icon: "ban", label: "다시 참여하려면", value: "새로 동의해야 합니다." },
       ].filter(Boolean),
-      summary: [["시점", "지금 바로"]],
-      note: "이미 만들어진 집계 통계만 남아요. 다시 참여하려면 새로 동의해야 해요.",
-      confirm: "패스키로 철회",
+      passkeyNote: "계속하면 이 기기의 패스키(생체·PIN) 인증 창이 열립니다.",
+      confirm: "철회하고 패스키로 인증", cancel: "취소",
       sign: async () => {
         const ch = await api.revokeChallenge(pid);
         return api.revoke(pid, await signWithPasskey(ch.publicKey, pid));
@@ -284,27 +301,18 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     return h("div", { class: "ar-sheet-wrap", onclick: (e) => { if (e.target === e.currentTarget) closeSheet(); } },
       h("div", { class: "ar-sheet", role: "dialog", "aria-modal": "true", "aria-label": sh.title },
         h("div", { class: "grab" }),
-        h("div", { class: "top" },
-          h("span", { class: `ar-sheet-ic${sh.danger ? " danger" : ""}` }, icon("key", 22)),
-          h("div", { class: "col", style: { gap: "2px", minWidth: 0 } },
-            h("b", { class: "t" }, sh.title),
-            h("span", { class: "small muted" }, sh.org, sh.badge ? " " : null, sh.badge || null))),
-        h("div", { class: "ar-sheet-sec" }, "내역"),
-        h("div", { class: "ar-sheet-rows" }, sh.rows.map((x) => h("div", { class: "row" },
-          h("div", { class: "grow col", style: { gap: "2px", minWidth: 0 } },
-            h("span", {}, x.name, x.sensitive ? [" ", tag("민감 정보", "red")] : null),
-            x.sub ? h("span", { class: "small muted" }, x.sub) : null),
-          x.value ? h("span", { class: "v" }, x.value) : null))),
-        sh.summary && sh.summary.length ? h("dl", { class: "ar-kv left ar-sheet-sum" },
-          sh.summary.map(([k, v]) => [h("dt", {}, k), h("dd", {}, v)])) : null,
-        h("p", { class: "small muted", style: { margin: 0 } }, sh.note),
-        sh.error ? banner("red", sh.error) : null,
-        h("div", { class: "col", style: { gap: "8px" } },
-          h("button", { class: `ar-btn ${sh.danger ? "danger" : "primary"} block`, disabled: busyNow, onclick: confirmSheet },
-            icon("key", 16), " ", busyNow ? (sh.step || "확인 중") : sh.confirm),
-          h("button", { class: "ar-btn block", disabled: busyNow, onclick: closeSheet }, "취소")),
-        h("p", { class: "tiny muted", style: { margin: 0, textAlign: "center" } },
-          firstTime ? "처음 한 번 이 기기에 패스키를 만들고 이어서 확인해요." : "Touch ID나 기기 잠금으로 확인해요.")));
+        h("h2", { class: "t" }, sh.title),
+        h("p", { class: "sub" }, sh.sub),
+        h("div", { class: "ar-disclose" }, sh.rows.map((x) => h("div", { class: "r" },
+          h("span", { class: "ic" }, icon(x.icon, 20)),
+          h("div", { class: "grow col", style: { gap: "2px", minWidth: 0 } }, h("span", { class: "l" }, x.label), h("div", { class: "v" }, x.value))))),
+        h("div", { class: "ar-pkbox" }, h("span", { class: "ic" }, icon("fingerprint", 22)),
+          h("span", {}, firstTime ? "처음 한 번 이 기기에 패스키를 만든 뒤, 이어서 패스키(생체·PIN) 인증 창이 열립니다." : sh.passkeyNote)),
+        sh.error ? h("div", { role: "status", "aria-live": "polite" }, banner("red", sh.error)) : null,
+        h("div", { class: "act" },
+          h("button", { class: `ar-fill${sh.danger ? " danger" : ""}`, disabled: busyNow, onclick: confirmSheet },
+            icon("unlock", 18), busyNow ? (sh.step || "확인 중") : sh.confirm),
+          h("button", { class: "ar-text-btn", disabled: busyNow, onclick: closeSheet }, sh.cancel || "취소"))));
   }
 
   async function skip(e, r) {
