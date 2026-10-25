@@ -6,8 +6,8 @@
 <div class="top filters"><div class="seg" role="group" aria-label="Data category" id="domTabs"></div></div>
 <main class="app market-app">
 <section class="col side left"><header><div><h1>Sell your data</h1><p class="muted small">Offers that fit your records and terms</p></div></header><div class="scroll" id="sellnow"></div></section>
-<section class="col activity"><header><div><h1>Market activity</h1><p class="muted small">Individual negotiations and verified settlements</p></div><span class="tag">Live</span></header><div class="scroll" id="ledger"></div></section>
-<section class="col side right"><header><h1>Your agent</h1><button id="agentBtn" type="button" aria-expanded="false">Settings</button></header><div class="scroll"><div id="agents" class="pop" hidden></div><section id="agentQueue" aria-live="polite"></section><div class="chatbox" id="chat" data-open="1"></div><details class="history"><summary>Your trade history</summary><div id="mine"></div></details></div></section>
+<section class="col activity"><header><div><h1>Market activity</h1><p class="muted small">Individual negotiations and verified settlements</p></div><span class="tag">Live</span></header><div class="scroll"><div id="ledger"></div><section id="agentQueue" class="mine-panel" aria-live="polite"></section><details class="history mine-panel"><summary>Your trade history</summary><div id="mine"></div></details></div></section>
+<section class="col side right"><header><h1>Your agent</h1><button id="agentBtn" type="button" aria-expanded="false">Settings</button></header><div class="scroll"><div id="agents" class="pop" hidden></div><div class="chatbox" id="chat" data-open="1"></div></div></section>
 </main><dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
 <script src="/static/common.js"></script><script>
 let DOMAIN=null, DATA=null, ACC=null, refreshing=false, firstFeed=true, currentContract=null, detailBusy=false;
