@@ -66,8 +66,8 @@ async function refresh() {
       <span class="small muted">${f.status === "listed" ? "listed as a pseudonymized copy" : "private"}${f.sold ? ` · sold ${f.sold}×` : ""}${f.attestation ? ` · attested: ${f.attestation.records} records, root ${f.attestation.merkle_root.slice(0, 10)}…${f.attestation.cleaned ? ", cleaned" : ""}` : ""}</span>
       <details class="small"><summary>What a buyer would get</summary><pre>${esc(f.preview)}</pre></details></div>`;
   if (VIEW === "domain") {
-    $("bundles").innerHTML = ACC.bundles.map((b) => `<div class="card"><div class="row"><h3>${esc(b.domain)}</h3><span class="price">${b.best_offer ? `best offer ${b.best_offer}` : "no buyer yet"}</span></div>
-      <span class="small muted">${esc(b.label)} · ${b.files.length} files · ${b.listed} listed · expected next sale ${b.listed && b.best_offer ? b.best_offer + " per lot" : "—"}</span>
+    $("bundles").innerHTML = ACC.bundles.map((b) => `<div class="card"><div class="row"><h3>${esc(b.domain)}</h3><span class="price">${b.best_offer ? `best offer ${xrp(b.best_offer)}` : "no buyer yet"}</span></div>
+      <span class="small muted">${esc(b.label)} · ${b.files.length} files · ${b.listed} listed · expected next sale ${b.listed && b.best_offer ? xrp(b.best_offer) : "—"} · earned ${xrp(b.earned)}</span>
       <div class="row small"><span>${b.offers} offers</span><span class="y">${b.agreed} agreed</span><span class="n">${b.declined} declined</span><span><b>${b.earned}</b> earned</span></div>
       <details><summary class="small">Files</summary>${b.files.map(fileRow).join("")}</details></div>`).join("") || '<p class="muted small">Your DB is empty. Upload something on the right.</p>';
   } else if (VIEW === "all") {
@@ -77,7 +77,7 @@ async function refresh() {
       ${p.buyer === ME ? '<span class="tag blue">your request</span>' : p.mine ? '<span class="tag blue">Your agent is on it ✓</span>' : `<div class="acts"><button type="button" data-msg="${esc(`Sell my ${k[p.kind].label.toLowerCase()} to ${p.buyer_name} (request #${p.id}) if it fits my terms.`)}">Tell my agent</button></div>`}</div>`).join("");
     $("bundles").querySelectorAll("[data-msg]").forEach((b) => b.onclick = () => tellAgent(b.dataset.msg));
   } else {
-    $("bundles").innerHTML = ACC.demand.map((w) => `<div class="card ${w.interested ? "hot" : ""}"><div class="row"><h3>For ${esc(w.buyer_name)}</h3><span class="price">${w.offer} per person</span></div>
+    $("bundles").innerHTML = ACC.demand.map((w) => `<div class="card ${w.interested ? "hot" : ""}"><div class="row"><h3>For ${esc(w.buyer_name)}</h3><span class="price">${xrp(w.offer)} per person</span></div>
       <span class="small muted">${esc(k[w.kind].label)} for ${esc(w.purpose)} · ${w.listed} listed, ${w.private} private · ${w.settled} settled, ${w.rejected} rejected so far</span>
       <span class="small">${w.purpose && (a.sell_agent.blocks || []).includes(w.purpose) ? '<span class="n">Your rules decline this purpose.</span>' : w.offer >= (a.sell_agent.min?.[w.kind] ?? 0) ? `<span class="y">Meets your minimum of ${a.sell_agent.min?.[w.kind]}.</span>` : `Below your minimum of ${a.sell_agent.min?.[w.kind]}; your agent will counter.`}</span>
       <div class="acts">${w.interested ? '<span class="tag blue">Your agent is on it ✓</span>' : `<button type="button" data-msg="${esc(`Sell my ${k[w.kind].label.toLowerCase()} to ${w.buyer_name} (request #${w.id}) if it fits my terms.`)}">Tell my agent</button>`}</div></div>`).join("") || '<p class="muted small">No open request matches your data yet.</p>';
@@ -85,7 +85,9 @@ async function refresh() {
   }
   $("bundles").querySelectorAll("[data-f]").forEach((el) => el.onchange = async () => { await post(`/api/account/${ME}/file/${el.dataset.f}`, { listed: el.checked }); refresh(); });
   const earned = ACC.bundles.reduce((t, b) => t + b.earned, 0);
-  $("wallet").innerHTML = [[ACC.balance != null ? ACC.balance.toFixed(3) : "…", "XRP on the ledger"], [Math.round(earned * 10) / 10, "earned (price units)"], [ACC.files, "files in my DB"], [ACC.bought.length, "lots bought"]].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
+  const st = ACC.stats;
+  $("wallet").innerHTML = [[ACC.balance != null ? ACC.balance.toFixed(2) : "…", "XRP balance"], [st.earned_xrp.toFixed(2), "XRP earned"], [st.agreed, "sales agreed"], [st.declined, "declined or passed"],
+    [st.fees_xrp.toFixed(2), "XRP cleaning fees"], [ACC.files, "files in my DB"], [ACC.bought.length, "lots bought"]].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
   let cum = 0; const pts = ACC.growth.map((g) => [g.m, (cum += g.n)]); const mx = Math.max(1, ...pts.map((p) => p[0])), my = Math.max(1, cum);
   $("growth").innerHTML = pts.length ? `<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${pts.map(([x, y]) => `${(x / mx) * 310 + 5},${65 - (y / my) * 58}`).join(" ")}"/><text x="5" y="10" fill="var(--muted)" font-size="10">${cum} files</text>` : "";
   $("bought").innerHTML = ACC.bought.map((f) => `<div class="card"><span class="mono">${esc(f.name)}</span><span class="small muted">${esc(f.source)}${f.status === "bundled" ? " · combined into a resale bundle" : ""}</span><details class="small"><summary>Sample</summary><pre>${esc(f.preview)}</pre></details></div>`).join("") || '<p class="muted small">Nothing bought yet.</p>';

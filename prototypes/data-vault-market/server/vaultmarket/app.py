@@ -339,7 +339,10 @@ def account(aid: str, request: Request):
         raise HTTPException(404)
     files, bundles, demand = _bundles(aid)
     growth = M.s.q("SELECT CAST((created - (SELECT MIN(created) FROM files)) / 60 AS INT) m, COUNT(*) n FROM files WHERE account = ? GROUP BY m ORDER BY m", (aid,))
-    return {"account": a, "balance": M.balance(aid), "address": M.addr.get(aid), "bundles": bundles, "demand": demand,
+    fees = M.s.one("SELECT COALESCE(SUM(drops), 0) d FROM txs WHERE src = ? AND contract IS NULL", (aid,))["d"]
+    stats = {"agreed": sum(b["agreed"] for b in bundles), "declined": sum(b["declined"] for b in bundles),
+             "earned_xrp": round(sum(b["earned"] for b in bundles) * config.DROPS_PER_XRP_UNIT / 1e6, 3), "fees_xrp": round(fees / 1e6, 3)}
+    return {"account": a, "balance": M.balance(aid), "address": M.addr.get(aid), "stats": stats, "bundles": bundles, "demand": demand,
             "bought": [f for f in files if f["status"] in ("bought", "bundled")], "files": len(files), "growth": growth,
             "uploads": M.s.q("SELECT * FROM uploads WHERE account = ? ORDER BY id DESC LIMIT 10", (aid,)),
             "recs": M.s.q("SELECT * FROM recs WHERE account = ? AND status = 'open' ORDER BY id DESC", (aid,)),

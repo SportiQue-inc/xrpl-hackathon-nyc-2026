@@ -29,6 +29,13 @@ rules and every message says "rules" instead of the model name.
 Tests: `VM_LEDGER=mock` runs everything against AgentRail's in-memory ledger; the site then shows
 "TEST LEDGER (not real)" on every page.
 
+## Deploy (Railway)
+
+`railway.json` at the repository root builds the Dockerfile. In Railway: New project > Deploy from
+GitHub repo > this repository; Settings > Source > branch `claude/project-thread-06we25`; Variables >
+`ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`); add a Volume mounted at `/data` so the DB and wallets survive
+redeploys; Settings > Networking > Generate Domain.
+
 ## Deploy (Render)
 
 `render.yaml` at the repository root deploys this server from this branch: Docker build from the repo
