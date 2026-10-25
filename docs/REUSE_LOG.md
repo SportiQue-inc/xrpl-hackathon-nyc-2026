@@ -5,7 +5,7 @@ is judged. This file lists everything brought in from earlier SportiQue work.
 
 | Date | Source | Version / commit | What was reused | Why |
 |------|--------|------------------|-----------------|-----|
-| - | - | - | (nothing yet) | - |
+| 2026-10-25 | SportiQue UniQdata backend, UniQLab backend | UniQdata `main` @ f9a54fcd5 (local checkout) | Interface shapes only, no code copied: UniQdata consent lane names (`research_participation`, `sensitive_health_collection`), the rule that paid and pending research rewards stay after revoke, `privacy_epoch` with `supersede_for_privacy_boundary`, `withdraw_enrollment` audit fields (`deletion_type`, `records_deleted`, `tables_affected`); UniQLab `payout_receipt` fields (`receipt_ref_hash`, `amount_minor`, `currency`, `status`). New code written here: `agentrail/uniqdata_port.py`, `tests/test_uniqdata_port.py` | Show where the engine plugs into the production participant app and researcher workspace without importing their code |
 
 Rules:
 - Add a row in the same commit that imports the code.
