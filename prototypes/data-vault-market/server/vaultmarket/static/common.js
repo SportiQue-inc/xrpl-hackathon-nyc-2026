@@ -61,7 +61,10 @@ function chatBox(el, data) {
     $("chatForm").onsubmit = async (e) => { e.preventDefault(); const t = $("say").value.trim(); if (!t) return; if (await tellAgent(t)) $("say").value = ""; };
   }
 }
-function live() { try { const es = new EventSource("/api/stream"); es.onmessage = () => {if(!document.hidden)refresh();}; } catch { setInterval(refresh, 5000); } }
+// trades land every second; redraw at most every 4 s so open tabs don't flood the server
+let _liveTimer = null;
+function live() { const soon = () => { if (_liveTimer || document.hidden) return; _liveTimer = setTimeout(() => { _liveTimer = null; refresh(); }, 4000); };
+  try { const es = new EventSource("/api/stream"); es.onmessage = soon; } catch { setInterval(refresh, 5000); } }
 
 // ---------------- members: sign up, sign in, link a personal wallet ----------------
 function memberBar() {

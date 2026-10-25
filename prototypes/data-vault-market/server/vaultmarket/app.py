@@ -311,10 +311,17 @@ def market(request: Request, account: str = "", domain: str | None = None):
                          "ask_min": min(asks) if asks else None, "ask_max": max(asks) if asks else None,
                          "bundles": s.one("SELECT COUNT(*) n FROM files WHERE kind = ? AND status = 'listed' AND derived_from IS NOT NULL", (d["kind"],))["n"]})
     return {"overview": {"online": people["o"], "accounts": people["n"], "settled": s.stat("settled"), "rejected": s.stat("rejected"),
-                         "volume": round(s.stat("volume"), 1), "xrp": round(s.stat("drops") / 1e6, 4), "uploads": s.stat("uploads"),
+                         "volume": round(_paid_now()["units"], 1), "xrp": round(_paid_now()["micro"] / 1e6, 4), "asset": M.rail.symbol(), "uploads": s.stat("uploads"),
                          "blocked": s.stat("blocked"), "cleaned": s.stat("cleaned"), "fees": round(s.stat("fees"), 1),
                          "txs": s.one("SELECT COUNT(*) n FROM txs")["n"]},
             "domains": sorted(doms, key=lambda d: -(d["listed"] + 5 * d["settled"])), "postings": postings, "contracts": contracts, "listings": listings, "sell_now": _sell_now(account), "prices": {k: M.quote(k) for k in KINDS}, "events": M.events}
+
+
+def _paid_now() -> dict:
+    """What settled deals in the current settlement asset paid on the ledger. Older counters mix in the XRP era."""
+    r = M.s.one("SELECT COALESCE(SUM(c.total), 0) units, COALESCE(SUM(t.drops), 0) micro FROM contracts c JOIN txs t ON t.contract = c.id "
+                "AND t.type LIKE 'EscrowFinish%' AND t.result = 'tesSUCCESS' WHERE c.status = 'settled' AND c.asset = ?", (M.rail.symbol(),))
+    return r
 
 
 def _sell_now(aid: str) -> list[dict]:
