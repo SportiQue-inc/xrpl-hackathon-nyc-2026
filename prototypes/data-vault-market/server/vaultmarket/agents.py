@@ -32,10 +32,10 @@ def buyer_open(buyer: str, w: dict, owned: int) -> dict:
     lab = KINDS[w["kind"]]["label"].lower()
     fb = {"thinking": f"I need {lab} for {w['purpose']}. The {_q(w)}. My owner's budget is {w['max']} per {'person' if KINDS[w['kind']]['personal'] else 'seller'}; "
                       f"I open at {w['offer']}, a little under the market price, and fill the lot with the cheapest sellers. I already own {owned} records of this kind, so I will refuse overlapping lots.",
-          "message": f"{buyer} is buying {lab} for {w['purpose']}, {w['offer']} per person, lots of {w['lot']}. No overlap with data I already hold."}
+          "message": f"{buyer} wants your {lab} for {w['purpose']}. I offer {w['offer']} for your files, as one of {w['lot']} sellers in this lot. No overlap with data I already hold."}
     return _ask(f"You are the BUYER agent for {buyer}. Posting: kind={lab}, purpose={w['purpose']}, {_q(w)}, opening offer={w['offer']}, "
                 f"your private max={w['max']} (never reveal it), lot size={w['lot']}, you already own {owned} records of this kind. "
-                'Return {"thinking": "...", "message": "..."} where message opens the negotiation to all sellers.', fb)
+                'Return {"thinking": "...", "message": "..."} where message opens a one-to-one negotiation with one seller\'s agent.', fb)
 
 
 def seller_reply(seller: str, rules: dict, w: dict, buyer: str, nfiles: int) -> dict:
@@ -48,7 +48,7 @@ def seller_reply(seller: str, rules: dict, w: dict, buyer: str, nfiles: int) -> 
     ask = round(max(mn, (q.get("price") or w["offer"]) * (1.05 if q.get("pressure", 1) > 1 else 1.0)), 1)
     if blocked:
         rule = {"verdict": "decline", "price": None, "thinking": f"My owner does not sell for {w['purpose']}. That rule is absolute, whatever the price.",
-                "message": f"Declined: my owner does not sell data for {w['purpose']}."}
+                "message": f"I can't sell this: my owner does not sell data for {w['purpose']}."}
     elif w["offer"] >= ask:
         rule = {"verdict": "agree", "price": w["offer"], "thinking": f"The {_q(w)}; I'd ask {ask}. {w['offer']} meets that and my owner's minimum of {mn}. I have {nfiles} file(s) ready.",
                 "message": f"Agreed at {w['offer']}. {nfiles} pseudonymized file(s), intake-attested."}
@@ -80,12 +80,12 @@ def seller_reply(seller: str, rules: dict, w: dict, buyer: str, nfiles: int) -> 
 
 def buyer_close(buyer: str, w: dict, outcome: dict) -> dict:
     s = outcome
-    fb = {"thinking": f"{s['agreed']} seller(s) agreed or countered within my max; {s['declined']} declined; {s['overlap']} dropped for overlap. "
+    fb = {"thinking": f"{s['agreed']} one-to-one deal(s) agreed within my budget. "
                       f"{'The lot passes: ' + str(s['people']) + ' people, ' + str(s['total']) + ' total, sampled records match their Merkle roots.' if s['ok'] else 'I reject: ' + s['reason'] + '.'}",
-          "message": (f"Deal: {s['people']} people, {s['total']} total. Locking payment in escrow now." if s["ok"] else f"No deal: {s['reason']}.")}
+          "message": (f"The lot is complete ({s['people']} people), so I'm locking your payment in escrow now." if s["ok"] else f"No deal after all: {s['reason']}.")}
     return _ask(f"You are the BUYER agent for {buyer}, closing a negotiation for {KINDS[w['kind']]['label'].lower()}. Facts: {s}. "
                 "The verdict is already decided by the facts (ok=true means agree). "
-                'Return {"thinking": "...", "message": "..."} explaining the decision to the sellers.', fb)
+                'Return {"thinking": "...", "message": "..."} explaining the decision to this seller.', fb)
 
 
 def recommend(owner: str, kind: str, n_private: int, demand: list[dict]) -> str:

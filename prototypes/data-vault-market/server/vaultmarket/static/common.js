@@ -7,7 +7,7 @@ const api = async (path, opts) => {
 };
 const post = (path, body) => api(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body || {}) });
 const params = new URLSearchParams(location.search);
-let ME = params.get("as") || (() => { try { return localStorage.getItem("vm-as"); } catch { return null; } })() || "dana";
+let ME = params.get("as") || "dana";
 let META = null, USER = null;
 const sym = () => (META?.asset === "test USD" ? "RLUSD" : META?.asset || "XRP");   // test USD token stands in for RLUSD on Testnet
 const xrp = (units) => `${(+(units || 0) * (META?.unit_xrp || 0.01)).toFixed(2)} ${sym()}`;   // price units -> what moves on the ledger
@@ -17,13 +17,13 @@ async function topbar(page) {
   META = await api("/api/meta");
   USER = await api("/api/me");
   if (USER.user && !params.get("as")) ME = USER.user.account;
+  // one account per view: your own once signed in, otherwise one read-only demo vault. Everyone's trades are in the trade history.
   const accts = await api("/api/accounts");
-  $("acct").innerHTML = accts.map((a) => `<option value="${a.id}">${a.id.startsWith("u-") ? "You · " : ""}${esc(a.name)}${a.type === "org" ? " (company)" : ""}</option>`).join("");
   if (!accts.some((a) => a.id === ME)) ME = "dana";
-  $("acct").value = ME;
-  $("acct").previousElementSibling.textContent = USER.user ? "Viewing" : USER.public ? "Viewing demo account" : "Signed in as (demo)";
+  const who = accts.find((a) => a.id === ME);
+  $("acct").hidden = true;
+  $("acct").previousElementSibling.textContent = USER.user ? `Signed in as ${who?.name || USER.user.username}` : `Demo view: ${who?.name || ME}'s vault. Sign in to trade your own.`;
   memberBar();
-  $("acct").onchange = (e) => { ME = e.target.value; try { localStorage.setItem("vm-as", ME); } catch {} refresh(); };
   $("ledgerTag").textContent = ({ testnet: "XRPL Testnet", devnet: "XRPL Devnet" })[META.ledger] || "TEST LEDGER (not real)";
   $("ledgerTag").className = "tag " + (META.ledger === "mock" ? "red" : "blue");
   $("ledgerTag").title = META.asset_note || "";

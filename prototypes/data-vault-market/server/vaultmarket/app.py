@@ -199,11 +199,13 @@ def market(account: str = "dana", domain: str | None = None):
     postings = s.q(f"SELECT p.*, a.name AS buyer_name, a.verified, (SELECT COUNT(*) FROM interests i WHERE i.posting = p.id) AS interest, "
                    f"(SELECT COUNT(*) FROM interests i WHERE i.posting = p.id AND i.account = ?) AS mine "
                    f"FROM postings p JOIN accounts a ON a.id = p.buyer WHERE p.status = 'open' AND p.kind IN ({ph}) ORDER BY interest DESC, p.offer DESC", (account, *kinds))
-    contracts = s.q(f"SELECT id, posting, buyer, kind, status, reason, total, items, sellers, created FROM contracts WHERE status != 'negotiating' AND kind IN ({ph}) ORDER BY id DESC LIMIT 60", tuple(kinds))
+    contracts = s.q(f"SELECT id, posting, buyer, seller, kind, status, reason, total, items, sellers, asset, created FROM contracts WHERE status != 'negotiating' AND kind IN ({ph}) ORDER BY id DESC LIMIT 60", tuple(kinds))
     for c in contracts:
         c["buyer_name"] = _name(c["buyer"]); c["sellers"] = json.loads(c["sellers"] or "[]")
+        c["seller_name"] = _name(c["seller"]) if c["seller"] else None
         c["mine"] = c["buyer"] == account or account in c["sellers"]
-        c["drops"] = int((c["total"] or 0) * config.MICRO_PER_UNIT)
+        # what the ledger actually paid: the validated EscrowFinish amounts, not the negotiated number
+        c["drops"] = s.one("SELECT COALESCE(SUM(drops), 0) d FROM txs WHERE contract = ? AND type LIKE 'EscrowFinish%' AND result = 'tesSUCCESS'", (c["id"],))["d"]
         t = s.one("SELECT hash FROM txs WHERE contract = ? AND hash IS NOT NULL ORDER BY id DESC LIMIT 1", (c["id"],))
         c["tx_url"] = M.rail.explorer(t["hash"]) if t else None
     people = s.q("SELECT COUNT(*) n, SUM(online) o FROM accounts")[0]
@@ -284,7 +286,8 @@ def contract(cid: int):
     if not c:
         raise HTTPException(404)
     c["trace"] = json.loads(c["trace"] or "{}"); c["sellers"] = json.loads(c["sellers"] or "[]")
-    c["buyer_name"] = _name(c["buyer"])
+    c["buyer_name"] = _name(c["buyer"]); c["seller_name"] = _name(c["seller"]) if c.get("seller") else None
+    c["paid"] = M.s.one("SELECT COALESCE(SUM(drops), 0) d FROM txs WHERE contract = ? AND type LIKE 'EscrowFinish%' AND result = 'tesSUCCESS'", (cid,))["d"]
     p = M.s.one("SELECT * FROM postings WHERE id = ?", (c["posting"],))
     msgs = M.s.q("SELECT * FROM messages WHERE contract = ? ORDER BY id", (cid,))
     for m in msgs:
@@ -313,12 +316,8 @@ def _bundles(aid: str):
         b["files"].append(f)
     out = []
     for k, b in by_domain.items():
-        st = {"offers": 0, "agreed": 0, "declined": 0}
-        for c in M.s.q("SELECT trace FROM contracts WHERE kind = ? AND trace LIKE ?", (k, f'%"seller": "{aid}"%')):
-            for s in json.loads(c["trace"] or "{}").get("seller_trace", []):
-                if s["seller"] == aid:
-                    st["offers"] += 1
-                    st["agreed" if s["verdict"] == "agree" else "declined"] += 1
+        n = M.s.one("SELECT COUNT(*) n, COALESCE(SUM(status = 'settled'), 0) ok FROM contracts WHERE kind = ? AND seller = ?", (k, aid))
+        st = {"offers": n["n"], "agreed": n["ok"], "declined": n["n"] - n["ok"]}
         best = M.s.one("SELECT MAX(offer) m FROM postings WHERE kind = ? AND status = 'open' AND buyer != ?", (k, aid))["m"]
         b.update(listed=sum(f["status"] == "listed" for f in b["files"]), earned=round(M.s.stat(f"earned:{aid}:{k}"), 1), best_offer=best, **st)
         out.append(b)
@@ -483,12 +482,13 @@ def chat_act(aid: str, cid: int, request: Request, body: dict = Body(...)):
         pb = M.pending_buys.pop(act["contract"])
         def go():
             with M.lock:
-                M.settle(act["contract"], pb["w"], pb["verified"], pb["trace"], pb["total"])
-            M.chat(aid, "agent", f"Bought. Contract #{act['contract']} settled on the ledger; the data is in your DB.")
+                M.settle(pb)
+            M.chat(aid, "agent", f"Bought. {len(pb['verified'])} deals settled on the ledger; the data is in your DB.")
         threading.Thread(target=go, daemon=True).start()
     elif act["do"] == "skip_buy":
-        M.pending_buys.pop(act.get("contract"), None)
-        M.s.x("UPDATE contracts SET status = 'rejected', reason = 'owner skipped' WHERE id = ?", (act.get("contract"),))
+        pb = M.pending_buys.pop(act.get("contract"), None)
+        for cid in (pb["deals"][a] for a, *_ in pb["verified"]) if pb else [act.get("contract")]:
+            M.s.x("UPDATE contracts SET status = 'rejected', reason = 'the buyer skipped this lot' WHERE id = ?", (cid,))
     return {"ok": True}
 
 

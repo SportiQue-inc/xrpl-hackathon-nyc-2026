@@ -80,7 +80,7 @@ class Market:
                         self.add_file(o["id"], "air", data.file_name("air", body, j), body, listed=True, source="kite-sensor-net")
         # a negotiation a previous run left mid-flight has no money in it: close it. A contract left
         # 'settling' may have escrows on the ledger; recover() finishes or refunds them once wallets connect.
-        self.s.x("UPDATE contracts SET status = 'rejected', reason = 'interrupted by a server restart' WHERE status = 'negotiating'")
+        self.s.x("UPDATE contracts SET status = 'rejected', reason = 'interrupted by a server restart' WHERE status IN ('negotiating', 'awaiting buyer')")
         self.s.x("UPDATE contracts SET status = 'rejected', reason = 'interrupted by a server restart before any escrow' "
                  "WHERE status = 'settling' AND id NOT IN (SELECT contract FROM escrows) "
                  "AND id NOT IN (SELECT contract FROM txs WHERE type = 'EscrowCreate')")
@@ -246,16 +246,33 @@ class Market:
         q = self.quote(w["kind"])
         opening = round(min(w["max"], max(0.5, q["price"] * 0.92)), 1)
         w = {**w, "offer": opening, "quote": q}
-        cid = self.s.insert("contracts", posting=w["id"], buyer=w["buyer"], kind=w["kind"], status="negotiating")
-        say = lambda who, side, text, thinking="", by="": self.s.insert("messages", contract=cid, speaker=who, side=side, text=text, thinking=json.dumps({"t": thinking, "by": by}))
+        # one-to-one: the buyer's agent negotiates a separate deal with each seller's agent. A lot is only
+        # the set of deals one posting closes together (personal data needs k people before anything settles).
         op = agents.buyer_open(buyer["name"], w, len(owned))
-        say(w["buyer"], "buyer", op["message"], op["thinking"], op["by"])
-        trace = {"buyer_trace": [op["thinking"]], "seller_trace": [], "verdicts": {"sellers": {}}, "tx": [], "protocol": [], "model": llm.model_name()}
-        def step(protocol, detail, ok=True, who=None, tx=None):
-            trace["protocol"].append({"protocol": protocol, "detail": detail, "ok": ok, "who": who, "tx": tx})
-        step("Price discovery (shared ledger)", f"market price {q['price']}: median {q['median']} of the last {q['n']} clearing prices"
-             + (f" (range {q['lo']}–{q['hi']})" if q["n"] else " (no trades yet: list price)")
-             + f", supply {q['supply']} vaults vs demand {q['demand']} people wanted (pressure {q['pressure']}). Buyer opens at {opening}, budget {w['max']}.")
+        lot_open = [{"protocol": "Price discovery (shared ledger)", "ok": True, "who": None, "tx": None,
+                     "detail": f"market price {q['price']}: median {q['median']} of the last {q['n']} clearing prices"
+                     + (f" (range {q['lo']}–{q['hi']})" if q["n"] else " (no trades yet: list price)")
+                     + f", supply {q['supply']} vaults vs demand {q['demand']} people wanted (pressure {q['pressure']}). Buyer opens at {opening}, budget {w['max']}."}]
+        deals: dict[str, int] = {}
+        traces: dict[str, dict] = {}
+
+        def deal(a: str) -> int:
+            if a not in deals:
+                deals[a] = self.s.insert("contracts", posting=w["id"], buyer=w["buyer"], seller=a, kind=w["kind"], status="negotiating", sellers=[a])
+                traces[a] = {"buyer_trace": [op["thinking"]], "seller_trace": [], "verdicts": {}, "tx": [], "protocol": [dict(x) for x in lot_open], "model": llm.model_name()}
+                say(a, w["buyer"], "buyer", op["message"], op["thinking"], op["by"])
+            return deals[a]
+
+        def say(a, who, side, text, thinking="", by=""):
+            self.s.insert("messages", contract=deal(a), speaker=who, side=side, text=text, thinking=json.dumps({"t": thinking, "by": by}))
+
+        def step(a, protocol, detail, ok=True, tx=None):
+            traces[a]["protocol"].append({"protocol": protocol, "detail": detail, "ok": ok, "who": a, "tx": tx})
+
+        def no_deal(a, reason):
+            traces[a]["verdicts"] = {"buyer": "no deal", "seller": reason}
+            self.s.x("UPDATE contracts SET status = 'rejected', reason = ?, trace = ? WHERE id = ?", (reason, json.dumps(traces[a]), deals[a]))
+            self.s.bump("rejected"); self.s.bump("rejected:" + w["kind"])
 
         files = self.s.q("SELECT f.*, a.trust FROM files f JOIN accounts a ON a.id = f.account WHERE f.kind = ? AND f.status = 'listed' AND f.account != ?", (w["kind"], w["buyer"]))
         by_acct: dict[str, list] = {}
@@ -264,56 +281,43 @@ class Market:
                 continue
             by_acct.setdefault(f["account"], []).append(f)
         interested = {r["account"] for r in self.s.q("SELECT account FROM interests WHERE posting = ?", (w["id"],))}
-        low_trust = [a for a, fs in by_acct.items() if fs[0]["trust"] < w["min_trust"]]
-        cands = [a for a in by_acct if a not in low_trust]
+        refused = {r["seller"] for r in self.s.q("SELECT seller FROM contracts WHERE posting = ? AND reason LIKE 'the seller does not sell for%'", (w["id"],))}
+        cands = [a for a, fs in by_acct.items() if fs[0]["trust"] >= w["min_trust"] and a not in refused]   # a purpose refusal stands
         self.rng.shuffle(cands)
         cands.sort(key=lambda a: a not in interested)
         cands = cands[: w["lot"] + 3]
-        trace["buyer_trace"].append(f"{len(by_acct)} vaults list this kind; {len(low_trust)} below trust {w['min_trust']} skipped; asking {len(cands)}"
-                                    + (f", {len(interested & set(cands))} marked interest so they go first." if interested & set(cands) else "."))
-        agreed, declined, overlap = [], 0, 0
+        agreed = []
         for a in cands:
             sa = self.acct(a)
             fs = by_acct[a]
             if sa["sell_agent"].get("mode") == "ask" and a not in interested:
-                say(a, "seller", "My owner reviews each sale. I have asked them; count me in once they approve.", "Owner set 'ask me first' and has not marked this posting.", "rules")
-                trace["seller_trace"].append({"seller": a, "verdict": "waiting for owner", "price": None})
-                self._ask_owner(a, w, len(fs))
-                declined += 1
+                self._ask_owner(a, w, len(fs))     # no deal opened: the owner is asked in their chat
                 continue
-            # buyer agent: duplicate or overlapping data is refused before any price talk
+            # buyer agent: a seller whose data it already holds is not approached at all
             fps = set().union(*(json.loads(f["fps"] or "[]") for f in fs))
             ov = len(fps & owned) / max(1, len(fps))
             if ov >= buyer["buy_agent"].get("max_overlap", 0.3):
-                say(w["buyer"], "buyer", f"Your lot overlaps {ov:.0%} with records I already own. I won't pay twice for the same data.",
-                    f"Fingerprint check: {len(fps & owned)} of {len(fps)} records already in my vault.", "rules")
-                trace["seller_trace"].append({"seller": a, "verdict": "refused by buyer: overlap", "price": None, "overlap": round(ov, 2)})
-                step("Duplicate check (record fingerprints)", f"{ov:.0%} of this lot's record fingerprints are already in the buyer's DB; limit {buyer['buy_agent'].get('max_overlap', 0.3):.0%}. Refused before price talk.", False, a)
-                overlap += 1
                 continue
             r = agents.seller_reply(sa["name"], sa["sell_agent"], w, buyer["name"], len(fs))
-            say(a, "seller", r["message"], r["thinking"], r["by"])
-            final = r["verdict"]
+            say(a, a, "seller", r["message"], r["thinking"], r["by"])
+            traces[a]["seller_trace"].append({"seller": a, "thinking": r["thinking"], "verdict": r["verdict"], "price": r["price"], "by": r["by"]})
             if r["verdict"] == "counter":
                 if r["price"] <= w["max"]:
-                    say(w["buyer"], "buyer", f"{r['price']} accepted.", f"Counter {r['price']} is within my max.", "rules"); final = "agree"
+                    say(a, w["buyer"], "buyer", f"{r['price']} accepted.", f"Counter {r['price']} is within my budget.", "rules")
                 else:
-                    say(w["buyer"], "buyer", f"{r['price']} is more than I can pay. Pass.", f"Counter {r['price']} exceeds my max.", "rules"); final = "decline"
-            trace["seller_trace"].append({"seller": a, "thinking": r["thinking"], "verdict": final, "price": r["price"], "by": r["by"]})
-            trace["verdicts"]["sellers"][a] = final
-            if final == "agree":
-                agreed.append((a, fs, r["price"]))
-            else:
-                declined += 1
+                    say(a, w["buyer"], "buyer", f"{r['price']} is more than I can pay. No deal.", f"Counter {r['price']} is over my budget.", "rules")
+                    no_deal(a, f"the seller asked {r['price']}, over the buyer's budget"); continue
+            elif r["verdict"] != "agree":
+                no_deal(a, "the seller did not accept the price" if w["purpose"] not in sa["sell_agent"].get("blocks", []) else f"the seller does not sell for {w['purpose']}")
+                continue
+            step(a, "Duplicate check (record fingerprints)", f"{ov:.0%} of this seller's record fingerprints are already in the buyer's DB (limit {buyer['buy_agent'].get('max_overlap', 0.3):.0%})")
+            agreed.append((a, fs, r["price"]))
         # the buyer fills the lot at the lowest prices on offer
         agreed.sort(key=lambda x: x[2])
-        if len(agreed) > w["lot"]:
-            dropped = agreed[w["lot"]:]
-            agreed = agreed[: w["lot"]]
-            trace["buyer_trace"].append(f"{len(agreed) + len(dropped)} sellers agreed; I keep the {len(agreed)} cheapest "
-                                        f"({agreed[0][2]}–{agreed[-1][2]}) and pass on {len(dropped)} asking up to {dropped[-1][2]}.")
-            for a, _, pr in dropped:
-                trace["verdicts"]["sellers"][a] = "outbid"
+        for a, _, pr in agreed[w["lot"]:]:
+            say(a, w["buyer"], "buyer", f"I found enough sellers at lower prices for this lot, so I'll pass at {pr}.", f"Lot of {w['lot']} filled at {agreed[0][2]}–{agreed[w['lot'] - 1][2]}.", "rules")
+            no_deal(a, f"the buyer filled the lot with sellers under {pr}")
+        agreed = agreed[: w["lot"]]
 
         # buyer agent: verify each seller's attestation and a sampled record against its Merkle root
         verified = []
@@ -325,42 +329,50 @@ class Market:
                 i = self.rng.randrange(len(recs)) if recs else 0
                 sig_ok = bool(att) and intake.verify_attestation(att)
                 mk_ok = bool(recs) and sig_ok and merkle_verify(recs[i], merkle_proof(recs, i), att["merkle_root"])
-                step("Intake attestation (Ed25519)", f"{f['name']}: schema {att.get('schema', '?')}, {att.get('records', 0)} records, checks: {', '.join(att.get('checks', [])) or 'none'}; signature {'valid' if sig_ok else 'INVALID'} (intake key {str(att.get('pubkey', ''))[:12]}…)", sig_ok, a)
-                step("Merkle sample proof (SHA-256)", f"record {i + 1} of {len(recs)} proven against root {str(att.get('merkle_root', ''))[:16]}… with {len(merkle_proof(recs, i)) if recs else 0} sibling hashes", mk_ok, a)
+                step(a, "Intake attestation (Ed25519)", f"{f['name']}: schema {att.get('schema', '?')}, {att.get('records', 0)} records, checks: {', '.join(att.get('checks', [])) or 'none'}; signature {'valid' if sig_ok else 'INVALID'} (intake key {str(att.get('pubkey', ''))[:12]}…)", sig_ok)
+                step(a, "Merkle sample proof (SHA-256)", f"record {i + 1} of {len(recs)} proven against root {str(att.get('merkle_root', ''))[:16]}… with {len(merkle_proof(recs, i)) if recs else 0} sibling hashes", mk_ok)
                 if not (sig_ok and mk_ok):
                     ok = False
             if ok:
                 verified.append((a, fs, price))
-        people = len(verified) if personal else len(verified)
-        people_eff = sum(json.loads(fs[0]["raw"]).get("_people", 1) for _, fs, _ in verified) if personal else people
+            else:
+                say(a, w["buyer"], "buyer", "Your files did not pass the attestation check, so I can't buy them.", "Signature or Merkle sample failed.", "rules")
+                no_deal(a, "the data failed the attestation check")
+        people_eff = sum(json.loads(fs[0]["raw"]).get("_people", 1) for _, fs, _ in verified) if personal else len(verified)
         total = round(sum(p for _, _, p in verified), 2)
         bal = self.balance(w["buyer"]) or 0
         need = config.K_MIN if personal else 1
         reason = ""
-        if people_eff < need:
-            reason = f"only {people_eff} people agreed; a lot of personal data needs at least {config.K_MIN}" if personal else "no seller agreed"
+        if not verified:
+            reason = "no seller agreed"
+        elif people_eff < need:
+            reason = f"only {people_eff} of the {config.K_MIN} people a lot of personal data needs agreed"
         elif total * config.MICRO_PER_UNIT / 1e6 + (0 if self.rail.token else 0.2 * len(verified)) > bal:
-            reason = f"not enough {self.rail.symbol()} for {len(verified)} escrows"
-        if personal:
-            step(f"k-anonymity (k >= {config.K_MIN})", f"{people_eff} people in the lot", people_eff >= config.K_MIN)
-        outcome = {"agreed": len(agreed), "declined": declined, "overlap": overlap, "people": people_eff, "total": total, "ok": not reason, "reason": reason}
-        cl = agents.buyer_close(buyer["name"], w, outcome)
-        say(w["buyer"], "buyer", cl["message"], cl["thinking"], cl["by"])
-        trace["buyer_trace"].append(cl["thinking"])
-        trace["verdicts"]["buyer"] = "agree" if not reason else "reject"
+            reason = f"the buyer did not have enough {self.rail.symbol()} for {len(verified)} escrows"
+        outcome = {"agreed": len(verified), "people": people_eff, "total": total, "ok": not reason, "reason": reason}
+        cl = agents.buyer_close(buyer["name"], w, outcome) if verified else None
+        lot_ids = sorted(deals[a] for a, *_ in verified)
+        for a, fs, price in verified:
+            if personal:
+                step(a, f"k-anonymity (k >= {config.K_MIN})", f"this deal is one of {len(verified)} in the lot ({people_eff} people)", people_eff >= config.K_MIN)
+            traces[a]["buyer_trace"].append(cl["thinking"])
+            traces[a]["lot"] = {"deals": lot_ids, "people": people_eff, "total": total}
+            say(a, w["buyer"], "buyer", (f"Deal at {price}. " if not reason else "") + cl["message"], cl["thinking"], cl["by"])
         if reason:
-            self.s.x("UPDATE contracts SET status='rejected', reason=?, trace=?, sellers=? WHERE id=?", (reason, json.dumps(trace), json.dumps([a for a, *_ in verified]), cid))
+            for a, *_ in verified:
+                no_deal(a, reason)
             self.s.x("UPDATE postings SET rejected = rejected + 1 WHERE id = ?", (w["id"],))
-            self.s.bump("rejected"); self.s.bump("rejected:" + w["kind"])
-            return cid
+            return lot_ids[0] if lot_ids else None
+        lot = {"w": w, "verified": verified, "deals": deals, "traces": traces, "total": total}
         if buyer["type"] == "person" and total > buyer["buy_agent"].get("auto_limit", 60):
-            self.pending_buys[cid] = {"w": w, "verified": verified, "trace": trace, "total": total}
-            self.s.x("UPDATE contracts SET status='awaiting buyer', reason=?, trace=?, total=? WHERE id=?", (f"{total} is above the owner's auto-buy limit", json.dumps(trace), total, cid))
-            self.chat(w["buyer"], "agent", f"I negotiated {people_eff} sellers for {KINDS[w['kind']]['label'].lower()} at {total} total, above your auto-buy limit. Buy?",
-                      [{"t": f"Buy for {total}", "do": "buy", "contract": cid}, {"t": "Skip", "do": "skip_buy", "contract": cid}])
-            return cid
-        self.settle(cid, w, verified, trace, total)
-        return cid
+            self.pending_buys[lot_ids[0]] = lot
+            for a, *_ in verified:
+                self.s.x("UPDATE contracts SET status='awaiting buyer', reason=?, trace=?, total=? WHERE id=?", (f"the lot's {total} is above the owner's auto-buy limit", json.dumps(traces[a]), dict((x[0], x[2]) for x in verified)[a], deals[a]))
+            self.chat(w["buyer"], "agent", f"I agreed {len(verified)} one-to-one deals for {KINDS[w['kind']]['label'].lower()} ({people_eff} people) at {total} total, above your auto-buy limit. Buy?",
+                      [{"t": f"Buy for {total}", "do": "buy", "contract": lot_ids[0]}, {"t": "Skip", "do": "skip_buy", "contract": lot_ids[0]}])
+            return lot_ids[0]
+        self.settle(lot)
+        return lot_ids[0]
 
     def _ask_owner(self, aid: str, w: dict, nfiles: int):
         if self.s.one("SELECT id FROM chat WHERE account = ? AND done = 0 AND actions LIKE ?", (aid, f'%"posting": {w["id"]}%')):
@@ -370,72 +382,78 @@ class Market:
                                 f"You have {nfiles} listed file(s). Sell them inside a lot of at least {config.K_MIN} people?",
                   [{"t": "OK, include me", "do": "interest", "posting": w["id"]}, {"t": "Not this one", "do": "noop", "posting": w["id"]}])
 
-    def settle(self, cid: int, w: dict, verified: list, trace: dict, total: float):
+    def settle(self, lot: dict):
+        """Pay every deal in the lot: one escrow per seller, each finished by that seller's agent."""
+        w, verified, deals, traces = lot["w"], lot["verified"], lot["deals"], lot["traces"]
         buyer_id = w["buyer"]
-        self.s.x("UPDATE contracts SET status='settling', total=? WHERE id=?", (total, cid))
+        for a, _, price in verified:
+            self.s.x("UPDATE contracts SET status='settling', total=?, asset=? WHERE id=?", (price, self.rail.symbol(), deals[a]))
         legs, plain = [], {}
         for a, fs, price in verified:
             recs = [json.loads(f["clean"]) for f in fs]
-            clear = data.dumps({"contract": cid, "seller": "p_" + data.fp(a, cid)[:10], "records": recs}).encode()
+            clear = data.dumps({"contract": deals[a], "seller": "p_" + data.fp(a, deals[a])[:10], "records": recs}).encode()
             sealed, K = self.rail.seal(buyer_id, clear)
-            trace["protocol"].append({"protocol": "Sealed delivery (AES-256-GCM, key wrapped with X25519 + HKDF-SHA256)", "who": a, "ok": True, "tx": None,
-                                      "detail": f"{len(clear)} bytes sealed to the buyer's X25519 key; bundle SHA-256 {hashlib.sha256(clear).hexdigest()[:16]}…; content key K stays with the seller's agent"})
+            traces[a]["protocol"].append({"protocol": "Sealed delivery (AES-256-GCM, key wrapped with X25519 + HKDF-SHA256)", "who": a, "ok": True, "tx": None,
+                                          "detail": f"{len(clear)} bytes sealed to the buyer's X25519 key; bundle SHA-256 {hashlib.sha256(clear).hexdigest()[:16]}…; content key K stays with the seller's agent"})
             legs.append({"seller": a, "seller_addr": self.addr[a], "dst_addr": self.acct(a).get("payout") if self.rail.has_line(self.acct(a).get("payout") or "") else None, "drops": int(price * config.MICRO_PER_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
             plain[a] = clear
         eids = {}
+
         def record(i, seq, create_hash, cancel_after):
             l = legs[i]
-            eids[i] = self.s.insert("escrows", contract=cid, buyer=buyer_id, seller=l["seller"], owner=self.addr[buyer_id], seq=seq,
+            eids[i] = self.s.insert("escrows", contract=deals[l["seller"]], buyer=buyer_id, seller=l["seller"], owner=self.addr[buyer_id], seq=seq,
                                     create_hash=create_hash, k=l["K"].hex(), cancel_after=cancel_after, drops=l["drops"], price=l["price"],
                                     files=[f["id"] for f in l["fs"]], state="open")
-        res = self.rail.escrow_lot(self.addr[buyer_id], legs, f"vaultmarket/contract/{cid}", record=record)
+        res = self.rail.escrow_lot(self.addr[buyer_id], legs, f"vaultmarket/lot/{min(deals[a] for a, *_ in verified)}", record=record)
         for i, r in enumerate(res):
             if i in eids:
                 self.s.x("UPDATE escrows SET state = ?, finish_hash = ? WHERE id = ?",
                          ("finished" if r["finish"]["ok"] else "void" if not r["create"]["ok"] else "open", r["finish"]["hash"], eids[i]))
-        paid, items, fps, merged = [], 0, set(), []
+        paid, fps, merged = [], set(), []
         for leg, r in zip(legs, res):
-            self.s.insert("txs", contract=cid, type="EscrowCreate", hash=r["create"]["hash"], src=buyer_id, dst=leg["seller"], drops=leg["drops"], result=r["create"]["result"])
+            a = leg["seller"]; cid = deals[a]; trace = traces[a]
+            self.s.insert("txs", contract=cid, type="EscrowCreate", hash=r["create"]["hash"], src=buyer_id, dst=a, drops=leg["drops"], result=r["create"]["result"])
             if r["finish"]["hash"]:
-                self.s.insert("txs", contract=cid, type="EscrowFinish (key released)", hash=r["finish"]["hash"], src=leg["seller"], dst=buyer_id, drops=leg["drops"], result=r["finish"]["result"])
-            trace["tx"].append({"seller": leg["seller"], "create": r["create"]["hash"], "finish": r["finish"]["hash"], "ok": r["finish"]["ok"]})
+                self.s.insert("txs", contract=cid, type="EscrowFinish (key released)", hash=r["finish"]["hash"], src=a, dst=buyer_id, drops=leg["drops"], result=r["finish"]["result"])
+            trace["tx"].append({"seller": a, "create": r["create"]["hash"], "finish": r["finish"]["hash"], "ok": r["finish"]["ok"]})
             cond = condition_hex(leg["K"])
-            trace["protocol"].append({"protocol": f"XRPL EscrowCreate ({'token escrow, ' if self.rail.token else ''}PREIMAGE-SHA-256 crypto-condition)", "who": leg["seller"], "ok": r["create"]["ok"], "tx": r["create"]["hash"],
-                                      "detail": f"buyer locks {leg['drops'] / 1e6:.3f} {self.rail.symbol()}{(' (issuer ' + self.rail.issuer[:8] + '…)') if self.rail.token else ''} to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
-            trace["protocol"].append({"protocol": "XRPL EscrowFinish (fulfillment reveals K)", "who": leg["seller"], "ok": r["finish"]["ok"], "tx": r["finish"]["hash"],
+            trace["protocol"].append({"protocol": f"XRPL EscrowCreate ({'token escrow, ' if self.rail.token else ''}PREIMAGE-SHA-256 crypto-condition)", "who": a, "ok": r["create"]["ok"], "tx": r["create"]["hash"],
+                                      "detail": f"buyer locks {leg['drops'] / 1e6:.3f} {self.rail.symbol()}{(' (issuer ' + self.rail.issuer[:8] + '…)') if self.rail.token else ''} to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; {r['create']['result']}"})
+            trace["protocol"].append({"protocol": "XRPL EscrowFinish (fulfillment reveals K)", "who": a, "ok": r["finish"]["ok"], "tx": r["finish"]["hash"],
                                       "detail": f"seller's agent submits the fulfillment (the preimage K); the ledger checks SHA-256(K) against the condition and pays; {r['finish']['result']}"})
             if not r["finish"]["ok"]:
-                continue
+                self.s.x("UPDATE contracts SET status='rejected', reason='the ledger did not settle this escrow', trace=? WHERE id=?", (json.dumps(trace), cid))
+                self.s.bump("rejected"); continue
             # the buyer reads K from the ledger's EscrowFinish and opens what it already holds
             st = self.rail.led.lookup(r["finish"]["hash"])
             K = bytes.fromhex(st.fulfillment[8:]) if st.fulfillment else leg["K"]
             raw_open = self.rail.open(buyer_id, leg["sealed"], K)
             opened = json.loads(raw_open)
-            same = hashlib.sha256(raw_open).digest() == hashlib.sha256(plain[leg["seller"]]).digest()
-            trace["protocol"].append({"protocol": "Buyer opens the bundle", "who": leg["seller"], "ok": same, "tx": None,
+            same = hashlib.sha256(raw_open).digest() == hashlib.sha256(plain[a]).digest()
+            trace["protocol"].append({"protocol": "Buyer opens the bundle", "who": a, "ok": same, "tx": None,
                                       "detail": f"buyer agent read K from the validated EscrowFinish on the ledger, unwrapped and decrypted {len(opened['records'])} records; bundle SHA-256 {hashlib.sha256(raw_open).hexdigest()[:16]}… {'matches' if same else 'DOES NOT match'} the sealed bundle"})
-            merged.extend(opened["records"]); items += len(leg["fs"]); paid.append(leg)
+            merged.extend(opened["records"]); paid.append(leg)
             for f in leg["fs"]:
                 self.s.x("UPDATE files SET sold = sold + 1 WHERE id = ?", (f["id"],)); fps.update(json.loads(f["fps"] or "[]"))
+            self.s.x("UPDATE contracts SET status='settled', total=?, items=?, trace=? WHERE id=?", (leg["price"], len(leg["fs"]), json.dumps(trace), cid))
+            self.s.bump("settled"); self.s.bump("settled:" + w["kind"])
+            self.s.insert("prices", kind=w["kind"], price=leg["price"], contract=cid)
+            self.s.bump(f"earned:{a}:{w['kind']}", leg["price"])
+            if self.acct(a)["type"] == "person" and self.acct(a)["sell_agent"].get("mode") == "ask":
+                self.chat(a, "agent", f"Sold to {self.acct(buyer_id)['name']} at {leg['price']}: +{leg['drops'] / 1e6:.2f} {self.rail.symbol()} on the ledger. Contract #{cid}.")
         if not paid:
-            self.s.x("UPDATE contracts SET status='rejected', reason='ledger did not settle', trace=? WHERE id=?", (json.dumps(trace), cid))
-            self.s.bump("rejected"); return
+            return
         paid_total = round(sum(l["price"] for l in paid), 2)
         people = sum(json.loads(l["fs"][0]["raw"]).get("_people", 1) for l in paid)
-        raw = {"_people": people, "from_contract": cid, "records": merged}
-        self.s.insert("files", account=buyer_id, kind=w["kind"], name=f"{w['kind']}_lot_{cid}.json", raw=data.dumps(raw), clean=data.dumps({"records": merged[:3], "_people": people}),
-                      status="bought", fps=sorted(fps), source=f"contract {cid}", resale=w.get("resale", 0), bytes=sum(len(c) for c in plain.values()))
-        self.s.x("UPDATE contracts SET status='settled', total=?, items=?, sellers=?, trace=? WHERE id=?", (paid_total, items, json.dumps([l["seller"] for l in paid]), json.dumps(trace), cid))
+        first = min(deals[l["seller"]] for l in paid)
+        self.s.insert("files", account=buyer_id, kind=w["kind"], name=f"{w['kind']}_lot_{first}.json", raw=data.dumps({"_people": people, "from_contracts": [deals[l["seller"]] for l in paid], "records": merged}),
+                      clean=data.dumps({"records": merged[:3], "_people": people}), status="bought", fps=sorted(fps), source=f"contracts {', '.join('#' + str(deals[l['seller']]) for l in paid)}",
+                      resale=w.get("resale", 0), bytes=sum(len(plain[l["seller"]]) for l in paid))
         self.s.x("UPDATE postings SET settled = settled + 1 WHERE id = ?", (w["id"],))
         if w.get("once"):
             self.s.x("UPDATE postings SET status = 'filled' WHERE id = ?", (w["id"],))
-        self.s.bump("settled"); self.s.bump("volume", paid_total); self.s.bump("volume:" + w["kind"], paid_total); self.s.bump("settled:" + w["kind"])
+        self.s.bump("volume", paid_total); self.s.bump("volume:" + w["kind"], paid_total)
         self.s.bump("drops", sum(l["drops"] for l in paid))
-        for l in paid:
-            self.s.bump(f"earned:{l['seller']}:{w['kind']}", l["price"])
-            self.s.insert("prices", kind=w["kind"], price=l["price"], contract=cid)
-            if self.acct(l["seller"])["type"] == "person" and self.acct(l["seller"])["sell_agent"].get("mode") == "ask":
-                self.chat(l["seller"], "agent", f"Sold to {self.acct(buyer_id)['name']} in a lot of {people} people: +{l['drops'] / 1e6:.2f} {self.rail.symbol()} on the ledger. Contract #{cid}.")
         for a in {l["seller"] for l in paid}:
             self._bal.pop(a, None)
         self._bal.pop(buyer_id, None)

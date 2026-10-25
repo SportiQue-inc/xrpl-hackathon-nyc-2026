@@ -68,7 +68,7 @@ async function refresh() {
   if (VIEW === "domain") {
     $("bundles").innerHTML = ACC.bundles.map((b) => `<div class="card"><div class="row"><h3>${esc(b.domain)}</h3><span class="price">${b.best_offer ? `best offer ${xrp(b.best_offer)}` : "no buyer yet"}</span></div>
       <span class="small muted">${esc(b.label)} · ${b.files.length} files · ${b.listed} listed · expected next sale ${b.listed && b.best_offer ? xrp(b.best_offer) : "—"} · earned ${xrp(b.earned)}</span>
-      <div class="row small"><span>${b.offers} offers</span><span class="y">${b.agreed} agreed</span><span class="n">${b.declined} declined</span><span><b>${b.earned}</b> earned</span></div>
+      <div class="row small"><span>${b.offers} offers</span><span class="y">${b.agreed} sold</span><span class="muted">${b.declined} no deal</span><span><b>${b.earned}</b> earned</span></div>
       <details><summary class="small">Files</summary>${b.files.map(fileRow).join("")}</details></div>`).join("") || '<p class="muted small">Your DB is empty. Upload something on the right.</p>';
   } else if (VIEW === "all") {
     const all = (await api(`/api/market?account=${ME}`)).postings;
@@ -86,7 +86,7 @@ async function refresh() {
   $("bundles").querySelectorAll("[data-f]").forEach((el) => el.onchange = async () => { await post(`/api/account/${ME}/file/${el.dataset.f}`, { listed: el.checked }); refresh(); });
   const earned = ACC.bundles.reduce((t, b) => t + b.earned, 0);
   const st = ACC.stats;
-  $("wallet").innerHTML = [[ACC.balance != null ? ACC.balance.toFixed(2) : "…", `${sym()} balance`], [st.earned_xrp.toFixed(2), `${sym()} earned`], [st.agreed, "sales agreed"], [st.declined, "declined or passed"],
+  $("wallet").innerHTML = [[ACC.balance != null ? ACC.balance.toFixed(2) : "…", `${sym()} balance`], [st.earned_xrp.toFixed(2), `${sym()} earned`], [st.agreed, "sales agreed"], [st.declined, "no deal"],
     [st.fees_xrp.toFixed(2), `${sym()} cleaning fees`], [ACC.files, "files in my DB"], [ACC.bought.length, "lots bought"]].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
   let cum = 0; const pts = ACC.growth.map((g) => [g.m, (cum += g.n)]); const mx = Math.max(1, ...pts.map((p) => p[0])), my = Math.max(1, cum);
   $("growth").innerHTML = pts.length ? `<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${pts.map(([x, y]) => `${(x / mx) * 310 + 5},${65 - (y / my) * 58}`).join(" ")}"/><text x="5" y="10" fill="var(--muted)" font-size="10">${cum} files</text>` : "";

@@ -57,6 +57,10 @@ class Store:
             cols = {r[1] for r in self.db.execute("PRAGMA table_info(accounts)")}
             if "payout" not in cols:          # databases from before signup
                 self.db.execute("ALTER TABLE accounts ADD COLUMN payout TEXT")
+            cols = {r[1] for r in self.db.execute("PRAGMA table_info(contracts)")}
+            for col in ("seller", "asset"):          # one-to-one deals: the seller, and the asset it settled in
+                if col not in cols:
+                    self.db.execute(f"ALTER TABLE contracts ADD COLUMN {col} TEXT")
 
     def q(self, sql: str, args=()) -> list[dict]:
         with self.lock:
