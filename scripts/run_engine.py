@@ -12,6 +12,9 @@ Everything goes over HTTP to the same API the dashboard uses, signed in as each 
   operator     runs the boundary checks: consent, refusals (incl. the clinic export over HTTP 402),
                payout review and holdbacks, the three withdrawals (clawback, refund)
   researcher   on Testnet: sweeps until the held escrow's deadline has passed and it is refunded
+  researcher   buys per-column data under contracts the agents negotiate (profiles, substitutes, a
+               shorter period), checks each contribution as it arrives and releases its held 20% only
+               on a pass
 
 Then GET /api/engine/check prints one row per flow with its ledger transaction; the exit code is 0
 only if every flow passed. The run's database is kept (runs/<ledger>-<time>.db) so that
@@ -132,6 +135,13 @@ def main():
                 break
             time.sleep(10)
 
+    k = api.call("POST", "/api/contract/round", who=R)
+    log(f"data contracts: {k['providers_contracted']} providers, {k['usable']}/{k['target']} usable windows, "
+        f"{k['unfit']} unfit caught ({', '.join(sorted(k['caught']))}); "
+        f"{k['xrp_paid_for_unfit']} XRP paid for unfit")
+    if kind == "testnet":          # held parts of passed contributions become releasable after the review time
+        time.sleep(30)
+        api.call("POST", "/api/study/payout/release", who=R)
     chk = api.call("GET", "/api/engine/check", who=R)
     print(summary(chk["flows"]))
     ok = all(f["ok"] for f in chk["flows"])

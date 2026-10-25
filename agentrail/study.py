@@ -22,7 +22,7 @@ from . import uniqdata_live
 from .engine import BudgetExceeded, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
 from .ledger.licence import licence_metadata
 from .ledger.amm_terms import SLIPPAGE, STABLE_CODE, STABLE_ISSUER, STABLE_LABEL
-from .policy import DUO, PURPOSE_DUO, BuyerMandate
+from .policy import DUO, PURPOSE_DUO, SENSITIVITY, BuyerMandate
 
 XRP = 1_000_000
 LAB = "org_sleeplab"
@@ -32,6 +32,7 @@ LABELS = {"sleep.daily": "Sleep (wearable)", "activity.daily": "Activity (wearab
           "heart_rate.daily": "Resting heart rate (wearable)", "fatigue.survey": "Fatigue survey",
           "blood_pressure.daily": "Blood pressure (clinic visit)", "birth_date": "Exact birth date",
           "zip5": "5-digit postal code", "diagnosis.rare": "Rare diagnosis"}
+IRB_NUMBER = "IRB-SYN-2026-014"   # synthetic ethics approval number shown in the console
 HOLD_WINDOW_S = 120     # escrow deadline for a round the participant's agent has not released yet
 BONUS_DROPS = CELL_PRICE   # completion bonus offered on the followed participant's request
 
@@ -550,7 +551,8 @@ def request_card(w, req) -> dict:
         cls, why = classes.get(i, ("approval", ""))
         per_item.append({"item": i, "label": LABELS.get(i, i),
                          "weeks": sorted(wk for wk, its in req["weeks"].items() if i in its),
-                         "source": srcs[i].name if i in srcs else None, "class": cls, "reason": why})
+                         "source": srcs[i].name if i in srcs else None, "class": cls, "reason": why,
+                         "sensitive": SENSITIVITY.get(i) == "sensitive"})
     n_cells = sum(len(v) for v in req["weeks"].values())
     return {"id": req["id"], "status": req["status"], "purpose": req["purpose"],
             "institution": {"id": LAB, "name": w.engine.party(LAB)["name"], "badges": _badges(w)},
@@ -818,6 +820,7 @@ def study_view(w) -> dict:
     hm = heatmap(w, w.coverage, LAB)
     hm["power_before"], hm["pairs_before"] = s.power_before, s.pairs_before
     for row in hm["rows"]:
+        row["pseudonym"] = w.cohort_people[row["person"]].vault.pseudonym(LAB)
         if row["person"] in getattr(s, "withdrawn", set()):
             row["cells"] = [{"s": "withdrawn"} for _ in row["cells"]]
     n = s.needs
@@ -838,7 +841,8 @@ def study_view(w) -> dict:
         if r["status"] == "declined":
             k = "declined"
         resp[k] = resp.get(k, 0) + 1
-        resp["people"].append({"person": r["person"], "class": k, "status": r["status"],
+        resp["people"].append({"person": r["person"], "pseudonym": w.cohort_people[r["person"]].vault.pseudonym(LAB),
+                               "class": k, "status": r["status"],
                                "items": sorted(cls), "reason": "; ".join(sorted({why for c, why in cls.values()
                                                                                   if c != "auto"}))})
     contribs, paid, refunded = [], 0, 0
@@ -853,6 +857,7 @@ def study_view(w) -> dict:
         contribs.append({"order_id": o["id"],
                          "pseudonym": w.cohort_people[pid].vault.pseudonym(LAB),
                          "weeks": [int(x.split(":")[0][1:]) for x in rest.split(",")],
+                         "items": sorted({i for x in rest.split(",") for i in x.split(":")[1].split("+")}),
                          "amount_xrp": o["price_drops"] / XRP, "status": o["status"],
                          "escrow": _tx(w, o["tx_hash"]), "finish": _tx(w, o["finish_tx"]),
                          "cancel": _tx(w, o["cancel_tx"]), "bundle_hash": o["bundle_hash"]})
@@ -860,6 +865,7 @@ def study_view(w) -> dict:
     return {
         "study": {"id": LAB, "name": w.engine.party(LAB)["name"], "ledger": w.ledger.name,
                   "protocol": __import__("agentrail.cohort", fromlist=["PROTOCOL"]).PROTOCOL,
+                  "irb": IRB_NUMBER,
                   "purpose": "sleep_research",
                   "duo": [{"code": c, "label": DUO[c]} for c in PURPOSE_DUO["sleep_research"]],
                   "credentials": _badges(w),
@@ -869,6 +875,8 @@ def study_view(w) -> dict:
         "goal": s.goal, "heatmap": hm, "power_target": 0.8, "proposal": proposal, "spec_status": s.status,
         "approval": s.approval, "responses": resp, "contributions": contribs,
         "licences": {k: {"mpt_id": v["mpt_id"], "clawed_back": bool(v["clawback"])} for k, v in s.licences.items()},
+        "withdrawals": [{"pseudonym": w.cohort_people[x["person"]].vault.pseudonym(LAB), "kind": x["kind"],
+                         "ts": x["ts"]} for x in s.withdrawals],
         "settlement": {"paid_xrp": paid / XRP, "refunded_xrp": refunded / XRP,
                        "people_paid": len({c["pseudonym"] for c in contribs if c["status"] == "delivered"}),
                        "export_fees_xrp": sum(x["amount_xrp"] for x in s.export_fees),
@@ -882,7 +890,8 @@ def study_view(w) -> dict:
 
 
 def events(w, after: int = 0) -> dict:
-    rows = w.store.q("SELECT id, scene, actor, kind, message, data FROM events WHERE id>? ORDER BY id LIMIT 500", after)
+    rows = w.store.q("SELECT id, ts, scene, actor, kind, message, data FROM events WHERE id>? ORDER BY id LIMIT 500",
+                     after)
     out = []
     for r in rows:
         d = json.loads(r["data"] or "{}")
