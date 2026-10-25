@@ -69,3 +69,40 @@ def test_escrow_deadline_counts_from_creation_not_from_the_order():
     assert e.process(oid) == "delivered"
     p = e.store.one("SELECT cancel_after, finish_tx FROM payments WHERE order_id=?", oid)
     assert p["cancel_after"] >= placed + 900 and L.lookup(p["finish_tx"]).success
+
+
+def test_key_is_not_published_when_the_finish_could_land_after_the_deadline():
+    """A late EscrowFinish fails but still puts K on the ledger; the engine must not sign it."""
+    L = MockLedger()
+    L.finish_margin_s = 60
+    e = Engine(Store(":memory:"), L)
+    e.add_party("lab", "Lab (synthetic)", "organization", L.new_account("lab"))
+    e.add_party("p1", "Participant (synthetic)", "person", L.new_account("p1"))
+    e.policies["p1"] = Allow()
+    e.set_mandate(BuyerMandate("lab", 5 * XRP, 3 * XRP, ["sleep_research"]))
+    oid = e.place_order(req(settle="escrow"))
+    create = e._escrow_create
+
+    def slow_create(o):                    # the escrow is created, then the ledger is slow to the finish
+        ok = create(o)
+        L.clock = e.store.one("SELECT cancel_after FROM payments WHERE order_id=?", o)["cancel_after"] - 30
+        return ok
+    e._escrow_create = slow_create
+    e.process(oid)
+    assert e.store.one("SELECT finish_tx FROM payments WHERE order_id=?", oid)["finish_tx"] is None
+    assert e.store.one("SELECT status FROM orders WHERE id=?", oid)["status"] == "withheld"
+    assert not any(t.get("TransactionType") == "EscrowFinish" for t in L.txs.values())
+
+
+def test_token_settlement_amounts_round_trip():
+    from agentrail.ledger.token_settle import TokenSettleMixin, code_of
+
+    class T(TokenSettleMixin):
+        issuer, code = "rIssuer", "USD"
+    t = T()
+    a = t._amount(1_250_000)
+    assert (a.currency, a.issuer, a.value) == ("USD", "rIssuer", "1.25")
+    assert t._parse_amount({"currency": "USD", "issuer": "rIssuer", "value": "1.25"}) == 1_250_000
+    assert t._parse_amount({"currency": "USD", "issuer": "rOther", "value": "1.25"}) is None
+    assert t._parse_amount("1250000") is None              # XRP never counts as a token payment
+    assert code_of("RLUSD") == "524C555344000000000000000000000000000000"

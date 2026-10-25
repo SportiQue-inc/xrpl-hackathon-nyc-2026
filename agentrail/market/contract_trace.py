@@ -8,13 +8,15 @@ negotiation from the log alone. Built from what the engine decided; nothing here
 """
 from __future__ import annotations
 
+from .. import units
+
 from .policies import GRADES, LABEL, PROHIBITED, data_class, trust_grade
 
 SCHEMA = "agentrail.contract_trace/1"
 
 
 def _x(d) -> str:
-    return f"{d / 1e6:g} XRP"
+    return f"{d / 1e6:g} {units.UNIT}"
 
 
 def _wk(n) -> str:

@@ -2,6 +2,8 @@
 docs/SECURITY.md for roles, login and the demo harness."""
 from __future__ import annotations
 
+from . import units
+
 import json
 import os
 import re
@@ -191,6 +193,7 @@ def state():
             accounts[pid] = {"address": p["address"], "error": str(e)}
     return {
         "ledger": w.ledger.name,
+        "unit": units.UNIT, "unit_label": units.LABEL,
         "voice": voice().label(),
         "mandates": rows("SELECT * FROM mandates"),
         "orders": orders,
