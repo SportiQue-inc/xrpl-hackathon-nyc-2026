@@ -44,6 +44,8 @@ def run(scene: str, budget: float | None = None):
             r = scenario.scene_b(w)
         elif scene == "c":
             r = scenario.scene_c(w)
+        elif scene == "d":
+            r = scenario.scene_d(w)
         else:
             return {"error": "unknown scene"}
         _state["results"][scene] = r

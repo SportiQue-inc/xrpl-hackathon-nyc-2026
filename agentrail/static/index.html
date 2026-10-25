@@ -62,6 +62,7 @@
     <button class="ghost" onclick="act('/api/reset').then(()=>act('/api/run/a'))">A: robotics</button>
     <button class="ghost" onclick="act('/api/run/b')">B: personal data</button>
     <button class="ghost" onclick="act('/api/run/c')">C: failures</button>
+    <button class="ghost" onclick="act('/api/run/d')">D: 50 people</button>
     <span class="row">budget <input id="budget" value="30"> XRP
       <button class="ghost" onclick="act('/api/reset').then(()=>act('/api/run/a?budget='+budget.value))">A with budget</button></span>
   </div>
@@ -98,7 +99,7 @@
 const xrp = d => (d / 1e6).toLocaleString(undefined, {maximumFractionDigits: 2});
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function act(url) { await fetch(url, {method: 'POST'}); await load(); }
-async function runAll() { for (const u of ['/api/reset', '/api/run/a-guarded', '/api/run/b', '/api/run/c']) await act(u); }
+async function runAll() { for (const u of ['/api/reset', '/api/run/a-guarded', '/api/run/b', '/api/run/c', '/api/run/d']) await act(u); }
 function table(el, cols, rows) {
   document.getElementById(el).innerHTML = '<tr>' + cols.map(c => `<th>${c[0]}</th>`).join('') + '</tr>' +
     (rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td>${c[1](r)}</td>`).join('') + '</tr>').join('')
