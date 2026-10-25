@@ -3,6 +3,7 @@
 // relationship per person covering several sub-projects, the study agent asks for exact gaps,
 // data arrives weekly and is paid per delivered week in RLUSD.
 
+import { DISPLAY_UNIT } from "../shared/ui.js";
 import { MODE, INST, SUBS, NEW_SUB, ITEMS, PEOPLE, HERO, rl, weekPrice, subTotal, h, tag, send, listen, toast } from "./common.js";
 
 const root = document.getElementById("app");
@@ -45,7 +46,7 @@ function shell(body) {
       nav("add", "Add a sub-project"));
   const top = h("header", { class: "lab-top" },
     MODE === "before"
-      ? [tag("Today's flow", "gray"), h("span", { class: "muted small" }, "Settlement in RLUSD after monthly batch")]
+      ? [tag("Today's flow", "gray"), h("span", { class: "muted small" }, `Settlement in ${DISPLAY_UNIT} after monthly batch`)]
       : [h("span", { class: "small", style: { color: "var(--brand)", fontWeight: 600 } }, `Budget ${rl(5000)} · signed once by 2`), tag("XRPL Testnet", "gray")],
     h("span", { class: "avatar" }), h("span", { class: "small" }, "Researcher A"));
   return h("div", { class: "lab" }, side, h("main", { class: "lab-main" }, top, h("div", { class: "lab-body" }, body)));

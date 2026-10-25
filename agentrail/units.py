@@ -13,7 +13,9 @@ import os
 ASSET = os.environ.get("SETTLE_ASSET", "USD").upper()
 TOKEN = ASSET != "XRP"
 UNIT = ASSET if TOKEN else "XRP"
-LABEL = (f"{UNIT} (test token, stands in for RLUSD)" if TOKEN else "XRP")
+# The unit people see; the pages name it once in apps/shared/ui.js (DISPLAY_UNIT). Swap both together.
+DISPLAY = os.environ.get("DISPLAY_UNIT", "RLUSD")
+LABEL = (f"{UNIT} (test token, stands in for {DISPLAY})" if TOKEN else "XRP")
 
 
 def fmt(micro) -> str:
