@@ -155,3 +155,117 @@ def test_payments_reach_the_members_uniqdata_account_once_per_order(c, monkeypat
 def test_contract_pages_are_served(c):
     for f in ("post.html", "post.js", "join.html", "join.js", "contracts.js", "contracts.css"):
         assert c.get(f"/apps/contracts/{f}").status_code == 200
+
+
+AP4M_TERMS = {**TERMS, "items": ["sleep.daily", "fatigue.survey"], "price_per_item_drops": 10_000,
+              "budget_drops": 5_000_000}
+
+
+@pytest.fixture
+def rail(monkeypatch):
+    """A fake AP4M rail with the real client's contract: idempotent on ref, never raises, ok=False on a refusal."""
+    import sys
+    import types
+    import agentrail
+    paid, state = {}, {"down": False}
+
+    def pay(ref, amount_micro, memo=None, content=None, forward_to=None, pool="research", timeout=180.0):
+        if state["down"]:
+            return {"ok": False, "ref": ref, "reason": "rail unreachable: URLError", "retry": True}
+        if amount_micro > 100_000:
+            return {"ok": False, "ref": ref, "reason": "per-payment cap"}
+        if ref not in paid:
+            h = f"0x{len(paid) + 1:064x}"
+            paid[ref] = {"ok": True, "ref": ref, "amount_rlusd": amount_micro / 1e6, "claim_id": h,
+                         "voucher_redeemed_tx": h, "voucher_url": f"https://explorer.testnet.xrplevm.org/tx/{h}",
+                         "receipt_url": f"https://hackathon.ap4m.build/public/evidence/claims/{h}.json",
+                         "verified": True, "pool": pool, "memo": memo}
+        return paid[ref]
+
+    fake = types.SimpleNamespace(pay=pay)
+    monkeypatch.setitem(sys.modules, "agentrail.ap4m_rail", fake)
+    monkeypatch.setattr(agentrail, "ap4m_rail", fake, raising=False)
+    monkeypatch.setattr(web.lane(), "rail", "ap4m")
+    return paid, state
+
+
+def test_ap4m_rail_pays_each_delivered_week_once_and_shows_what_was_paid(c, rail):
+    paid, state = rail
+    over = c.post("/api/contracts", json={"terms": {**AP4M_TERMS, "price_per_item_drops": 60_000}, "researcher_key": "a" * 64})
+    assert over.status_code == 422 and "AP4M" in over.json()["detail"]        # 2 x 0.06 > 0.10 per payment
+    cid, code, researcher = post(c, AP4M_TERMS)
+    a, ha = join(c, cid, code, "auto_all", "a")
+    b, hb = join(c, cid, code, "auto_all", "b")
+    rh = token(c, researcher)
+
+    state["down"] = True                       # the rail is down for b's payment only
+    lane = web.lane()
+    r = c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=rh).json()
+    assert {x["payment"]["status"] for x in r["results"]} == {"unpaid"} and not paid
+    mine = c.get(f"/api/p/{a.sub}/contracts", headers=ha).json()
+    assert mine["settled_drops"] == 0 and mine["held_drops"] == 20_000        # delivered, not yet paid: not shown as paid
+
+    state["down"] = False
+    r = c.post(f"/api/contracts/{cid}/rounds", json={"week": 2}, headers=rh).json()   # retries week 1, pays week 2
+    assert len(paid) == 4 and all(p["pool"] == "research" for p in paid.values())
+    assert all(p["amount_rlusd"] == 0.02 for p in paid.values())
+    mine = c.get(f"/api/p/{a.sub}/contracts", headers=ha).json()
+    assert mine["settled_drops"] == 40_000 and mine["held_drops"] == 0
+    pay = mine["history"][0]["payment"]
+    assert pay["rail"] == "ap4m" and pay["status"] == "paid" and pay["receipt_url"] and "merchant" in pay["payee"]
+    assert mine["contracts"][0]["latest_tx"]["rail"] == "ap4m"
+    lane.retry_payments(cid)
+    assert len(paid) == 4                      # paid orders are never paid again
+
+    sig = b.sign(lane.action_message(b.sub, cid, "withdraw"))
+    c.post(f"/api/p/{b.sub}/contracts/{cid}/withdraw", json={"signature": sig}, headers=hb)
+    c.post(f"/api/contracts/{cid}/rounds", json={"week": 3}, headers=rh)
+    assert len(paid) == 5 and not any(p["memo"]["member"] == b.sub and p["memo"]["week"] == 3 for p in paid.values())
+    con = c.get(f"/api/contracts/{cid}/console", headers=rh).json()
+    assert con["payments"] == {"rail": "ap4m", "paid_count": 5, "paid_drops": 100_000, "unpaid_count": 0, "unpaid_drops": 0}
+
+
+def test_a_restart_on_the_mock_ledger_still_trades(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGENTRAIL_CONTRACTS_DB", str(tmp_path / "contracts.db"))
+    monkeypatch.setenv("AGENTRAIL_KEYSTORE", str(tmp_path / "keystore"))
+    reset_rate_limits()
+    web._state.pop("lane", None)
+    web.reset()
+    c = TestClient(web.app)
+    cid, code, researcher = post(c)
+    a, _ = join(c, cid, code, "auto_all", "a")
+    web._state.pop("lane", None)               # a redeploy: the lane is rebuilt from its store
+    web.reset()
+    r = c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=token(c, researcher)).json()
+    assert r["results"][0]["status"] == "delivered", r["results"][0]
+    assert "blood_pressure.daily" in r["results"][0]["granted"]          # the ethics credential is back too
+    web._state.pop("lane", None)
+
+
+def test_the_researchers_agent_runs_each_week_on_its_own_and_ap4m_forwards_payouts(c, rail):
+    paid, _ = rail
+    cid, code, researcher = post(c, {**AP4M_TERMS, "weeks": [1, 2], "round_every_s": 60})
+    d = Device("p")
+    wallet = "0x" + "ab" * 20
+    s = c.post(f"/api/contracts/{cid}/join/start", json={"invite_code": code, "public_key": d.public_hex,
+                                                         "automation": "auto_all", "payout_address": wallet}).json()
+    assert s["consent"]["payment"]["payout"] == wallet           # where the money goes is in what they sign
+    d.sub = s["pid"]
+    c.post(f"/api/contracts/{cid}/join/complete", json={"pid": d.sub, "signature": d.sign_consent(s["consent_hash"]),
+                                                        "generate_test_weeks": [1, 2]})
+    lane = web.lane()
+    t0 = lane.public(cid)["terms"]["posted_at"]
+    assert lane.tick(now=t0 + 10) == []                          # not due yet
+    assert [r["week"] for r in lane.tick(now=t0 + 61)] == [1]
+    last = lane.store.one("SELECT started_at FROM contract_rounds WHERE contract_id=? ORDER BY id DESC", cid)["started_at"]
+    assert lane.tick(now=last + 30) == []                        # a week runs once
+    assert [r["week"] for r in lane.tick(now=last + 61)] == [2]
+    lane.tick(now=last + 200)
+    assert c.get(f"/api/contracts/{cid}").json()["status"] == "closed"
+    assert len(paid) == 2
+    for p in paid.values():
+        assert p["memo"]["member"] == d.sub
+    # the fake rail does not forward; a real forward shows the member's wallet as payee
+    oid = next(iter(paid.values()))["memo"]["order"]
+    view = lane._order_view(oid)["payment"]
+    assert view["status"] == "paid" and "merchant" in view["payee"]

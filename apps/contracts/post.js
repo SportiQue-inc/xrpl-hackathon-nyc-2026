@@ -1,5 +1,5 @@
 import { DISPLAY_UNIT } from "../shared/ui.js";
-import { FOOTNOTE, ITEM_LABELS, amount, api, el, key, remember, signIn, tx } from "./contracts.js";
+import { FOOTNOTE, ITEM_LABELS, amount, api, el, key, payLink, payState, remember, signIn, tx } from "./contracts.js";
 
 const $ = (s) => document.querySelector(s);
 document.querySelectorAll(".unit").forEach((u) => (u.textContent = DISPLAY_UNIT));
@@ -19,7 +19,7 @@ $("#form").addEventListener("submit", async (ev) => {
     const terms = { title: f.get("title"), institution: f.get("institution"), irb_approval: f.get("irb_approval"),
       purpose: "sleep_research", items: f.getAll("item"), weeks: [+f.get("w0"), +f.get("w1")],
       price_per_item_drops: Math.round(+f.get("price") * 1e6), budget_drops: Math.round(+f.get("budget") * 1e6),
-      capacity: +f.get("capacity"), summary: f.get("summary") };
+      capacity: +f.get("capacity"), summary: f.get("summary"), round_every_s: f.get("every") ? +f.get("every") : null };
     const out = await api("POST", "/api/contracts", { terms, researcher_key: k.publicHex },
       f.get("code") ? { "X-Posting-Code": f.get("code") } : {});
     cid = out.contract.id;
@@ -62,11 +62,16 @@ async function show() {
     } }, "Run week");
     const members = el("table", {}, el("tr", {}, el("th", {}, "Member"), el("th", {}, "Items"), el("th", {}, "Their choice"), el("th", {}, "Status")),
       ...c.member_list.map((m) => el("tr", {}, el("td", {}, m.pid), el("td", {}, m.items.length), el("td", {}, m.automation), el("td", {}, m.status))));
-    const orders = el("table", {}, el("tr", {}, el("th", {}, "Order"), el("th", {}, "Week"), el("th", {}, "Amount"), el("th", {}, "Status"), el("th", {}, "Escrow"), el("th", {}, "Key published")),
+    const orders = el("table", {}, el("tr", {}, el("th", {}, "Order"), el("th", {}, "Week"), el("th", {}, "Amount"), el("th", {}, "Status"), el("th", {}, "Payment"), el("th", {}, "Receipt / tx")),
       ...c.orders.slice(-60).reverse().map((o) => el("tr", {}, el("td", {}, o.order_id), el("td", {}, o.slot.split("week")[1]),
-        el("td", {}, amount(o.amount_drops)), el("td", {}, o.status), el("td", {}, tx(o.escrow_create)), el("td", {}, tx(o.escrow_finish)))));
-    box.replaceChildren(el("h2", {}, c.terms.title), el("p", { class: "sub" }, `${c.terms.institution} · ${c.members} member${c.members === 1 ? "" : "s"} · spent ${amount(c.spent_drops)} of ${amount(c.budget_drops)} · ${c.ledger}`),
+        el("td", {}, amount(o.amount_drops)), el("td", {}, o.status), el("td", {}, payState(o.payment)), el("td", {}, payLink(o)))));
+    const p = c.payments;
+    const auto = c.terms.round_every_s;
+    box.replaceChildren(el("h2", {}, c.terms.title), el("p", { class: "sub" }, `${c.terms.institution} · ${c.members} member${c.members === 1 ? "" : "s"} · paid ${amount(p.paid_drops)} in ${p.paid_count} payments${p.unpaid_count ? ` · ${p.unpaid_count} delivered, payment pending` : ""} · budget ${amount(c.budget_drops)} · ${p.rail === "ap4m" ? "AP4M on XRPL EVM Testnet" : c.ledger}`),
+      auto ? el("p", { class: "note" }, `The institution's agent runs the next week on its own every ${auto} s; each member's agent answers from their consent and each delivered week is paid at once. This page refreshes itself.`) : "",
       el("div", { class: "row" }, week, run), msg, el("h3", {}, "Members"), members, el("h3", {}, "Orders"), orders);
+    clearTimeout(window._refresh);
+    if (auto && c.status === "open") window._refresh = setTimeout(show, 10000);
   } catch (e) { box.replaceChildren(el("p", { class: "err" }, e.message)); }
 }
 show();

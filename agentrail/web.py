@@ -160,6 +160,8 @@ def reset(ledger: Literal["mock", "testnet"] | None = None):
         _state["results"] = {}
         if "lane" in _state:      # research contracts outlive the demo world; their keys move to the new authority
             _state["lane"].enrol_all(_state["w"].security.authority)
+    if "lane" not in _state and (os.environ.get("AGENTRAIL_CONTRACTS_DB") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH")):
+        lane()                    # stored contracts: their members can sign in straight after a restart
     return {"ok": True, "ledger": kind}
 
 
@@ -885,6 +887,8 @@ class ContractTerms(Strict):
     budget_drops: int = Field(gt=0, le=100_000_000_000)
     capacity: int = Field(default=60, ge=1, le=500)
     summary: str = Field(default="", max_length=600)
+    # the researcher's agent runs the next week on its own every this many seconds (60 for a demo, 604800 weekly)
+    round_every_s: int | None = Field(default=None, ge=60, le=31_536_000)
 
 
 class ContractPost(Strict):
@@ -898,6 +902,8 @@ class JoinStart(Strict):
     items: list[str] = Field(default_factory=list, max_length=10)
     automation: Literal["confirm_each", "auto_standard", "auto_all"] = "confirm_each"
     uniqdata_account: str | None = Field(default=None, pattern=ID)
+    # the member's XRPL EVM address: AP4M payments are forwarded there from the team's merchant wallet
+    payout_address: str | None = Field(default=None, pattern=r"^0x[0-9a-fA-F]{40}$")
 
 
 class JoinComplete(Strict):
@@ -965,7 +971,7 @@ def contracts_get(cid: str):
 @app.post("/api/contracts/{cid}/join/start")
 def contracts_join_start(cid: str, body: JoinStart):
     return _lcall(lambda L: L.join_start(cid, body.invite_code, body.public_key, body.items, body.automation,
-                                         body.uniqdata_account))
+                                         body.uniqdata_account, body.payout_address))
 
 
 @app.post("/api/contracts/{cid}/join/complete")

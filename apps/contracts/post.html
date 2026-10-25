@@ -20,9 +20,10 @@
       <div class="grid2">
         <label>Weeks from <input class="ar-input" name="w0" type="number" min="1" max="52" value="1"></label>
         <label>Weeks to <input class="ar-input" name="w1" type="number" min="1" max="52" value="4"></label>
-        <label>Per item per week (<span class="unit"></span>) <input class="ar-input" name="price" type="number" step="0.01" min="0.01" value="0.2"></label>
-        <label>Budget (<span class="unit"></span>) <input class="ar-input" name="budget" type="number" step="1" min="1" value="200"></label>
+        <label>Per item per week (<span class="unit"></span>) <input class="ar-input" name="price" type="number" step="0.001" min="0.001" value="0.01"></label>
+        <label>Budget (<span class="unit"></span>) <input class="ar-input" name="budget" type="number" step="0.01" min="0.01" value="5"></label>
         <label>Capacity (people) <input class="ar-input" name="capacity" type="number" min="1" max="500" value="60"></label>
+        <label>Run a week every (seconds; empty = by hand) <input class="ar-input" name="every" type="number" min="60" placeholder="60 for a demo, 604800 weekly"></label>
         <label>Posting code <input class="ar-input" name="code" type="password" autocomplete="off" placeholder="from the operator"></label>
       </div>
       <label>Summary <textarea class="ar-textarea" name="summary" maxlength="600">Test accounts only. No real health data.</textarea></label>

@@ -62,4 +62,16 @@ export const el = (tag, attrs = {}, ...kids) => {
   for (const c of kids.flat()) e.append(c instanceof Node ? c : document.createTextNode(c ?? ""));
   return e;
 };
+export const payState = (p) => (!p ? "" : p.status === "paid" ? "paid" : p.status === "unpaid" ? `pending: ${p.reason || ""}` : p.status === "held" ? "held" : p.status === "not_due" ? "" : p.status);
+export const payLink = (o) => {
+  const p = o.payment || {};
+  if (p.rail === "ap4m") {
+    const parts = [];
+    if (p.receipt_url) parts.push(el("a", { href: p.receipt_url, target: "_blank", rel: "noopener" }, "receipt"));
+    if (p.voucher_redeemed && p.voucher_redeemed.url) parts.push(" ", el("a", { href: p.voucher_redeemed.url, target: "_blank", rel: "noopener" }, "voucher"));
+    if (p.forward && p.forward.url) parts.push(" ", el("a", { href: p.forward.url, target: "_blank", rel: "noopener" }, "payout"));
+    return el("span", {}, ...parts);
+  }
+  return tx(o.escrow_finish && o.escrow_finish.tx ? o.escrow_finish : o.escrow_create);
+};
 export const tx = (t) => (t && t.url ? el("a", { href: t.url, target: "_blank", rel: "noopener" }, t.tx.slice(0, 10) + "…") : t && t.tx ? t.tx.slice(0, 10) + "…" : "");
