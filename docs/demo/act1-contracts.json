@@ -42,7 +42,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 0024e51d01c8b602\u2026, tx 4D3D106AD0CCA3B4\u2026"
+      "detail": "root 395abbcebcf58e29\u2026, tx 9B51CCC64E32A558\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -114,7 +114,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CE48E588DF839813\u2026: 0.0068 USD locked to the hash of the data key.",
+    "message": "EscrowCreate BF4717BFBF47E002\u2026: 0.0068 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -134,7 +134,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C974D5ED5D9389B9\u2026: paid.",
+    "message": "EscrowFinish 1F9C2EE8AA9B7132\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -158,8 +158,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CE48E588DF8398134EEDCB16DF5053E16D27945ADBB9EB5422FFC0119B84490D",
-   "escrow_finish": "C974D5ED5D9389B96FA67D90AB014018DB73702CFA298C641EAE718344F0B9CB"
+   "escrow_create": "BF4717BFBF47E00205BF2158C4B0D19A0D750CC988328AFD4C81F9A5DC40FAE4",
+   "escrow_finish": "1F9C2EE8AA9B7132C9269A679D88A28F568A5F5B9A049784DA2C95FF2197FFFB"
   },
   "urls": {
    "escrow_create": null,
@@ -209,7 +209,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 0024e51d01c8b602\u2026, tx 4D3D106AD0CCA3B4\u2026"
+      "detail": "root 395abbcebcf58e29\u2026, tx 9B51CCC64E32A558\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -281,7 +281,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate EFCE41F03BE575D2\u2026: 0.0068 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 0C33DD393A319283\u2026: 0.0068 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -301,7 +301,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 5183F204C6A79AD2\u2026: paid.",
+    "message": "EscrowFinish CC654B5E1FDD9753\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -325,8 +325,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "EFCE41F03BE575D2610EA17291217BCEEF8966A15AB5C4E7A37285AB1390D778",
-   "escrow_finish": "5183F204C6A79AD224F1F83BDA8466F31CC90379BCF383E9D5410CF59F35A439"
+   "escrow_create": "0C33DD393A31928317A0AE26AD5652E560A87DBD8ADD23EA7C822129CBCAD708",
+   "escrow_finish": "CC654B5E1FDD97539B19F15F535470654D50609DB5E05F85006B8E8F40E2A12D"
   },
   "urls": {
    "escrow_create": null,
@@ -376,7 +376,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 0024e51d01c8b602\u2026, tx 4D3D106AD0CCA3B4\u2026"
+      "detail": "root 395abbcebcf58e29\u2026, tx 9B51CCC64E32A558\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -448,7 +448,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 837E70F3556F0318\u2026: 0.0068 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 78AEC453A99C09F7\u2026: 0.0068 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -468,7 +468,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish E323ECB1A2877DB2\u2026: paid.",
+    "message": "EscrowFinish C23B8DCC05DA77D5\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -492,8 +492,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "837E70F3556F0318A0B1779E81C3E1C5F812C323BA38CCF325CF939C6341D8A9",
-   "escrow_finish": "E323ECB1A2877DB24F16724B48DB7959BF5B5097AE703A0AF670A79F8371627E"
+   "escrow_create": "78AEC453A99C09F76BC25FEE616CC3653508DD022DAAEAB3E6E78FE96184317C",
+   "escrow_finish": "C23B8DCC05DA77D549C941DEFDE0F16FE5160A38965E054C3DFB734023A917BF"
   },
   "urls": {
    "escrow_create": null,
@@ -543,7 +543,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 0024e51d01c8b602\u2026, tx 4D3D106AD0CCA3B4\u2026"
+      "detail": "root 395abbcebcf58e29\u2026, tx 9B51CCC64E32A558\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -671,7 +671,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -743,7 +743,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CF6D0381E0527142\u2026: 0.00578 USD locked to the hash of the data key.",
+    "message": "EscrowCreate C62EAB330AED5075\u2026: 0.00578 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -763,7 +763,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 3077E882F33159C1\u2026: paid.",
+    "message": "EscrowFinish EA0899E8D78B859D\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -787,8 +787,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CF6D0381E05271422F57BF3BBBD66C94C1E2F9DE301E5C0E3EB2457CA3ABFD79",
-   "escrow_finish": "3077E882F33159C1CBE4DF9BF297C810B2C003BC170F4A83B4A4274C09B7E431"
+   "escrow_create": "C62EAB330AED5075EE35D8B145B926E2225827F77F684AF222BCC9C416AD8EA4",
+   "escrow_finish": "EA0899E8D78B859DAFC58942EB88C13CAF8F6C4F75AD4893FC0612AC082A31D1"
   },
   "urls": {
    "escrow_create": null,
@@ -838,7 +838,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -910,7 +910,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 367EBB3B48810F14\u2026: 0.00578 USD locked to the hash of the data key.",
+    "message": "EscrowCreate B5B287FC7C3EA0A7\u2026: 0.00578 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -930,7 +930,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 0B0EAD6CCD74F63E\u2026: paid.",
+    "message": "EscrowFinish 2CA5A0799D1A478D\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -954,8 +954,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "367EBB3B48810F145BCFC5FB6807BD3F0C0B0CFCFE4910A1970EADD69CF6525F",
-   "escrow_finish": "0B0EAD6CCD74F63E33593639297B7F939C673988730D08FAB0048F65757F4423"
+   "escrow_create": "B5B287FC7C3EA0A70B00ABE8FE8C14748388E2418EF146E4304A9890691B317B",
+   "escrow_finish": "2CA5A0799D1A478D8001B76415AED08679B094B6EC61C79D7A7FDE19C18B0EEB"
   },
   "urls": {
    "escrow_create": null,
@@ -1005,7 +1005,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1077,7 +1077,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 28EAA6960A2E77C6\u2026: 0.0064 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 4B4556376B5BE8B2\u2026: 0.0064 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -1097,7 +1097,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish FF4E495CB9450B9E\u2026: paid.",
+    "message": "EscrowFinish FAA8FB651B45C48B\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -1121,8 +1121,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "28EAA6960A2E77C64253705BA332F5BF9553C1DDBF0FD86D52304BCB1DEE1CB0",
-   "escrow_finish": "FF4E495CB9450B9E38945AF1900F3CDDE0CD28B1B8D8DFE563BE6BEF003984E1"
+   "escrow_create": "4B4556376B5BE8B20783FA04BA330603FC9F926B14203659BA20C889D435152C",
+   "escrow_finish": "FAA8FB651B45C48BD19680A21976DAAAA1770F15549A122F9AA12615C2AC6E73"
   },
   "urls": {
    "escrow_create": null,
@@ -1172,7 +1172,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1244,7 +1244,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate DD769BF9ECECB5B1\u2026: 0.007012 USD locked to the hash of the data key.",
+    "message": "EscrowCreate A7386677BF2169E7\u2026: 0.007012 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -1264,7 +1264,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 630C5222F5D73C07\u2026: paid.",
+    "message": "EscrowFinish D5DB05B4762F634E\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -1288,8 +1288,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "DD769BF9ECECB5B19CBAA5A6D0F9E29AAB06061C94C936AE8CD2E5CA502C8DE9",
-   "escrow_finish": "630C5222F5D73C077EB9C3CCD1DA0479998866B39834FB2CFE52D60FC9D0811D"
+   "escrow_create": "A7386677BF2169E7AE94EB850368E7770D4EA3EB5158EEF48CCCA8866BB8B64C",
+   "escrow_finish": "D5DB05B4762F634E366B9BDA2DBA68F06AD832EE05962247B89342ACE0FC845A"
   },
   "urls": {
    "escrow_create": null,
@@ -1339,7 +1339,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1411,7 +1411,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 58AF12CC7974D021\u2026: 0.00561 USD locked to the hash of the data key.",
+    "message": "EscrowCreate A0B2878B24387BE3\u2026: 0.00561 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -1431,7 +1431,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 0703C6140E0235E8\u2026: paid.",
+    "message": "EscrowFinish 1A8F5CEEAFFF8273\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -1455,8 +1455,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "58AF12CC7974D021980B69C9CCF4B9DF0DCD5C6319723F47629386C855201446",
-   "escrow_finish": "0703C6140E0235E85BBBDDA18269C9ACC2B206602CB64F69E17445F9661CD342"
+   "escrow_create": "A0B2878B24387BE361D6EF699098F00952815AE52D98DBBF1C0FF2034B996F41",
+   "escrow_finish": "1A8F5CEEAFFF82734CC29D36B96C5602365A440E035602BE49A23B64485010A2"
   },
   "urls": {
    "escrow_create": null,
@@ -1506,7 +1506,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1592,7 +1592,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 40017CC23326F5A2\u2026: 0.0064 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 499A690D8E135A76\u2026: 0.0064 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -1612,7 +1612,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 1F379319CFB99EA4\u2026: paid.",
+    "message": "EscrowFinish 1723A3585AE0C5D6\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -1636,8 +1636,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "40017CC23326F5A2BAB256E3AC3CFE0BEA06C2586C44B21CDB2D554BC29AA18E",
-   "escrow_finish": "1F379319CFB99EA4E595C1E397941EFA1FE5612AC1B1052E6491800ED326F6CD"
+   "escrow_create": "499A690D8E135A769BDE2BD93C4678927EEFD59C99B2FEE85B71567C01B99C57",
+   "escrow_finish": "1723A3585AE0C5D69D2D9990BA9A8069718BCA9BBD4964AD3FC061EAFE142647"
   },
   "urls": {
    "escrow_create": null,
@@ -1687,7 +1687,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1813,7 +1813,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1892,7 +1892,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 90187B69C5AB20F1\u2026: 0.0255 USD locked to the hash of the data key.",
+    "message": "EscrowCreate BF877A29A73FA791\u2026: 0.0255 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -1912,7 +1912,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish F16E73C337DCAF9A\u2026: paid.",
+    "message": "EscrowFinish 40FEBEE4A1B92D82\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -1936,8 +1936,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "90187B69C5AB20F1D1BD12D7B59FC1B524FE6EE32B3901725AAD74B3DFE9594F",
-   "escrow_finish": "F16E73C337DCAF9A7B7211E4DC5AFF7F310D60CCB524E6003CAB2DB75C1518A0"
+   "escrow_create": "BF877A29A73FA7915E59B2196BADA2B079A42AE49DC5DD0ACE1BD25337BB81C7",
+   "escrow_finish": "40FEBEE4A1B92D82ECA1ABED79A31086752CC563B100FE01D70FF8E03A35248D"
   },
   "urls": {
    "escrow_create": null,
@@ -1987,7 +1987,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2059,7 +2059,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate ECB803B6BFBE7717\u2026: 0.0204 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 867B748077057BB7\u2026: 0.0204 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -2079,7 +2079,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C0E8F814BA01334F\u2026: paid.",
+    "message": "EscrowFinish 02A2BCFDBD557F2F\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -2103,8 +2103,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "ECB803B6BFBE77179779AD7961BE2360319FA2EEB3D62C8EB38EAE9994E992BD",
-   "escrow_finish": "C0E8F814BA01334F0765D13AB93B18D4C52DD88B34524F288458C75DC0205518"
+   "escrow_create": "867B748077057BB7FDC4EB193CE5CF2D2D367BAF28588537E88E3C0E3DC87556",
+   "escrow_finish": "02A2BCFDBD557F2F21D963EC8477B462499D6539725B567533EA27F06E8DCC56"
   },
   "urls": {
    "escrow_create": null,
@@ -2154,7 +2154,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2233,7 +2233,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 724DD4C17C94125C\u2026: 0.0204 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 75AB4D354849F3A4\u2026: 0.0204 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -2253,7 +2253,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 496662312D31F8F5\u2026: paid.",
+    "message": "EscrowFinish A80A59125B310D09\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -2277,8 +2277,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "724DD4C17C94125C710789EA5D63D549E3C114E4A59BB55B291EDFB4DF58C9C0",
-   "escrow_finish": "496662312D31F8F5D9AAA0971F635786955E157CDFEB087042C6DF181B4C7B7C"
+   "escrow_create": "75AB4D354849F3A400698D09A58C7987032A7CC1CFB4451159C6CA60BE415AD8",
+   "escrow_finish": "A80A59125B310D09A3B95FDCC11C0F5F0368E466896A854E84C6D78AB5C91331"
   },
   "urls": {
    "escrow_create": null,
@@ -2328,7 +2328,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2407,7 +2407,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 9552F2DDF5964015\u2026: 0.021675 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 354B34DF942A72B0\u2026: 0.021675 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -2427,7 +2427,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 86B5631F6C1D00F5\u2026: paid.",
+    "message": "EscrowFinish B9717CB7A22E9ED5\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -2451,8 +2451,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "9552F2DDF59640156ED8ADE65A2330723DB926CA710F8D5EB7DEA65511832942",
-   "escrow_finish": "86B5631F6C1D00F5CA94ED447704C2D7E6CBDC44D6431B53AA0D356F06BF2961"
+   "escrow_create": "354B34DF942A72B0E6599E86B74E3271DC33669DF4A956C635760638CB4C83F6",
+   "escrow_finish": "B9717CB7A22E9ED50C498BFD7353C52FBCB1DEE401BF3D7A4FC0C4F7A9A18A4C"
   },
   "urls": {
    "escrow_create": null,
@@ -2502,7 +2502,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2630,7 +2630,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2702,7 +2702,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate D3E8B5FC0D44853A\u2026: 0.01734 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 6BFE5264490BD370\u2026: 0.01734 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -2722,7 +2722,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish CA35DCFBF33D8484\u2026: paid.",
+    "message": "EscrowFinish FFFA81FCB45E5BCF\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -2746,8 +2746,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "D3E8B5FC0D44853A81D35D3A3F08D3BC5A85A0444452BFD10CDE21CBF2428B41",
-   "escrow_finish": "CA35DCFBF33D8484C7E2CDC1AB524323739E0FACDF61581FEC1E856615958911"
+   "escrow_create": "6BFE5264490BD3703E148A7A6C3394D0403A9B86E2BFBE4E672F3F2E2C8B405C",
+   "escrow_finish": "FFFA81FCB45E5BCFA47E7C7DF7C0893DA8C5FB0E007A443659E95BE8446A51F0"
   },
   "urls": {
    "escrow_create": null,
@@ -2797,7 +2797,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2918,7 +2918,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2990,7 +2990,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate ED06923C5CA03E91\u2026: 0.01734 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 4F2862245C8BC2F5\u2026: 0.01734 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3010,7 +3010,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 354CAD92CE5D0AAD\u2026: paid.",
+    "message": "EscrowFinish 28138C3D3F5BA541\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -3034,8 +3034,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "ED06923C5CA03E910EA0590946BDCE8082058CE9A93072BF6BC6D6FA1A8F556D",
-   "escrow_finish": "354CAD92CE5D0AAD43DE15510599122882C4156F11F5B6E360B66F9250E25681"
+   "escrow_create": "4F2862245C8BC2F5455D2E7ABB75A3AF11A261C641EC5B121D07F72B0C22EF60",
+   "escrow_finish": "28138C3D3F5BA541F836396C2B30C5A5DA2261245F65F889A1F3CC2BC55A92A0"
   },
   "urls": {
    "escrow_create": null,
@@ -3085,7 +3085,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -3157,7 +3157,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate A01113674CDAB30E\u2026: 0.0272 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 5133AE5E9747F297\u2026: 0.0272 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3177,7 +3177,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 207CA108C6727AA5\u2026: paid.",
+    "message": "EscrowFinish 6AA4EDD28A5526DE\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -3201,8 +3201,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "A01113674CDAB30E11E6EE2D3204B296F80BC2428D529FACEFD5E7D178650D56",
-   "escrow_finish": "207CA108C6727AA58549EA8E2145376D6247EC239E727B84A9FD8F0D0023D528"
+   "escrow_create": "5133AE5E9747F29719A8B237E2B350FC5C412BA546FA4FCEF448B6BF4F200947",
+   "escrow_finish": "6AA4EDD28A5526DED2A32EE361A3DD0114E14F07AAD69E5BEA7C8568714D43BC"
   },
   "urls": {
    "escrow_create": null,
@@ -3252,7 +3252,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -3324,7 +3324,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 8414F549B38D7EC5\u2026: 0.0272 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 53067FA3A3233E32\u2026: 0.0272 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3344,7 +3344,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 244080CF5797BFCE\u2026: paid.",
+    "message": "EscrowFinish 04736304A8A44A1D\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -3368,8 +3368,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "8414F549B38D7EC5BE824B5A47166A20409622EAE059DC25A8216DE90556A226",
-   "escrow_finish": "244080CF5797BFCE4B3C0326C18493D6EF434BB85C613C6373F10106BB1FCABC"
+   "escrow_create": "53067FA3A3233E32E5C9BB7E8E6BC979073EAACC8C545E1918419AEE6D64DAC0",
+   "escrow_finish": "04736304A8A44A1DFA7A1289AED5893B6DA0E19E51ED97C61DDABA236BC9EF09"
   },
   "urls": {
    "escrow_create": null,
@@ -3419,7 +3419,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -3491,7 +3491,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 2F6E36F4E53D2258\u2026: 0.0272 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 68A88C1AA3654834\u2026: 0.0272 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3511,7 +3511,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 8796F02B9D47C993\u2026: paid.",
+    "message": "EscrowFinish AB51FE81829EBBC7\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -3535,8 +3535,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "2F6E36F4E53D22584BCCEEE06131C8C8C3CFB3C0201672A6B2F873E1D5DADB9C",
-   "escrow_finish": "8796F02B9D47C993284DA0C5DE197B93D362E8E3850FA69602DB9DE9E3C60B92"
+   "escrow_create": "68A88C1AA36548341EC48BA5E421BDB49844960BDE64DC3FF6FB53AD350B7042",
+   "escrow_finish": "AB51FE81829EBBC707DDB4AB4B9F8BE24AE8EAFF74F4306CE166C985EE4758EB"
   },
   "urls": {
    "escrow_create": null,
@@ -3586,7 +3586,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -3658,7 +3658,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate E90375E952B3ED2A\u2026: 0.0128 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 642331B0F3018894\u2026: 0.0128 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3678,7 +3678,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 3E81703E190C1E12\u2026: paid.",
+    "message": "EscrowFinish 228692A78B64A761\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -3702,8 +3702,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "E90375E952B3ED2AFBCB4415D3CEB32EFDB20D63C616F230DA05754BFF448515",
-   "escrow_finish": "3E81703E190C1E12454A28E4D5FE1E112CFB89BDE97D2E1719820E825DDE1072"
+   "escrow_create": "642331B0F301889439F210FF9296A6B382D8A7F1FF7773CF0EE2FED49CA32E4F",
+   "escrow_finish": "228692A78B64A761A677A088B3A9A46A4694133C3E7FCBDAE0E7D3C5D1D92ECE"
   },
   "urls": {
    "escrow_create": null,
@@ -3753,7 +3753,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -3825,7 +3825,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 34A1FAEC9B3565BA\u2026: 0.01156 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 30EEE03F7BDD215E\u2026: 0.01156 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3845,7 +3845,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 478E1C8B45AA96CB\u2026: paid.",
+    "message": "EscrowFinish 7142B8E175DBE7E9\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -3881,8 +3881,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "34A1FAEC9B3565BAE908765685B0EB8951930C3BED6CEC2CB1B403B54F5A33A9",
-   "escrow_finish": "478E1C8B45AA96CBF1BE5724336C853A326048459359FA6A53B78EE9A9D56626"
+   "escrow_create": "30EEE03F7BDD215E9A1CDAC68065BB9E7E9C38E4BD412E8F1DC195F8901F3DCC",
+   "escrow_finish": "7142B8E175DBE7E9B9C590001B1302B1E64EE0E087003121E9A027D2F690A77F"
   },
   "urls": {
    "escrow_create": null,
@@ -3932,7 +3932,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4004,7 +4004,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate C0473AD2ACA4AAE7\u2026: 0.0128 USD locked to the hash of the data key.",
+    "message": "EscrowCreate D5D75823869FA185\u2026: 0.0128 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -4024,7 +4024,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 3F5A6C7B668D3AE2\u2026: paid.",
+    "message": "EscrowFinish 1BBEFBA714F43F1D\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -4048,8 +4048,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "C0473AD2ACA4AAE7DAF8370E0DE26E1DAE8D556E570A13C707AD3322AB8220E0",
-   "escrow_finish": "3F5A6C7B668D3AE280704E0321E60199A65B7397635B3D5B8655DFE8A94949A5"
+   "escrow_create": "D5D75823869FA185BF90102B8A036CED991C62664BED5C24AE2A4792E8E5A8E2",
+   "escrow_finish": "1BBEFBA714F43F1D38DB10E105FC7F71657F3A9F1806E89F9B0B0449077E2B59"
   },
   "urls": {
    "escrow_create": null,
@@ -4099,7 +4099,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4225,7 +4225,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4351,7 +4351,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4423,7 +4423,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 967C7268AA5BC00A\u2026: 0.0256 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 0BD8CDCB622A46CA\u2026: 0.0256 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -4443,7 +4443,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish A5941DE993162142\u2026: paid.",
+    "message": "EscrowFinish 3EF62B61645AF791\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -4467,8 +4467,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "967C7268AA5BC00A64066E362979750F93E5E3FAE82520D319AEE39E5D397186",
-   "escrow_finish": "A5941DE993162142633B7DEAD865572255E476B00C93EAA0E6AD79C6ADF54781"
+   "escrow_create": "0BD8CDCB622A46CA92724A2B5A11038661F6829F5CD6B4DEF4B36E4E5384500A",
+   "escrow_finish": "3EF62B61645AF791583AFF0823A51BC7C89B7DCF64A4DEB11EE4CD957F64219D"
   },
   "urls": {
    "escrow_create": null,
@@ -4518,7 +4518,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4597,7 +4597,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 62DF3F7B5231241F\u2026: 0.02244 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 9C3B919C5192C17B\u2026: 0.02244 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -4617,7 +4617,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish CDDED0A2C79B529A\u2026: paid.",
+    "message": "EscrowFinish A309F0E168ED7CEC\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -4641,8 +4641,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "62DF3F7B5231241F8B7AC963174EBCDE98A9A77D9484094D432075CB1FEB1D49",
-   "escrow_finish": "CDDED0A2C79B529A1E1EC08628F1A66F7B131184EEBFC50149F728C84EE41F3A"
+   "escrow_create": "9C3B919C5192C17B564F95CD4D64DBB7292ABF5376210944D624E5594A55BFAA",
+   "escrow_finish": "A309F0E168ED7CEC9B0B8688F4C8B91B21C79B819CBA369A5CA689AFCDC831D9"
   },
   "urls": {
    "escrow_create": null,
@@ -4692,7 +4692,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4771,7 +4771,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5B8998B5CAD65288\u2026: 0.01683 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 3EF72A6A1B247A6B\u2026: 0.01683 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -4791,7 +4791,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 07AAEBF3CE4EC157\u2026: paid.",
+    "message": "EscrowFinish D56F9CEAAB721F84\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -4815,8 +4815,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5B8998B5CAD652886894892FE5C6ECE12D9316740C5AE9A988DA2158E3DF45D0",
-   "escrow_finish": "07AAEBF3CE4EC15776681291499608BE6290B60F831487DCEAF8852A17E6AF7C"
+   "escrow_create": "3EF72A6A1B247A6B8ABA4DE4331E5B0CB36A5C755302263401EFBD21F8C08B0B",
+   "escrow_finish": "D56F9CEAAB721F84C02C52A16A0E7A591198798A4A51D583FC2B447C429B540F"
   },
   "urls": {
    "escrow_create": null,
@@ -4825,7 +4825,7 @@
  },
  {
   "schema": "agentrail.contract_trace/1",
-  "contract": "7885c334d7d4f040",
+  "contract": "1f8ec92de8b5f19f",
   "need": "P-012-r1-n1",
   "buyer": "P-012",
   "seller": "P-015",
@@ -4866,7 +4866,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4992,7 +4992,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5077,7 +5077,7 @@
  },
  {
   "schema": "agentrail.contract_trace/1",
-  "contract": "60b58fe80a7676e4",
+  "contract": "10f32895ce525cc7",
   "need": "P-009-r1-n1",
   "buyer": "P-009",
   "seller": "P-016",
@@ -5118,7 +5118,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5244,7 +5244,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5316,7 +5316,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 59BE011284E053BA\u2026: 0.0068 USD locked to the hash of the data key.",
+    "message": "EscrowCreate DC89E33434D2164B\u2026: 0.0068 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -5336,7 +5336,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish BE8423935AB9C248\u2026: paid.",
+    "message": "EscrowFinish 81CD8C4B8CB7AF62\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -5360,8 +5360,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "59BE011284E053BA9E22181E7D1D926ED52379D76C5A65CD2A8A89F3076DD270",
-   "escrow_finish": "BE8423935AB9C248A9DE77AB1D65375208BE2BF752C5A19902FB4B18040FEF3B"
+   "escrow_create": "DC89E33434D2164B007988BAADCAA6C6756F0F1E679B5A5DB41A10BDE74D6E06",
+   "escrow_finish": "81CD8C4B8CB7AF620AC905DB4A6A5BB78751D5CE0F9354A6316EDB85F840283D"
   },
   "urls": {
    "escrow_create": null,
@@ -5411,7 +5411,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5483,7 +5483,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CC5D9C664747013D\u2026: 0.0056 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 3A46AB269FE80F25\u2026: 0.0056 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -5503,7 +5503,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 7636976C42188D76\u2026: paid.",
+    "message": "EscrowFinish F0D62FF043411E6F\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -5527,8 +5527,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CC5D9C664747013DECD72DBF2BD256B840AA6A83F67D369F708C62ECA999137D",
-   "escrow_finish": "7636976C42188D76C3EE969732D0D501B5FFF20F4C62826C96026CB3D8F275A6"
+   "escrow_create": "3A46AB269FE80F251EA99AB48AD7692F75030D5727616F8946675B3FB48E8B85",
+   "escrow_finish": "F0D62FF043411E6F5A5477725E7D0552595ABFF51E2E4B6FF6D5F7F0BFC070B4"
   },
   "urls": {
    "escrow_create": null,
@@ -5578,7 +5578,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5650,7 +5650,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5C3FF2066E5ECD18\u2026: 0.00544 USD locked to the hash of the data key.",
+    "message": "EscrowCreate BFAD4F9C4327CFFC\u2026: 0.00544 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -5670,7 +5670,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish CB1F9A60E41C6D0A\u2026: paid.",
+    "message": "EscrowFinish DB90C01BCB5EE316\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -5694,8 +5694,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5C3FF2066E5ECD18147F81D2D74BD371F80D1997F0BA5EFA8F2136D816BEFC8C",
-   "escrow_finish": "CB1F9A60E41C6D0A5F0D4669C47C0C13C8E3C2B8D8654DCA266A86AC72037E8C"
+   "escrow_create": "BFAD4F9C4327CFFC942D049B536C21D2AF7DB3CFE1983173D9C9CA92A880658F",
+   "escrow_finish": "DB90C01BCB5EE3167E0DBD55747FA6E105CDF01D3B5BF03E622262D4ABC77F31"
   },
   "urls": {
    "escrow_create": null,
@@ -5745,7 +5745,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5817,7 +5817,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 2F2E6F1030FA2259\u2026: 0.028 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 69BAB8E368ED6FD8\u2026: 0.028 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -5837,7 +5837,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 00548D1C0F23901E\u2026: paid.",
+    "message": "EscrowFinish 8143F04598390D69\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -5861,8 +5861,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "2F2E6F1030FA2259BA9ECFBF41CCA8AD440BB29ABEC4A35C07027C03AE88011B",
-   "escrow_finish": "00548D1C0F23901E4C712F47565FB43658EB2FFE006DDEDF791EA73E02E4D5A8"
+   "escrow_create": "69BAB8E368ED6FD8B5D0E96A8BD786848A2D7937905CF185E3BD5FBB879256FE",
+   "escrow_finish": "8143F04598390D6946028A52ACD32E00F8F10FAB56380AEE0C951F2E991592FC"
   },
   "urls": {
    "escrow_create": null,
@@ -5912,7 +5912,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5984,7 +5984,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate E42B832D49E0E6F8\u2026: 0.0224 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 141E132767BDBD39\u2026: 0.0224 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -6004,7 +6004,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 9B3E281080EC1D52\u2026: paid.",
+    "message": "EscrowFinish 38111CB0B13AE817\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -6028,8 +6028,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "E42B832D49E0E6F8E482DD5A167FDE799D4EF504511F14E67628BBD39510B37C",
-   "escrow_finish": "9B3E281080EC1D52A821ABF9D0D36DB323C30F3D7165173445927FFA6AEBF6B8"
+   "escrow_create": "141E132767BDBD39EF8E1029A73C29B56B4A404754AEF0F57324D8EAFC3E7E60",
+   "escrow_finish": "38111CB0B13AE8178BCE8ED87F1968A0A6803D437FDD41761048C74DBDB8768E"
   },
   "urls": {
    "escrow_create": null,
@@ -6079,7 +6079,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -6165,7 +6165,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 34B0B4C78F42C351\u2026: 0.0256 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 369F2505306BA60F\u2026: 0.0256 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -6185,7 +6185,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish DA3040740234B325\u2026: paid.",
+    "message": "EscrowFinish 5B0E1888B8DFA9EB\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -6209,8 +6209,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "34B0B4C78F42C351BE3737DF713B22C0085721332DCEA6D2CC805525024C0A33",
-   "escrow_finish": "DA3040740234B325A6E8C4ED86C8F986EB8BF1A1F5A9CF90499712D6E707D11B"
+   "escrow_create": "369F2505306BA60F60AB295996C2EA41AB8AFE93D2D9FA9DF1C89DB532AE6DA3",
+   "escrow_finish": "5B0E1888B8DFA9EB7E821AFA3038F656F1165302E5EA490500168719204EB70B"
   },
   "urls": {
    "escrow_create": null,
@@ -6260,7 +6260,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -6346,7 +6346,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5DF5CF9C452199FD\u2026: 0.0256 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 2B81A907A96F7D4F\u2026: 0.0256 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -6366,7 +6366,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 40644357F5CF4E62\u2026: paid.",
+    "message": "EscrowFinish 780D248E0DA35BB5\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -6390,8 +6390,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5DF5CF9C452199FD57076932D875D91598419CECBBF61DFA1DF488803A920BFC",
-   "escrow_finish": "40644357F5CF4E6281C39651856B6088B2E505F1027C098665C2BD86D9DCDF7B"
+   "escrow_create": "2B81A907A96F7D4F9EFD89892D643C6DCEFA3F449E3650CE59163F0CAD369B72",
+   "escrow_finish": "780D248E0DA35BB5A480CF3FEA6266154759953B2BD3814D282B2FBFEC9C0767"
   },
   "urls": {
    "escrow_create": null,
@@ -6441,7 +6441,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -6597,7 +6597,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -6704,7 +6704,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 091BEEAB661A62F2\u2026: 0.022668 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 0E08EF3518C3BCE0\u2026: 0.022668 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -6724,7 +6724,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C1165F26A84DA483\u2026: paid.",
+    "message": "EscrowFinish 91A35F07EA0F6637\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -6748,8 +6748,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "091BEEAB661A62F2CA1FB2590E94E4947BBA143A53F4637C9C85D133D08BC860",
-   "escrow_finish": "C1165F26A84DA483FD3228F2C78F3AED5A657BC73E86D95536442FA696030C52"
+   "escrow_create": "0E08EF3518C3BCE031D273CDD4ADC64F553F4105F686FC453247BE20BAF6E41A",
+   "escrow_finish": "91A35F07EA0F6637D7919845D5D1841B320BADC1BCE46FB4B7E65093517AE43C"
   },
   "urls": {
    "escrow_create": null,
@@ -6799,7 +6799,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -6878,7 +6878,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 044652FF18F68173\u2026: 0.020048 USD locked to the hash of the data key.",
+    "message": "EscrowCreate F7D394253500872C\u2026: 0.020048 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -6898,7 +6898,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish CAFEC87772373D89\u2026: paid.",
+    "message": "EscrowFinish E288000E4D0A6D86\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -6922,8 +6922,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "044652FF18F681733D58F7CEA71B416774402FAA7199D2DA5681E15730C90E97",
-   "escrow_finish": "CAFEC87772373D892F91B6F129235B3E1F2F1BD3EEB74EDB756F9505EDAD9E40"
+   "escrow_create": "F7D394253500872C006D4158189D7DCD6072574AE6CF1014E3A6BB21529E5DAC",
+   "escrow_finish": "E288000E4D0A6D86CB29029F9621712399AE36DD460F16C49976D5DE20E22D74"
   },
   "urls": {
    "escrow_create": null,
@@ -6973,7 +6973,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7052,7 +7052,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 3A2B5B0F7858E492\u2026: 0.021 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 0A9D11D3045597E7\u2026: 0.021 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -7072,7 +7072,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish BE98DB484D4BAB14\u2026: paid.",
+    "message": "EscrowFinish 81D327C2CCD78BA0\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -7096,8 +7096,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "3A2B5B0F7858E492361CDCBCA35F31F391C2C74BEFA7F82B79F064F56CBAEA22",
-   "escrow_finish": "BE98DB484D4BAB14DBE7BE57A6213AE957CC765DBD554A13C4DD2103E3F7E4FD"
+   "escrow_create": "0A9D11D3045597E7D565FBD3FB24258BCEEEBB3E3D68186D949818B3920889BC",
+   "escrow_finish": "81D327C2CCD78BA03CD62B5E31FBDD1CD5A6E380408F0B6BCA1142F5A46A7DB5"
   },
   "urls": {
    "escrow_create": null,
@@ -7147,7 +7147,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7226,7 +7226,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 56FD8143C32BE4B9\u2026: 0.020048 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 8718BB1D7587D1AC\u2026: 0.020048 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -7246,7 +7246,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 96F5888AE237637D\u2026: paid.",
+    "message": "EscrowFinish C327C89FC4B4BCCE\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -7270,8 +7270,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "56FD8143C32BE4B961AC37A33E2BFF9B46C80D1A872F142ED1B890420AD29D70",
-   "escrow_finish": "96F5888AE237637D65EAFABEED0290ED935BEEAAD99E328F3DBBA42BD1C467F3"
+   "escrow_create": "8718BB1D7587D1AC1FB039BA5291E91809B665AACB4CDAF94DDBD07DA6994C2E",
+   "escrow_finish": "C327C89FC4B4BCCE53D3644192BA7A2BA5A0851502676A5BF4D43965A9B0902B"
   },
   "urls": {
    "escrow_create": null,
@@ -7321,7 +7321,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7421,7 +7421,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 86078CCDF924B7EE\u2026: 0.013881 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 45009AC02345951D\u2026: 0.013881 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -7441,7 +7441,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 4A8A1ECFD98F4364\u2026: paid.",
+    "message": "EscrowFinish E8F3A03E33E1F6CA\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -7465,8 +7465,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "86078CCDF924B7EE57EA11544D2C37EECB68C50FB1A5B6F523DC8A8BE7B05818",
-   "escrow_finish": "4A8A1ECFD98F436419E69510458933E26126E62DCF967C8B385D0B4E9009A548"
+   "escrow_create": "45009AC02345951DADD1AE8618FFFA24D557D5858755E31BDFF519A2502221D0",
+   "escrow_finish": "E8F3A03E33E1F6CAA65423D9D34EAAC399A7C3841EEEDD7F08052CB62FEFF95D"
   },
   "urls": {
    "escrow_create": null,
@@ -7516,7 +7516,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7616,7 +7616,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 174746509F6EC3FE\u2026: 0.013881 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 01A091E07E0D8E12\u2026: 0.013881 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -7636,7 +7636,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish F9FA0937564C3504\u2026: paid.",
+    "message": "EscrowFinish 684C55C513B4F8FE\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -7660,8 +7660,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "174746509F6EC3FE2F37293103E90CA7DDD689B506887A2527EAE02B506E7A78",
-   "escrow_finish": "F9FA0937564C3504C63F0BF93C4E6F059AFD8B3E1470CA5158E715F09ACB3DFE"
+   "escrow_create": "01A091E07E0D8E12CE62AD73F2EF3BE409FB0579493A4AD114F564889EA7107B",
+   "escrow_finish": "684C55C513B4F8FEA26F250F6ACE42255A04F5D1C079A51243AECCD6C816C6C3"
   },
   "urls": {
    "escrow_create": null,
@@ -7711,7 +7711,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7797,7 +7797,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 7AB5719B79E3B0CF\u2026: 0.0128 USD locked to the hash of the data key.",
+    "message": "EscrowCreate C677BD33B4982058\u2026: 0.0128 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -7817,7 +7817,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 34073AC7EFB72DF9\u2026: paid.",
+    "message": "EscrowFinish 58CE828C237A2E69\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -7841,8 +7841,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "7AB5719B79E3B0CF829A9C8E79FCECB26E0B70726473F6330514BE82461EA30C",
-   "escrow_finish": "34073AC7EFB72DF973103231DA5CC2FCC32E0443219391BDF758B95E5E16606A"
+   "escrow_create": "C677BD33B49820584CDFC30CA474B5DA18E50E3EC7631E934D55A7A2479189DD",
+   "escrow_finish": "58CE828C237A2E694F3633F0BD25F0BC78D34499C8DCE899FA8750D64F871CE9"
   },
   "urls": {
    "escrow_create": null,
@@ -7892,7 +7892,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7977,7 +7977,7 @@
  },
  {
   "schema": "agentrail.contract_trace/1",
-  "contract": "bf31c813a5493486",
+  "contract": "b5cc5e03bad78dbe",
   "need": "P-039-r1-n1",
   "buyer": "P-039",
   "seller": "P-016",
@@ -8018,7 +8018,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8103,7 +8103,7 @@
  },
  {
   "schema": "agentrail.contract_trace/1",
-  "contract": "4bf50e5b3b0b9da9",
+  "contract": "12ea525cb65bd2ca",
   "need": "P-020-r1-n1",
   "buyer": "P-020",
   "seller": "P-015",
@@ -8144,7 +8144,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8270,7 +8270,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8355,7 +8355,7 @@
  },
  {
   "schema": "agentrail.contract_trace/1",
-  "contract": "9dce1b23bfb847bc",
+  "contract": "78a44cb15ace60f0",
   "need": "P-032-r1-n1",
   "buyer": "P-032",
   "seller": "P-015",
@@ -8396,7 +8396,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8522,7 +8522,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8594,7 +8594,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 90431DEBA1CEA43A\u2026: 0.006141 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 6684FA44A43B8601\u2026: 0.006141 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -8614,7 +8614,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish BDA14816F69EFBA9\u2026: paid.",
+    "message": "EscrowFinish 0318DD5892DF65FD\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -8638,8 +8638,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "90431DEBA1CEA43A2970CE842748FCCE973EFA548CA3D534B1DC56D8432785D6",
-   "escrow_finish": "BDA14816F69EFBA9046AC90FCAA7DBC174DD285602A13EE5AB48FAE2A427ED6B"
+   "escrow_create": "6684FA44A43B860146B1BFBF718BB0EA9CD5C59701532473CA67969132C11043",
+   "escrow_finish": "0318DD5892DF65FD618F5D03979B52FB7F7F91E1C72ED59EC836BEDB3721807F"
   },
   "urls": {
    "escrow_create": null,
@@ -8689,7 +8689,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8761,7 +8761,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 2D16A7D69BCAD5A0\u2026: 0.0056 USD locked to the hash of the data key.",
+    "message": "EscrowCreate BDE6CA62AD765EC0\u2026: 0.0056 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -8781,7 +8781,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 7C7702FF68D7DC9F\u2026: paid.",
+    "message": "EscrowFinish B10DAA041DA8357A\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -8805,8 +8805,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "2D16A7D69BCAD5A0FB5E6CD9810892BC993C2892491DE838BB08C8B785E86678",
-   "escrow_finish": "7C7702FF68D7DC9FBB192628CD85601E1419242EA6F70157499A6B7862D2A293"
+   "escrow_create": "BDE6CA62AD765EC0BDBE08023E78D6110382FC03CCA496BFF60168192B539D71",
+   "escrow_finish": "B10DAA041DA8357A0EF158324461CC102530DF480B75D37DCD779093E7E7A043"
   },
   "urls": {
    "escrow_create": null,
@@ -8856,7 +8856,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8942,7 +8942,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate F911A8B9075E8BE9\u2026: 0.0064 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 5674C73440AA9A77\u2026: 0.0064 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -8962,7 +8962,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 7992DFD614AA046C\u2026: paid.",
+    "message": "EscrowFinish 04D5B57BA6A8C387\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -8986,8 +8986,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "F911A8B9075E8BE9894ECD8F4D773FBA4A5B1EA5DAF9E8C59243CEBCDC313AB5",
-   "escrow_finish": "7992DFD614AA046C5FF2EFEA8ADDF049068E17967B1A26C25B8C0177DF480E8C"
+   "escrow_create": "5674C73440AA9A77F5FCF9759284155A2EE1800AC2D121D76A70F3AA9A92A090",
+   "escrow_finish": "04D5B57BA6A8C387BDCAD245427FFD08C3B1A3F1032FDBA899DBD4351C308D96"
   },
   "urls": {
    "escrow_create": null,
@@ -9037,7 +9037,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9158,7 +9158,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9230,7 +9230,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 2EEADE4D0A9C78B9\u2026: 0.004913 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 6885460F2D0DCE23\u2026: 0.004913 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -9250,7 +9250,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 4D6EE18DCCE68693\u2026: paid.",
+    "message": "EscrowFinish 0731CC20109DC142\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -9274,8 +9274,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "2EEADE4D0A9C78B95EC694501037AB1A9FE7AC1B8B7E98E164B0FE52C8159ABF",
-   "escrow_finish": "4D6EE18DCCE686930409082985128C8C4DA7CA7BF620CBC3C38DF3AEB8FA32B2"
+   "escrow_create": "6885460F2D0DCE23DC935E7CF04616BDA1F283CFD3DCBDE0D19FE0EA65B9A760",
+   "escrow_finish": "0731CC20109DC142E0F998BFCDEC4FED214ADEBB5131E9A703BF5F2FE69303CF"
   },
   "urls": {
    "escrow_create": null,
@@ -9325,7 +9325,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9397,7 +9397,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5392453CCC4D6AD9\u2026: 0.004913 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 1B35F3A5E090540E\u2026: 0.004913 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -9417,7 +9417,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish A88EF56F705D6071\u2026: paid.",
+    "message": "EscrowFinish F70A2325AE40C153\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -9441,8 +9441,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5392453CCC4D6AD9DD5532D87DB5342507AB98325EDC667F0ECC5C2923B6E876",
-   "escrow_finish": "A88EF56F705D60719B2E641C57845CC52FF5465798E728C196B9AF63987D9E88"
+   "escrow_create": "1B35F3A5E090540EE894621D7134127FF90B6ADBFA42D4AB2B1CA850A31071C8",
+   "escrow_finish": "F70A2325AE40C15391964BE1722E8FFCC290D7D843250862B36F6CCEB5AD30A9"
   },
   "urls": {
    "escrow_create": null,
@@ -9492,7 +9492,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9564,7 +9564,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 09865B8006680F9D\u2026: 0.0056 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 7826272D223D7445\u2026: 0.0056 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -9584,7 +9584,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 869908C68E01A7D6\u2026: paid.",
+    "message": "EscrowFinish 2D73DFB9A14CEEDD\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -9608,8 +9608,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "09865B8006680F9D57F6BABAC552AC44E45156C048A84B3E6979F01446107866",
-   "escrow_finish": "869908C68E01A7D6A637D54DADE1A5D15C13B85C2ADDA731D55A47DB12328546"
+   "escrow_create": "7826272D223D7445E9F3D825D4B01CD230BF97B749D6780456F5866628EFD741",
+   "escrow_finish": "2D73DFB9A14CEEDDC8EE1D2AB36221545CD8AB07E0D72F2A37D36D1BB76353CC"
   },
   "urls": {
    "escrow_create": null,
@@ -9659,7 +9659,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9745,7 +9745,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 53999D36381E3AD8\u2026: 0.0128 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 044C93053FB96BA4\u2026: 0.0128 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -9765,7 +9765,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish EF1D1D72CF111A16\u2026: paid.",
+    "message": "EscrowFinish 070D50FB584677F5\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -9789,8 +9789,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "53999D36381E3AD830B567E1D180105092175082724D19F6B2888CDE901F0C6E",
-   "escrow_finish": "EF1D1D72CF111A164050F4372B7AA60575F85B8D8BB878ADAE65A91735C9C46F"
+   "escrow_create": "044C93053FB96BA4F91DE6FA8F26398C4312C1B23D93E6AFD84AAF102273DA33",
+   "escrow_finish": "070D50FB584677F52B3262FCC8F911B8C01A0E32A41867C650D8F0536422B439"
   },
   "urls": {
    "escrow_create": null,
@@ -9840,7 +9840,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9926,7 +9926,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 7C6BD3B8996F514D\u2026: 0.0128 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 7DAADF6679E4F82A\u2026: 0.0128 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -9946,7 +9946,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 886DA946562E5A60\u2026: paid.",
+    "message": "EscrowFinish DD90BC997F957538\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -9970,8 +9970,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "7C6BD3B8996F514DE5C1C430DD708C193E7C446E80963E07C86992B18B5A722F",
-   "escrow_finish": "886DA946562E5A6075A2E230FBEF1DD53FCB798E47BBF79A601A9F2ED0EBFFE6"
+   "escrow_create": "7DAADF6679E4F82AF8942FCD500B2F23AAE2C7DEC5DC104366708CB72F4B01A4",
+   "escrow_finish": "DD90BC997F957538F3D0D82A02C478D395B79F44EC6F1AD53F46936E28A10C20"
   },
   "urls": {
    "escrow_create": null,
@@ -10021,7 +10021,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10107,7 +10107,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 8BEAD87A62576901\u2026: 0.0128 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 8B764315E2EBC5D3\u2026: 0.0128 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -10127,7 +10127,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C1A06F433D3161A7\u2026: paid.",
+    "message": "EscrowFinish 7BE7033837603A94\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -10151,8 +10151,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "8BEAD87A62576901F842D33B09708ED2CC2E73D065F9A7397016F5FFF2B71036",
-   "escrow_finish": "C1A06F433D3161A77A55271255FEB46F7AD39B5061A71732182C7C0FC3945587"
+   "escrow_create": "8B764315E2EBC5D34B95174FBC64A498CEC6D3F47E08D048A0DC95D0556A96B3",
+   "escrow_finish": "7BE7033837603A9496E95D8F8F5F88DFDBE6A3D41778DB7FAE2516256A60F2E4"
   },
   "urls": {
    "escrow_create": null,
@@ -10202,7 +10202,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10274,7 +10274,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate FAA53CA9CB5913B6\u2026: 0.007369 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 758F733E4D1F3B9C\u2026: 0.007369 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -10294,7 +10294,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C5D1B9824AD54501\u2026: paid.",
+    "message": "EscrowFinish DEE18C08F2C651E2\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -10318,8 +10318,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "FAA53CA9CB5913B691C617E74F8FBE3B59595EABAB1BF809001E08CA8E76422E",
-   "escrow_finish": "C5D1B9824AD545016DC4592A1543F8C7632B5331D8A2B9EF3748DC2DD43B5065"
+   "escrow_create": "758F733E4D1F3B9C3A36F8F85B68EF31A7DF88D38B3D0F319E8B9F1A639DF1D0",
+   "escrow_finish": "DEE18C08F2C651E2CBC19A5014E0F6F6A198B88A132B1CA4031ECF22DDFD1A19"
   },
   "urls": {
    "escrow_create": null,
@@ -10369,7 +10369,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10462,7 +10462,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CFCD675FF0722101\u2026: 0.0096 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 8F055061630A93A9\u2026: 0.0096 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -10482,7 +10482,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 510920437CDED444\u2026: paid.",
+    "message": "EscrowFinish AF7146F34AEC90C5\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -10506,8 +10506,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CFCD675FF07221015D68FB3BF854F5CFF82C167200A0F0E467B14934A7127F16",
-   "escrow_finish": "510920437CDED444EBE4AEEE0800DB61777DC21602A29C53483D7F2D4C15CE32"
+   "escrow_create": "8F055061630A93A9AB5678E3E56FA5CF1ABB58BFD19F6256D41B233162BF4B4C",
+   "escrow_finish": "AF7146F34AEC90C5301C121F4B3AA2730A84E6A71DEF9B9D0B93B52AC4FA143E"
   },
   "urls": {
    "escrow_create": null,
@@ -10557,7 +10557,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10678,7 +10678,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10799,7 +10799,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10892,7 +10892,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate B88831F8AD8E8BAC\u2026: 0.0096 USD locked to the hash of the data key.",
+    "message": "EscrowCreate EDECC5B422031524\u2026: 0.0096 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -10912,7 +10912,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 6858A8E8F653411B\u2026: paid.",
+    "message": "EscrowFinish E2C77EB97BA7308C\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -10936,8 +10936,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "B88831F8AD8E8BAC88F6782B2A0B3D9D7CBA329F64ABDD23BF0AAB0D49A9C9E6",
-   "escrow_finish": "6858A8E8F653411BEAD64EC96548D91BCF7ED052090E75E8961A0FCD20DA6CAB"
+   "escrow_create": "EDECC5B422031524F7F84A8F9E2072EF089DE5550B581DED8749FEB5CF185DD7",
+   "escrow_finish": "E2C77EB97BA7308C66A425479DE46A25C93A508B71649B0DC4E4D9C0A620C8BC"
   },
   "urls": {
    "escrow_create": null,
@@ -10987,7 +10987,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -11113,7 +11113,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -11239,7 +11239,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root f854c01e9af055c6\u2026, tx D3D82F7DFAF3FB6A\u2026"
+      "detail": "root ef1d0ac1d3449392\u2026, tx DC272B1F833FB51D\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -11381,7 +11381,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -11502,7 +11502,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 109472A4E88C3F83\u2026: 0.023359 USD locked to the hash of the data key.",
+    "message": "EscrowCreate B3DA5CCC0D54CB47\u2026: 0.023359 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -11522,7 +11522,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish FF4DC82E20093BAA\u2026: paid.",
+    "message": "EscrowFinish E4DA0B6676E08E42\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -11546,8 +11546,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "109472A4E88C3F83AC1DA16D3ACB5A4092C4825455586FE0FE42BBE0ADC23F3A",
-   "escrow_finish": "FF4DC82E20093BAA6EFEDAFF6438BABDF85A536E746F87E32271FB2FAEFF65BB"
+   "escrow_create": "B3DA5CCC0D54CB472BA758AF2271A41144DCC0AE49A17FEFEE1AD0535B0CB958",
+   "escrow_finish": "E4DA0B6676E08E42FB5682C32C67110EA6C6440E2AE12A5F42C59FDDB4106E08"
   },
   "urls": {
    "escrow_create": null,
@@ -11597,7 +11597,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -11683,7 +11683,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate F2287BDC8461D89F\u2026: 0.0056 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 95884F16FCA475AD\u2026: 0.0056 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -11703,7 +11703,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 63F5A30D40D50587\u2026: paid.",
+    "message": "EscrowFinish 32D42959815A5AF0\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -11727,8 +11727,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "F2287BDC8461D89F632FD1B55B27A4F2935A7D391941AC1D60EA9C49504305D4",
-   "escrow_finish": "63F5A30D40D505878C08E024AF1432C8D1B679B9C08E60F8427E1878D03FC511"
+   "escrow_create": "95884F16FCA475AD73FC425DB3B5A1A58FF03530C4EC915F4E1700AE28C2A48B",
+   "escrow_finish": "32D42959815A5AF062B258D112D328EC5AFDE94EA411C50BF99375B7AA2AEC3A"
   },
   "urls": {
    "escrow_create": null,
@@ -11778,7 +11778,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -11850,7 +11850,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 737BA25486F0CEC3\u2026: 0.0048 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 2F15912AC491DF7C\u2026: 0.0048 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -11870,7 +11870,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 7C26A39C9EB2D6AF\u2026: paid.",
+    "message": "EscrowFinish 2CBF4396D0EFD7EA\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -11894,8 +11894,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "737BA25486F0CEC36D555D3D692090DB801400B6604DEDEA7206903F3CA93AEF",
-   "escrow_finish": "7C26A39C9EB2D6AFAE613B5593188CF1C8222887BC4EE53A40C1C64704A1DE6B"
+   "escrow_create": "2F15912AC491DF7C6839067055B53923F4E3876F5CC7A5AAECF6C541B82F020E",
+   "escrow_finish": "2CBF4396D0EFD7EA13ECFE814C59BB805C0BFB1605E6D118BB0210AD2BF9B8F2"
   },
   "urls": {
    "escrow_create": null,
@@ -11945,7 +11945,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12066,7 +12066,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12152,7 +12152,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 7A1C9EA33A311352\u2026: 0.0056 USD locked to the hash of the data key.",
+    "message": "EscrowCreate FD5D50B8FEB557E7\u2026: 0.0056 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -12172,7 +12172,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 82F550BDFE7FBCD0\u2026: paid.",
+    "message": "EscrowFinish 77AC428B95D6FF16\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -12196,8 +12196,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "7A1C9EA33A311352C3E446560CAC8AA2551AC12E9F996D78DCCF7BB3D1456323",
-   "escrow_finish": "82F550BDFE7FBCD05E31EDA3142F620DB3A34C2465FFCF9E33A03AC991561A65"
+   "escrow_create": "FD5D50B8FEB557E727F3EE77F1C1945C640751F33BE806260D919BDA63A717A1",
+   "escrow_finish": "77AC428B95D6FF16128ADF12EDE00D4C925B74941C3310E6A94CA8A3E9F08A93"
   },
   "urls": {
    "escrow_create": null,
@@ -12247,7 +12247,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12373,7 +12373,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12445,7 +12445,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate D677B5FAA4AF099A\u2026: 0.0096 USD locked to the hash of the data key.",
+    "message": "EscrowCreate E0BB6C8FE746516F\u2026: 0.0096 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -12465,7 +12465,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish EA455520B2C70F78\u2026: paid.",
+    "message": "EscrowFinish 500E7934736CC2B9\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -12489,8 +12489,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "D677B5FAA4AF099A1F3B023564D12469F500AEC5ECEA4FD709EDB709F3E50434",
-   "escrow_finish": "EA455520B2C70F78F7E01BD320589133100E0F0DDD09D89C43A04E2AD89136EF"
+   "escrow_create": "E0BB6C8FE746516F08304035C54FE8B8D9A9B0152693B1FA8501147D4A20EF42",
+   "escrow_finish": "500E7934736CC2B94A9E5C323083D0793359613FAE422978F9D3CA3C827B1BCD"
   },
   "urls": {
    "escrow_create": null,
@@ -12540,7 +12540,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12626,7 +12626,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate B24AF086B72CD750\u2026: 0.0128 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 946C516EDD93FAF3\u2026: 0.0128 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -12646,7 +12646,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 172FE51B8EBE2175\u2026: paid.",
+    "message": "EscrowFinish 7889253396F5B345\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -12670,8 +12670,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "B24AF086B72CD7508B01C8ADBFF777BA1EE28B1E90DA398674727C48E216C8F2",
-   "escrow_finish": "172FE51B8EBE2175EF72EF8E63A91300CBA67FD64FD5F21ADA9C2EBDCE11F706"
+   "escrow_create": "946C516EDD93FAF305CBC43B62D700A0B589EB66B7899478448F9DE2FCFA8084",
+   "escrow_finish": "7889253396F5B3459239DFEA16CEFC544BCB4C4A3CD344BFE5F383B53E7946B5"
   },
   "urls": {
    "escrow_create": null,
@@ -12721,7 +12721,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12842,7 +12842,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12935,7 +12935,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 0989934769A9C456\u2026: 0.0112 USD locked to the hash of the data key.",
+    "message": "EscrowCreate B40AFC9E7EAF7778\u2026: 0.0112 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -12955,7 +12955,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish BB2E15019B155FA1\u2026: paid.",
+    "message": "EscrowFinish 53BABA6736091E4F\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -12979,8 +12979,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "0989934769A9C456A1FD4797CBAC76787DA76DFECBF2EF657F219B4E69ABA2CC",
-   "escrow_finish": "BB2E15019B155FA183EFBFE9D0635100BB9D3EFA837FBAB5FF284714F70D4ACF"
+   "escrow_create": "B40AFC9E7EAF7778609BD85F6B3989EAD14D09FCBAA2414C7BE9B9D6FD3527EA",
+   "escrow_finish": "53BABA6736091E4F7F12C6F03ABC6DA69F749F37984B2F01EC35D74158E202E5"
   },
   "urls": {
    "escrow_create": null,
@@ -13030,7 +13030,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -13116,7 +13116,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate DF7994AEFC29FD59\u2026: 0.007 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 33FB86B12001B721\u2026: 0.007 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -13136,7 +13136,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 5DBE7FA62CB3A8CD\u2026: paid.",
+    "message": "EscrowFinish 58314FB634240807\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -13160,8 +13160,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "DF7994AEFC29FD59139B24E4032229E399F6BA9632B468DF04F62DAFE5D51CB3",
-   "escrow_finish": "5DBE7FA62CB3A8CD98F5333A4FA13D18FAA1FC7085ED37975094714EEA67F663"
+   "escrow_create": "33FB86B12001B721CE56198853DD7DDCB38DDC03B966654953B5C629894994B4",
+   "escrow_finish": "58314FB6342408071E34895CD99AAB26CD8B26C4E2B3294039F022FF3070C649"
   },
   "urls": {
    "escrow_create": null,
@@ -13211,7 +13211,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -13297,7 +13297,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 8D691A65603CDBFA\u2026: 0.0064 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 7D54FE64474F0556\u2026: 0.0064 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -13317,7 +13317,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 43655779FD2A527B\u2026: paid.",
+    "message": "EscrowFinish ACB936C380A275AF\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -13341,8 +13341,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "8D691A65603CDBFABFF60CC1ABF33C9126FA73ACACE8551E43D789E2229FA3EC",
-   "escrow_finish": "43655779FD2A527B1701F27AC5934F451EB7D2740F05C384DA8D1D3D1678CCBC"
+   "escrow_create": "7D54FE64474F05561B61B12DE45FCEB3E5FAB1537EFB909664580FC5E4C56E85",
+   "escrow_finish": "ACB936C380A275AF7348A04E0B585297EA09811517E52166764A62ABB0328313"
   },
   "urls": {
    "escrow_create": null,
@@ -13392,7 +13392,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -13485,7 +13485,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5AB288911AE2F73C\u2026: 0.0056 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 417BA538AD87B028\u2026: 0.0056 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -13505,7 +13505,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 63100AC4FABC3EBC\u2026: paid.",
+    "message": "EscrowFinish 9925982AC29E4166\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -13529,8 +13529,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5AB288911AE2F73C2A2105C6E9DF815D542AF7B2FD6F026A0E9F05CEB18F55AB",
-   "escrow_finish": "63100AC4FABC3EBC7650EA301930F7CB915D2A1502DBB5E27329EB64DCFC4116"
+   "escrow_create": "417BA538AD87B02822B3DCD986CFEBCF266EC498F2E3BC5980CB1828D3A97200",
+   "escrow_finish": "9925982AC29E41663221D55D12C8338A415584E09B1A59B1EEAE2CA62C431F40"
   },
   "urls": {
    "escrow_create": null,
@@ -13580,7 +13580,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -13666,7 +13666,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate D38A07910CBC4B2C\u2026: 0.0256 USD locked to the hash of the data key.",
+    "message": "EscrowCreate EAECC0B753A4156C\u2026: 0.0256 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -13686,7 +13686,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish A15D3FF37D6B3CAA\u2026: paid.",
+    "message": "EscrowFinish 9BE0693ED8CE1790\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -13710,8 +13710,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "D38A07910CBC4B2CB8BBFFE3A2F00093C22AA44331CFFCD0C7DE27C93C127044",
-   "escrow_finish": "A15D3FF37D6B3CAA764FB4CF0017960431B6F294D33C67EFEEAD563083B04D3A"
+   "escrow_create": "EAECC0B753A4156CC20A3FD2297988EA6B89299EEF8DFD2D9D116E32B585AFA6",
+   "escrow_finish": "9BE0693ED8CE179079C8BB872825121BF5AAC223C390E8C29BBEE45DFEE74E60"
   },
   "urls": {
    "escrow_create": null,
@@ -13761,7 +13761,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -13847,7 +13847,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CA54A2EEB6DC40A9\u2026: 0.0288 USD locked to the hash of the data key.",
+    "message": "EscrowCreate DA3CCF5E5AAD584E\u2026: 0.0288 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -13867,7 +13867,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish CEA1F6FD922183D8\u2026: paid.",
+    "message": "EscrowFinish FCF87613457B497B\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -13891,8 +13891,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CA54A2EEB6DC40A98DDACC8C752F0B30BDFC5A34A8D675972CA7D3004C249E80",
-   "escrow_finish": "CEA1F6FD922183D8BC6BDDCFE90EA07DEF9F38736073F1BDA74D1C629072FA7B"
+   "escrow_create": "DA3CCF5E5AAD584E53128517E15EE78E835339070B1D0B0861A93DDBEDF9AC83",
+   "escrow_finish": "FCF87613457B497B9E5296EAA32F923355A9CFF5188D671432DF5115430DB642"
   },
   "urls": {
    "escrow_create": null,
@@ -13942,7 +13942,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14035,7 +14035,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 380DE2D6D7509EF4\u2026: 0.0105 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 0B4774B74B3BECAC\u2026: 0.0105 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -14055,7 +14055,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 991DC2FF045265B2\u2026: paid.",
+    "message": "EscrowFinish 74558CFF5CC4746F\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -14079,8 +14079,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "380DE2D6D7509EF4E659CCED2C164F5D25ADD43A672BE05D21D995EDE9F59D36",
-   "escrow_finish": "991DC2FF045265B2881657815974EA908C5163A795DB15EB63C00FA8BEBB0849"
+   "escrow_create": "0B4774B74B3BECAC39DE8F3996C01E62A4CC22E17E7726E0B6C81EFADF8D657F",
+   "escrow_finish": "74558CFF5CC4746FFB2F6B462FAA7ADDDF89A37895D40B157A652C0D33E617D0"
   },
   "urls": {
    "escrow_create": null,
@@ -14130,7 +14130,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14272,7 +14272,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14365,7 +14365,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 3F230F7E8EC78534\u2026: 0.0096 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 1F8B33858A4244D9\u2026: 0.0096 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -14385,7 +14385,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C39D4F73853D15F5\u2026: paid.",
+    "message": "EscrowFinish 30A6E649A4BBEA57\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -14409,8 +14409,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "3F230F7E8EC7853484B5278911EFFFC1AA81631BA7C8831B1AFCABF4510B723B",
-   "escrow_finish": "C39D4F73853D15F599E5D5D8671E73184E906B9C8D990F8CD74A0C578D24F4A3"
+   "escrow_create": "1F8B33858A4244D93A52B573D3A709FEBB2B3F4ACD0AC4DE06DDB95E7F3DDC8B",
+   "escrow_finish": "30A6E649A4BBEA5702C0803B921110D2E816391BC088043D0CBB9F7D10D98F86"
   },
   "urls": {
    "escrow_create": null,
@@ -14460,7 +14460,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14553,7 +14553,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 6A4B79A71ED49BE7\u2026: 0.0096 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 606D0DFF623DC3A3\u2026: 0.0096 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -14573,7 +14573,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 3A687BD9259E2B48\u2026: paid.",
+    "message": "EscrowFinish 022E46BFB7D2382B\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -14597,8 +14597,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "6A4B79A71ED49BE78AE99B0F0D4263EF9ACF5B1A5E58710B3F92FBBC02C989AF",
-   "escrow_finish": "3A687BD9259E2B48B0985091A84A9E40E67C2F017EC73CA96ABBCFAC19C475D9"
+   "escrow_create": "606D0DFF623DC3A3CB9B65FB8A38B4F243C27FD33A57DC7A986097FE3C53AE35",
+   "escrow_finish": "022E46BFB7D2382B6C8DC6D0B668B4C05B7FDECCA5C9736C1823740686FE5AD3"
   },
   "urls": {
    "escrow_create": null,
@@ -14648,7 +14648,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14774,7 +14774,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14895,7 +14895,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14981,7 +14981,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 2EFBC26403999052\u2026: 0.014 USD locked to the hash of the data key.",
+    "message": "EscrowCreate B345011B5DE73DEB\u2026: 0.014 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -15001,7 +15001,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 057884F1AD5DE8EA\u2026: paid.",
+    "message": "EscrowFinish 1DE0E16BED087E11\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -15025,8 +15025,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "2EFBC2640399905261C806A7EAB81D9BBD8DDDF73BBCDAF2C92A57DE6EC68B98",
-   "escrow_finish": "057884F1AD5DE8EA83FE73E1CAAAD99181E83C30EE846ED0EFCF7AF1EBB81C26"
+   "escrow_create": "B345011B5DE73DEB150FE4B8D96099B05307C97876095E1A5A272C573D768C99",
+   "escrow_finish": "1DE0E16BED087E11BC160CCA32D6F9B52768663E939BC781C33C71A44189DDD2"
   },
   "urls": {
    "escrow_create": null,
@@ -15076,7 +15076,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -15162,7 +15162,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate B45B921456EED122\u2026: 0.0128 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 2A1F2E3942C682E6\u2026: 0.0128 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -15182,7 +15182,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 3EBCD818E8E25A87\u2026: paid.",
+    "message": "EscrowFinish D88469029BA6F27C\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -15206,8 +15206,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "B45B921456EED122FC3DB3034F938828105BF2EC26E4D2DC65E92272460CF407",
-   "escrow_finish": "3EBCD818E8E25A8794ABF9096D4388A0A2C4D4DCF30599AFEEAC47022D1726A5"
+   "escrow_create": "2A1F2E3942C682E675E56FE918EAA4C4425FDC161E2AB13A9268B42F383AFD5A",
+   "escrow_finish": "D88469029BA6F27C5F6F642A8A689AB71456996DC6BBE95DDE12E05642BA07F0"
   },
   "urls": {
    "escrow_create": null,
@@ -15257,7 +15257,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -15343,7 +15343,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate F8811042CC3FA09B\u2026: 0.0128 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 552C1793DBB37A50\u2026: 0.0128 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -15363,7 +15363,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 846403C5779F02C1\u2026: paid.",
+    "message": "EscrowFinish A346B384227D25CF\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -15387,8 +15387,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "F8811042CC3FA09B66722D5CC578983146B9A05895F376E344F9A00004BF6FA4",
-   "escrow_finish": "846403C5779F02C14718117625F500B74E96DB1693E83B59B8DB3E64879E53D4"
+   "escrow_create": "552C1793DBB37A50B31E0C837AB15C14C5B3E934EBA016B04BDEFE745B54505B",
+   "escrow_finish": "A346B384227D25CFF9EB9DC769DBE606D141B2524979C2996B13027137F32E44"
   },
   "urls": {
    "escrow_create": null,
@@ -15438,7 +15438,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -15564,7 +15564,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -15650,7 +15650,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 745C5A38ED2F9850\u2026: 0.016 USD locked to the hash of the data key.",
+    "message": "EscrowCreate EF61E8FBE2F28105\u2026: 0.016 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -15670,7 +15670,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish FED37917DCE7119D\u2026: paid.",
+    "message": "EscrowFinish 9AC6A6EB3ACD92F6\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -15694,8 +15694,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "745C5A38ED2F9850C5B9798BBC2547AE397D96289A3DB91B380308C1EE6EE83F",
-   "escrow_finish": "FED37917DCE7119DE459633DC980A1715E7DC5A91E2D1C09D489671B58600245"
+   "escrow_create": "EF61E8FBE2F281051576BB4A63808F91631FC09B52C88B61608E6D3055E46567",
+   "escrow_finish": "9AC6A6EB3ACD92F6FC3337CFA643F6D12DAFE5C0ECB006C9E1F53962FFAE417D"
   },
   "urls": {
    "escrow_create": null,
@@ -15745,7 +15745,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -15831,7 +15831,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate EC49E5E445B691EC\u2026: 0.014 USD locked to the hash of the data key.",
+    "message": "EscrowCreate FCF72134B80C8FB6\u2026: 0.014 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -15851,7 +15851,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish B1C580B5AD0FE42F\u2026: paid.",
+    "message": "EscrowFinish FC58C73001AB4C26\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -15875,8 +15875,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "EC49E5E445B691ECC045CAB6DA8E4454E30394FC8EE734E4AF67102210A835BF",
-   "escrow_finish": "B1C580B5AD0FE42F42DB1694FE34CFD060A08B3AE6E2CAD44924B2A09B4B6D05"
+   "escrow_create": "FCF72134B80C8FB648CABED788C77ACD3A27E56EAEF504C105534E758C3FDD6D",
+   "escrow_finish": "FC58C73001AB4C264EE045806E51CE67A4C4EDC63A161D6C827FF3BF5E31FF2B"
   },
   "urls": {
    "escrow_create": null,
@@ -15926,7 +15926,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16012,7 +16012,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate B7C8CDB1AB7A7075\u2026: 0.016 USD locked to the hash of the data key.",
+    "message": "EscrowCreate F23F76AF6A3D1F5D\u2026: 0.016 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -16032,7 +16032,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish CCF75EF59480BDB5\u2026: paid.",
+    "message": "EscrowFinish 19BE37A50FD8BF74\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -16068,8 +16068,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "B7C8CDB1AB7A70750B64B82557B362F61BDD1A38BB77B31D72827261140CF161",
-   "escrow_finish": "CCF75EF59480BDB52D04F2366FDEB7922FE057CAE168744AA0659FCD81D48397"
+   "escrow_create": "F23F76AF6A3D1F5D52E3F984BB0934934A522BE446003CFAFB38FA2634018B75",
+   "escrow_finish": "19BE37A50FD8BF745209B4E0B02D04F08178E9B31C40DF967231CEC3BE556809"
   },
   "urls": {
    "escrow_create": null,
@@ -16119,7 +16119,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16212,7 +16212,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 8843620004A4DC91\u2026: 0.0112 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 94B54DDC04711A88\u2026: 0.0112 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -16232,7 +16232,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish BC9477329981B4A4\u2026: paid.",
+    "message": "EscrowFinish 9A60F8897D286439\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -16256,8 +16256,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "8843620004A4DC9110EE2C36B0F26197F4A09E5AB9E10FF2F97673BF423F349F",
-   "escrow_finish": "BC9477329981B4A4D511F5D9F06396A15BA9FEA967A7E4D7493C2101427825CF"
+   "escrow_create": "94B54DDC04711A88B20036F091A1B2C2407862E96FA0811E6CAB4A9E34A41CB8",
+   "escrow_finish": "9A60F8897D2864394F982F46D461F8FBE634410F142754598A0E04D11440BCB9"
   },
   "urls": {
    "escrow_create": null,
@@ -16307,7 +16307,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16433,7 +16433,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16519,7 +16519,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate FCC87738E1159A33\u2026: 0.032 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 079A337AC8B4562A\u2026: 0.032 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -16539,7 +16539,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 64E9135B988F0304\u2026: paid.",
+    "message": "EscrowFinish 7C121839E63FB21B\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -16563,8 +16563,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "FCC87738E1159A33D1FC3F7AE8044B5A309296DB54D0EB1A17DC5528600A25CF",
-   "escrow_finish": "64E9135B988F0304697E02B69FEAC1AEC6FCF0CA01578F76DA8BC7E90B7154CA"
+   "escrow_create": "079A337AC8B4562AE1411928369E1180C7180CD73F49DEF8EDAFC5AE6076A65D",
+   "escrow_finish": "7C121839E63FB21BC7F5199218E1F1E5677026492AAEA409A13B643DE0B23538"
   },
   "urls": {
    "escrow_create": null,
@@ -16614,7 +16614,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16700,7 +16700,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 8CF8106130C3F49A\u2026: 0.016 USD locked to the hash of the data key.",
+    "message": "EscrowCreate CB1F6238C170EB20\u2026: 0.016 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -16720,7 +16720,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C74D5F8927858FCF\u2026: paid.",
+    "message": "EscrowFinish 3B7BC05D78D599C6\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -16744,8 +16744,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "8CF8106130C3F49A45751B20C6C90B494D1D5D81A9C9BAF4C361356FBF82B379",
-   "escrow_finish": "C74D5F8927858FCFF6AC5E780BE7BC66E0403C5D3D71DCB9D5E822807A976571"
+   "escrow_create": "CB1F6238C170EB2091271AABE989D564D03B81611747935ED16A9108C73A3072",
+   "escrow_finish": "3B7BC05D78D599C6C64D9FB21987677835E7F4BDA85B7CFF4034FB2E671DFEB0"
   },
   "urls": {
    "escrow_create": null,
@@ -16795,7 +16795,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16867,7 +16867,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 75F3C877A6FDF729\u2026: 0.0048 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 1192DCB184BB7800\u2026: 0.0048 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -16887,7 +16887,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 774D4E8305099635\u2026: paid.",
+    "message": "EscrowFinish 33498D3889F5BFBE\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -16911,8 +16911,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "75F3C877A6FDF72974FF66F55E5CAFB13CC35D20BEEF4BFB48358A0CB87B8C88",
-   "escrow_finish": "774D4E8305099635A455DEE6DF5E40F6ABBB284840214748F5A54B4A664DA79A"
+   "escrow_create": "1192DCB184BB780041487F2774CD9D805A3A995F6A3BB5D16CDB87148C572C43",
+   "escrow_finish": "33498D3889F5BFBE54DD83FA48CACAC0BBC4A754081E46E0C0FC92038579C04D"
   },
   "urls": {
    "escrow_create": null,
@@ -16962,7 +16962,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17048,7 +17048,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate B1391A09257FFBCA\u2026: 0.0064 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 5B4133B57BE1F425\u2026: 0.0064 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17068,7 +17068,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 023E8AF37FE16056\u2026: paid.",
+    "message": "EscrowFinish D23CBBF8343C7869\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -17092,8 +17092,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "B1391A09257FFBCA40CEED7ADE1820A102575CBE6AD3828824C89893A7161969",
-   "escrow_finish": "023E8AF37FE16056A9156F704416119BBFB3BB39DA870ECD5175219D878894AD"
+   "escrow_create": "5B4133B57BE1F4257586DF366F5B62C01147C9BC8315D2932E6BE86FF00FEB5D",
+   "escrow_finish": "D23CBBF8343C786967C63529CD3ACD5941ECA2B3B639F6AB3F115BE7C485A220"
   },
   "urls": {
    "escrow_create": null,
@@ -17143,7 +17143,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17222,7 +17222,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CAB56145C1BDD3C3\u2026: 0.0056 USD locked to the hash of the data key.",
+    "message": "EscrowCreate A350FC2A70D7BF24\u2026: 0.0056 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17242,7 +17242,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish F7539E010637EC3A\u2026: paid.",
+    "message": "EscrowFinish 3BD0161AFD20064C\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -17266,8 +17266,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CAB56145C1BDD3C3DDB53D241BB2B8FED3C3BA9994C10CE0873E16CBBE2F6289",
-   "escrow_finish": "F7539E010637EC3A091C801397742FA2510FED9FC27F97530186E7D78E579C85"
+   "escrow_create": "A350FC2A70D7BF2437FF5B9F93C2ADBC754AEEC83F88C5475251EF04DD301E2F",
+   "escrow_finish": "3BD0161AFD20064CCED88DB451A9980DB6C6751E29401F4FCEA8B292BE8882F9"
   },
   "urls": {
    "escrow_create": null,
@@ -17317,7 +17317,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17403,7 +17403,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 0C342BDE2C2B8096\u2026: 0.0288 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 2F50344FC7F2499E\u2026: 0.0288 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17423,7 +17423,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 76E62B088331E550\u2026: paid.",
+    "message": "EscrowFinish 423B187AB0DA5DA1\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -17447,8 +17447,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "0C342BDE2C2B809647FDD0024ECAA14C339A236C64F00374E138B65DC4BE78EB",
-   "escrow_finish": "76E62B088331E55076276A065F62791487396DFC8CED597EE50D9487E70E318E"
+   "escrow_create": "2F50344FC7F2499E91F137FBD9A62A40E8E48878FFFDA9B8BBD8034296F1FDC1",
+   "escrow_finish": "423B187AB0DA5DA1A902189600A814E4EAC37D620A54F771B9DE97A8B156C826"
   },
   "urls": {
    "escrow_create": null,
@@ -17498,7 +17498,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17598,7 +17598,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 472480844E76D199\u2026: 0.016919 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 90A71AC69EC30C72\u2026: 0.016919 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17618,7 +17618,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 08AB2095339BF73A\u2026: paid.",
+    "message": "EscrowFinish BB5D2A2F7BBD8F28\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -17642,8 +17642,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "472480844E76D199408DBD800A0DBBF10F7B814379DFB166DD20B1484F7BBE68",
-   "escrow_finish": "08AB2095339BF73A418BE91341DFAA9F0C3BC73AE8FD9E987FCCF97EA665CD7B"
+   "escrow_create": "90A71AC69EC30C72D21C3C770782D79D51DCE70D8ACD36AA7C50EC8B9815633B",
+   "escrow_finish": "BB5D2A2F7BBD8F28840548721910728CCA06D76AFBBB853E419956F2C02B8D01"
   },
   "urls": {
    "escrow_create": null,
@@ -17693,7 +17693,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17772,7 +17772,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5CB63284DFFC9003\u2026: 0.0105 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 200CE3A452AC4DBD\u2026: 0.0105 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17792,7 +17792,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 8446F4241AAC824E\u2026: paid.",
+    "message": "EscrowFinish 9F6FE10D97726625\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -17816,8 +17816,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5CB63284DFFC9003CA565AE622B60AB6AA8140E1E5174BCA51C5E9B01C0DE810",
-   "escrow_finish": "8446F4241AAC824E35CCF5FE4135E09E12D633856DC07DAEF7ECEB7BD8EDBC91"
+   "escrow_create": "200CE3A452AC4DBD850BC7847007DDA933D92C40FABE1134FA9B35CEEA7DA267",
+   "escrow_finish": "9F6FE10D977266250A43E805E484E0C478DF3112682AA47F7B7D80EDDA259AA0"
   },
   "urls": {
    "escrow_create": null,
@@ -17867,7 +17867,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17939,7 +17939,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 4E25A638CFE4AC17\u2026: 0.007369 USD locked to the hash of the data key.",
+    "message": "EscrowCreate FDCD4177F94AB6CE\u2026: 0.007369 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17959,7 +17959,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 4D38CE612E3EDA4E\u2026: paid.",
+    "message": "EscrowFinish FEF40341EF4B83DB\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -17983,8 +17983,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "4E25A638CFE4AC17466A9FA6DA4D930F00B0D200F7D99EA5534F976C6CAFB103",
-   "escrow_finish": "4D38CE612E3EDA4E266E1BA02EDC29432316F0012060921D23DA25314A0CBF45"
+   "escrow_create": "FDCD4177F94AB6CEB497C5E4DF53151BCC87B9E340857750D946E2C9A597DC6B",
+   "escrow_finish": "FEF40341EF4B83DB5D9FED3E04ED3D6F1E7C098A48056838DBC8E16C0507E0E3"
   },
   "urls": {
    "escrow_create": null,
@@ -18034,7 +18034,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18113,7 +18113,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate A74FD22689B9D362\u2026: 0.0084 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 06CEBCBA8479D699\u2026: 0.0084 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -18133,7 +18133,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish D96F7CE83F34E924\u2026: paid.",
+    "message": "EscrowFinish E5CD9DBF6A293457\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -18157,8 +18157,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "A74FD22689B9D3629E8CDDF53E9C8E16231609A1174AA635350B7C59F6E18744",
-   "escrow_finish": "D96F7CE83F34E924D25FD3A2A64061ED5CFD241EEFCF93697AE4639669A37645"
+   "escrow_create": "06CEBCBA8479D699D96DB2C61013FD9C06C33F77DA12748341888F73EA56F6DD",
+   "escrow_finish": "E5CD9DBF6A2934574A289DDD9C288381E9DFC00E84E82175D08E6B9221280575"
   },
   "urls": {
    "escrow_create": null,
@@ -18208,7 +18208,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18329,7 +18329,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18408,7 +18408,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5897F02089FAF95C\u2026: 0.007 USD locked to the hash of the data key.",
+    "message": "EscrowCreate CDB81304915E5337\u2026: 0.007 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -18428,7 +18428,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 7AD3464C4ED32E3F\u2026: paid.",
+    "message": "EscrowFinish 225809BCE7854916\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -18452,8 +18452,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5897F02089FAF95CF25289F6C45D9E62DD073BC5BBAA8D89A4C770F53632C5F5",
-   "escrow_finish": "7AD3464C4ED32E3FB1AFB5B127E68BF341990AEE76D911713361F5178827D0D0"
+   "escrow_create": "CDB81304915E53374A8F7EB29B467563D76C2B9971E679B1C3F4B2969A08DE51",
+   "escrow_finish": "225809BCE785491602F506B83E43C6684D266A1DF22BA397535BC9963E528F02"
   },
   "urls": {
    "escrow_create": null,
@@ -18503,7 +18503,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18575,7 +18575,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CAAFC1B22E0205A5\u2026: 0.0056 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 6527C02DD4D76A16\u2026: 0.0056 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -18595,7 +18595,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 5786CDD2F7ADEBC5\u2026: paid.",
+    "message": "EscrowFinish B10D1E31EF648B1C\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -18619,8 +18619,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CAAFC1B22E0205A541DB460BB27BC0DD3009F258715CEB3BB1CFCC710594073F",
-   "escrow_finish": "5786CDD2F7ADEBC590E43B13DE7B98FA89523A9ACEC0513DE82D1DB840198F49"
+   "escrow_create": "6527C02DD4D76A168C9B48692CE799F4F5B29AA8CCE4242955C3D0B6DB03C61F",
+   "escrow_finish": "B10D1E31EF648B1C0407C648C616D54F3F416CB2A6670520E5D9C97BA576CD61"
   },
   "urls": {
    "escrow_create": null,
@@ -18670,7 +18670,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18756,7 +18756,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 9F476AB8CDE192E2\u2026: 0.0072 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 5971136EE6B4CD0C\u2026: 0.0072 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -18776,7 +18776,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 42A1A56F6C98661D\u2026: paid.",
+    "message": "EscrowFinish 929E53A8C097A91A\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -18800,8 +18800,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "9F476AB8CDE192E2867F4CF5F6F68D5143B178D79B0C3F86522B06AC2A5D644B",
-   "escrow_finish": "42A1A56F6C98661D97D2179DD1469B443BC6A9CB98DF3401ACA222272DAD3352"
+   "escrow_create": "5971136EE6B4CD0C59FDC8924CB18F1C2113BD94CBEA67D51FF471904841B89C",
+   "escrow_finish": "929E53A8C097A91AF32E76C872B4F9CA19921209E5B0F2EBAC0CC043E494C164"
   },
   "urls": {
    "escrow_create": null,
@@ -18851,7 +18851,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18972,7 +18972,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19058,7 +19058,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 0AFABC19CD257D9A\u2026: 0.0144 USD locked to the hash of the data key.",
+    "message": "EscrowCreate D1111578C2BB283D\u2026: 0.0144 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -19078,7 +19078,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish D9FAA3EEF3B74045\u2026: paid.",
+    "message": "EscrowFinish C10CCC2C4D5D2BE4\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -19102,8 +19102,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "0AFABC19CD257D9AE93143ECECFCA70BCF8052CC05D3FD0D08F4B7EA2B6DC770",
-   "escrow_finish": "D9FAA3EEF3B740451E16CC0B56143B232B6C0655E66F44A040A6358DE8878259"
+   "escrow_create": "D1111578C2BB283D8BDC1BCC2BFEC1CDB332962C2ECBE79BDBA7CBE921ED2573",
+   "escrow_finish": "C10CCC2C4D5D2BE42D1BE0455C5947ADEA77BFF2AACB6D8EE8328555142D4D64"
   },
   "urls": {
    "escrow_create": null,
@@ -19153,7 +19153,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19225,7 +19225,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate A5A5511E05AAD7AF\u2026: 0.0112 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 9E7252FE652B2E68\u2026: 0.0112 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -19245,7 +19245,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish A07AFD1C056B7F1E\u2026: paid.",
+    "message": "EscrowFinish 059BA679E53C57C6\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -19269,8 +19269,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "A5A5511E05AAD7AF12429EF0E3B9C5C50099018D832C3209C1A883D05687B10D",
-   "escrow_finish": "A07AFD1C056B7F1E6AE35695CFD01B974DD852C3BF08A88D348B07138E472860"
+   "escrow_create": "9E7252FE652B2E68705E16FAAF6D847DA04292293E5889EDAFDFB1C2B4155066",
+   "escrow_finish": "059BA679E53C57C66C0A919BD6FA23741029AC4EA32ACACFF438C5EE380A0EC3"
   },
   "urls": {
    "escrow_create": null,
@@ -19320,7 +19320,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19392,7 +19392,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 249FD51B20DC54C8\u2026: 0.0112 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 73981066338F5266\u2026: 0.0112 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -19412,7 +19412,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 7945B4F85BA8944E\u2026: paid.",
+    "message": "EscrowFinish 0F39F811C81AD462\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -19436,8 +19436,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "249FD51B20DC54C8DB910DF8C46959775E19572CE1CFB73591C904F075304894",
-   "escrow_finish": "7945B4F85BA8944E062418571D959DD2657D5A60D11B21275E4FFE052FC38031"
+   "escrow_create": "73981066338F52669EE8048F9ED68C31C5D554D1F69E7F5F6DD799E94DBFE7D4",
+   "escrow_finish": "0F39F811C81AD46207015B3AC25389CD83714AC59882155E3CA486EAEDA4FB1F"
   },
   "urls": {
    "escrow_create": null,
@@ -19487,7 +19487,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 98d528b9a28b46cf\u2026, tx FF923DEA3A14DB7F\u2026"
+      "detail": "root 4cd63ad1d6a2e242\u2026, tx 7B839E13740909A8\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19615,7 +19615,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19741,7 +19741,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19867,7 +19867,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19939,7 +19939,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 2729EF91A09FCC4C\u2026: 0.0112 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 0A7765624CC7AD3C\u2026: 0.0112 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -19959,7 +19959,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 27839355D645FE16\u2026: paid.",
+    "message": "EscrowFinish FBC972E6FAE07F1E\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -19983,8 +19983,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "2729EF91A09FCC4C2036F1B8B26AF396C70457B50BA176B5DD064EEDC1AD9C00",
-   "escrow_finish": "27839355D645FE164A0483527E1BCDFADEB94B7A944C5E200DF9BF8973A97554"
+   "escrow_create": "0A7765624CC7AD3C4843985F585C17AE07FE3973B1179E64C6D3D635E3C8EB8D",
+   "escrow_finish": "FBC972E6FAE07F1E1DE45A5254160367FEB5CA1CD3D86BC841B10506956F0BDA"
   },
   "urls": {
    "escrow_create": null,
@@ -20034,7 +20034,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -20106,7 +20106,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 1C3C58E28494AF3F\u2026: 0.0112 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 8CCBE245F8B6188F\u2026: 0.0112 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -20126,7 +20126,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 066342A01F4064EE\u2026: paid.",
+    "message": "EscrowFinish 396DE885B9933C65\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -20150,8 +20150,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "1C3C58E28494AF3FE198CA31AE4B7E017F7C55E27C5B34C4239B75E11B804F13",
-   "escrow_finish": "066342A01F4064EE26932198D3AEF97F37595FD98D7BF0DADDD9A0DF2A7EF47A"
+   "escrow_create": "8CCBE245F8B6188F766FC99A0CA2D30177AF304AA145D794FD47FF8801BD7DBE",
+   "escrow_finish": "396DE885B9933C65ABB80D6183EB7DC5969FF9487143DB6BC56710D334EFCA80"
   },
   "urls": {
    "escrow_create": null,
@@ -20201,7 +20201,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -20322,7 +20322,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -20408,7 +20408,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 675AFBAB434EA679\u2026: 0.0144 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 3565D5DE4640300E\u2026: 0.0144 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -20428,7 +20428,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 36DFDD5ADEA86ECC\u2026: paid.",
+    "message": "EscrowFinish E4ADEF9980727032\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -20452,8 +20452,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "675AFBAB434EA67925EB404B73ECCB0CEF81FCA83B5D03483437263004C499FA",
-   "escrow_finish": "36DFDD5ADEA86ECC78F1DD6EE2A1071B8CF22F37D6661B2D94953198BD81C6B3"
+   "escrow_create": "3565D5DE4640300EDFBE10002A82C72AF876AE4EEBD770E18C2D398270464DA2",
+   "escrow_finish": "E4ADEF9980727032C7FD8AE2896F914E52C8ECD85D9B81F11EBE8EE2E431F10A"
   },
   "urls": {
    "escrow_create": null,
@@ -20503,7 +20503,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -20629,7 +20629,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -20757,7 +20757,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -20829,7 +20829,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 164AEA1A6C7E91BF\u2026: 0.0056 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 48C33CF47D4D4C4E\u2026: 0.0056 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -20849,7 +20849,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 039E25CD4DC0B188\u2026: paid.",
+    "message": "EscrowFinish CD94ADA94E7BFEC3\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -20873,8 +20873,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "164AEA1A6C7E91BF3E23FC647818B681F3A5AFBE513193044DD75939DF9C5586",
-   "escrow_finish": "039E25CD4DC0B188146D213D035879E8FB55AD1F73F30AB218E1F5F6AF1D03D4"
+   "escrow_create": "48C33CF47D4D4C4E447FF832FD53D8CFD4EC9B63B641E77F0A4FBA0330B62FFE",
+   "escrow_finish": "CD94ADA94E7BFEC3F8706017EADD4DEE61FEA30BF1D95F676E48EB957A329ED5"
   },
   "urls": {
    "escrow_create": null,
@@ -20924,7 +20924,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21010,7 +21010,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 8888B73BDCB7B8F8\u2026: 0.0072 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 21E885793425EC4D\u2026: 0.0072 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -21030,7 +21030,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 0C5A16489F796E6B\u2026: paid.",
+    "message": "EscrowFinish D6FD71708CE544BE\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -21054,8 +21054,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "8888B73BDCB7B8F83AE23E6F17E031B03DA72848C27AAEA89679FE2E3CC141C7",
-   "escrow_finish": "0C5A16489F796E6B19AB24CA6C0C6D7E5DA7C8B6480EE67629BDA8423648C0C0"
+   "escrow_create": "21E885793425EC4D77F857F898A14A48D03F8A26712288CA349721DA973EB501",
+   "escrow_finish": "D6FD71708CE544BEF7AE2CF9822CA31CA237BCC9C348746B5AA2C78714FDFAC3"
   },
   "urls": {
    "escrow_create": null,
@@ -21105,7 +21105,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21226,7 +21226,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21325,7 +21325,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 68E1D9B58998260B\u2026: 0.0054 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 165901975231A438\u2026: 0.0054 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -21345,7 +21345,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 2CA291215AD01919\u2026: paid.",
+    "message": "EscrowFinish D0A2900E6B0D51B1\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -21381,8 +21381,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "68E1D9B58998260BE63DEEA21A5AF4055A260F96FCEA578183828F49DF09F6FE",
-   "escrow_finish": "2CA291215AD01919D05D99CFA57DC48B774F36CF0EADE892924F03004EBA8D8F"
+   "escrow_create": "165901975231A43846C067B4D0194DB49B2A4210E70884BD37E380CDB230DE4E",
+   "escrow_finish": "D0A2900E6B0D51B130065C16D11D1781C7642B7AB09A3B9F8421B671D475975F"
   },
   "urls": {
    "escrow_create": null,
@@ -21432,7 +21432,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21558,7 +21558,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21684,7 +21684,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21763,7 +21763,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 7809BFC533D95E4A\u2026: 0.014 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 58FAE15D3E3BBCF8\u2026: 0.014 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -21783,7 +21783,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 3643F3A671F8A65F\u2026: paid.",
+    "message": "EscrowFinish 729912F3DC6F9DE4\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -21807,8 +21807,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "7809BFC533D95E4A3B56FEEC1A75A4D6ED9EF6868DB1CB7FD1DF891E0DA6E104",
-   "escrow_finish": "3643F3A671F8A65F1FEA93DE7C10BBBC4E16BEC41E25ECD41241149012E818DC"
+   "escrow_create": "58FAE15D3E3BBCF8E3AA58214D727672645628B80997EB3F9B5D774D520E7851",
+   "escrow_finish": "729912F3DC6F9DE4D01F4EBAFBCEED5BF902524A88D24F422CBE5E702F758534"
   },
   "urls": {
    "escrow_create": null,
@@ -21858,7 +21858,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21930,7 +21930,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 57A9B48815535A09\u2026: 0.0112 USD locked to the hash of the data key.",
+    "message": "EscrowCreate A1A4FE07B0CEF5E2\u2026: 0.0112 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -21950,7 +21950,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish E05ABB75027E72BC\u2026: paid.",
+    "message": "EscrowFinish B0625F5F4FCB7145\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -21974,8 +21974,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "57A9B48815535A094A4589803227DADF545A571AE08D6590D65D8D39078D5EA5",
-   "escrow_finish": "E05ABB75027E72BC5592F14011F456F8173D4B3221044CE8E6DBD1403B285265"
+   "escrow_create": "A1A4FE07B0CEF5E2EF9AC25EA82CBB5ECA6AF749C6DA06355B966DC099BBF785",
+   "escrow_finish": "B0625F5F4FCB7145EA82D238AAAC042EC64C519D9650E09FF35BA41BE316B9D0"
   },
   "urls": {
    "escrow_create": null,
@@ -22025,7 +22025,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22097,7 +22097,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate C24598316DAC6F25\u2026: 0.0112 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 72F29AB9FFE52EFA\u2026: 0.0112 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -22117,7 +22117,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish E8AEBBE797C071A2\u2026: paid.",
+    "message": "EscrowFinish 59F8421622210C61\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -22141,8 +22141,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "C24598316DAC6F25776BF3453E5C5055945F85199A2420D2980F2A0559035B8B",
-   "escrow_finish": "E8AEBBE797C071A23705DA0086E07132C02062426618FD1D62E58F5D1953F18B"
+   "escrow_create": "72F29AB9FFE52EFA38C9CB19D93D22D42D4ABD9B80282F294E3A5597726151DF",
+   "escrow_finish": "59F8421622210C618F4860DC9F4E61714FF8129559B9B39C0A5401774B9C5B07"
   },
   "urls": {
    "escrow_create": null,
@@ -22192,7 +22192,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22318,7 +22318,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22397,7 +22397,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 61F393562313DEDF\u2026: 0.007 USD locked to the hash of the data key.",
+    "message": "EscrowCreate D22720896345CD0C\u2026: 0.007 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -22417,7 +22417,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 60CCC81713CAA6CC\u2026: paid.",
+    "message": "EscrowFinish 8FCAD61A50AC9A07\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -22441,8 +22441,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "61F393562313DEDF4339F2C26AE1628FC8073AC7A65BB7AD80152C800A2C6901",
-   "escrow_finish": "60CCC81713CAA6CCD5EA35C1EADE6DA611CDE5BF698A2F54F731399579306963"
+   "escrow_create": "D22720896345CD0CD62FB69413E3F15AFE17C757807538E5D2067ED65BA65CC4",
+   "escrow_finish": "8FCAD61A50AC9A07FB1471F180BE55BA776D3B6B99B7A385E2544006B4106822"
   },
   "urls": {
    "escrow_create": null,
@@ -22492,7 +22492,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22564,7 +22564,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 4394B953953A950C\u2026: 0.007 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 839BECAE51A4E384\u2026: 0.007 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -22584,7 +22584,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish EF19D0FA5A69B3CE\u2026: paid.",
+    "message": "EscrowFinish E81F2A1E8AB148AA\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -22608,8 +22608,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "4394B953953A950C7A862F008E5FDC26739080968B11AB52B17838F2F8DC0E58",
-   "escrow_finish": "EF19D0FA5A69B3CE180231FA13692EC66B7B89D7E64B6A7C69508BE823696D5D"
+   "escrow_create": "839BECAE51A4E3848D92CD32A024D28FC60F154D6AC34A67694EB92377B4BA36",
+   "escrow_finish": "E81F2A1E8AB148AA2395B6F5A836463146DFC53834CA0737664559E2DED4968E"
   },
   "urls": {
    "escrow_create": null,
@@ -22659,7 +22659,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22745,7 +22745,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 2BF40624755E885E\u2026: 0.009 USD locked to the hash of the data key.",
+    "message": "EscrowCreate A2618E6BE4E8102C\u2026: 0.009 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -22765,7 +22765,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 0B7D835EB8526691\u2026: paid.",
+    "message": "EscrowFinish D0DABE67689F35FA\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -22789,8 +22789,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "2BF40624755E885EBBCF26C0ADD6DDD5BBFA06E3BC7C7CAC2FF9DBC5545DECE0",
-   "escrow_finish": "0B7D835EB85266917E926BD6B01097A1BA73AF5229E31535C69FFDF69F3AA99B"
+   "escrow_create": "A2618E6BE4E8102C83BC9AFC95D0C927C3D5D7BEB46DD3EE3820E06C4F21427F",
+   "escrow_finish": "D0DABE67689F35FA96A0F66624A9289C022454316656B50F526AE64FA44B4D19"
   },
   "urls": {
    "escrow_create": null,
@@ -22840,7 +22840,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22919,7 +22919,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 2F46562D1C44729C\u2026: 0.021 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 9BCE789C2C88F390\u2026: 0.021 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -22939,7 +22939,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 324E45E056089214\u2026: paid.",
+    "message": "EscrowFinish EF5A93A0D8083198\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -22963,8 +22963,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "2F46562D1C44729CDBA580E2E7CC62537FE48AE9E04E3555A7F85B101FB48E12",
-   "escrow_finish": "324E45E056089214A968D6C187C50628B68FB18A07E7DEAE90635992E3870956"
+   "escrow_create": "9BCE789C2C88F390BD33A950084B70D7836BFCF7113433B3CF6BCAB2A3B1FA30",
+   "escrow_finish": "EF5A93A0D808319866BC2E4A0AE33854A8C21F4DFFDFB388296FB579A4069F8A"
   },
   "urls": {
    "escrow_create": null,
@@ -23014,7 +23014,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23100,7 +23100,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 35B5205E2072852C\u2026: 0.0216 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 0602DF35790E4B37\u2026: 0.0216 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -23120,7 +23120,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 4E5C5C2E7247614E\u2026: paid.",
+    "message": "EscrowFinish DA8F36DF05CBA801\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -23144,8 +23144,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "35B5205E2072852CCA709E22CE5378E28EA9427CBB32AF54B7DFC4E7D9A869CE",
-   "escrow_finish": "4E5C5C2E7247614E97DE4E755C0B6DF06504C821C7645ABC7A4E9C5BAA11151D"
+   "escrow_create": "0602DF35790E4B372C8D4F642672FDD2735E0709D18BF4B503A97D1DBD1D662E",
+   "escrow_finish": "DA8F36DF05CBA801BE6742109A0D9FBA0E7D155F3E990A6665B33FEA6101B3B8"
   },
   "urls": {
    "escrow_create": null,
@@ -23195,7 +23195,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23316,7 +23316,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23437,7 +23437,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23509,7 +23509,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 49EEB1FF07FC7F74\u2026: 0.0168 USD locked to the hash of the data key.",
+    "message": "EscrowCreate BBA6E5A95355FF3A\u2026: 0.0168 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -23529,7 +23529,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish F79AC049FFE250E2\u2026: paid.",
+    "message": "EscrowFinish 162A90A8C33C83E9\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -23553,8 +23553,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "49EEB1FF07FC7F749C54DC96532F7061E677A325E3788862D12D675AA7B59BF8",
-   "escrow_finish": "F79AC049FFE250E2B9DC50BA3BD2758657B44914FEADDF3783C593F27BE2B9F4"
+   "escrow_create": "BBA6E5A95355FF3A3FF4488FD9397DFAAE3DBC77827BE046725639F02A2122B8",
+   "escrow_finish": "162A90A8C33C83E95E43C3E16539741AC84D5F5765B0BAA5681FAAC087D46512"
   },
   "urls": {
    "escrow_create": null,
@@ -23604,7 +23604,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23676,7 +23676,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate ACA974766FD20A9C\u2026: 0.0105 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 004A25572E774BBB\u2026: 0.0105 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -23696,7 +23696,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 30DF58992B5BA560\u2026: paid.",
+    "message": "EscrowFinish 94B240641ADBE987\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -23732,8 +23732,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "ACA974766FD20A9C338EF036A36DFF1E4D7B2275DAAEE43AA8631AAE3EE3E387",
-   "escrow_finish": "30DF58992B5BA5607D7DBAFF46AAA1CA956896CB179C1C3B18A895FECF1723F9"
+   "escrow_create": "004A25572E774BBB9883A508BCCD5C587C0396C56D28BAA5E1994E56E23A205E",
+   "escrow_finish": "94B240641ADBE98787F6C6B53CD473E2B419580CEC5E0BC2D117134D398FB55D"
   },
   "urls": {
    "escrow_create": null,
@@ -23783,7 +23783,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23862,7 +23862,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate B267300F05B6DB5C\u2026: 0.0084 USD locked to the hash of the data key.",
+    "message": "EscrowCreate DE974308A98F9FDA\u2026: 0.0084 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -23882,7 +23882,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish CC16CDEBD3DE0127\u2026: paid.",
+    "message": "EscrowFinish 34DB048150E6EDC1\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -23906,8 +23906,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "B267300F05B6DB5CA9195F16D8520CC8B55DBFE57C3ADE348C91C881B240605F",
-   "escrow_finish": "CC16CDEBD3DE0127391040C4ACB7EB56CAAE61AE9549C5C579006E45EFD50205"
+   "escrow_create": "DE974308A98F9FDAB59D5C4420B24762D80A1F8F1B1E3B219F17DB0BAEF1BB93",
+   "escrow_finish": "34DB048150E6EDC1BDE1011B2E882B85BD1BB212F9C986151A1D5567B9E1E0C9"
   },
   "urls": {
    "escrow_create": null,
@@ -23957,7 +23957,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -24099,7 +24099,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -24171,7 +24171,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 6FA64999B8660D9A\u2026: 0.0084 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 893B18C0476FFBFF\u2026: 0.0084 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -24191,7 +24191,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 9A4B064A11C51DAF\u2026: paid.",
+    "message": "EscrowFinish 761C5F08A72CD43F\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -24215,8 +24215,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "6FA64999B8660D9AB8C9AB6024DD46502CD08565FB5038A25F14329BE0CE0E8C",
-   "escrow_finish": "9A4B064A11C51DAF0227A1DBA448E25F9F2CE7FF3085D66363CEAA917A0BC976"
+   "escrow_create": "893B18C0476FFBFF38700FCCC4F909BB41D294A0E82F294D7F27BE34050F9F96",
+   "escrow_finish": "761C5F08A72CD43F4C5E6DED81EB7F3DF1C6BA3F26D8FCB40AD87ADCD3B912F7"
   },
   "urls": {
    "escrow_create": null,
@@ -24266,7 +24266,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -24345,7 +24345,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 875D49DD2380419E\u2026: 0.021 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 920B9363E8FEB2FE\u2026: 0.021 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -24365,7 +24365,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 5761BFBFC0079E5B\u2026: paid.",
+    "message": "EscrowFinish 866F6ABE6C20874B\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -24389,8 +24389,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "875D49DD2380419EB41E243C2E7011153509D4261E8B568630F1712F28B7B138",
-   "escrow_finish": "5761BFBFC0079E5B9791CC415FC36BA218573FD3DA7F04E83600A21935D5A255"
+   "escrow_create": "920B9363E8FEB2FE92B336F278A4527CE12B6F8BA18A2644ECDC460AC2A1F621",
+   "escrow_finish": "866F6ABE6C20874B0D5E94D6E17AE80AD7CDCCB42DB323794C8E8FC5B9BAFA40"
   },
   "urls": {
    "escrow_create": null,
@@ -24440,7 +24440,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -24519,7 +24519,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate D15ADAA442802F3A\u2026: 0.021 USD locked to the hash of the data key.",
+    "message": "EscrowCreate EF6A46C5354CBA72\u2026: 0.021 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -24539,7 +24539,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 503FD8E28E37595A\u2026: paid.",
+    "message": "EscrowFinish 27A1D9D798E78F8B\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -24563,8 +24563,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "D15ADAA442802F3A2F6D4FADFC66A12BC3E7106FA0372EE8172970C2333BBD70",
-   "escrow_finish": "503FD8E28E37595AE4674084C27DE66DC82D820BEBA458809961D29BDB169FB6"
+   "escrow_create": "EF6A46C5354CBA720662954BB9DDDADADD47B15B0AAF3CECF4CE5925D57D77D1",
+   "escrow_finish": "27A1D9D798E78F8BC2B602E469E4DA8ECEA6F03B3E37BD85F1EEA7413D6E2C18"
   },
   "urls": {
    "escrow_create": null,
@@ -24614,7 +24614,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 4f8b367acd3812d6\u2026, tx 105FE63243BBBB56\u2026"
+      "detail": "root 5301472a76ea0547\u2026, tx 16455A21AB405342\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -24693,7 +24693,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 0682D04ABAE64999\u2026: 0.0168 USD locked to the hash of the data key.",
+    "message": "EscrowCreate 125C4FC77C20DB52\u2026: 0.0168 USD locked to the hash of the data key (simulated on the mock ledger, not Testnet).",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -24713,7 +24713,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 636E167761791776\u2026: paid.",
+    "message": "EscrowFinish 9775AD793735CD52\u2026: paid (simulated on the mock ledger, not Testnet).",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -24737,8 +24737,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "0682D04ABAE6499995E756B966C07B0B923B7FDC563231824F1954CF84E4B1D8",
-   "escrow_finish": "636E16776179177691820DA4B9D10B6F277C33E92D5CCF3397444D8370A66DBB"
+   "escrow_create": "125C4FC77C20DB522E4AD1C8D9D2E8E6DBFA346EC68CD2BD1C34726AAED1DB7C",
+   "escrow_finish": "9775AD793735CD52538CBAF884F73362CCA7528DD7558F49BBFCA1BE6C83C56C"
   },
   "urls": {
    "escrow_create": null,
