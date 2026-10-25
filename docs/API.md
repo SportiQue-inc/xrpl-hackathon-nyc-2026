@@ -264,3 +264,16 @@ With `stable`, after each payment the participant's own agent swaps exactly what
 configured stablecoin through the XRP/stablecoin AMM pool (`PAYOUT_STABLE_ISSUER`, `PAYOUT_STABLE_CODE`;
 default the Testnet RLUSD issuer). The study view's `settlement` shows `stablecoin_swaps`,
 `export_fee_rails` (count per rail: `x402`, `direct`) and `batches` (rounds escrowed in one Batch).
+
+
+## Clinic export (x402, HTTP 402)
+
+`GET /clinic/export?person=P-017&items=blood_pressure.daily&nonce=…` is the clinic's own service (not
+behind the API sign-in). Without a payment: **402** with body and `PAYMENT-REQUIRED` header (base64) =
+`{"x402Version": 2, "accepts": [{"scheme": "exact", "network": "xrpl:1", "amount": "100000", "asset": "XRP",
+"payTo": "r…", "extra": {"invoiceId": "…", "sourceTag": 804681468}}]}`. Retry with `PAYMENT-SIGNATURE`
+(base64 PaymentPayload with `payload.signedTxBlob`): **200** with `{"export": {...}, "receipt": {"success",
+"transaction", "settledBy"}}` and a `PAYMENT-RESPONSE` header. Errors come back as 402 with `error`:
+`payment_requirements_mismatch`, `invoice_not_bound`, `payment_already_used`, `not_settled:<code>`.
+The person's agent uses `CLINIC_EXPORT_URL` (e.g. `http://localhost:8000/clinic`) or, by default, the
+same app in process through a full HTTP exchange.

@@ -317,3 +317,30 @@ def test_participant_who_picked_a_stablecoin_has_their_agent_swap_what_it_was_pa
     assert w.ledger.ious[(addr, STABLE_CODE, STABLE_ISSUER)] == pytest.approx(sum(float(x["delivered"]) for x in sw))
     assert all(x["person"] == HERO for x in w.study.swaps)          # others kept XRP
     assert study.set_payout_currency(w, "P-002", "XRP")["payout_currency"] == "XRP"
+
+
+def test_clinic_export_is_paid_over_real_http_402(w):
+    from fastapi.testclient import TestClient
+    from agentrail import clinic
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    study.send(w)
+    clinic_addr = w.engine.party(study.CLINIC)["address"]
+    before = w.ledger.balance_drops(clinic_addr)
+    study._export_fee(w, w.cohort_people[HERO], ["blood_pressure.daily"])
+    fees = [f for f in w.study.export_fees if f["ok"]]
+    assert fees and all(f["http"] == [402, 200] and f["rail"].startswith("x402") for f in fees)
+    assert w.ledger.balance_drops(clinic_addr) == before + clinic._cfg["fee"]
+    c = TestClient(clinic.app)
+    q = {"person": HERO, "items": "blood_pressure.daily", "nonce": "n1"}
+    r = c.get("/export", params=q)
+    assert r.status_code == 402 and r.json()["accepts"][0]["amount"] == str(clinic._cfg["fee"])
+    payer = w.engine.party(HERO)["address"]
+    tampered = {**r.json()["accepts"][0], "amount": "1"}
+    bad = clinic.b64({"x402Version": 2, "accepted": tampered, "payload": {"signedTxBlob": "x", "invoiceId": "y"}})
+    assert c.get("/export", params=q, headers={"PAYMENT-SIGNATURE": bad}).json()["error"] == \
+        "payment_requirements_mismatch"
+    hdr = clinic._payment_header(w.ledger, payer, r.json()["accepts"][0])
+    ok = c.get("/export", params=q, headers={"PAYMENT-SIGNATURE": hdr})
+    assert ok.status_code == 200 and ok.json()["receipt"]["success"] and "PAYMENT-RESPONSE" in ok.headers
+    again = c.get("/export", params=q, headers={"PAYMENT-SIGNATURE": hdr})
+    assert again.status_code == 402 and again.json()["error"] == "payment_already_used"

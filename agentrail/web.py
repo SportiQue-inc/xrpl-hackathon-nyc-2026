@@ -43,6 +43,9 @@ app.add_middleware(SecurityHeaders)
 app.add_middleware(CORSMiddleware, allow_origins=cors_origins(), allow_credentials=False,
                    allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
 install_logging_filter()
+# The clinic's export service (x402, HTTP 402) is its own app: not behind the API's sign-in.
+from . import clinic as _clinic  # noqa: E402
+app.mount("/clinic", _clinic.app)
 
 
 @app.on_event("startup")
