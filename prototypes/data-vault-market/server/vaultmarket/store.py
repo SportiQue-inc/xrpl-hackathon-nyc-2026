@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import threading
 import time
+from contextlib import contextmanager
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS accounts (
@@ -44,12 +46,17 @@ CREATE TABLE IF NOT EXISTS escrows (   -- every escrow leg, written before it is
   state TEXT,              -- open | finished | refunded | void
   created REAL);
 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, username TEXT, created REAL);
+CREATE TABLE IF NOT EXISTS sale_queue (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, account TEXT, posting INT, kind TEXT, status TEXT,
+  reason TEXT, contract INT, created REAL, updated REAL);
 """
 
 
 class Store:
     def __init__(self, path: str):
         self.db = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
+        if path != ":memory:":
+            os.chmod(path, 0o600)
         self.db.row_factory = sqlite3.Row
         self.lock = threading.RLock()
         with self.lock:
@@ -57,10 +64,32 @@ class Store:
             cols = {r[1] for r in self.db.execute("PRAGMA table_info(accounts)")}
             if "payout" not in cols:          # databases from before signup
                 self.db.execute("ALTER TABLE accounts ADD COLUMN payout TEXT")
-            cols = {r[1] for r in self.db.execute("PRAGMA table_info(contracts)")}
-            for col in ("seller", "asset"):          # one-to-one deals: the seller, and the asset it settled in
-                if col not in cols:
-                    self.db.execute(f"ALTER TABLE contracts ADD COLUMN {col} TEXT")
+            had_units = "unit_micro" in {r[1] for r in self.db.execute("PRAGMA table_info(contracts)")}
+            for table, additions in {
+                "contracts": {"seller": "TEXT", "overview": "TEXT", "terms": "TEXT", "asset": "TEXT DEFAULT 'XRP'", "unit_micro": "INT DEFAULT 10000"},
+                "txs": {"asset": "TEXT DEFAULT 'XRP'", "receipt": "TEXT"},
+                "escrows": {"sealed": "BLOB", "create_blob": "TEXT"},
+            }.items():
+                existing = {r[1] for r in self.db.execute(f"PRAGMA table_info({table})")}
+                for name, definition in additions.items():
+                    if name not in existing:
+                        self.db.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
+
+            self.db.execute("UPDATE contracts SET asset='XRP' WHERE asset IS NULL")
+            if not had_units:
+                self.db.execute("UPDATE contracts SET unit_micro=1000000 WHERE asset='test USD'")
+            self.db.execute("UPDATE txs SET asset=COALESCE((SELECT asset FROM contracts WHERE contracts.id=txs.contract), asset, 'XRP')")
+
+    @contextmanager
+    def transaction(self):
+        with self.lock:
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                yield
+                self.db.commit()
+            except BaseException:
+                self.db.rollback()
+                raise
 
     def q(self, sql: str, args=()) -> list[dict]:
         with self.lock:

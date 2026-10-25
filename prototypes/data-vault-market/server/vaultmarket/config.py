@@ -25,14 +25,14 @@ LEDGER = os.environ.get("VM_LEDGER", "testnet")            # testnet | devnet | 
 WALLETS = os.environ.get("VM_WALLETS", os.path.join(DATA_DIR, "wallets.local.json"))
 AGENTS = int(os.environ.get("VM_AGENTS", "50"))
 TICK_SECONDS = float(os.environ.get("VM_TICK_SECONDS", "15"))   # one negotiation round per tick
-# Settlement asset. USD: a test USD token (IOU) on the ledger, standing in for RLUSD, settled by token
+# Settlement asset. USD: a test USD token (IOU) on the ledger, issued by this application, settled by token
 # escrow; XRP: the fallback. Amounts are kept in millionths of the asset (drops for XRP).
 ASSET = os.environ.get("VM_ASSET", "USD").upper()
-USD_PER_UNIT = float(os.environ.get("VM_USD_PER_UNIT", "1"))         # 1 price unit = 1 test USD, so every number reads as RLUSD
+USD_PER_UNIT = float(os.environ.get("VM_USD_PER_UNIT", "1"))         # 1 price unit = 1 test USD, all display values use the actual test asset
 XRP_DROPS_PER_UNIT = int(os.environ.get("VM_DROPS_PER_UNIT", "10000"))  # fallback: 1 price unit = 0.01 XRP
 MICRO_PER_UNIT = int(USD_PER_UNIT * 1_000_000) if ASSET == "USD" else XRP_DROPS_PER_UNIT
 DROPS_PER_XRP_UNIT = MICRO_PER_UNIT    # older name, same meaning: millionths of the asset per price unit
-K_MIN = 5
+K_MIN = 1
 
 LLM_PROVIDER = os.environ.get("VM_LLM_PROVIDER") or os.environ.get("LLM_PROVIDER") or (
     "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "openai" if os.environ.get("OPENAI_API_KEY") else "none")
@@ -53,5 +53,5 @@ PUBLIC = os.environ.get("VM_PUBLIC", "0") == "1"
 CHAT_DAILY = int(os.environ.get("VM_CHAT_DAILY", "30"))         # agent chat messages per member per day
 SIGNUPS_PER_HOUR = int(os.environ.get("VM_SIGNUPS_PER_HOUR", "5"))  # per IP address
 
-# the agentrail engine's read-only try-it view, linked from the top bar (empty to hide)
+# Read-only engine demonstration, linked from the marketplace navigation.
 ENGINE_URL = os.environ.get("VM_ENGINE_URL", "https://agentrail-try-production.up.railway.app/try")

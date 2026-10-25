@@ -133,6 +133,27 @@ class Rail:
             self.asset_note = f"settling in XRP: {e}"
             config.MICRO_PER_UNIT = config.DROPS_PER_XRP_UNIT = config.XRP_DROPS_PER_UNIT
 
+    def ensure_token_holder(self, addr: str):
+        """Onboard a member without changing the market asset if their trust line fails."""
+        if not self.token or self._lines.get(addr):
+            return
+        from xrpl.models.transactions import TrustSet, Payment
+        state_file=os.path.join(config.DATA_DIR,"token.local.json")
+        st=json.load(open(state_file))
+        if addr not in st["lines"]:
+            r=self._send(TrustSet,addr,limit_amount=self._usd(10**15))
+            if not r["ok"]:
+                raise RuntimeError("The test USD trust line is not validated yet")
+            if not (self.balance(addr) or 0)>0:
+                r=self._send(Payment,self.issuer,destination=addr,amount=self._usd(300000000))
+                if not r["ok"]:
+                    raise RuntimeError("The test USD starting balance is not validated yet")
+            st["lines"].append(addr)
+            with open(state_file,"w") as f:
+                json.dump(st,f)
+            os.chmod(state_file,0o600)
+        self._lines[addr]=True
+
     def has_line(self, addr: str) -> bool:
         if not self.token:
             return True
@@ -251,7 +272,7 @@ class Rail:
             prepared.append(p)
         if record:
             for i, p in enumerate(prepared):
-                record(i, self._seq_of(p), p.tx_hash, cancel_after)
+                record(i, self._seq_of(p), p.tx_hash, cancel_after, p.blob)
         creates = list(_POOL.map(self._submit, prepared))
         def finish(i):
             leg, c, p = legs[i], creates[i], prepared[i]
@@ -273,15 +294,124 @@ class Rail:
     def cancel_escrow(self, owner: str, seq: int) -> dict:
         return self._submit(self.led.prepare_escrow_cancel(owner, owner, seq))
 
-    def created_ok(self, tx_hash: str) -> bool | None:
+    def created_ok(self, tx_hash: str, blob: str | None = None) -> bool | None:
         """True: validated tesSUCCESS. False: failed or never reached the ledger. None: cannot tell yet."""
         try:
             st = self.led.lookup(tx_hash)
         except Exception:
             return None
         if not st.found:
-            return False
+            if not blob:
+                return None
+            if self.led.is_expired(blob):
+                return False
+            from agentrail.ledger.base import Prepared
+            try:
+                return True if self._submit(Prepared(tx_hash=tx_hash,blob=blob))["ok"] else None
+            except Exception:
+                return None
         return bool(st.success) if st.validated else None
+
+    def escrow_outcome(self, owner: str, seq: int) -> tuple[str, str | None]:
+        """Read the validated closing transaction; a missing escrow alone proves neither payment nor refund."""
+        if self.name == "mock":
+            pages = [list(self.led.txs.values())]
+        else:
+            from xrpl.models.requests import AccountTx, LedgerEntry
+            from xrpl.models.requests.ledger_entry import Escrow as EscrowLookup
+            current=self.led.client.request(LedgerEntry(escrow=EscrowLookup(owner=owner,seq=seq),ledger_index="validated")).result
+            if current.get("node",{}).get("LedgerEntryType")=="Escrow":
+                return "open",None
+            if current.get("error")!="entryNotFound":
+                return "unknown",None
+            pages, marker = [], None
+            while True:
+                r = self.led.client.request(AccountTx(account=owner, limit=200, marker=marker)).result
+                if "error" in r:
+                    return "unknown", None
+                pages.append(r.get("transactions", []))
+                marker = r.get("marker")
+                if not marker:
+                    break
+        for page in pages:
+            for item in page:
+                tx = item if self.name == "mock" else item.get("tx_json", item.get("tx", {}))
+                ok = item.get("result") == "tesSUCCESS" if self.name == "mock" else item.get("validated") and item.get("meta", {}).get("TransactionResult") == "tesSUCCESS"
+                if ok and tx.get("Owner") == owner and tx.get("OfferSequence") == seq:
+                    state = {"EscrowFinish": "finished", "EscrowCancel": "refunded"}.get(tx.get("TransactionType"))
+                    if state:
+                        h = item.get("hash", tx.get("hash"))
+                        if self.name == "mock":
+                            h = next(k for k, v in self.led.txs.items() if v is item)
+                        return state, h
+        return ("open" if self.name=="mock" else "unknown"), None
+
+    def receipt(self, tx_hash: str, result: dict | None = None) -> dict:
+        from decimal import Decimal
+        if result is not None:
+            r=result;tx=r.get("tx_json",r)
+        elif self.name == "mock":
+            tx = self.led.txs.get(tx_hash, {})
+            r = {"validated": bool(tx), "ledger_index": tx.get("ledger_index"), "meta": {"TransactionResult": tx.get("result")}}
+        else:
+            from xrpl.models.requests import Tx
+            r = self.led.client.request(Tx(transaction=tx_hash)).result
+            tx = r.get("tx_json", r)
+        meta = r.get("meta", {})
+        fields = next((n["DeletedNode"].get("FinalFields", {}) for n in meta.get("AffectedNodes", []) if n.get("DeletedNode", {}).get("LedgerEntryType")=="Escrow"), {})
+        gross = tx.get("Amount", fields.get("Amount"))
+        if tx.get("TransactionType")=="Payment":
+            gross=meta.get("delivered_amount")
+            if gross=="unavailable":
+                gross=None
+        if not r.get("validated") or meta.get("TransactionResult")!="tesSUCCESS":
+            gross=None
+        if gross is None and self.name == "mock" and tx.get("TransactionType") in ("EscrowFinish","EscrowCancel"):
+            original = next((t for t in self.led.txs.values() if t.get("TransactionType")=="EscrowCreate" and t.get("Account")==tx.get("Owner") and t.get("Sequence")==tx.get("OfferSequence")), {})
+            gross = original.get("Amount")
+        value = gross.get("value") if isinstance(gross, dict) else str(Decimal(gross)/1000000) if gross is not None else None
+        currency = gross.get("currency") if isinstance(gross, dict) else "XRP"
+        memos = []
+        for m in tx.get("Memos", []):
+            try:
+                memos.append(bytes.fromhex(m.get("Memo", {}).get("MemoData", "")).decode())
+            except (ValueError, UnicodeError):
+                pass
+        return {"hash":tx_hash,"validated":r.get("validated") is True,"result":meta.get("TransactionResult"),"ledger_index":r.get("ledger_index"),
+                "type":tx.get("TransactionType"),"account":tx.get("Account"),"destination":(tx.get("Owner") or fields.get("Account")) if tx.get("TransactionType")=="EscrowCancel" else tx.get("Destination",fields.get("Destination")),
+                "owner":tx.get("Owner",fields.get("Account")),"sequence":tx.get("Sequence"),"offer_sequence":tx.get("OfferSequence"),
+                "gross_amount":value,"currency":currency,"issuer":gross.get("issuer") if isinstance(gross,dict) else None,
+                "fee_xrp":str(Decimal(tx.get("Fee",0))/1000000),"memos":memos}
+
+    def wallet_activity(self, address: str) -> list[dict]:
+        from xrpl.models.requests import AccountTx
+        if self.name=="mock":
+            return []
+        result=self.led.client.request(AccountTx(account=address,ledger_index_min=-1,ledger_index_max=-1,limit=200)).result
+        if "error" in result:
+            raise RuntimeError("Wallet history is temporarily unavailable")
+        rows=[]
+        for item in result.get("transactions",[]):
+            tx=item.get("tx_json",item.get("tx",{}));h=item.get("hash",tx.get("hash"))
+            raw={"tx_json":tx,"meta":item.get("meta",{}),"validated":item.get("validated"),"ledger_index":item.get("ledger_index",tx.get("ledger_index"))}
+            rec=self.receipt(h,raw)
+            if not rec["validated"] or rec["result"]!="tesSUCCESS" or rec["gross_amount"] is None:
+                continue
+            if rec["type"]=="EscrowFinish" and rec["destination"]!=address:
+                continue
+            if rec["type"]=="EscrowCancel" and rec["owner"]==address:
+                direction="in"
+            else:
+                direction="in" if rec["destination"]==address else "out"
+            rows.append({"id":h,"contract":None,"created":(tx.get("date",0)+946684800),"type":rec["type"],"asset":"XRP" if rec["currency"]=="XRP" else "test USD" if rec["currency"]=="USD" and rec["issuer"]==self.issuer else f"{rec['currency']} · {rec['issuer']}","amount":rec["gross_amount"],"direction":direction,"hash":h,"url":self.explorer(h),"result":rec["result"],"fee_xrp":rec["fee_xrp"]})
+        return rows
+
+    def escrow_create_info(self, tx_hash: str) -> dict:
+        if self.name == "mock":
+            return self.led.txs.get(tx_hash, {})
+        from xrpl.models.requests import Tx
+        r = self.led.client.request(Tx(transaction=tx_hash)).result
+        return r.get("tx_json", r) if r.get("validated") else {}
 
 
 def merkle_root(leaves: list[str]) -> str:
