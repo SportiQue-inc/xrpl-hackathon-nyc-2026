@@ -18,7 +18,7 @@ from .cohort import (HERO, PRIMARY, WEEKS, apply_deliveries, heatmap, infer_need
 from .connectors import HospitalExportSource
 from .engine import BudgetExceeded, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
 from .ledger.licence import licence_metadata
-from .policy import DUO, PURPOSE_DUO, QUASI_IDENTIFIERS, SENSITIVITY, BuyerMandate
+from .policy import DUO, PURPOSE_DUO, BuyerMandate
 
 XRP = 1_000_000
 LAB = "org_sleeplab"
@@ -130,7 +130,15 @@ def set_goal(w, goal: str, propose=None) -> dict:
     ethics = w.ledger.has_credential(w.engine.party(LAB)["address"], w.engine.party("org_ethics")["address"],
                                      ETHICS_CREDENTIAL)
     s.needs = infer_needs(w.store, LAB, w.coverage, ["sleep_research"], 40 * XRP, ethics, propose, s.goal)
-    s.person_claims = {HERO: person_gaps(w.store, LAB, w.coverage, HERO, propose)}
+    tl = w.cohort_people[HERO].vault.timeline(WEEKS)
+    available = {wk: [i for i, v in items.items() if v["days"]] for wk, items in tl.items()}
+    s.person_claims = {HERO: person_gaps(w.store, LAB, w.coverage, HERO, propose, available, ethics)}
+    # The followed participant's request follows the per-person reading (verified above).
+    for c in s.person_claims[HERO]:
+        if c["verdict"] == "kept":
+            wk = s.needs.cells.setdefault(HERO, {}).setdefault(c["week"], [])
+            if c["item"] not in wk:
+                wk.append(c["item"])
     s.status = "draft"
     n = s.needs
     w.store.log(LAB, "spec", f"gap reading ({'LLM' if n.source == 'llm' else 'rule baseline'}, checked by code): "
@@ -198,25 +206,33 @@ def send(w, workers: int = 8) -> dict:
 
 
 def _answer(w, req, hold_last=False) -> list[int]:
-    """The participant's agent answers a request; contributes what consent allows."""
+    """The participant's agent answers a request week by week; contributes what consent allows."""
     pa = w.cohort_people[req["person"]]
     items = sorted({i for its in req["weeks"].values() for i in its})
-    d = pa.handle_request(LAB, req["purpose"], items, max(req["weeks"]), CELL_PRICE)
-    req["classes"] = _classify(d, items)
-    if not d.ok:
-        req["status"] = "blocked" if not d.pending else "open"
-        return []
-    granted = {wk: [i for i in its if i in d.granted] for wk, its in req["weeks"].items()}
+    decisions = {wk: pa.handle_request(LAB, req["purpose"], its, wk, CELL_PRICE)
+                 for wk, its in sorted(req["weeks"].items())}
+    if "classes" not in req:
+        merged = {}
+        for wk, d in decisions.items():
+            for i, c in _classify(d, req["weeks"][wk]).items():
+                rank = {"blocked": 2, "approval": 1, "auto": 0}
+                if i not in merged or rank[c[0]] > rank[merged[i][0]]:
+                    merged[i] = c
+        req["classes"] = merged
+    granted = {wk: [i for i in req["weeks"][wk] if i in d.granted] for wk, d in decisions.items() if d.ok}
     granted = {wk: its for wk, its in granted.items() if its and not _done(w, req, wk, its)}
+    pending = any(d.pending for d in decisions.values())
+    if not granted and not any(_done(w, req, wk, its) for wk, its in req["weeks"].items()):
+        req["status"] = "open" if pending else "blocked"
+        return []
     oids = []
     for i, (wk, its) in enumerate(sorted(granted.items())):
-        if any(SENSITIVITY.get(x) == "sensitive" for x in its) or any(
-                x in HospitalExportSource.items for x in its):
+        if any(x in HospitalExportSource.items for x in its):
             _export_fee(w, pa, its)
         rows = pa.vault.extract(its, wk, study=LAB)
         last = hold_last and i == len(granted) - 1
         r = OrderRequest(LAB, pa.id, pa.id, "cohort.fill", f"{pa.id}|w{wk}:{'+'.join(its)}", req["purpose"],
-                         sorted(its), len(its) * CELL_PRICE, rows, d, settle="escrow",
+                         sorted(its), len(its) * CELL_PRICE, rows, decisions[wk], settle="escrow",
                          escrow_window_s=HOLD_WINDOW_S if last else 600)
         try:
             oid = w.engine.place_order(r)
@@ -225,12 +241,26 @@ def _answer(w, req, hold_last=False) -> list[int]:
             continue
         req["orders"].append({"order_id": oid, "week": wk, "items": its, "hold": last})
         oids.append(oid)
-    req["status"] = "contributed" if not d.pending else "partly_open"
+    req["status"] = "partly_open" if pending else "contributed"
     return oids
 
 
 def _done(w, req, wk, its):
     return any(o["week"] == wk and set(its) <= set(o["items"]) for o in req["orders"])
+
+
+def _x402(ledger):
+    """The clinic's export API answers HTTP 402; on Testnet the fee goes through the x402 facilitator.
+    Same wallets and client as the main ledger."""
+    if ledger.name != "testnet" or getattr(ledger, "rail", "") == "x402":
+        return ledger, getattr(ledger, "rail", "direct")
+    try:
+        from .ledger.x402_rail import X402Mixin
+    except Exception:
+        return ledger, "direct"
+    x = object.__new__(type("ClinicX402", (X402Mixin, type(ledger)), {}))
+    x.__dict__ = ledger.__dict__
+    return x, "x402"
 
 
 def _export_fee(w, pa, items):
@@ -241,12 +271,21 @@ def _export_fee(w, pa, items):
         return
     fee = HospitalExportSource.export_fee_drops
     inv = hashlib.sha256(f"export|{pa.id}|{items}|{time.time()}".encode()).hexdigest().upper()
-    prep = w.ledger.prepare_payment(addr, w.engine.party(CLINIC)["address"], fee, inv, "clinic records export")
-    w.ledger.submit(prep)
+    L, rail = _x402(w.ledger)
+    try:
+        prep = L.prepare_payment(addr, w.engine.party(CLINIC)["address"], fee, inv, "clinic records export")
+        L.submit(prep)
+    except Exception as e:
+        if rail != "x402":
+            raise
+        w.store.log(pa.id, "error", f"x402 export payment failed ({e}); paying the clinic directly")
+        L, rail = w.ledger, "direct"
+        prep = L.prepare_payment(addr, w.engine.party(CLINIC)["address"], fee, inv, "clinic records export")
+        L.submit(prep)
     st = w.ledger.wait_validated(prep.tx_hash)
     w.study.export_fees.append({"person": pa.id, "amount_xrp": fee / XRP, **_tx(w, prep.tx_hash),
-                                "ok": bool(st.success)})
-    w.store.log(pa.id, "export", f"{pa.id}'s agent paid the clinic {fee / XRP:g} XRP to export visit records",
+                                "ok": bool(st.success), "rail": rail})
+    w.store.log(pa.id, "export", f"{pa.id}'s agent paid the clinic {fee / XRP:g} XRP ({rail}) to export visit records",
                 {"tx_hash": prep.tx_hash, "url": _url(w, prep.tx_hash)})
 
 
@@ -430,14 +469,18 @@ def preview(w, pid: str, rid: int) -> dict:
 def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool = True) -> dict:
     req = ensure(w).requests[rid]
     pa = w.cohort_people[pid]
-    for r in pa.open_requests():
-        if r["buyer_id"] == LAB:
-            pa.approve(r["id"], [i for i in items if i in json.loads(r["items"])])
     asked = {wk: [i for i in its if i in items] for wk, its in req["weeks"].items()}
     req["weeks_approved"] = {wk: its for wk, its in asked.items() if its}
+    # Ticking an item by name approves the scope and, for sensitive items, this round as well.
+    for _ in range(4):
+        for r in pa.open_requests():
+            if r["buyer_id"] == LAB:
+                pa.approve(r["id"], [i for i in items if i in json.loads(r["items"])])
+        for wk, its in sorted(req["weeks_approved"].items()):
+            pa.handle_request(LAB, req["purpose"], its, wk, CELL_PRICE)
     sub = {**req, "weeks": req["weeks_approved"]}
     oids = _answer(w, sub, hold_last=hold_last)
-    req["orders"], req["classes"] = sub["orders"], {**req.get("classes", {}), **sub.get("classes", {})}
+    req["orders"] = sub["orders"]          # the card keeps the classes the person was shown
     for oid in oids:
         o = next(x for x in req["orders"] if x["order_id"] == oid)
         w.engine.process(oid, until="finish" if o["hold"] else None)

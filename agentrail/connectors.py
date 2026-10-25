@@ -114,8 +114,10 @@ class HospitalExportSource:
     native = {"blood_pressure.daily": ("SYSBP", "DIABP")}
     export_fee_drops = 100_000
 
+    visit_days = (11, 25)   # clinic visits in weeks 2 and 4
+
     def read(self, pid, item, day, rng):
-        return {"SYSBP": rng.randint(105, 140), "DIABP": rng.randint(65, 90)} if day % 7 == 3 else None
+        return {"SYSBP": rng.randint(105, 140), "DIABP": rng.randint(65, 90)} if day in self.visit_days else None
 
 
 class PersonalVaultConnector:

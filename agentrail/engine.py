@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from dataclasses import dataclass
 
@@ -229,8 +230,9 @@ class Engine:
         pol = self.policies[o["seller_id"]]
         scope = json.loads(o["scope"])
         week = None
-        if "|week" in scope["slot"]:
-            week = int(scope["slot"].split("|week")[1])
+        m = re.search(r"\|w(?:eek)?(\d+)", scope["slot"])
+        if m:
+            week = int(m.group(1))
         return pol.evaluate(buyer_id=o["buyer_id"], purpose=o["purpose"], fields=scope["granted"],
                             price_drops=o["price_drops"], week=week, for_delivery=for_delivery)
 

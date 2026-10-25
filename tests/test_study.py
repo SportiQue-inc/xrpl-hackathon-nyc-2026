@@ -35,7 +35,8 @@ def test_gap_claims_show_llm_reading_next_to_code_verdict(w):
     assert claims["fatigue.survey"]["kept_weeks"] == [3, 4, 5]
     hero = v["proposal"]["person_claims"][HERO]
     assert {(c["week"], c["item"]) for c in hero if c["verdict"] == "kept"} == {
-        (3, "fatigue.survey"), (4, "fatigue.survey"), (5, "fatigue.survey"), (4, "heart_rate.daily")}
+        (3, "fatigue.survey"), (4, "fatigue.survey"), (5, "fatigue.survey"), (4, "heart_rate.daily"),
+        (2, "blood_pressure.daily"), (4, "blood_pressure.daily")}      # clinic visits, ethics credential held
 
 
 def test_person_gap_claim_for_a_held_cell_is_removed(w):
@@ -56,7 +57,7 @@ def test_participant_card_classifies_items_and_shows_ledger_badge(w):
     sent(w)
     card = study.participant_view(w, HERO)["requests"][0]
     cls = {i["item"]: i["class"] for i in card["items"]}
-    assert cls == {"fatigue.survey": "approval", "heart_rate.daily": "auto"}
+    assert cls == {"fatigue.survey": "approval", "heart_rate.daily": "auto", "blood_pressure.daily": "approval"}
     assert card["institution"]["badges"][0]["kind"] == "ethics_review"
     assert [d["code"] for d in card["duo"]][:2] == ["DUO:0000006", "DUO:0000046"]
 
@@ -66,7 +67,9 @@ def test_preview_shows_only_requested_items_under_study_pseudonym(w):
     rid = study.participant_view(w, HERO)["requests"][0]["id"]
     p = study.preview(w, HERO, rid)
     assert p["rows"] and all(r["person"].startswith("S-") for r in p["rows"])
-    assert all(set(r) <= {"person", "day", "fatigue.survey", "heart_rate.daily"} for r in p["rows"])
+    assert all(set(r) <= {"person", "day", "fatigue.survey", "heart_rate.daily", "blood_pressure.daily"}
+               for r in p["rows"])
+    assert "sleep.daily" in p["not_included"]
 
 
 def test_approve_contributes_and_issues_a_licence_then_revoke_claws_back_and_refunds(w):
@@ -157,3 +160,21 @@ def test_unverified_institution_gets_no_answer_and_its_direct_payment_is_refused
     assert d.status == DENY and "verified-organization" in d.reason
     assert study.direct_payment_attempt(w, "org_x", HERO)["result"] == "tecNO_PERMISSION"
     assert study.direct_payment_attempt(w, LAB, HERO)["result"] == "tesSUCCESS"
+
+
+def test_clinic_record_needs_the_person_by_name_and_the_agent_pays_the_export_fee(w):
+    sent(w)
+    rid = study.participant_view(w, HERO)["requests"][0]["id"]
+    v = study.participant_approve(w, HERO, rid, ["fatigue.survey"])           # blood pressure not ticked
+    assert not any("blood_pressure.daily" in c["items"] for c in v["contributions"]) and not v["export_fees"]
+    v = study.participant_approve(w, HERO, rid, ["fatigue.survey", "blood_pressure.daily"])
+    bp = [c for c in v["contributions"] if "blood_pressure.daily" in c["items"]]
+    assert {c["weeks"][0]: c["status"] for c in bp} == {2: "delivered", 4: "escrowed"}   # last week held for the round
+    assert len(v["export_fees"]) == 2 and all(f["ok"] for f in v["export_fees"])
+
+
+def test_per_person_reading_drops_items_no_source_holds(w):
+    from agentrail.cohort import person_gaps
+    claim = lambda system, payload: {"missing": [{"week": 6, "item": "blood_pressure.daily", "reason": "x"}]}
+    out = person_gaps(w.store, LAB, w.coverage, HERO, claim, {6: ["sleep.daily"]}, True)
+    assert out[0]["verdict"] == "removed" and "sources" in out[0]["code_reason"]

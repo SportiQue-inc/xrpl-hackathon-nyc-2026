@@ -95,19 +95,26 @@ ANALYSIS_NOTE = [
 PERSON_SYSTEM = (
     "You are the study's research agent looking at ONE participant's 8-week record. You get the "
     "protocol and, per week, which items the study already holds for this person. Say what is missing "
-    "for this person that the protocol needs, week by week. Return JSON {\"missing\": [{\"week\": int, "
+    "for this person that the protocol needs, week by week; sources_hold says what the person's own "
+    "sources (wearable, survey app, clinic) can supply. Return JSON {\"missing\": [{\"week\": int, "
     "\"item\": string, \"reason\": short}]}.")
 
 
-def person_gaps(store, agent: str, cov: Coverage, pid: str, propose=None) -> list[dict]:
+def person_gaps(store, agent: str, cov: Coverage, pid: str, propose=None, available: dict | None = None,
+                ethics_approved: bool = False) -> list[dict]:
     """Per-person gap reading: the LLM names weeks and items; code keeps only cells that are
-    really empty in the table and that the protocol uses."""
+    really empty in the table, that the protocol uses, and that the person's sources can supply.
+    `available` = {week: [items the person's sources hold]} (counts only, no values)."""
     held = {f"w{w}": sorted(cov.cells[pid][w]) for w in WEEKS}
     inp = {"protocol": PROTOCOL, "participant": pid, "held": held}
+    if available is not None:
+        inp["sources_hold"] = {f"w{w}": sorted(v) for w, v in available.items()}
     raw, source = _ask(propose, PERSON_SYSTEM, inp)
     if raw is None:
         raw = {"missing": [{"week": w, "item": i, "reason": "empty in the coverage table"}
-                           for w in WEEKS for i in PRIMARY + ("heart_rate.daily",) if not cov.has(pid, w, i)]}
+                           for w in WEEKS for i in PRIMARY + ("heart_rate.daily",) if not cov.has(pid, w, i)]
+               + [{"week": w, "item": "blood_pressure.daily", "reason": "clinic visit this week; exploratory variable"}
+                  for w in WEEKS if available and "blood_pressure.daily" in available.get(w, [])]}
         source = "rules"
     out = []
     for m in raw.get("missing") or []:
@@ -118,6 +125,10 @@ def person_gaps(store, agent: str, cov: Coverage, pid: str, propose=None) -> lis
             out.append({**m, "verdict": "removed", "code_reason": "not a protocol item or week"})
         elif cov.has(pid, wk, item):
             out.append({**m, "verdict": "removed", "code_reason": "already held for this person"})
+        elif available is not None and item not in available.get(wk, []):
+            out.append({**m, "verdict": "removed", "code_reason": "none of this person's sources holds it that week"})
+        elif item == "blood_pressure.daily" and not ethics_approved:
+            out.append({**m, "verdict": "removed", "code_reason": "exploratory item; no ethics credential on the ledger"})
         else:
             out.append({**m, "verdict": "kept", "code_reason": "empty in the coverage table"})
     record(store, agent, "person_gaps", inp, raw, source,
