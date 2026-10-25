@@ -583,3 +583,20 @@ def test_discovery_questions_never_authorize_a_sale(market, monkeypatch, body):
     answer = account['chat'][-1]
     assert answer['role'] == 'agent'
     assert any(action.get('posting') == market.test_post for action in answer['actions'])
+
+
+def test_demo_receipt_details_never_expose_real_member_or_shared_vault_trades(market, monkeypatch):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web
+    monkeypatch.setattr(web,'M',market)
+    market.s.insert('accounts',id='u-private',name='Private buyer name',type='person',sell_agent={})
+    good=market.s.insert('contracts',buyer='buyer',seller='seller',kind='sleep_log',status='settled')
+    hidden=[]
+    for buyer in ('u-private','demo-vault'):
+        cid=market.s.insert('contracts',buyer=buyer,seller='seller',kind='sleep_log',status='settled');hidden.append(cid)
+        market.s.insert('txs',contract=cid,type='EscrowFinish',src='seller',dst=buyer,drops=9000000,asset='test USD',result='tesSUCCESS')
+    market.s.insert('txs',contract=good,type='EscrowFinish',src='seller',dst='buyer',drops=1000000,asset='test USD',result='tesSUCCESS')
+    d=TestClient(web.app).get('/api/demo?minutes=0').json();seller=next(a for a in d['agents'] if a['id']=='seller')
+    assert [r['contract'] for r in seller['receipts']]==[good]
+    assert seller['sales']==1 and seller['income']==[{'asset':'test USD','amount':1}]
+    assert 'Private buyer name' not in json.dumps(d)
