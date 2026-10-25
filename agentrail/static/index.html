@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentRail</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --ink: #1b1d1f; --muted: #646a70; --line: #e2e4e6;
+    --accent: #2457c5; --ok: #1e7a46; --warn: #a15c00; --bad: #b3261e; --chip: #eef1f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121416; --panel: #1b1e21; --ink: #e8eaec; --muted: #9aa1a8; --line: #2c3035;
+            --accent: #7aa2ff; --ok: #5fcf8d; --warn: #f0b35a; --bad: #ff8a80; --chip: #252a30; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  header { padding: 16px; border-bottom: 1px solid var(--line); display: flex; gap: 12px;
+           flex-wrap: wrap; align-items: center; }
+  header h1 { font-size: 18px; margin: 0 12px 0 0; }
+  .badge { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 12px; color: var(--muted); }
+  .badge.live { color: var(--ok); }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 7px 12px;
+           font: inherit; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  main { padding: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+  section.wide { grid-column: 1 / -1; }
+  h2 { font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .num { border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+  .num b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .num span { font-size: 12px; color: var(--muted); }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  .log { max-height: 520px; overflow: auto; font-size: 13px; }
+  .ev { display: grid; grid-template-columns: 28px 110px minmax(0, 1fr); gap: 8px; padding: 4px 0;
+        border-bottom: 1px dashed var(--line); }
+  .ev .who { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .k-blocked, .k-refused, .k-deny, .k-withheld, .k-conflict, .k-stop { color: var(--bad); }
+  .k-ask_person, .k-lost_response, .k-lost_delivery, .k-filter, .k-restart, .k-recover { color: var(--warn); }
+  .k-paid, .k-delivered { color: var(--ok); }
+  .s-delivered { color: var(--ok); } .s-blocked, .s-withheld, .s-failed { color: var(--bad); }
+  code { font-size: 12px; }
+  a { color: var(--accent); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input { width: 70px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+</style>
+</head>
+<body>
+<header>
+  <h1>AgentRail</h1>
+  <span class="badge">Synthetic data</span>
+  <span class="badge" id="ledger">ledger: -</span>
+  <div class="row">
+    <button onclick="runAll()">Run all scenes</button>
+    <button class="ghost" onclick="act('/api/reset').then(()=>act('/api/run/a'))">A: robotics</button>
+    <button class="ghost" onclick="act('/api/run/b')">B: personal data</button>
+    <button class="ghost" onclick="act('/api/run/c')">C: failures</button>
+    <span class="row">budget <input id="budget" value="30"> XRP
+      <button class="ghost" onclick="act('/api/reset').then(()=>act('/api/run/a?budget='+budget.value))">A with budget</button></span>
+  </div>
+</header>
+<main>
+  <section>
+    <h2>Robot developer - buyer agent mandate</h2>
+    <div class="nums" id="m-org_robodev"></div>
+    <div class="scroll"><table id="cands"></table></div>
+  </section>
+  <section>
+    <h2>Sleep lab - buyer agent mandate</h2>
+    <div class="nums" id="m-org_sleeplab"></div>
+    <div class="scroll"><table id="consents"></table></div>
+  </section>
+  <section class="wide">
+    <h2>Orders, payments and deliveries</h2>
+    <div class="scroll"><table id="orders"></table></div>
+  </section>
+  <section>
+    <h2>Agent decisions</h2>
+    <div class="log" id="events"></div>
+  </section>
+  <section>
+    <h2>Approvals asked of people</h2>
+    <div class="scroll"><table id="approvals"></table></div>
+    <h2 style="margin-top:14px">Exceptions</h2>
+    <div class="scroll"><table id="exceptions"></table></div>
+    <h2 style="margin-top:14px">Buyer accounts</h2>
+    <div class="scroll"><table id="accounts"></table></div>
+  </section>
+</main>
+<script>
+const xrp = d => (d / 1e6).toLocaleString(undefined, {maximumFractionDigits: 2});
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function act(url) { await fetch(url, {method: 'POST'}); await load(); }
+async function runAll() { for (const u of ['/api/reset', '/api/run/a', '/api/run/b', '/api/run/c']) await act(u); }
+function table(el, cols, rows) {
+  document.getElementById(el).innerHTML = '<tr>' + cols.map(c => `<th>${c[0]}</th>`).join('') + '</tr>' +
+    (rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td>${c[1](r)}</td>`).join('') + '</tr>').join('')
+                 : `<tr><td colspan="${cols.length}" style="color:var(--muted)">nothing yet</td></tr>`);
+}
+async function load() {
+  const s = await (await fetch('/api/state')).json();
+  const L = document.getElementById('ledger');
+  L.textContent = s.ledger === 'testnet' ? 'XRPL Testnet (real)' : 'Mock ledger';
+  L.className = 'badge' + (s.ledger === 'testnet' ? ' live' : '');
+  for (const m of s.mandates) {
+    const el = document.getElementById('m-' + m.buyer_id); if (!el) continue;
+    const avail = m.total_drops - m.spent_drops - m.reserved_drops;
+    el.innerHTML = [['Budget', m.total_drops], ['Reserved', m.reserved_drops], ['Spent', m.spent_drops], ['Available', avail]]
+      .map(([k, v]) => `<div class="num"><b>${xrp(v)}</b><span>${k} XRP</span></div>`).join('');
+  }
+  const a = s.results.a;
+  table('cands', [['Product', r => esc(r.seller + ' / ' + r.product)], ['Price', r => xrp(r.price_xrp * 1e6)],
+    ['Result', r => r.excluded ? `<span class="s-blocked">excluded: ${esc(r.excluded)}</span>`
+       : (a.selected || []).includes(r.product) ? `<span class="s-delivered">selected</span>` +
+         (r.refused_fields.length ? ` (without ${esc(r.refused_fields.join(', '))})` : '') : 'qualified'],
+    ['Quality (sample)', r => r.quality.missing_rate !== undefined ? `missing ${(r.quality.missing_rate*100).toFixed(1)}%` : '']],
+    a ? a.candidates : []);
+  table('consents', [['Person', r => esc(r.person_id)], ['Recipient', r => esc(r.buyer_id)],
+    ['Items', r => esc(JSON.parse(r.items).join(', '))], ['Automation', r => esc(r.automation)],
+    ['Status', r => esc(r.status)], ['Consent doc', r => `v${r.version} <code>${esc(r.doc_hash.slice(0, 12))}…</code>`]], s.consents);
+  table('orders', [['#', r => r.id], ['Buyer', r => esc(r.buyer_id)], ['Payee', r => esc(r.payee_id)],
+    ['Scope', r => esc(r.scope.slot + ': ' + r.scope.granted.join(', '))], ['XRP', r => xrp(r.price_drops)],
+    ['Terms', r => `<code>${esc(r.policy_snapshot.version || '')}</code>`],
+    ['Status', r => `<span class="s-${r.status}">${esc(r.status)}</span>${r.note ? ' - ' + esc(r.note) : ''}`],
+    ['Payment', r => r.tx_hash ? (r.url ? `<a href="${r.url}" target="_blank" rel="noopener">${esc(r.tx_hash.slice(0, 10))}…</a>`
+       : `<code>${esc(r.tx_hash.slice(0, 10))}…</code>`) + (r.ledger_index ? ` @${r.ledger_index}` : '') : '-']], s.orders);
+  document.getElementById('events').innerHTML = s.events.map(e =>
+    `<div class="ev k-${esc(e.kind)}"><span>${esc(e.scene || '')}</span><span class="who">${esc(e.actor)}</span><span>${esc(e.message)}</span></div>`).join('');
+  table('approvals', [['Person', r => esc(r.person_id)], ['Kind', r => esc(r.kind + (r.week ? ' w' + r.week : ''))],
+    ['Asked', r => esc(JSON.parse(r.items).join(', '))], ['Status', r => esc(r.status)],
+    ['Approved', r => esc(r.decided_items ? JSON.parse(r.decided_items).join(', ') || 'none' : '')]], s.approvals);
+  table('exceptions', [['Order', r => r.order_id], ['Kind', r => esc(r.kind)], ['Detail', r => esc(r.detail)],
+    ['Cost bearer', r => esc(r.cost_bearer || '')]], s.exceptions);
+  table('accounts', [['Buyer', r => esc(r[0])], ['Address', r => `<code>${esc(r[1].address)}</code>`],
+    ['Multisig', r => r[1].multisig ? 'yes' : 'no'], ['Master key disabled', r => r[1].master_disabled ? 'yes' : 'no']],
+    Object.entries(s.accounts));
+}
+load();
+</script>
+</body>
+</html>

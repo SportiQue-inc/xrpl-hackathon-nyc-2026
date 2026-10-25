@@ -1,0 +1,327 @@
+r"""Common trade engine: order -> budget reservation -> XRPL payment -> permission
+re-check -> sealed delivery. Same code for organization and personal data.
+
+State machine of an order:
+  reserved --pay validated--> paid --delivered+ack--> delivered
+     |                           \--consent revoked--> withheld (payment kept, exception)
+     \--policy blocks before pay / payment failed--> blocked | failed (reservation released)
+
+Every side effect is driven from the outbox, so `recover()` after a restart
+finishes whatever was in flight without paying twice.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+from dataclasses import dataclass
+
+from nacl.public import PrivateKey, PublicKey, SealedBox
+
+from .db import Store
+from .ledger import Ledger, LostResponse, Prepared
+from .policy import BuyerMandate, Decision
+
+
+class OrderConflict(Exception):
+    """Same order key, different content."""
+
+
+class BudgetExceeded(Exception):
+    pass
+
+
+class NeedsHumanApproval(Exception):
+    pass
+
+
+class LostDelivery(Exception):
+    pass
+
+
+def sha256_hex(b: bytes | str) -> str:
+    return hashlib.sha256(b.encode() if isinstance(b, str) else b).hexdigest()
+
+
+def canonical(obj) -> str:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"))
+
+
+class Inbox:
+    """Buyer-side receiving endpoint. Dedupes by bundle hash; can lose acks."""
+
+    def __init__(self):
+        self.received: dict[int, tuple[str, bytes]] = {}
+        self.lose_next_ack = False
+        self.calls = 0
+
+    def deliver(self, buyer_id: str, order_id: int, bundle_hash: str, sealed: bytes):
+        self.calls += 1
+        self.received[order_id] = (bundle_hash, sealed)
+        if self.lose_next_ack:
+            self.lose_next_ack = False
+            raise LostDelivery("ack lost")
+
+
+@dataclass
+class OrderRequest:
+    buyer_id: str
+    seller_id: str          # agent/gate that provides the data
+    payee_id: str           # who is paid (organization or the person)
+    product_id: str
+    slot: str               # e.g. "once" or "P017|week2"
+    purpose: str
+    granted: list[str]      # fields/items after policy
+    price_drops: int
+    rows: list[dict]        # the bundle content, fixed at order time
+    decision: Decision
+
+    def content(self, bundle_hash: str) -> dict:
+        return {"payee": self.payee_id, "granted": sorted(self.granted),
+                "price": self.price_drops, "bundle": bundle_hash}
+
+
+class Engine:
+    def __init__(self, store: Store, ledger: Ledger, inbox: Inbox | None = None):
+        self.store = store
+        self.ledger = ledger
+        self.inbox = inbox or Inbox()
+        self.policies: dict[str, object] = {}   # seller/person id -> policy with evaluate()
+        self.box_keys: dict[str, PrivateKey] = {}
+
+    # ---------- setup ----------
+
+    def add_party(self, pid: str, name: str, kind: str, address: str | None = None):
+        key = self.box_keys.get(pid) or PrivateKey.generate()
+        self.box_keys[pid] = key
+        with self.store.tx() as c:
+            c.execute("INSERT OR REPLACE INTO parties VALUES (?,?,?,?,?)",
+                      (pid, name, kind, address, bytes(key.public_key).hex()))
+
+    def set_mandate(self, m: BuyerMandate):
+        with self.store.tx() as c:
+            c.execute("""INSERT INTO mandates (buyer_id,total_drops,per_order_limit_drops,purposes)
+                         VALUES (?,?,?,?) ON CONFLICT(buyer_id) DO UPDATE SET
+                         total_drops=excluded.total_drops,
+                         per_order_limit_drops=excluded.per_order_limit_drops,
+                         purposes=excluded.purposes""",
+                      (m.buyer_id, m.total_drops, m.per_order_limit_drops, json.dumps(m.purposes)))
+
+    def available_drops(self, buyer_id: str) -> int:
+        m = self.store.one("SELECT * FROM mandates WHERE buyer_id=?", buyer_id)
+        return m["total_drops"] - m["spent_drops"] - m["reserved_drops"]
+
+    def party(self, pid: str):
+        return self.store.one("SELECT * FROM parties WHERE id=?", pid)
+
+    # ---------- orders ----------
+
+    def place_order(self, req: OrderRequest) -> int:
+        """Idempotent. Returns the order id. Reserves budget atomically."""
+        if not req.decision.ok:
+            raise ValueError(f"policy did not grant anything: {req.decision.reason}")
+        rows_json = canonical(req.rows)
+        bundle_hash = sha256_hex(rows_json)
+        order_key = sha256_hex(f"{req.buyer_id}|{req.seller_id}|{req.product_id}|{req.slot}|{req.purpose}")
+        content_hash = sha256_hex(canonical(req.content(bundle_hash)))
+        buyer_pub = PublicKey(bytes.fromhex(self.party(req.buyer_id)["box_pubkey"]))
+        sealed = SealedBox(buyer_pub).encrypt(rows_json.encode())
+        payee_addr = self.party(req.payee_id)["address"]
+
+        conflict_with = None
+        with self.store.tx() as c:
+            ex = c.execute("SELECT id, content_hash FROM orders WHERE order_key=?", (order_key,)).fetchone()
+            if ex and ex["content_hash"] == content_hash:
+                self.store.log(req.buyer_id, "idempotent", f"order {ex['id']} already exists; returning it")
+                return ex["id"]
+            if ex:
+                conflict_with = ex["id"]
+                self.store.log(req.buyer_id, "conflict",
+                               f"same order key as order {ex['id']} with different content: rejected")
+        if conflict_with is not None:
+            raise OrderConflict(f"order {conflict_with} exists with different content")
+        with self.store.tx() as c:
+            ex = c.execute("SELECT id, content_hash FROM orders WHERE order_key=?", (order_key,)).fetchone()
+            if ex:  # created concurrently between the two transactions
+                if ex["content_hash"] != content_hash:
+                    raise OrderConflict(f"order {ex['id']} exists with different content")
+                return ex["id"]
+            m = c.execute("SELECT * FROM mandates WHERE buyer_id=?", (req.buyer_id,)).fetchone()
+            if req.purpose not in json.loads(m["purposes"]):
+                raise NeedsHumanApproval(f"purpose '{req.purpose}' not in mandate")
+            if req.price_drops > m["per_order_limit_drops"]:
+                raise NeedsHumanApproval(f"price {req.price_drops} above per-order limit")
+            available = m["total_drops"] - m["spent_drops"] - m["reserved_drops"]
+            if req.price_drops > available:
+                raise BudgetExceeded(f"needs {req.price_drops} drops, {available} available")
+            cur = c.execute(
+                """INSERT INTO orders (order_key,content_hash,buyer_id,seller_id,payee_id,product_id,
+                   scope,purpose,price_drops,bundle_hash,policy_snapshot,status,created_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (order_key, content_hash, req.buyer_id, req.seller_id, req.payee_id, req.product_id,
+                 canonical({"slot": req.slot, "granted": sorted(req.granted)}), req.purpose,
+                 req.price_drops, bundle_hash,
+                 canonical({"status": req.decision.status, "version": req.decision.policy_version,
+                            "refused": req.decision.refused, "pending": req.decision.pending}),
+                 "reserved", time.time()))
+            oid = cur.lastrowid
+            c.execute("UPDATE mandates SET reserved_drops=reserved_drops+? WHERE buyer_id=?",
+                      (req.price_drops, req.buyer_id))
+            c.execute("INSERT INTO bundles VALUES (?,?,?)", (oid, bundle_hash, sealed))
+            c.execute("""INSERT INTO payments (order_id,payee_address,amount_drops,invoice_id,status,updated_at)
+                         VALUES (?,?,?,?,?,?)""",
+                      (oid, payee_addr, req.price_drops, order_key.upper(), "pending", time.time()))
+            c.execute("INSERT INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "pay", "pending"))
+            self.store.log(req.buyer_id, "order",
+                           f"order {oid}: {req.product_id} [{', '.join(req.granted)}] "
+                           f"{req.price_drops / 1e6:g} XRP reserved", {"order_id": oid, "slot": req.slot})
+        return oid
+
+    # ---------- outbox driver ----------
+
+    def process(self, order_id: int) -> str:
+        for _ in range(4):
+            job = self.store.one("SELECT * FROM outbox WHERE order_id=? AND status='pending' ORDER BY id LIMIT 1",
+                                 order_id)
+            if not job:
+                break
+            done = self._pay(order_id) if job["kind"] == "pay" else self._deliver(order_id)
+            if not done:
+                break
+        return self.store.one("SELECT status FROM orders WHERE id=?", order_id)["status"]
+
+    def recover(self) -> list[int]:
+        ids = [r["order_id"] for r in self.store.q("SELECT DISTINCT order_id FROM outbox WHERE status='pending'")]
+        for oid in ids:
+            self.store.log("engine", "recover", f"resuming order {oid} from outbox")
+            self.process(oid)
+        return ids
+
+    def _recheck(self, o, for_delivery: bool) -> Decision:
+        pol = self.policies[o["seller_id"]]
+        scope = json.loads(o["scope"])
+        week = None
+        if "|week" in scope["slot"]:
+            week = int(scope["slot"].split("|week")[1])
+        return pol.evaluate(buyer_id=o["buyer_id"], purpose=o["purpose"], fields=scope["granted"],
+                            price_drops=o["price_drops"], week=week, for_delivery=for_delivery)
+
+    def _release(self, c, o, status: str, note: str):
+        c.execute("UPDATE orders SET status=?, note=? WHERE id=?", (status, note, o["id"]))
+        c.execute("UPDATE mandates SET reserved_drops=reserved_drops-? WHERE buyer_id=?",
+                  (o["price_drops"], o["buyer_id"]))
+        c.execute("UPDATE outbox SET status='done', last_error=? WHERE order_id=? AND kind='pay'",
+                  (note, o["id"]))
+
+    def _pay(self, oid: int) -> bool:
+        o = self.store.one("SELECT * FROM orders WHERE id=?", oid)
+        p = self.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+        if p["tx_hash"] is None:
+            # Re-check permission right before money moves.
+            d = self._recheck(o, for_delivery=False)
+            if not d.ok:
+                with self.store.tx() as c:
+                    self._release(c, o, "blocked", d.reason)
+                    self.store.log("engine", "blocked", f"order {oid} blocked before payment: {d.reason}")
+                return False
+            buyer_addr = self.party(o["buyer_id"])["address"]
+            pv = json.loads(o["policy_snapshot"]).get("version", "")
+            memo = f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}"
+            prep = self.ledger.prepare_payment(buyer_addr, p["payee_address"], p["amount_drops"],
+                                               p["invoice_id"], memo)
+            # Persist the signed tx BEFORE submitting: a lost response is then recoverable by hash.
+            with self.store.tx() as c:
+                c.execute("UPDATE payments SET tx_hash=?, tx_blob=?, status='submitted', updated_at=? WHERE order_id=?",
+                          (prep.tx_hash, prep.blob, time.time(), oid))
+            p = self.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+            self._submit(oid, prep)
+
+        st = self.ledger.wait_validated(p["tx_hash"])
+        if not st.found:
+            if self.ledger.is_expired(p["tx_blob"]):
+                with self.store.tx() as c:
+                    c.execute("UPDATE payments SET tx_hash=NULL, tx_blob=NULL, status='pending' WHERE order_id=?", (oid,))
+                    self.store.log("engine", "expired", f"order {oid}: tx expired unapplied; will re-sign")
+                return False
+            # Same signed blob again: applies at most once on the ledger.
+            self._submit(oid, Prepared(p["tx_hash"], p["tx_blob"]))
+            st = self.ledger.wait_validated(p["tx_hash"])
+        if not st.validated:
+            with self.store.tx() as c:
+                c.execute("UPDATE outbox SET attempts=attempts+1, last_error='not yet validated' "
+                          "WHERE order_id=? AND kind='pay'", (oid,))
+            return False
+        with self.store.tx() as c:
+            ok = (st.success and st.destination == p["payee_address"]
+                  and st.amount_drops == p["amount_drops"]
+                  and (st.invoice_id or "").upper() == p["invoice_id"].upper())
+            if not ok:
+                self._release(c, o, "failed", "payment not successful on validated ledger")
+                c.execute("UPDATE payments SET status='failed' WHERE order_id=?", (oid,))
+                c.execute("INSERT INTO exceptions (order_id,kind,detail,cost_bearer,ts) VALUES (?,?,?,?,?)",
+                          (oid, "payment_failed", "validated ledger shows failure or mismatch", None, time.time()))
+                return False
+            c.execute("UPDATE payments SET status='validated', ledger_index=?, updated_at=? WHERE order_id=?",
+                      (st.ledger_index, time.time(), oid))
+            c.execute("UPDATE orders SET status='paid' WHERE id=?", (oid,))
+            c.execute("UPDATE mandates SET reserved_drops=reserved_drops-?, spent_drops=spent_drops+? "
+                      "WHERE buyer_id=?", (o["price_drops"], o["price_drops"], o["buyer_id"]))
+            c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='pay'", (oid,))
+            c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "deliver", "pending"))
+            self.store.log("engine", "paid",
+                           f"order {oid}: {o['price_drops'] / 1e6:g} XRP to {o['payee_id']} "
+                           f"validated in ledger {st.ledger_index}",
+                           {"order_id": oid, "tx_hash": p["tx_hash"], "url": self.ledger.explorer_url(p["tx_hash"])})
+        return True
+
+    def _submit(self, oid: int, prep: Prepared):
+        try:
+            self.ledger.submit(prep)
+        except LostResponse as e:
+            self.store.log("engine", "lost_response",
+                           f"order {oid}: submit response lost ({e}); will look up tx {prep.tx_hash[:12]}…")
+
+    def _deliver(self, oid: int) -> bool:
+        o = self.store.one("SELECT * FROM orders WHERE id=?", oid)
+        d = self._recheck(o, for_delivery=True)
+        if not d.ok:
+            with self.store.tx() as c:
+                c.execute("UPDATE orders SET status='withheld', note=? WHERE id=?", (d.reason, oid))
+                c.execute("UPDATE outbox SET status='done', last_error=? WHERE order_id=? AND kind='deliver'",
+                          (d.reason, oid))
+                if d.status != "hold":
+                    c.execute("INSERT INTO exceptions (order_id,kind,detail,cost_bearer,ts) VALUES (?,?,?,?,?)",
+                              (oid, "delivery_withheld", d.reason + "; payment kept", o["buyer_id"], time.time()))
+                self.store.log("engine", "withheld", f"order {oid}: delivery withheld ({d.reason}); payment kept")
+            if d.status == "hold":  # fail closed but retryable
+                with self.store.tx() as c:
+                    c.execute("UPDATE orders SET status='paid' WHERE id=?", (oid,))
+                    c.execute("UPDATE outbox SET status='pending' WHERE order_id=? AND kind='deliver'", (oid,))
+            return False
+        b = self.store.one("SELECT * FROM bundles WHERE order_id=?", oid)
+        attempt = self.store.one("SELECT COUNT(*) n FROM deliveries WHERE order_id=?", oid)["n"] + 1
+        try:
+            self.inbox.deliver(o["buyer_id"], oid, b["bundle_hash"], b["sealed"])
+            acked = True
+        except LostDelivery as e:
+            acked = False
+            self.store.log("engine", "lost_delivery", f"order {oid}: delivery ack lost ({e}); will resend same bundle")
+        with self.store.tx() as c:
+            c.execute("INSERT INTO deliveries (order_id,bundle_hash,attempt,acked,ts) VALUES (?,?,?,?,?)",
+                      (oid, b["bundle_hash"], attempt, int(acked), time.time()))
+            if acked:
+                c.execute("UPDATE orders SET status='delivered' WHERE id=?", (oid,))
+                c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='deliver'", (oid,))
+                self.store.log("engine", "delivered",
+                               f"order {oid}: sealed bundle {b['bundle_hash'][:12]}… delivered to {o['buyer_id']}")
+            else:
+                c.execute("UPDATE outbox SET attempts=attempts+1 WHERE order_id=? AND kind='deliver'", (oid,))
+        return acked
+
+    # ---------- buyer side ----------
+
+    def open_bundle(self, buyer_id: str, order_id: int) -> list[dict]:
+        bundle_hash, sealed = self.inbox.received[order_id]
+        rows = json.loads(SealedBox(self.box_keys[buyer_id]).decrypt(sealed))
+        assert sha256_hex(canonical(rows)) == bundle_hash
+        return rows

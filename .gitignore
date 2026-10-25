@@ -21,3 +21,8 @@ build/
 .venv/
 __pycache__/
 .DS_Store
+
+# local runtime state
+*.db
+*.sqlite
+wallets.local.json

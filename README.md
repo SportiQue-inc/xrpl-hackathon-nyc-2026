@@ -1,71 +1,122 @@
-# SportiQue Research Data Agents on XRPL
+# AgentRail - agents that procure data within a mandate, settled on XRPL
 
 XRPL AI & Fintech Hackathon NYC 2026 (Oct 24-25) - SportiQue team.
-Target track: **Agentic Finance** (to be confirmed with mentors).
+Track: **Agentic Finance**.
+
+## One line
+
+Give your agent a goal, quality bar and budget. It finds data held in other
+organizations' (or people's) own databases, checks quality, negotiates with their
+agents, pays on XRPL and receives exactly what was agreed - and it **stops** when a
+request falls outside what the data holder allowed, even at a higher price.
 
 ## Why
 
-Good health research needs the **same person's data over time** - hospital records,
-wearables and genomics, connected and kept up to date. Today that data is scattered
-across hospitals and apps, researchers buy one-off snapshots, re-recruit for every
-study, and the people who generate the data get nothing back and never see how it is used.
+Data that AI and research teams need (robot trajectories, sensor logs, evaluation
+sets, personal health time series) sits in many separate databases. Buying it today
+means emails, NDAs, manual quality checks, invoices and one-off file drops. Agents
+can do the searching and paying, but an agent that can pay is only safe if:
 
-Only the individual can connect their own records across sources and over time, and
-consent already belongs to them. So the individual should hold the data - and every
-time it is used for research, value should flow back to them.
+- it cannot spend beyond its mandate (budget, per-order limit, allowed purposes),
+- the seller's terms - and, for personal data, the person's consent - are enforced
+  by code, not by a prompt,
+- every payment is tied to exactly one order, one data version and one usage scope.
 
 ## What we built
 
-A research data rail where AI agents handle the money, and people stay in control.
+One engine, two kinds of trade.
 
-1. **Data request** - an institution posts a study request: eligibility criteria,
-   delivery format (e.g. `sleep.daily.v1`), duration, compensation per delivery, budget.
-2. **Personal agents answer privately** - each person's agent checks the request
-   against that person's own data and rules *on the person's side*. The institution
-   only receives: eligible yes/no, a data manifest (period, completeness, source type,
-   last update) and a source attestation. **No raw values before purchase.**
-3. **Join** - the person approves the relationship with that institution once.
-4. **Institution agent buys fresh data within a budget** - every delivery round the
-   agent decides whose updates to buy (skip data it already holds, prefer missing or
-   higher-quality data), pays on XRPL, and receives only that round's data.
-5. **Value flows back** - each payment goes directly to the person (RLUSD preferred,
-   XRP fallback). The person sees which study used their data and what they received.
-6. **Pause** - a person pauses; from the next round their data is no longer released,
-   and the institution agent reallocates budget to other participants.
+**Scene A - organization to organization (robotics data).**
+A robot developer's buyer agent gets: *"indoor warehouse navigation data at night,
+with LiDAR + IMU, covering dynamic obstacles and narrow aisles, commercial training
+allowed, budget 100 XRP"*. It queries three seller agents, inspects samples,
+excludes seller A (no LiDAR), accepts seller B's counter-offer (raw video excluded by
+B's policy, not needed), combines B + C to cover every required scenario, reserves
+budget, pays each seller on XRPL Testnet, and receives sealed bundles. Final report:
+data acquired, why, quality checked (sample-verified), usage scope, total spent,
+remaining budget, payment and delivery receipts.
 
-## Why AI agents
+**Scene B - same engine, personal health data.**
+The data source is swapped for personal data vaults (synthetic participants). Each
+person's agent carries the person's settings: which institution, which items, which
+purpose, which period, how much automation, and the sensitivity tier of each item.
 
-- Institution agent: autonomous procurement under a mandate - selects participants and
-  delivery rounds, tracks budget, avoids paying twice, asks a human to approve budget
-  increases above its limit.
-- Personal agent: answers eligibility questions without revealing data, applies the
-  person's rules (allowed formats, minimum compensation, allowed institution types).
-- Code, not the LLM, enforces permissions, amounts, payees and idempotency.
+1. Items the person already allowed (sleep, activity, heart rate) are provided
+   automatically every round; payment goes **directly to the person**.
+2. The institution asks for two more items (fatigue survey, blood pressure) at a
+   higher price - the agent does not provide them; it asks the person.
+3. The person approves only the fatigue survey. Blood pressure (sensitive tier)
+   stays blocked.
+4. Next round runs without the person opening the app, within the new scope.
+5. A person pauses: new orders and undelivered bundles stop; completed payments and
+   history remain. Another institution without consent is refused.
+
+## Agent settings (the mandate)
+
+| Agent | Settings the owner gives it | Enforced by |
+|-------|-----------------------------|-------------|
+| Buyer agent | goal spec, required fields/scenarios, quality thresholds, allowed purposes, total budget, per-order limit, approval threshold | `policy.BuyerMandate`, budget reservation in SQLite |
+| Seller agent (organization) | catalog, price floor, allowed buyers, allowed purposes, excluded fields, licence (commercial training, resale) | `policy.SellerPolicy` |
+| Personal agent | per-institution consent: items, purpose, period; automation level (confirm each / auto within scope); minimum price; sensitivity tier per item; pause / revoke | `policy.PersonalConsentPolicy` |
+
+Sensitivity and delegation are separate: a low-sensitivity item is still never sent
+unless the person allowed it; a sensitive item can be provided repeatedly only
+inside an explicit consent, and the agent can never widen scope on its own.
+
+Execution requires the intersection of: seller/person permission AND buyer mandate
+AND available budget AND data actually available. If the consent store cannot be
+read, the trade is held (fail closed).
 
 ## Why XRPL
 
-- Many small payments to many individuals, settled in seconds at very low cost.
-- Planned native features: Payments (RLUSD/XRP), Destination Tags for per-person
-  accounting, x402-style pay-per-delivery if a Testnet facilitator is available,
-  Credentials for source attestations (availability to be confirmed).
-- Settlement confirmed against validated ledgers via QuickNode.
+- Many small payments to many payees (organizations or individuals), settled in
+  seconds at very low cost.
+- Each order pays with a `Payment` carrying `InvoiceID = sha256(order key)`; the
+  signed transaction hash is stored **before** submission, so a lost response is
+  recovered by looking the hash up on a validated ledger - never by paying again.
+- Data is released only after the payment is in a **validated ledger** and the
+  permission is re-checked just before release (x402-style: 402 terms -> pay ->
+  verify -> deliver).
+- Only hashes go on-chain. No health values, names or consent text.
 
-## For institutions
+## Safety properties (tested)
 
-No re-recruiting for follow-up studies, fresh longitudinal data from the same people,
-pay only for the delivery rounds actually received, and an auditable record of which
-data, under which agreement version, was used in which study.
+See [docs/DESIGN.md](docs/DESIGN.md) for the state machine and the full test list.
+
+- Same order retried -> one order, one payment.
+- Same order key with different content -> rejected as a conflict.
+- Concurrent orders -> budget reserved serially, never overspent.
+- Restart after payment -> pending delivery recovered from the outbox.
+- Delivery response lost -> same bundle re-delivered, no extra payment.
+- Payment response lost -> recovered by tx hash lookup.
+- Request outside consent (even at higher price) -> needs approval, nothing sent.
+- Pause -> new orders blocked; revoke -> undelivered bundles withheld, payment kept,
+  exception recorded with the institution as cost bearer.
+- Budget too small -> agent buys nothing it cannot complete and reports why.
+
+## Run
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+pytest -q                                   # MockLedger, all safety tests
+python -m agentrail.scenario                # both scenes on MockLedger, prints report
+LEDGER=testnet python -m agentrail.scenario # same scenes on XRPL Testnet (faucet wallets)
+uvicorn agentrail.web:app --reload          # dashboard at http://127.0.0.1:8000
+```
+
+Testnet wallets are created from the faucet at run time and kept only in
+`wallets.local.json` (git-ignored).
 
 ## Scope and honesty
 
-- All people, institutions, records and amounts are **synthetic**. Testnet only.
-- Raw health data is never sent to an LLM and never written on-chain.
+- All organizations, people, records and amounts are **synthetic**. XRPL Testnet only.
+- Raw data is never sent to an LLM and never written on-chain. Agents in this demo
+  are rule-based; explanations are templated.
+- Quality checks run on samples and are labelled "sample-verified", not a guarantee
+  about the whole dataset.
 - Pausing stops future releases; data already delivered cannot be recalled.
-- Not a medical device; no diagnosis or prediction.
+- Not a medical device; no diagnosis.
 
-See [docs/DEMO_SCOPE.md](docs/DEMO_SCOPE.md), [docs/REUSE_LOG.md](docs/REUSE_LOG.md)
-and [docs/MENTOR_QUESTIONS.md](docs/MENTOR_QUESTIONS.md).
-
-## Status
-
-Day 1: concept and scope fixed. Implementation in progress.
+See [docs/DEMO_SCOPE.md](docs/DEMO_SCOPE.md), [docs/DESIGN.md](docs/DESIGN.md),
+[docs/REUSE_LOG.md](docs/REUSE_LOG.md) and [docs/MENTOR_QUESTIONS.md](docs/MENTOR_QUESTIONS.md).

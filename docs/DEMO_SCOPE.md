@@ -1,43 +1,47 @@
 # Demo scope
 
-Cast: 1 institution (sleep study), 50 synthetic participants, 1 study request,
-1 delivery format (`sleep.daily.v1`), 3 simulated weekly rounds.
+All parties, records and amounts are synthetic. XRPL Testnet only.
 
-## Demo flow (3 minutes)
+## Cast
+
+- Buyer: a robot developer (scene A) and a sleep research lab (scene B).
+- Organization holders: Alpha Sim, Beta Logistics, Gamma Robotics, Delta Fleet.
+- Personal holders: participants P017 (`auto_standard`), P023 (`auto_all`),
+  P031 (`confirm_each`).
+- An ad network with a prohibited purpose (refused by the compliance layer).
+
+## Flow (about 3 minutes)
 
 | # | Scene | What must really happen |
 |---|-------|-------------------------|
-| 1 | Institution posts request: age 40-60, >=80% sleep coverage in last 30 days, `sleep.daily.v1`, 12 weeks, 2 RLUSD per weekly delivery, 50 people, budget 1,200 RLUSD | Request stored with structured criteria |
-| 2 | 50 personal agents check privately | Each agent evaluates its own synthetic data and rules; ineligible or unwilling agents stay silent; eligible ones return yes + manifest + attestation only |
-| 3 | One person approves joining on screen (others pre-approved in simulation) | Relationship record with agreement version |
-| 4 | Week 1: institution agent selects within budget and buys the round | Per-person payment on XRPL Testnet, confirmed on a validated ledger; only that week's data released after confirmation |
-| 5 | Week 2: agent skips data it already holds, buys only new days | No duplicate payment for the same round (idempotent by round id) |
-| 6 | Week 3: one person pauses | Their release is refused; agent reallocates budget; their payments for past rounds remain |
-| 7 | Person view | Study usage history and received payments |
+| A1 | Buyer gives one goal: night warehouse navigation, LiDAR + IMU, dynamic obstacles + narrow aisles, commercial training, budget 50 XRP | Goal and mandate stored; agent queries 4 sellers |
+| A2 | Agent evaluates | A1 excluded (no LiDAR), C2 excluded (licence: evaluation only), D1 excluded (20% missing in sample), B1 counter-offer without raw video accepted |
+| A3 | Agent buys B1 + C1 for 35 XRP | Two Payments on Testnet, validated; sealed bundles delivered; report shows spent 35 / remaining 15 |
+| A4 | Live variation: budget 30 | Agent buys nothing, reports it needs +5 XRP and asks a human |
+| B1 | Three people sign consents (sleep, activity, heart rate) with different automation levels | Consent documents hashed, versions kept |
+| B2 | Week 1 | P017, P023 paid and delivered automatically; P031 confirms by hand, then paid |
+| B3 | Week 2: lab also asks for fatigue survey + blood pressure at 2 XRP/item | Consented items still run; extra items not sent, people asked |
+| B4 | P017 approves fatigue only | Week 3 includes fatigue for P017; blood pressure stays blocked |
+| B5 | P023 pauses | Week 4 skips P023; its past payments remain |
+| B6 | Ad network asks P017 | Refused: prohibited purpose |
+| C | Same order sent twice, payment response lost, delivery ack lost, server restart | One order, one payment, same bundle re-delivered, recovered from outbox |
 
-Live variation for judges: lower the budget -> agent buys fewer rounds and asks a human to approve an increase.
+## Checks enforced by code (not by an LLM)
 
-## Checks enforced by code (not by the LLM)
-
-- Request format is registered and allowed in the relationship
-- Payee matches the participant; amount matches the agreement
-- Payment confirmed on a validated ledger before data is released
-- Round id not already paid or released
-- Relationship active and not paused at release time (re-checked just before release)
-- Agent spend stays within its mandate; increases need human approval
-
-## Pre-purchase disclosure (institution side)
-
-Allowed: eligible yes/no, data period, completeness %, source type, last update,
-source attestation. Not allowed: any raw value before payment.
-
-## Out of scope (roadmap)
-
-Zero-knowledge eligibility proofs, genome data, real hospital/wearable APIs,
-3-party key split UI, multi-institution matching, mainnet funds, bridges.
+- Holder permission, buyer mandate, budget and data availability all required.
+- Payee, amount and InvoiceID verified on a validated ledger before release.
+- Permission re-checked just before payment and just before delivery.
+- Order key unique; different content under the same key is a conflict.
+- Sensitive items: never auto-approved, filtered for buyers without ethics approval.
 
 ## Screens
 
-1. Institution: post request, eligible pool, agent budget and purchase log
-2. Person: incoming request, approve/pause, usage history, payments
-3. Ledger view: payments and confirmations (QuickNode)
+One dashboard (`uvicorn agentrail.web:app`): mandate numbers per buyer
+(budget / reserved / spent / available), candidate evaluation, consents with document
+hashes, orders with Testnet explorer links, agent decision log, approvals asked of
+people, exceptions, buyer account settings.
+
+## Out of scope
+
+Real hospital or device APIs, mainnet funds, RLUSD, arbitrary queries from buyers,
+LLM in the decision path, recall of already delivered copies.

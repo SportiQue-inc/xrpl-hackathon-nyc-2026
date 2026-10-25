@@ -1,11 +1,15 @@
 # Questions for mentors
 
-1. Track fit: an institution agent that buys fresh participant data within a budget
-   and pays each person directly on XRPL - is this a strong Agentic Finance entry?
-2. x402 on XRPL Testnet: is there a facilitator we can use today for pay-per-delivery?
-   If not, is Payment + Destination Tag + validated-ledger check a good fallback?
-3. RLUSD on Testnet: how do we get test RLUSD and set up trust lines quickly?
-4. Credentials (XLS-70): available on Testnet for source attestations?
-5. Agent safety: recommended pattern for spend limits and human approval above a
-   threshold (Ledger device signing for budget increases?).
-6. Reuse disclosure and repo visibility requirements for submission.
+1. Track fit: buyer agents that procure data from other agents within a mandate
+   (budget, purposes, quality) and stop when the holder's terms do not allow a request.
+   Strong Agentic Finance entry?
+2. Credentials (XLS-70) on Testnet: is issuing an "ethics review approved" credential to
+   the buyer, and checking it before sensitive items are released, a good use?
+3. Multi-signing: treasury with a SignerList (human + agent), agent spends from a capped
+   account, top-ups need a human co-signature (Ledger device for the bounty). Is this
+   the recommended pattern for agent spend limits?
+4. Escrow with a crypto-condition released on delivery vs. pay-then-deliver with
+   validated-ledger checks: which do judges prefer for agent-to-agent trades?
+5. x402 on XRPL: is a Testnet facilitator available, or is our own 402 -> Payment ->
+   verify -> deliver flow acceptable?
+6. RLUSD on Testnet: fastest way to get test RLUSD and trust lines.
