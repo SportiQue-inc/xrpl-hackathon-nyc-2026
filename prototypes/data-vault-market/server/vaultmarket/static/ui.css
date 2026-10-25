@@ -199,3 +199,7 @@ dialog label input { display: block; width: 100%; margin-top: 3px; }
 .receipt-checks ul { list-style:none;margin:6px 0;padding:0;display:grid;gap:4px; }.receipt-checks li { display:flex;gap:8px;font-size:13px; }.receipt-checks li.ok>span { color:var(--green,#3fb27f); }.receipt-checks li.no>span { color:#e5484d; }.receipt-checks details summary { cursor:pointer; }
 .short-talk .say .bubble { padding:6px 10px;font-size:13px; }.short-talk .who { font-size:11px; }
 label.check-row { display:flex!important;flex-direction:row!important;align-items:flex-start;gap:8px;text-align:left; }label.check-row input { width:auto;flex:0 0 auto;margin-top:3px; }
+.queue-item.clickable { cursor:pointer;transition:border-color .15s,background .15s; }.queue-item.clickable:hover,.queue-item.clickable:focus-visible { border-color:#9b87ff;background:rgb(155 135 255 / .08); }
+.tx button { cursor:pointer; }.tx:hover button { background:rgb(155 135 255 / .06); }
+.coach-row button,.coach-fail button { min-height:38px;padding:8px 16px;font-size:14px;border-radius:9px; }.coach-skip,.coach-lang { min-height:38px;padding:8px 12px!important;font-size:13px!important; }
+.fee-receipt { margin:6px 0 0;color:var(--muted); }.fee-receipt a { font-weight:600; }

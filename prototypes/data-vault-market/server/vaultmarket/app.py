@@ -518,7 +518,8 @@ def account(aid: str, request: Request):
     return {"balance_address":display_address,"trades":trades,"agent_queue": M.s.q("SELECT q.*,p.purpose,p.buyer,c.status contract_status,c.reason contract_reason FROM sale_queue q LEFT JOIN postings p ON p.id=q.posting LEFT JOIN contracts c ON c.id=q.contract WHERE q.account=? ORDER BY q.id DESC", (aid,)),
             "account": a, "balance": display_balance, "address": M.addr.get(aid), "stats": stats, "bundles": bundles, "demand": demand,
             "bought": [f for f in files if f["status"] in ("bought", "bundled")], "files": len(files), "growth": growth,
-            "uploads": M.s.q("SELECT * FROM uploads WHERE account = ? ORDER BY id DESC LIMIT 10", (aid,)),
+            "uploads": [{**u, "fee_url": M.rail.explorer(u["fee_tx"]) if u.get("fee_tx") else None, "fee_label": f"{(u['fee'] or 0)*config.MICRO_PER_UNIT/1e6:.2f} {M.rail.label()}"}
+                        for u in M.s.q("SELECT * FROM uploads WHERE account = ? ORDER BY id DESC LIMIT 10", (aid,))],
             "recs": M.s.q("SELECT * FROM recs WHERE account = ? AND status = 'open' ORDER BY id DESC", (aid,)),
             "chat": [{**c, "actions": json.loads(c["actions"]) if c["actions"] else None} for c in M.s.q("SELECT * FROM chat WHERE account = ? ORDER BY id DESC", (aid,))][::-1]}
 
@@ -632,6 +633,9 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
     if aid == "demo-vault" and _chat_today(aid) >= config.DEMO_CHAT_DAILY:
         raise HTTPException(429, "the shared demo has used today's agent messages; use your own vault or try again tomorrow")
     text = body["text"].strip()[:500]
+    last = M.s.one("SELECT text, created FROM chat WHERE account = ? AND role = 'me' ORDER BY id DESC LIMIT 1", (aid,))
+    if last and last["text"] == text and time.time() - (last["created"] or 0) < 10:
+        return {"ok": True, "duplicate": True}   # a double click or a resent form, not a new question
     M.chat(aid, "me", text)
     a = M.acct(aid)
     discovery = body.get("intent")=="discover" or bool(re.search(r"^(?:what|which|how|where)\b|\bcan i\b|뭘|무엇|어떤|뭐|팔\s*수\s*있",text,re.I))
@@ -666,7 +670,7 @@ def _retire_suggestions(aid: str):
     """A new list of offers replaces the last one; old suggestion buttons stop counting as 'waiting for you'."""
     for c in M.s.q("SELECT id, actions FROM chat WHERE account = ? AND done = 0 AND actions IS NOT NULL", (aid,)):
         acts = json.loads(c["actions"] or "[]")
-        if acts and all(x.get("do") == "interest" for x in acts):
+        if acts and all(x.get("do") in ("interest", "sell_kind", "post_buy", "set_min") for x in acts):
             M.s.x("UPDATE chat SET done = 1 WHERE id = ?", (c["id"],))
 
 
@@ -751,12 +755,18 @@ def _converse(aid: str, text: str, body: dict, discovery: bool):
         if sm.get("kind") in KINDS and isinstance(sm.get("price"), (int, float)) and 0 <= sm["price"] < 1e6:
             acts.append({"t": f"Set {KINDS[sm['kind']]['label'].lower()} minimum to {sm['price']:g} {M.rail.label()}", "do": "set_min", "kind": sm["kind"], "price": float(sm["price"])})
         if out.get("sell_kind") in KINDS:
-            acts.append({"t": f"Sell my {KINDS[out['sell_kind']]['label'].lower()}", "do": "sell_kind", "kind": out["sell_kind"]})
+            n = sum(1 for w in offers if w["kind"] == out["sell_kind"])
+            acts.append({"t": f"Sell my {KINDS[out['sell_kind']]['label'].lower()} to the best-fitting buyer" + (f" ({n} open request{'s' if n > 1 else ''})" if n else ""), "do": "sell_kind", "kind": out["sell_kind"]})
         buy = out.get("buy") or {}
         if buy.get("kind") in KINDS and isinstance(buy.get("budget"), (int, float)) and 0 < buy["budget"] < 1e6:
-            acts.append({"t": f"Post a request: {KINDS[buy['kind']]['label'].lower()} up to {buy['budget']:g} {M.rail.label()}", "do": "post_buy", "kind": buy["kind"], "budget": float(buy["budget"])})
-        if picks:
-            _retire_suggestions(aid)
+            limit = round(a["buy_agent"].get("auto_limit", 0)*u, 2); market = round(M.quote(buy["kind"])["price"]*u, 2); label = KINDS[buy["kind"]]["label"].lower()
+            if market > limit > 0:   # short budget: two concrete choices instead of asking again
+                acts.append({"t": f"Raise my limit to {market:g} and buy {label}", "do": "post_buy", "kind": buy["kind"], "budget": market, "limit": market})
+                acts.append({"t": f"Post a request at {limit:g} and wait for a seller", "do": "post_buy", "kind": buy["kind"], "budget": limit})
+            else:
+                acts.append({"t": f"Post a request: {label} up to {buy['budget']:g} {M.rail.label()}", "do": "post_buy", "kind": buy["kind"], "budget": float(buy["budget"])})
+        if acts:
+            _retire_suggestions(aid)   # only the newest suggestions stay pressable
         M.chat(aid, "agent", reply[:800], acts or None)
     except Exception:
         try:
@@ -795,6 +805,9 @@ def chat_act(aid: str, cid: int, request: Request, body: dict = Body(...)):
         _set_min(aid, act["kind"], act["price"])
         M.chat(aid, "agent", f"Your minimum for {KINDS[act['kind']]['label'].lower()} is now {act['price']:g} {M.rail.label()}.")
     elif act["do"] == "post_buy" and act.get("kind") in KINDS:
+        if act.get("limit"):
+            a = M.acct(aid); a["buy_agent"]["auto_limit"] = float(act["limit"])/(config.MICRO_PER_UNIT/1000000)
+            M.s.x("UPDATE accounts SET buy_agent=? WHERE id=?", (json.dumps(a["buy_agent"]), aid))
         pid = _post_buy(aid, act["kind"], act["budget"]/(config.MICRO_PER_UNIT/1000000))
         M.chat(aid, "agent", f"Posted request #{pid} for {KINDS[act['kind']]['label'].lower()}, up to {act['budget']:g} {M.rail.label()}. I'll negotiate it next.")
     elif act["do"] == "skip_buy":

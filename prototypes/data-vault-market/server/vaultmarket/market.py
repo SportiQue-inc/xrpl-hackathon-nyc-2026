@@ -44,6 +44,7 @@ class Market:
         self._bal: dict[str, tuple[float, float]] = {}
         self.events = 0
         self.lock = threading.Lock()
+        self.wake = threading.Event()   # set when someone asks their agent to sell, so it runs now, not on the next tick
         if not self.s.stat("record_fingerprints_v2"):
             with self.s.transaction():
                 for f in self.s.q("SELECT id,kind,raw,clean,fps FROM files"):
@@ -232,7 +233,7 @@ class Market:
         tx = self._fee(account, fee_drops, f"cleaning {name}")
         fid = self.add_file(account, sc["kind"], name, intake.clean(sc["kind"], body), listed=listed, source=body.get("device_serial", "upload"),
                             cleaned=True, checks=["schema", "value ranges", "duplicates", "identifiers removed"] + sc["issues"])
-        self.s.x("UPDATE uploads SET file = ?, verdict = 'cleaned' WHERE id = ?", (fid, uid))
+        self.s.x("UPDATE uploads SET file = ?, verdict = 'cleaned', fee_tx = ? WHERE id = ?", (fid, tx, uid))
         self.s.bump("cleaned"); self.s.bump("fees", sc["fee"])
         return {"upload": uid, "file": fid, "verdict": "cleaned", "fee": sc["fee"], "tx": tx}
 
@@ -319,9 +320,16 @@ class Market:
                 self.s.x("UPDATE files SET status='listed' WHERE account=? AND kind=? AND status='private'", (aid, kind))
                 if posting:
                     self.s.x("INSERT OR IGNORE INTO interests(account,posting,created) VALUES(?,?,?)", (aid, posting, time.time()))
-            self.chat(aid, "agent", reason or f"Sale request #{qid} queued. I will negotiate one-to-one, within your minimum and allowed purposes.")
+            self.chat(aid, "agent", reason or f"Sale request #{qid} received. My agent is starting the negotiation now.")
         self.events += 1
+        if not reason:
+            self.wake.set()
         return self.s.one("SELECT * FROM sale_queue WHERE id=?", (qid,))
+
+    def expire_sale_queue(self):
+        """A sale instruction that found no buyer for 20 minutes is closed with that reason, so the list shows only live work."""
+        self.s.x("UPDATE sale_queue SET status='rejected',reason='No buyer matched your terms within 20 minutes. Ask again any time, or lower your minimum.',updated=? "
+                 "WHERE status='waiting' AND created<?", (time.time(), time.time() - 1200))
 
     def process_sale_queue(self) -> bool:
         # newest instruction first: on the shared demo vault a visitor's click shouldn't wait behind everyone else's
@@ -803,6 +811,7 @@ class Market:
         if rng.random() < 0.35:
             self.new_request(rng)
         self.s.x("UPDATE postings SET status = 'expired' WHERE status = 'open' AND once = 1 AND created < ?", (time.time() - 1800,))
+        self.expire_sale_queue()
         # one negotiation: postings someone marked interest in first, then the rest
         open_ = self.s.q("SELECT p.*, (SELECT COUNT(*) FROM interests i WHERE i.posting = p.id) AS hot FROM postings p WHERE status = 'open' ORDER BY hot DESC, RANDOM()")
         if not self.process_sale_queue() and open_:
@@ -855,4 +864,12 @@ class Market:
                     self.tick()
             except Exception:
                 traceback.print_exc()
-            time.sleep(max(1.0, config.TICK_SECONDS - (time.time() - t)))
+            # sleep until the next tick, but wake at once for a visitor's sale and negotiate only that
+            while self.wake.wait(max(0.0, config.TICK_SECONDS - (time.time() - t))):
+                self.wake.clear()
+                try:
+                    with self.lock:
+                        self.process_sale_queue()
+                except Exception:
+                    traceback.print_exc()
+            time.sleep(0.5)

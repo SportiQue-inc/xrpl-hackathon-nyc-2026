@@ -69,6 +69,7 @@ class Store:
                 "contracts": {"seller": "TEXT", "overview": "TEXT", "terms": "TEXT", "asset": "TEXT DEFAULT 'XRP'", "unit_micro": "INT DEFAULT 10000"},
                 "txs": {"asset": "TEXT DEFAULT 'XRP'", "receipt": "TEXT"},
                 "escrows": {"sealed": "BLOB", "create_blob": "TEXT"},
+                "uploads": {"fee_tx": "TEXT"},
             }.items():
                 existing = {r[1] for r in self.db.execute(f"PRAGMA table_info({table})")}
                 for name, definition in additions.items():

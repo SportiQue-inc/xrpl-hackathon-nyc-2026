@@ -62,7 +62,7 @@ async function refresh() {
 $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribute("aria-pressed", VIEW === "demand"); $("vAll").setAttribute("aria-pressed", VIEW === "all");
   $("dbSub").textContent = `${ACC.files} files · the agent sorts them into bundles by domain and by who is asking`;
   $("uploads").innerHTML = ACC.uploads.map((u) => `<div class="card"><div class="row"><span class="mono">${esc(u.name)}</span><span class="tag ${VERDICT[u.verdict]?.[0] || ""}">${VERDICT[u.verdict]?.[1] || esc(u.verdict)}</span></div>
-    <span class="small muted">${esc(u.why)}</span>${u.verdict === "clean" && u.file === -1 ? `<div class="acts"><button class="primary" type="button" data-u="${u.id}">Clean it for ${xrp(u.fee)}</button></div>` : ""}</div>`).join("") || '<p class="muted small">Nothing uploaded yet.</p>';
+    <span class="small muted">${esc(u.why)}</span>${u.verdict === "cleaned" ? `<p class="small fee-receipt">Cleaned by the intake cleaning agent · fee ${esc(u.fee_label)} paid from your vault wallet → platform account${u.fee_url ? ` · <a href="${u.fee_url}" target="_blank" rel="noopener">ledger receipt ↗</a>` : u.fee_tx ? ` · tx ${esc(u.fee_tx.slice(0, 10))}…` : ""}</p>` : ""}${u.verdict === "clean" && u.file === -1 ? `<div class="acts"><button class="primary" type="button" data-u="${u.id}">Clean it for ${xrp(u.fee)}</button></div>` : ""}</div>`).join("") || '<p class="muted small">Nothing uploaded yet.</p>';
   $("uploads").querySelectorAll("[data-u]").forEach((b) => b.onclick = async () => { b.disabled = true; await post(`/api/account/${ME}/upload/${b.dataset.u}/clean`); refresh(); });
   $("recs").innerHTML = ACC.recs.map((r) => `<div class="card hot"><h2>Agent recommendation · ${esc(k[r.kind].domain)}</h2><p>${esc(r.text)}</p>
     <div class="acts"><button class="primary" type="button" data-r="${r.id}" data-a="1">Pseudonymize and list</button><button type="button" data-r="${r.id}" data-a="0">Keep private</button></div></div>`).join("");
@@ -98,7 +98,7 @@ $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribut
   $('bundleBuy')?.addEventListener('click',async()=>{try{const files=[...document.querySelectorAll('[data-bundle]:checked')].map(e=>+e.dataset.bundle);await post(`/api/account/${ME}/bundle`,{files});await refresh();}catch(e){showError(e);}});
   $('discoverData').onclick=()=>tellAgent('What can I sell from my DB?','discover');
   if(!$('buyKind').options.length){$('buyKind').innerHTML=Object.entries(k).map(([id,v])=>`<option value="${id}">${esc(v.label)}</option>`).join('');$('buyPrice').value=(k[$('buyKind').value].price*(META.unit_xrp||.01)).toFixed(2);}
-  $('buyForm').onsubmit=async(e)=>{e.preventDefault();try{await post(`/api/account/${ME}/chat`,{text:'buy '+k[$('buyKind').value].label,price:Number($('buyPrice').value)/(META.unit_xrp||.01),resale:$('buyResale').checked});await refresh();}catch(err){showError(err);}};
+  $('buyForm').onsubmit=async(e)=>{e.preventDefault();const btn=e.target.querySelector('button');if(btn.disabled)return;btn.disabled=true;try{await post(`/api/account/${ME}/chat`,{text:'buy '+k[$('buyKind').value].label,price:Number($('buyPrice').value)/(META.unit_xrp||.01),resale:$('buyResale').checked});await refresh();}catch(err){showError(err);}finally{btn.disabled=false;}};
   await refreshCollections();
   chatBox($("chat"), ACC);$("banner").hidden=true;return true;
 }
