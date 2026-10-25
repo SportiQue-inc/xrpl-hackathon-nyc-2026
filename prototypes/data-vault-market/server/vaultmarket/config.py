@@ -39,7 +39,9 @@ LLM_PROVIDER = os.environ.get("VM_LLM_PROVIDER") or os.environ.get("LLM_PROVIDER
 ANTHROPIC_MODEL = os.environ.get("VM_ANTHROPIC_MODEL", "claude-haiku-5-5")
 # one model, or a comma list tried in order: a model that answers 429 rests until its limit resets.
 # On OpenAI's lowest tier every model has its own 50 requests/day, so a chain of seven gives about 350.
-OPENAI_MODELS = [m.strip() for m in (os.environ.get("VM_OPENAI_MODEL") or os.environ.get("OPENAI_MODEL") or "gpt-5-nano,gpt-4o-mini,gpt-5.4-nano,gpt-5-mini,gpt-5.4-mini,gpt-4.1-mini,o4-mini").split(",") if m.strip()]
+_SMALL = ["gpt-5-nano", "gpt-4o-mini", "gpt-5.4-nano", "gpt-5-mini", "gpt-5.4-mini", "gpt-4.1-mini", "o4-mini"]
+_chosen = [m.strip() for m in (os.environ.get("VM_OPENAI_MODEL") or os.environ.get("OPENAI_MODEL") or "").split(",") if m.strip()]
+OPENAI_MODELS = _chosen + [m for m in _SMALL if m not in _chosen]   # the chosen model first, the small ones behind it
 OPENAI_MODEL = OPENAI_MODELS[0]
 OPENAI_REASONING = os.environ.get("VM_OPENAI_REASONING", "minimal")   # reasoning models only; short turns don't need more
 LLM_RPM = int(os.environ.get("VM_LLM_RPM", "4"))                 # calls per minute, all agents together
