@@ -103,3 +103,17 @@ def test_uniqdata_records_for_one_participant(c):
     after = c.get(f"/api/p/{HERO}/uniqdata", params={"privacy_epoch": 2}, headers=me).json()
     assert after["withdrawal"]["boundary"]["superseding_epoch"] == 3
     assert HERO not in str(after)
+
+
+def test_demo_devices_answer_remote_visitors_only_with_the_access_code(monkeypatch):
+    remote = TestClient(web.app, client=("203.0.113.5", 4000))
+    sub = f"researcher@{study.LAB}"
+    assert remote.post(f"/api/dev/login/{sub}").status_code == 403
+    monkeypatch.setenv("AGENTRAIL_SANDBOX_CODE", "judges-2026")
+    assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "wrong"}).status_code == 403
+    assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "judges-2026"}).status_code == 200
+    assert remote.post("/api/dev/login/operator", headers={"X-Sandbox-Code": "judges-2026"}).status_code == 403
+    monkeypatch.setenv("AGENTRAIL_SANDBOX_CODE", "short")    # too short to count as a code
+    assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "short"}).status_code == 403
+    v = remote.get("/api/public/live").json()
+    assert {"study", "heatmap", "institution", "events"} <= set(v) and all(e["kind"] != "access" for e in v["events"])

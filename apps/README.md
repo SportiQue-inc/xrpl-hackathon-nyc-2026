@@ -61,3 +61,20 @@ engine calls, so a recording never depends on ledger timing. Amounts are RLUSD.
 Open `/demo?mode=before` or `/demo?mode=after`; `&show=lab` or `&show=phone` shows one side only.
 "Start over" resets both pages. Each page also opens alone: `/apps/demo/lab.html?mode=after&view=agent`,
 `/apps/demo/phone.html?mode=after`.
+
+## Try it on the real engine (`/try`, `/live`)
+
+`/try` lets a visitor pick a role. **Researcher** opens `/apps/live/`: the person → institution → sub-projects
+structure, the 50-person cohort week by week, buttons that run the study (agent finds gaps, budget co-signed
+by 2 with demo keys, send requests, close the week, create a sub-project under the scope, run a round), and a
+live transaction log with tx hashes. **Participant** opens `/apps/live/me.html?pid=…` (one of the 50, assigned
+per browser): one relationship with the institution, each sub-project's payouts under it, and only
+outside-scope or T3 items asked. The page seeds four sub-projects on first load.
+
+Access: on localhost everything works. On a public deploy, set `AGENTRAIL_SANDBOX_CODE` (8+ characters).
+Visitors who enter it (or open `/try?code=…`) act through the demo devices; everyone else gets the read-only
+`/api/public/live` view. The operator (reset, scene runner) stays localhost-only either way.
+
+Deploy as a second Railway service from this repo: config file `railway.engine.json`
+(builds `docker/engine.Dockerfile`), variables `AGENTRAIL_SANDBOX_CODE`, `LEDGER` (`mock` or `testnet`) and,
+for the token unit, the build thread's settlement variables.

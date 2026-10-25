@@ -5,7 +5,11 @@
 import { engine, watchSelf } from "/apps/shared/api.js";
 
 const pid = new URLSearchParams(location.search).get("pid") || "P-017";
-const api = engine("");
+const api = engine("", { token: async (sub) => {
+  const r = await fetch(`/api/dev/login/${encodeURIComponent(sub)}`, { method: "POST", headers: { "X-Sandbox-Code": code() } });
+  if (!r.ok) throw Object.assign(new Error("sign-in"), { status: r.status });
+  return (await r.json()).access_token;
+} });
 const root = document.getElementById("app");
 const st = { rel: null, sheet: false, read: false, busy: null, error: null, toast: null };
 
@@ -23,8 +27,11 @@ const h = (tag, props, ...kids) => {
 const tag = (t, tone = "gray") => h("span", { class: `tag ${tone}` }, t);
 const money = (n, a) => `${Number(n || 0).toFixed(2)} ${a || st.rel?.asset || ""}`.trim();
 
+const code = () => { try { return new URLSearchParams(location.search).get("code") || localStorage.getItem("ar-code") || ""; } catch { return ""; } };
 async function call(method, path, body) {
-  const t = await (await fetch(`/api/dev/login/${encodeURIComponent(pid)}`, { method: "POST" })).json();
+  const login = await fetch(`/api/dev/login/${encodeURIComponent(pid)}`, { method: "POST", headers: { "X-Sandbox-Code": code() } });
+  if (!login.ok) throw Object.assign(new Error("sign-in"), { status: login.status, detail: "Enter the access code on the start page to act as this participant." });
+  const t = await login.json();
   const res = await fetch(path, { method, headers: { Authorization: `Bearer ${t.access_token}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
   if (!res.ok) throw Object.assign(new Error(`${path} -> ${res.status}`), { detail: await res.text() });
   return res.json();

@@ -35,7 +35,11 @@
       <p class="small muted">Today's flow next to the flow with agents, side by side. Illustrative, no ledger.</p>
       <span class="go">Open →</span></a>
   </div>
-  <p class="tiny muted">Signatures use demo keys held by the server for the simulated people and approvers. No passkey or wallet needed.</p>
+  <form id="codeForm" class="row" style="gap:8px">
+    <input id="code" type="password" placeholder="Access code (to run it yourself)" style="flex:1;max-width:320px;font:inherit;border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+    <button class="btn">Save</button><span class="small muted" id="codeState"></span>
+  </form>
+  <p class="tiny muted">Without a code you can watch the structure and the ledger log. Signatures use demo keys held by the server for the simulated people and approvers. No passkey or wallet needed.</p>
 </div>
 <script>
   let pid = null;
@@ -47,6 +51,15 @@
   }
   document.getElementById("me").href = `/apps/live/me.html?pid=${pid}`;
   document.getElementById("mePid").textContent += ` You are ${pid}.`;
+  const has = () => { try { return !!localStorage.getItem("ar-code"); } catch { return false; } };
+  const q = new URLSearchParams(location.search).get("code");
+  if (q) { try { localStorage.setItem("ar-code", q); } catch {} }
+  document.getElementById("codeState").textContent = has() ? "Code saved: you can run it." : "";
+  document.getElementById("codeForm").onsubmit = (e) => {
+    e.preventDefault();
+    try { localStorage.setItem("ar-code", document.getElementById("code").value); } catch {}
+    document.getElementById("codeState").textContent = "Code saved: you can run it.";
+  };
 </script>
 </body>
 </html>

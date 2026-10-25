@@ -4,9 +4,18 @@
 
 import { engine, watch } from "/apps/shared/api.js";
 
-const api = engine("");
+// Access code: visitors with it act through the demo devices; without it the page is read-only.
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch { /* private mode */ } } };
+const code = () => new URLSearchParams(location.search).get("code") || store.get("ar-code") || "";
+export async function demoToken(sub) {
+  const res = await fetch(`/api/dev/login/${encodeURIComponent(sub)}`, { method: "POST", headers: { "X-Sandbox-Code": code() } });
+  if (!res.ok) throw Object.assign(new Error(`sign-in ${res.status}`), { status: res.status });
+  return (await res.json()).access_token;
+}
+const api = engine("", { token: demoToken });
 const root = document.getElementById("app");
-const st = { study: null, inst: null, events: [], busy: null, error: null, asks: [], routing: null, settled: [] };
+const st = { study: null, inst: null, events: [], busy: null, error: null, asks: [], routing: null, settled: [], readOnly: false };
 
 const h = (tag, props, ...kids) => {
   const el = document.createElement(tag);
@@ -64,18 +73,46 @@ const runSub = (sub) => act(`Run a round of ${sub.name}`, async () => {
   st.settled = r.settled.map((x) => ({ ...x, sub: sub.name, round: r.round })).concat(st.settled).slice(0, 60);
 });
 async function fetchJSON(path, body) {
-  const t = await (await fetch(`/api/dev/login/${encodeURIComponent(`researcher@${st.study.study.id}`)}`, { method: "POST" })).json();
-  const res = await fetch(path, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${t.access_token}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  const t = await demoToken(`researcher@${st.study.study.id}`);
+  const res = await fetch(path, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${t}`, ...(body ? { "Content-Type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
   if (!res.ok) throw Object.assign(new Error(`${path} -> ${res.status}`), { detail: await res.text() });
   return res.json();
 }
 
+// A handful of sub-projects under the institution's scope, so the structure is never empty:
+// in scope, one outside-scope item, one T3 item.
+const SEEDS = [
+  { name: "Night-shift recovery", purpose: "sleep_research", data_types: ["heart_rate.daily", "sleep.daily"], budget: 20, weeks: 6 },
+  { name: "Clinic blood pressure follow-up", purpose: "sleep_research", data_types: ["blood_pressure.daily"], budget: 20, weeks: 6 },
+  { name: "Diet and sleep", purpose: "sleep_research", data_types: ["sleep.daily", "meal.kcal"], budget: 15, weeks: 4 },
+  { name: "Sleep apnea imaging", purpose: "sleep_research", data_types: ["sleep.daily", "imaging.mri"], budget: 25, weeks: 4 },
+];
+let seeding = false;
+async function seed() {
+  if (seeding || !st.inst || st.inst.subprojects.length) return;
+  seeding = true;
+  for (const x of SEEDS) await fetchJSON("/api/institution/subprojects", x).catch(() => null);
+  seeding = false;
+}
+
 async function refresh() {
   try {
-    st.study = await api.study();
-    st.asks = st.study.responses.people.filter((p) => p.class === "approval" && p.status === "open");
-    st.inst = await fetchJSON("/api/institution").catch(() => null);   // sub-projects, once the engine has them
-  } catch (e) { st.error = e.detail || e.message; }
+    if (st.readOnly) {
+      const v = await (await fetch("/api/public/live")).json();
+      st.study = { ...v, responses: { people: [] } };
+      st.inst = v.institution;
+      st.events = v.events;
+    } else {
+      st.study = await api.study();
+      st.asks = st.study.responses.people.filter((p) => p.class === "approval" && p.status === "open");
+      st.inst = await fetchJSON("/api/institution").catch(() => null);
+      if (st.inst && !st.inst.subprojects.length) { await seed(); st.inst = await fetchJSON("/api/institution").catch(() => st.inst); }
+    }
+    st.error = null;
+  } catch (e) {
+    if (e.status === 403 && !st.readOnly) { st.readOnly = true; return refresh(); }
+    st.error = e.detail || e.message;
+  }
   draw();
 }
 
@@ -94,17 +131,17 @@ function structure() {
       h("div", { class: "spread" }, h("b", {}, x.name), tag(x.status || "Live", "green")),
       h("div", { class: "spread small muted" }, h("span", {}, (x.data_types || []).join(", ")),
         h("span", {}, st.inst ? `budget ${x.budget} · round ${x.rounds || 0} · paid ${Number(x.paid || 0).toFixed(2)} ${unit}` : `paid ${Number(x.paid || 0).toFixed(2)} ${unit}`)),
-      st.inst && h("button", { class: "btn sm", style: "align-self:flex-start;margin-top:4px", disabled: !!st.busy, onclick: () => runSub(x) }, "Run a round · agents deliver, escrow settles")))),
+      st.inst && !st.readOnly && h("button", { class: "btn sm", style: "align-self:flex-start;margin-top:4px", disabled: !!st.busy, onclick: () => runSub(x) }, "Run a round · agents deliver, escrow settles")))),
     st.inst && h("p", { class: "muted tiny" }, st.inst.asset_label || ""),
     st.routing && routingView(st.routing, unit),
-    st.inst ? h("form", { class: "subform", onsubmit: (e) => { e.preventDefault(); createSub(e.target); } },
+    st.inst && !st.readOnly ? h("form", { class: "subform", onsubmit: (e) => { e.preventDefault(); createSub(e.target); } },
       h("b", { class: "small" }, "New sub-project under this scope (no new contract)"),
       h("input", { name: "name", value: "Caffeine and sleep", required: true }),
       h("input", { name: "purpose", value: "sleep_research" }),
       h("input", { name: "types", value: "heart_rate.daily, caffeine", title: "in scope: heart_rate.daily, fatigue.survey · outside: caffeine · T3: genome.vcf, mri" }),
       h("div", { class: "row" }, h("input", { name: "budget", type: "number", value: "20", step: "0.01", title: `budget in ${unit}` }), h("input", { name: "weeks", type: "number", value: "4", title: "weeks" })),
       h("button", { class: "btn primary", disabled: !!st.busy }, "Create · agents route it")) :
-      h("p", { class: "muted tiny" }, "Sub-project creation appears here once the engine exposes /api/institution."));
+      null);
 }
 
 function routingView(r, unit) {
@@ -130,7 +167,16 @@ function cohort() {
       h("span", {}, h("i", { class: "wait" }), "waiting"), h("span", {}, h("i", { class: "gap" }), "missing")));
 }
 
+function codeBox() {
+  return h("form", { class: "card col", onsubmit: (e) => { e.preventDefault(); store.set("ar-code", new FormData(e.target).get("code")); location.reload(); } },
+    h("h2", {}, "Watching"),
+    h("p", { class: "muted small" }, "You can see the structure and every ledger step. To run the study and sign as the simulated people, enter the access code."),
+    h("div", { class: "row" }, h("input", { name: "code", type: "password", placeholder: "Access code", style: "flex:1;font:inherit;border:1px solid var(--border);border-radius:8px;padding:8px 10px" }),
+      h("button", { class: "btn primary" }, "Enter")));
+}
+
 function actions() {
+  if (st.readOnly) return codeBox();
   const sp = st.study.spec_status;
   return h("div", { class: "card col" },
     h("h2", {}, "Run it"),
@@ -178,9 +224,11 @@ function draw() {
   if (rows) rows.scrollTop = keep;
 }
 
-watch(api, (got, first) => {
+const watcher = watch(api, (got, first) => {
   if (first) st.events = [];
   st.events = st.events.concat(got.filter((e) => e.kind !== "access"));
   refresh();
 });
-draw();
+// Read-only visitors cannot read the researcher's event stream; poll the public view instead.
+setInterval(() => { if (st.readOnly) { watcher.stop(); refresh(); } }, 2000);
+refresh();
