@@ -82,8 +82,8 @@ every candidate, the comparison table, the negotiation, then the one trade with 
 | offer book | 477 listings, root anchored on the ledger before trading (re-anchored when agents collect new data) |
 | candidates per need | median 34 sampled and scored |
 | already held | 127 offers refused before trading (same certified root as data the buyer bought); 3 copies bought at the new part only |
-| trades | 141: 99 settled, 10 settled but unfit (refund claim recorded), 23 blocked, 6 declined by the owner, 3 waiting for the owner |
-| sold by the agent on its own | 87 of 109 settled |
+| trade attempts | 141: 109 paid (escrow finished, key revealed), 23 blocked by the seller's rules, 6 declined by the owner, 3 waiting for the owner |
+| paid trades | 109: 99 passed the buyer's delivery check, 10 failed it (refund claim recorded); 87 of the 109 needed no owner decision |
 | volume | 1.72 XRP paid at negotiated prices (about 9% under the asks) |
 | hours from need to fill | median 0 (agent), p90 11.3 (owner answered) |
 | unfit deliveries caught | 10 after delivery (not as committed, incomplete or impossible values), each with a refund claim |

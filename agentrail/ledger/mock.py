@@ -208,6 +208,9 @@ class MockLedger(Ledger):
                         tx_type=t.get("TransactionType"), result=t["result"], condition=t.get("Condition"),
                         fulfillment=t.get("Fulfillment"), sequence=t.get("Sequence"))
 
+    def memo_of(self, tx_hash: str) -> str | None:
+        return (self.txs.get(tx_hash) or {}).get("Memo")
+
     def invoice_field_of(self, blob: str) -> str | None:
         return json.loads(blob).get("InvoiceID")
 

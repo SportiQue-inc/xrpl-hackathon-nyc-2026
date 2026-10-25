@@ -18,8 +18,15 @@ ledger, fans out to every candidate, opens a hashed sample of each against its c
 them, negotiates with the best, and pays on XRPL with a key-reveal escrow: the payment itself
 publishes the key that opens the data. What it buys accumulates in its own store and can be sold on.
 A buyer never pays twice for data it already holds: an offer with a root it bought before is
-refused, and copied rows are priced at the new part only. In the simulated market (mock ledger, seed
-11), agents settled 87 of 109 settled transactions without another owner decision. `python scripts/export_network.py` replays it as a node network.
+refused, and copied rows are priced at the new part only. In our simulated market of 50 synthetic
+accounts (mock ledger, seed 11), agents completed 109 paid trades, 87 of them without an owner
+decision; 10 deliveries failed the buyer's check and were recorded as refund claims. `python scripts/export_network.py` replays it as a node network.
+
+![One Act 1 trade: need and offer book, check before paying, owner's rules, EscrowCreate, sealed push, EscrowFinish reveals K, bundle opens](docs/img/agentrail-flow.png)
+
+One trade in the order the engine runs it. In Act 1 the engine holds K until EscrowFinish; in the
+health flow K stays in the person's keyring. CancelAfter counts from the moment the escrow is
+prepared, so a slow ledger does not push the finish past the deadline.
 
 **SportiQue.** We run both sides of health data: UniQdata for people's own health data and UniQLab
 for researchers. In health the same headache is far bigger: consent for every item, studies that fit
