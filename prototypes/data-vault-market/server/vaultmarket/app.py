@@ -263,9 +263,9 @@ def demo(minutes: int = 60):
         raise HTTPException(400,"Choose 15, 60, 180 minutes or all history")
     now=time.time();start=now-minutes*60 if minutes else M.s.one("SELECT COALESCE(MIN(created),?) t FROM txs",(now,))["t"]
     styles=_agent_styles(start);ids={a['id'] for a in styles}
-    rows=M.s.q("SELECT src,COALESCE(asset,'XRP') asset,drops,created FROM txs WHERE type LIKE 'EscrowFinish%' AND result='tesSUCCESS' AND created>=? ORDER BY created",(start,))
+    rows=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,t.drops,t.created,t.contract,c.kind,b.name buyer_name FROM txs t LEFT JOIN contracts c ON c.id=t.contract LEFT JOIN accounts b ON b.id=c.buyer WHERE t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' AND t.created>=? ORDER BY t.created",(start,))
     for a in styles:
-        a['receipts']=[{'asset':r['asset'],'amount':r['drops']/1e6,'at':r['created']} for r in rows if r['src']==a['id']]
+        a['receipts']=[{'asset':r['asset'],'amount':r['drops']/1e6,'at':r['created'],'contract':r['contract'],'kind':r['kind'],'buyer':r['buyer_name']} for r in rows if r['src']==a['id']]
     activity=[]
     for c in M.s.q("SELECT id,buyer,seller,kind,status,reason,created FROM contracts ORDER BY id DESC LIMIT 100"):
         if c['buyer'] not in ids or c['seller'] not in ids:
@@ -429,6 +429,7 @@ def _bundles(aid: str):
         if mine:
             demand.append({**w, "listed": sum(f["status"] == "listed" for f in mine), "private": sum(f["status"] == "private" for f in mine),
                            "interested": bool(M.s.one("SELECT 1 FROM interests WHERE account = ? AND posting = ?", (aid, w["id"])))})
+    demand.sort(key=lambda w: (-(w["offer"] or 0), -(w["max"] or 0)))
     return files, out, demand
 
 
