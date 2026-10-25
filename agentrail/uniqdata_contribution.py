@@ -300,13 +300,32 @@ class ContributionBridge:
             raise PermissionError("The original Core consent has not been withdrawn or expired")
         row = self._row()
         terms = self.state["settlement"]
-        if self._licence_held():
-            tx = self.engine.ledger.clawback_licence(terms["payee_address"], terms["payer_address"], row["licence_id"])
-            with self.engine.store.tx() as db:
-                db.execute("UPDATE uniqdata_file_transfers SET clawback_tx=?,licence_status='revoked' WHERE submission_ref=?",
-                           (tx, self.state["submission_ref"]))
         oid = row["order_id"]
         status = self.engine.store.one("SELECT status FROM orders WHERE id=?", oid)["status"]
         if status != "delivered":
             self.engine.process(oid)
-        return {"status": "withdrawn", "clawback_tx": self._row()["clawback_tx"], "ledger": self.engine.ledger.name}
+        pending_finish = self.engine.store.one(
+            "SELECT 1 FROM outbox WHERE order_id=? AND kind='finish' AND status='pending'", oid)
+        if pending_finish:
+            # Finish and clawback share the payee signer; resolve its reserved sequence first.
+            raise RuntimeError("Reconcile the pending finish before sending a licence clawback")
+        if row["licence_status"] in {"issuing", "revoking"}:
+            raise RuntimeError("Reconcile the pending licence transaction before completing withdrawal")
+        if self._licence_held():
+            if row["clawback_tx"]:
+                raise RuntimeError("Reconcile the saved clawback and current licence balance")
+            with self.engine.store.tx() as db:
+                db.execute("UPDATE uniqdata_file_transfers SET licence_status='revoking' WHERE submission_ref=?",
+                           (self.state["submission_ref"],))
+            tx = self.engine.ledger.clawback_licence(terms["payee_address"], terms["payer_address"], row["licence_id"])
+            with self.engine.store.tx() as db:
+                db.execute("UPDATE uniqdata_file_transfers SET clawback_tx=?,licence_status='revoked' WHERE submission_ref=?",
+                           (tx, self.state["submission_ref"]))
+            if self._licence_held():
+                raise RuntimeError("Reconcile the clawback before completing withdrawal")
+        elif row["licence_id"] and not row["clawback_tx"]:
+            raise RuntimeError("Reconcile the absent licence without a saved clawback receipt")
+        status = self.engine.store.one("SELECT status FROM orders WHERE id=?", oid)["status"]
+        receipt = self.finish()["receipt"] if status == "delivered" else None
+        return {"status": "withdrawn", "clawback_tx": self._row()["clawback_tx"], "ledger": self.engine.ledger.name,
+                "settlement_status": status, "receipt": receipt}

@@ -101,6 +101,16 @@ treasury or licence submission stops for ledger reconciliation; never delete the
 case directory or generate a new request merely to retry. An expired signed
 mandate is not silently renewed.
 
+Recovery rechecks authority before every key-bearing submission, including a
+previously saved transaction. RPC failure and missing history are not evidence
+that a payment or licence is absent. An expired transaction is replaced only
+when a later validated account sequence proves it never applied. An unresolved
+finish is reconciled before a clawback using the same signer. A lost clawback
+receipt stays unresolved; the operator does not silently send another one.
+An already-earned Testnet receipt can still be recorded after withdrawal without
+exporting or reopening data. Protect the private outbox as key material, because
+an unsubmitted EscrowFinish blob contains the unreleased decryption key.
+
 Acceptance requires the same main account, existing physical passkey, exact
 submission/consent, reviewed package hash, actual Testnet create/finish hashes and
 balance delta, original Core withdrawal, validated clawback, and refused next

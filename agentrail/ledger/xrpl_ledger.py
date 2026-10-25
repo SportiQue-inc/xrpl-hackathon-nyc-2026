@@ -273,8 +273,10 @@ class XrplLedger(Ledger):
     def lookup(self, tx_hash: str) -> TxStatus:
         resp = _retry(lambda: self.client.request(Tx(transaction=tx_hash)))
         r = resp.result
-        if not resp.is_successful() or r.get("error") == "txnNotFound":
+        if r.get("error") == "txnNotFound":
             return TxStatus(found=False)
+        if not resp.is_successful():
+            raise RuntimeError("Transaction lookup is unavailable; outcome remains unknown")
         txj = r.get("tx_json", r)
         meta = r.get("meta", {})
         delivered = meta.get("delivered_amount", txj.get("Amount"))
@@ -294,11 +296,25 @@ class XrplLedger(Ledger):
     def is_expired(self, blob: str) -> bool:
         tx = decode(blob)
         lls = tx.get("LastLedgerSequence")
-        expired = lls is not None and _retry(lambda: get_latest_validated_ledger_sequence(self.client)) > lls
-        if expired:
-            with self._seq_lock:  # the sequence was never consumed: re-read it from the ledger
+        return lls is not None and _retry(lambda: get_latest_validated_ledger_sequence(self.client)) > lls
+
+    def can_replace(self, blob: str) -> bool:
+        tx = decode(blob)
+        seq, lls = tx.get("Sequence"), tx.get("LastLedgerSequence")
+        if type(seq) is not int or seq <= 0 or type(lls) is not int or tx.get("TicketSequence"):
+            return False
+        response = self.client.request(AccountInfo(account=tx["Account"], ledger_index="validated"))
+        r, account = response.result, response.result.get("account_data", {})
+        # An unconsumed sequence in a ledger past LLS proves this tx never applied,
+        # even when a node cannot provide the old transaction's ledger history.
+        proven = (response.is_successful() and r.get("validated") is True
+                  and type(r.get("ledger_index")) is int and r["ledger_index"] > lls
+                  and account.get("Account") == tx["Account"]
+                  and type(account.get("Sequence")) is int and account["Sequence"] <= seq)
+        if proven:
+            with self._seq_lock:
                 self._seq.pop(tx["Account"], None)
-        return expired
+        return proven
 
     def memo_of(self, tx_hash: str) -> str | None:
         r = _retry(lambda: self.client.request(Tx(transaction=tx_hash))).result
@@ -311,13 +327,17 @@ class XrplLedger(Ledger):
 
     def wait_validated(self, tx_hash: str, timeout: float = 30.0) -> TxStatus:
         end = time.time() + timeout
-        st = TxStatus(found=False)
+        st = None
         while True:
             try:
                 st = self.lookup(tx_hash)
-            except Exception:  # still unreachable after retries: keep polling until the deadline
-                pass
-            if st.validated or time.time() >= end:
+            except Exception:  # Unreachable is not evidence that the transaction is absent.
+                st = None
+            if st is not None and st.validated:
+                return st
+            if time.time() >= end:
+                if st is None:
+                    raise RuntimeError("Transaction status is unavailable; reconcile before retrying")
                 return st
             time.sleep(1.0)
 

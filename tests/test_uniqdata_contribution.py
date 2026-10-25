@@ -235,3 +235,141 @@ def test_resident_transport_accepts_only_the_configured_context():
 def test_resident_transport_requires_an_explicit_argument_vector(command):
     with pytest.raises(ValueError):
         ResidentCore(command, country="KR", lane="prod")
+
+
+@pytest.mark.parametrize("already_submitted", [False, True])
+def test_withdrawal_recovery_never_first_publishes_a_saved_finish(connected, monkeypatch, already_submitted):
+    bridge, core, engine = connected
+    oid = bridge.prepare()
+    bridge.deliver()
+    original = engine._submit
+    def crash(order_id, prepared):
+        if already_submitted:
+            original(order_id, prepared)
+        raise RuntimeError("crash after finish persistence")
+    monkeypatch.setattr(engine, "_submit", crash)
+    with pytest.raises(RuntimeError):
+        bridge.finish()
+    payment = engine.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+    assert payment["finish_tx"]
+    monkeypatch.setattr(engine, "_submit", original)
+    core.state.update(active=False, status="withdrawn")
+    calls = engine.ledger.submit_calls
+    if already_submitted:
+        bridge.sync_withdrawal()
+    else:
+        with pytest.raises(RuntimeError, match="Reconcile"):
+            bridge.sync_withdrawal()
+    engine.recover()
+    assert engine.ledger.submit_calls == calls
+    assert engine.ledger.lookup(payment["finish_tx"]).found is already_submitted
+    if already_submitted:
+        assert engine.store.one("SELECT status FROM orders WHERE id=?", oid)["status"] == "delivered"
+        assert "receipt" in core.calls
+    else:
+        monkeypatch.setattr(engine.ledger, "is_expired", lambda _: True)
+        monkeypatch.setattr(engine.ledger, "can_replace", lambda _: True)
+        engine.ledger.clock = payment["cancel_after"] + 1
+        bridge.sync_withdrawal()
+        engine.recover()
+        assert not engine.ledger.lookup(payment["finish_tx"]).found
+        assert engine.store.one("SELECT status FROM orders WHERE id=?", oid)["status"] == "refunded"
+
+
+def test_missing_ledger_history_cannot_replace_a_previously_applied_escrow(connected, monkeypatch):
+    from agentrail.ledger.base import TxStatus
+    bridge, core, engine = connected
+    oid = bridge.prepare()
+    bridge._ensure_licence()
+    original = engine._submit
+    def crash(order_id, prepared):
+        original(order_id, prepared)
+        raise RuntimeError("applied create before local confirmation")
+    monkeypatch.setattr(engine, "_submit", crash)
+    with pytest.raises(RuntimeError):
+        engine.process(oid, until="finish")
+    original_create = engine.store.one("SELECT tx_hash FROM payments WHERE order_id=?", oid)["tx_hash"]
+    monkeypatch.setattr(engine, "_submit", original)
+    lookup = engine.ledger.lookup
+    monkeypatch.setattr(engine.ledger, "lookup", lambda h: TxStatus(found=False) if h == original_create else lookup(h))
+    monkeypatch.setattr(engine.ledger, "is_expired", lambda _: True)
+    with pytest.raises(RuntimeError, match="Reconcile"):
+        engine.process(oid, until="finish")
+    assert len([tx for tx in engine.ledger.txs.values() if tx["TransactionType"] == "EscrowCreate"]) == 1
+    assert engine.store.one("SELECT tx_hash FROM payments WHERE order_id=?", oid)["tx_hash"] == original_create
+
+
+def test_lost_clawback_receipt_stays_unresolved_without_another_submission(connected, monkeypatch):
+    bridge, core, engine = connected
+    bridge.prepare()
+    bridge.deliver()
+    bridge.finish()
+    core.state.update(active=False, status="withdrawn")
+    original = engine.ledger.clawback_licence
+    def lost(*args):
+        original(*args)
+        raise TimeoutError("lost clawback receipt")
+    monkeypatch.setattr(engine.ledger, "clawback_licence", lost)
+    with pytest.raises(TimeoutError):
+        bridge.sync_withdrawal()
+    count = len(engine.ledger.txs)
+    with pytest.raises(RuntimeError, match="Reconcile"):
+        bridge.sync_withdrawal()
+    assert len(engine.ledger.txs) == count
+    assert bridge._row()["clawback_tx"] is None
+
+
+def test_withdrawal_before_encrypted_handoff_returns_the_existing_escrow(connected):
+    bridge, core, engine = connected
+    oid = bridge.prepare()
+    bridge._ensure_licence()
+    assert engine._escrow_create(oid)
+    core.state.update(active=False, status="withdrawn")
+    bridge.sync_withdrawal()
+    payment = engine.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+    engine.ledger.clock = payment["cancel_after"] + 1
+    bridge.sync_withdrawal()
+    assert engine.store.one("SELECT status FROM orders WHERE id=?", oid)["status"] == "refunded"
+    assert engine.store.one("SELECT finish_tx FROM payments WHERE order_id=?", oid)["finish_tx"] is None
+
+
+def test_saved_unsubmitted_create_is_not_first_funded_after_withdrawal(connected, monkeypatch):
+    bridge, core, engine = connected
+    oid = bridge.prepare()
+    bridge._ensure_licence()
+    original = engine._submit
+    monkeypatch.setattr(engine, "_submit", lambda *_: (_ for _ in ()).throw(RuntimeError("crash before create submit")))
+    with pytest.raises(RuntimeError):
+        engine.process(oid, until="finish")
+    monkeypatch.setattr(engine, "_submit", original)
+    core.state.update(active=False, status="withdrawn")
+    calls = engine.ledger.submit_calls
+    engine.recover()
+    assert engine.ledger.submit_calls == calls
+    monkeypatch.setattr(engine.ledger, "is_expired", lambda _: True)
+    monkeypatch.setattr(engine.ledger, "can_replace", lambda _: True)
+    engine.recover()
+    assert engine.store.one("SELECT status FROM orders WHERE id=?", oid)["status"] == "blocked"
+    assert engine.store.one("SELECT reserved_drops FROM mandates")["reserved_drops"] == 0
+
+
+def test_withdrawal_reconciles_an_earned_receipt_without_reopening_data(connected, monkeypatch):
+    bridge, core, engine = connected
+    bridge.prepare()
+    bridge.deliver()
+    original = core.call
+    def unavailable(action, **body):
+        if action == "receipt":
+            raise PermissionError("receipt service temporarily unavailable")
+        return original(action, **body)
+    monkeypatch.setattr(core, "call", unavailable)
+    with pytest.raises(PermissionError):
+        bridge.finish()
+    count = engine.ledger.submit_calls
+    core.state.update(active=False, status="withdrawn")
+    monkeypatch.setattr(core, "call", original)
+    result = bridge.sync_withdrawal()
+    assert result["receipt"]["finish_tx_hash"]
+    assert core.exports == 1 and engine.ledger.submit_calls == count
+    with pytest.raises(PermissionError):
+        bridge.open_package()
