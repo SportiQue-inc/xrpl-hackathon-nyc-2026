@@ -15,6 +15,7 @@ import hashlib
 import os
 import json
 import re
+import sqlite3
 import time
 from dataclasses import dataclass
 
@@ -335,7 +336,7 @@ class Engine:
                 return False
             buyer_addr = self.party(o["buyer_id"])["address"]
             pv = json.loads(o["policy_snapshot"]).get("version", "")
-            memo = _memo(oid, o, pv, mh)
+            memo = _memo(oid, o, pv, mh) + self._consent_tag(o)
             prep = self.ledger.prepare_payment(buyer_addr, p["payee_address"], p["amount_drops"],
                                                p["invoice_id"], memo)
             # Persist the signed tx BEFORE submitting: a lost response is then recoverable by hash.
@@ -467,6 +468,14 @@ class Engine:
             st = self.ledger.wait_validated(h)
         return h, st
 
+    def _consent_tag(self, o) -> str:
+        """The seller's passkey-signed approval statement, when one is being applied (security/passkey.py)."""
+        try:
+            from .security.passkey import memo_tag
+            return memo_tag(self.store, o["seller_id"])
+        except sqlite3.OperationalError:      # no passkey tables (engine used without the security layer)
+            return ""
+
     def _escrow_create(self, oid: int) -> bool:
         o = self.store.one("SELECT * FROM orders WHERE id=?", oid)
         p = self.store.one("SELECT * FROM payments WHERE order_id=?", oid)
@@ -486,7 +495,7 @@ class Engine:
             return False
         buyer_addr = self.party(o["buyer_id"])["address"]
         pv = json.loads(o["policy_snapshot"]).get("version", "")
-        memo = _memo(oid, o, pv, mh)
+        memo = _memo(oid, o, pv, mh) + self._consent_tag(o)
         if p["tx_hash"] is None:
             p = self._refresh_deadline(oid, p)
         h, st = self._send(oid, "create", lambda: self.ledger.prepare_escrow_create(
@@ -550,7 +559,7 @@ class Engine:
             pv = json.loads(o["policy_snapshot"]).get("version", "")
             legs.append({"destination": p["payee_address"], "amount_drops": p["amount_drops"],
                          "condition": p["condition"], "cancel_after": p["cancel_after"],
-                         "memo": _memo(oid, o, pv, mh)})
+                         "memo": _memo(oid, o, pv, mh) + self._consent_tag(o)})
         try:
             outer, hashes, seqs = prep_batch(self.party(buyer)["address"], legs)
             self.ledger.submit(outer)
