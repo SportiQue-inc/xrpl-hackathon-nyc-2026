@@ -174,7 +174,7 @@ def test_round_escrow_refused_because_finish_after_passed_is_retried_with_fresh_
     monkeypatch.setattr(payout, "_send", send)
     now = w.ledger.now()
     req = honest(w)
-    hid = payout._create(w, "bonus", LAB, req["person"], 999, 1, 1000, now + 20, now + 620, now + 680, "held")
+    hid = payout._create(w, "round", LAB, req["person"], 999, 1, 1000, now + 20, now + 620, now + 680, "held")
     assert hid and len(calls) == 2
     h = w.store.one("SELECT * FROM holdbacks WHERE id=?", hid)
     assert h["finish_after"] > w.ledger.now() and h["create_tx"] == calls[1].tx_hash

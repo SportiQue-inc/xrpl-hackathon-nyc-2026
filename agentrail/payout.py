@@ -165,15 +165,20 @@ def _create(w, kind, study, pid, rid, cells, amount, finish_after, review_until,
     prep = L.prepare_escrow_create(owner, dest, amount, condition_hex(key), cancel_after, memo,
                                    finish_after=finish_after)
     st = _send(w, prep)
-    if (not st.success and "tecNO_PERMISSION" in str(st.result) and finish_after is not None
-            and L.now() >= finish_after):
+    if not st.success and "tecNO_PERMISSION" in str(st.result) and finish_after is not None:
         # FinishAfter passed while the tx queued behind the study account's other txs (parallel settle):
         # the ledger refuses an escrow that is already finishable. Retry once with the times moved forward.
-        shift = L.now() + windows(L)["review"] - finish_after
-        finish_after, review_until, cancel_after = finish_after + shift, review_until + shift, cancel_after + shift
-        prep = L.prepare_escrow_create(owner, dest, amount, condition_hex(key), cancel_after, memo,
-                                       finish_after=finish_after)
-        st = _send(w, prep)
+        try:
+            w.ledger.__dict__.pop("_now_cache", None)          # the ledger's view now, not a cached one
+            shift = max(0, L.now() + windows(L)["review"] - finish_after)
+        except Exception:  # noqa: BLE001 - no clock, no retry; logged below like any failed create
+            shift = 0
+        if shift:
+            finish_after, review_until, cancel_after = (finish_after + shift, review_until + shift,
+                                                        cancel_after + shift)
+            prep = L.prepare_escrow_create(owner, dest, amount, condition_hex(key), cancel_after, memo,
+                                           finish_after=finish_after)
+            st = _send(w, prep)
     if not (st.validated and st.success):
         w.store.log(study, "error", f"{pid}: {kind} EscrowCreate failed ({st.result})")
         return None
