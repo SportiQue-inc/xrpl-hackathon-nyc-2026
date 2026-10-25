@@ -20,6 +20,7 @@ from xrpl.wallet import Wallet, generate_faucet_wallet
 from .base import Ledger, LostResponse, Prepared, TxStatus
 
 _LEDGERS: list = []      # live XrplLedger instances, so out-of-band submits can resync their sequence cache
+TX_STATS = {"submitted": 0, "fee_drops": 0}      # every tx this process sent, for the running-cost count
 
 
 def submit_and_wait(tx, client, wallet=None, **kw):
@@ -27,7 +28,10 @@ def submit_and_wait(tx, client, wallet=None, **kw):
     autofilled from the ledger, so a cached counter for that account is now behind."""
     from xrpl.transaction import submit_and_wait as _saw
     try:
-        return _saw(tx, client, wallet, **kw)
+        r = _saw(tx, client, wallet, **kw)
+        TX_STATS["submitted"] += 1
+        TX_STATS["fee_drops"] += int((r.result.get("tx_json") or r.result).get("Fee", 0) or 0)
+        return r
     finally:
         for led in _LEDGERS:
             with led._seq_lock:
@@ -53,11 +57,32 @@ def _retry(fn, tries: int = 4):
             time.sleep(0.5 * 2 ** i)
 
 
+class _RetryingClient(JsonRpcClient):
+    """Every read (account_objects, account_info, tx, ledger...) retries on a transport timeout, so one
+    dropped connection to a public Testnet node does not surface as a 500. Submits are not retried here;
+    `submit` has its own resubmit logic."""
+    READS_TRIES = 3
+
+    async def _request_impl(self, request, *, timeout: float = 10.0):
+        import asyncio
+        import httpx
+        method = getattr(getattr(request, "method", None), "value", getattr(request, "method", ""))
+        if str(method).startswith("submit"):
+            return await super()._request_impl(request, timeout=timeout)
+        for i in range(self.READS_TRIES):
+            try:
+                return await super()._request_impl(request, timeout=timeout)
+            except httpx.TransportError:
+                if i == self.READS_TRIES - 1:
+                    raise
+                await asyncio.sleep(0.5 * 2 ** i)
+
+
 class XrplLedger(Ledger):
     name = "testnet"
 
     def __init__(self, rpc_url: str = TESTNET_RPC, wallet_file: str = WALLET_FILE):
-        self.client = JsonRpcClient(rpc_url)
+        self.client = _RetryingClient(rpc_url)
         self.wallet_file = wallet_file
         self.wallets: dict[str, Wallet] = {}
         self._seq: dict[str, int] = {}
@@ -209,6 +234,9 @@ class XrplLedger(Ledger):
                 raise LostResponse(str(e)) from e
             engine = resp.result.get("engine_result", "")
             if engine != "terPRE_SEQ":
+                if i == 0:
+                    TX_STATS["submitted"] += 1
+                    TX_STATS["fee_drops"] += int(decode(prepared.blob).get("Fee", 0) or 0)
                 break
             time.sleep(0.5)
         # tef/tem codes mean the tx can never apply; anything else -> check the ledger.

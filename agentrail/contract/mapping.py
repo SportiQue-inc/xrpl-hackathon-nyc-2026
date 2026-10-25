@@ -322,7 +322,7 @@ def review(desc: dict, rows: list[dict], vals: dict, meta: dict, propose=None) -
     if not acc:
         return rows, "none"
     inp = {**desc, "accepted": [{"column": r["column"], **r["proposed"]} for r in acc]}
-    out, source = _ask(propose, REVIEW_SYSTEM, inp)
+    out, source = _ask(propose, REVIEW_SYSTEM, inp, side="participant")
     if out is None:
         return rows, source
     got = {x.get("column"): x for x in out.get("reviews", []) if isinstance(x, dict)}

@@ -63,6 +63,11 @@ class Voice:
         self.timeout = float(os.environ.get("LLM_TIMEOUT", "30"))   # reasoning models take longer
         self.max_calls = int(os.environ.get("LLM_MAX_CALLS", "60"))
         self.calls = 0
+        # running cost: live calls with the provider's token counts; replayed answers count their
+        # recorded tokens separately (they cost nothing on this run)
+        self.usage = {s: {"live_calls": 0, "replayed_calls": 0, "input_tokens": 0, "output_tokens": 0,
+                          "replayed_input_tokens": 0, "replayed_output_tokens": 0} for s in ("research", "participant")}
+        self._tl = threading.local()          # token counts of this thread's last call
         self.rpm = float(os.environ.get("LLM_RPM", "60"))   # client-side throttle, below the project limit
         self._next_slot = 0.0
         self.error: str | None = None
@@ -166,39 +171,58 @@ class Voice:
                 max_completion_tokens=1500, response_format={"type": "json_object"},
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}])
             text = r.choices[0].message.content or ""
+            u = getattr(r, "usage", None)
+            self._tl.usage = (getattr(u, "prompt_tokens", 0) or 0, getattr(u, "completion_tokens", 0) or 0)
         else:
             r = self._client.messages.create(
                 model=self.model, max_tokens=4000, system=system + " Reply with one JSON object only.",
                 output_config={"effort": "low"}, messages=[{"role": "user", "content": prompt}])
             text = "".join(b.text for b in r.content if b.type == "text")
+            u = getattr(r, "usage", None)
+            self._tl.usage = (getattr(u, "input_tokens", 0) or 0, getattr(u, "output_tokens", 0) or 0)
         text = text.strip()
         if text.startswith("```"):
             text = text.strip("`").split("\n", 1)[1] if "\n" in text else text
         start, end = text.find("{"), text.rfind("}")
         return json.loads(text[start:end + 1])
 
-    def propose(self, system: str, payload: dict) -> tuple[dict | None, str]:
+    def _replayed(self, hit, side):
+        if hit:
+            u = self.usage[side]
+            u["replayed_calls"] += 1
+            u["replayed_input_tokens"] += hit.get("usage", [0, 0])[0]
+            u["replayed_output_tokens"] += hit.get("usage", [0, 0])[1]
+        return (hit["answer"], "llm") if hit else (None, "rules")
+
+    def propose(self, system: str, payload: dict, side: str | None = None) -> tuple[dict | None, str]:
         """Ask for a JSON proposal. Returns (proposal, 'llm') or (None, 'rules').
         The caller validates every field; nothing here is trusted."""
+        side = side or getattr(self._tl, "side", None)
+        side = side if side in self.usage else "research"
         key = self._key(system, payload)
         hit = self.cache.get(key)
         if self.provider == "replay":
-            return (hit["answer"], "llm") if hit else (None, "rules")
+            return self._replayed(hit, side)
         with self._lock:
             if not self.active or self.calls >= self.max_calls:
-                return (hit["answer"], "llm") if hit else (None, "rules")
+                return self._replayed(hit, side)
             self.calls += 1
         try:
             out = self._ask_json(system, json.dumps(payload, ensure_ascii=False))
+            with self._lock:
+                u = self.usage[side]
+                u["live_calls"] += 1
+                u["input_tokens"] += getattr(self._tl, 'usage', (0, 0))[0]
+                u["output_tokens"] += getattr(self._tl, 'usage', (0, 0))[1]
             if self.record and isinstance(out, dict):
                 with self._lock:
-                    self.cache[key] = {"model": self.model, "answer": out}
+                    self.cache[key] = {"model": self.model, "answer": out, "usage": list(getattr(self._tl, 'usage', (0, 0)))}
                     with open(self.cache_path, "w") as f:
                         json.dump(self.cache, f, indent=1, sort_keys=True)
         except Exception as e:
             with self._lock:
                 self._off(e)
-            return (hit["answer"], "llm") if hit else (None, "rules")
+            return self._replayed(hit, side)
         return (out, "llm") if isinstance(out, dict) else (None, "rules")
 
     def say(self, speaker: str, to: str | None, facts: dict, fallback: str) -> tuple[str, str]:
