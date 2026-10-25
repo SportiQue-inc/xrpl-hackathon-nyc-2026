@@ -46,11 +46,16 @@ CREATE TABLE IF NOT EXISTS contract_members (
   contract_id TEXT NOT NULL, pid TEXT NOT NULL, joined_via TEXT NOT NULL, public_hex TEXT NOT NULL,
   items TEXT NOT NULL, automation TEXT NOT NULL, consent_hash TEXT NOT NULL, consent_signature TEXT NOT NULL,
   data_source TEXT NOT NULL, status TEXT NOT NULL, joined_at REAL NOT NULL, withdrawn_at REAL,
+  payout_address TEXT,
   PRIMARY KEY (contract_id, pid)
 );
 CREATE TABLE IF NOT EXISTS contract_rounds (
   id INTEGER PRIMARY KEY AUTOINCREMENT, contract_id TEXT NOT NULL, week INTEGER NOT NULL,
   started_at REAL NOT NULL, result TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS contract_payments (
+  order_id INTEGER PRIMARY KEY, contract_id TEXT NOT NULL, pid TEXT NOT NULL, rail TEXT NOT NULL, ref TEXT NOT NULL,
+  amount_micro INTEGER NOT NULL, ok INTEGER NOT NULL, result TEXT NOT NULL, attempts INTEGER NOT NULL, updated_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS member_records (
   pid TEXT NOT NULL, item TEXT NOT NULL, day INTEGER NOT NULL, value TEXT NOT NULL,
@@ -66,6 +71,11 @@ REGISTRY = "contracts_registry"
 ETHICS = "ETHICS_REVIEW"
 JOIN_TTL_S = 900
 MAX_MEMBERS = 500
+# AGENTRAIL_CONTRACTS_PAY=ap4m: each delivered member-week is paid through the AP4M rail (ap4m_rail.pay),
+# one payment of at most 0.10, into the team's AP4M merchant wallet (AP4M has one merchant per team).
+RAILS = ("ledger", "ap4m")
+AP4M_MAX_MICRO = 100_000
+AP4M_PAYEE = "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here"
 
 
 class ContractError(ValueError):
@@ -99,6 +109,9 @@ class Lane:
         self.store = Store(path or os.environ.get("AGENTRAIL_CONTRACTS_DB")
                            or (os.path.join(vol, "contracts.db") if vol else ":memory:"))
         self.store._keepalive.executescript(SCHEMA)
+        cols = {r[1] for r in self.store._keepalive.execute("PRAGMA table_info(contract_members)")}
+        if "payout_address" not in cols:        # a store from before payouts were forwarded
+            self.store._keepalive.execute("ALTER TABLE contract_members ADD COLUMN payout_address TEXT")
         self.ledger = ledger or make_ledger(os.environ.get("LEDGER", "mock"))
         wallets = os.environ.get("AGENTRAIL_CONTRACTS_WALLETS") or (os.path.join(vol, "contracts.wallets.json") if vol else None)
         if wallets and hasattr(self.ledger, "_labels"):
@@ -109,6 +122,9 @@ class Lane:
         self.engine = Engine(self.store, self.ledger)
         self.engine.relay = self.ledger.new_account("contracts_relay")
         self.root = os.environ.get("AGENTRAIL_KEYSTORE") or (os.path.join(vol, "keystore") if vol else None)
+        self.rail = os.environ.get("AGENTRAIL_CONTRACTS_PAY", "ledger")
+        if self.rail not in RAILS:
+            raise ValueError(f"AGENTRAIL_CONTRACTS_PAY must be one of {RAILS}")
         self.people: dict[str, PersonalAgent] = {}
         self.uniqdata: dict = {}                      # roster id -> UniQdataClient (UNIQDATA_ROSTER)
         self._pending: dict[str, dict] = {}           # pid -> join waiting for its signature
@@ -120,6 +136,42 @@ class Lane:
             self.engine.add_party(REGISTRY, "AgentRail contract registry", "organization",
                                   self.ledger.new_account(REGISTRY))
         self._load()
+        if os.environ.get("AGENTRAIL_CONTRACTS_AUTORUN", "1") != "0":
+            threading.Thread(target=self._autorun, name="contract-rounds", daemon=True).start()
+
+    # ---------- the researcher's agent: each week on its own ----------
+
+    def _autorun(self):
+        while True:
+            time.sleep(5)
+            try:
+                self.tick()
+            except Exception as e:              # a bad round never stops the next one
+                self.store.log(REGISTRY, "round_failed", f"automatic round failed: {str(e)[:200]}")
+
+    def tick(self, now: float | None = None) -> list[dict]:
+        """Run every round that is due: a contract posted with round_every_s gets its next week that many
+        seconds after the last one (the first one that long after posting). No one presses anything: the
+        institution's agent asks, each member's agent answers from that member's consent, the rail pays."""
+        now = time.time() if now is None else now
+        out = []
+        for c in self.store.q("SELECT id, terms, created_at FROM research_contracts WHERE status='open'"):
+            t = json.loads(c["terms"])
+            every = t.get("round_every_s")
+            if not every:
+                continue
+            last = self.store.one("SELECT week, started_at FROM contract_rounds WHERE contract_id=? "
+                                  "ORDER BY id DESC LIMIT 1", c["id"])
+            week = last["week"] + 1 if last else t["weeks"][0]
+            if week > t["weeks"][1]:
+                self.retry_payments(c["id"])
+                self.close(c["id"])
+                self.store.log(t["institution_id"], "contract_done", f"{c['id']}: last week done, contract closed")
+                continue
+            if now >= (last["started_at"] if last else c["created_at"]) + every and self._members(c["id"]):
+                r = self.run_round(c["id"], week)
+                out.append({k: r[k] for k in ("contract", "week", "members", "summary")})
+        return out
 
     # ---------- startup: rebuild agents from the records ----------
 
@@ -127,6 +179,9 @@ class Lane:
         for c in self.store.q("SELECT * FROM research_contracts"):
             self._open_institution(c["institution_id"])
             self._rewallet(c["institution_id"])
+            if self.ledger.name == "mock":     # mock credentials live in memory: issue the ethics one again
+                self.ledger.issue_credential(self.engine.party(REGISTRY)["address"],
+                                             self.engine.party(c["institution_id"])["address"], ETHICS)
         for m in self.store.q("SELECT * FROM contract_members"):
             if m["pid"] not in self.people:
                 try:
@@ -138,7 +193,9 @@ class Lane:
     def _rewallet(self, pid: str):
         """After a restart the ledger adapter needs the account's key again (same label, same wallet)."""
         addr = self.engine.party(pid)["address"]
-        if not self.ledger.can_sign(addr) and self.ledger.new_account(pid) != addr:
+        if self.ledger.name == "mock":         # mock balances live in memory: open the same account again
+            self.ledger.new_account(pid)
+        elif not self.ledger.can_sign(addr) and self.ledger.new_account(pid) != addr:
             self.store.log(pid, "wallet_lost", f"{pid}: the saved wallet for {addr} is gone; it can receive but not sign")
 
     def enrol_all(self, authority):
@@ -187,7 +244,7 @@ class Lane:
             cid = f"RC{n}-{secrets.token_hex(3)}"
             iid = f"org_{_slug(t['institution'])}_{cid.split('-')[1]}"
             t = {**t, "id": cid, "institution_id": iid, "unit": units.UNIT, "display_unit": units.DISPLAY,
-                 "posted_at": int(time.time())}
+                 "payment_rail": self.rail, "posted_at": int(time.time())}
             terms_json = canonical(t)
             code = secrets.token_urlsafe(9)
             self.engine.add_party(iid, t["institution"], "organization", self.ledger.new_account(iid))
@@ -230,12 +287,25 @@ class Lane:
         cap = int(terms.get("capacity") or 60)
         if price <= 0 or budget < price or not (1 <= cap <= MAX_MEMBERS):
             raise ContractError("price must be > 0, budget at least one item, capacity 1-500")
+        if self.rail == "ap4m" and price * len(items) > AP4M_MAX_MICRO:
+            raise ContractError(f"AP4M pays at most {units.fmt(AP4M_MAX_MICRO)} per payment: price per item x "
+                                f"items must be at most that per member-week (now {units.fmt(price * len(items))})")
         return {"title": title, "institution": inst, "irb_approval": irb, "irb_checked": "declared by the researcher",
                 "purpose": purpose, "data_use": PURPOSE_DUO[purpose], "items": items,
                 "sensitive": [i for i in items if SENSITIVITY.get(i) == "sensitive"],
                 "weeks": [w0, w1], "price_per_item_drops": price, "budget_drops": budget,
                 "per_order_limit_drops": price * len(items), "capacity": cap,
-                "summary": str(terms.get("summary") or "")[:600]}
+                "summary": str(terms.get("summary") or "")[:600],
+                "round_every_s": self._every(terms.get("round_every_s"))}
+
+    @staticmethod
+    def _every(v) -> int | None:
+        if v in (None, "", 0):
+            return None
+        v = int(v)
+        if not 60 <= v <= 31_536_000:
+            raise ContractError("round_every_s must be 60 seconds to a year")
+        return v
 
     # ---------- reads ----------
 
@@ -265,7 +335,7 @@ class Lane:
     # ---------- joining ----------
 
     def join_start(self, cid: str, invite_code: str, public_hex: str, items: list[str] | None,
-                   automation: str, uniqdata_account: str | None = None) -> dict:
+                   automation: str, uniqdata_account: str | None = None, payout_address: str | None = None) -> dict:
         c = self._row(cid)
         if c["status"] != "open":
             raise ContractError("this contract is not taking new members")
@@ -286,18 +356,24 @@ class Lane:
             if uniqdata_account not in self.uniqdata:
                 raise ContractError("that UniQdata account is not connected to this service")
             source = f"uniqdata:{uniqdata_account}"
+        if payout_address and not re.fullmatch(r"0x[0-9a-fA-F]{40}", payout_address):
+            raise ContractError("payout_address must be an XRPL EVM address (0x + 40 hex)")
         pid = f"{cid.split('-')[0]}-{secrets.token_hex(4)}"
         doc = consent_document(pid, t["institution_id"], t["purpose"], items, tuple(t["weeks"]), automation,
                                t["price_per_item_drops"], "active", 1)
         doc["contract"] = {"id": cid, "terms_hash": c["terms_hash"]}
         doc["synthetic_demo"] = False
         doc["test_accounts_only"] = True
+        if t.get("payment_rail") == "ap4m":
+            doc["payment"] = {"rail": "ap4m", "max_per_payment": units.fmt(AP4M_MAX_MICRO),
+                              "payout": payout_address or "kept in the team's AP4M merchant wallet, credited to you here"}
         h = sha256_hex(canonical(doc))
         with self._lock:
             now = time.time()
             self._pending = {k: v for k, v in self._pending.items() if v["expires"] > now}
             self._pending[pid] = {"cid": cid, "public_hex": public_hex, "items": items, "automation": automation,
-                                  "doc": doc, "hash": h, "source": source, "expires": now + JOIN_TTL_S}
+                                  "doc": doc, "hash": h, "source": source, "expires": now + JOIN_TTL_S,
+                                  "payout_address": payout_address}
         return {"pid": pid, "consent": doc, "consent_hash": h,
                 "sign": f"agentrail-consent|{pid}|{h}", "expires_in": JOIN_TTL_S}
 
@@ -317,9 +393,11 @@ class Lane:
             pa.set_consent(t["institution_id"], t["purpose"], p["items"], tuple(t["weeks"]), p["automation"],
                            t["price_per_item_drops"])
             with self.store.tx() as c:
-                c.execute("INSERT INTO contract_members VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL)",
+                c.execute("INSERT INTO contract_members (contract_id,pid,joined_via,public_hex,items,automation,"
+                          "consent_hash,consent_signature,data_source,status,joined_at,payout_address) "
+                          "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                           (cid, pid, "invite", p["public_hex"], json.dumps(p["items"]), p["automation"], p["hash"],
-                           signature, p["source"], "active", time.time()))
+                           signature, p["source"], "active", time.time(), p["payout_address"]))
             authority.enrol(Identity(pid, "participant", pid, p["public_hex"]))
             self.store.log(pid, "joined", f"{pid} joined {cid} ({', '.join(p['items'])}, automation "
                            f"{p['automation']}); signed consent {p['hash'][:12]}…", {"contract": cid})
@@ -369,6 +447,7 @@ class Lane:
             raise ContractError("week is outside the contract")
         members = self._members(cid)
         with self._lock:
+            self.retry_payments(cid)
             self.store.log(t["institution_id"], "round", f"{cid} week {week}: asking {len(members)} members' agents "
                            f"for {', '.join(t['items'])} at {units.fmt(t['price_per_item_drops'])} per item")
             # Each member's agent answers from that member's own consent; the institution asks for every
@@ -396,7 +475,73 @@ class Lane:
         except (BudgetExceeded, NeedsHumanApproval) as e:
             return {"status": "budget", "reason": str(e)}
         self.engine.process(oid)
+        self._pay(cid, pid, oid)
         return self._order_view(oid)
+
+    # ---------- AP4M: one payment per delivered member-week ----------
+
+    def _rail(self, cid: str) -> str:
+        return self.terms(cid).get("payment_rail", "ledger")
+
+    def _pay(self, cid: str, pid: str, oid: int) -> dict | None:
+        """Pay a delivered order through AP4M. Idempotent on the order (the rail is too, on ref); a failed
+        or capped payment is recorded as unpaid, shown as such, and tried again at the next round."""
+        if self._rail(cid) != "ap4m":
+            return None
+        o = self.store.one("SELECT status, price_drops, scope FROM orders WHERE id=?", oid)
+        if o is None or o["status"] != "delivered":
+            return None
+        done = self.store.one("SELECT * FROM contract_payments WHERE order_id=?", oid)
+        if done is not None and done["ok"]:
+            return json.loads(done["result"])
+        ref = f"rc-{cid}-{oid}"
+        slot = json.loads(o["scope"])["slot"]
+        to = self._member(cid, pid)["payout_address"]
+        try:
+            from . import ap4m_rail
+            res = ap4m_rail.pay(ref, int(o["price_drops"]), {"contract": cid, "member": pid, "order": oid,
+                                                            "week": int(slot.rsplit("week", 1)[-1])}, forward_to=to, pool="research")
+        except Exception as e:                  # the rail is down or not installed: the order stays unpaid
+            res = {"ok": False, "reason": f"ap4m rail error: {str(e)[:160]}"}
+        res = {**res, "ref": ref, "forward_to": to}
+        with self.store.tx() as c:
+            c.execute("INSERT INTO contract_payments VALUES (?,?,?,?,?,?,?,?,1,?) ON CONFLICT(order_id) DO UPDATE SET "
+                      "ok=excluded.ok, result=excluded.result, attempts=contract_payments.attempts+1, "
+                      "updated_at=excluded.updated_at",
+                      (oid, cid, pid, "ap4m", ref, int(o["price_drops"]), 1 if res.get("ok") else 0,
+                       json.dumps(res), time.time()))
+        if res.get("ok"):
+            self.store.log(pid, "ap4m_paid", f"{pid}: {units.fmt(o['price_drops'])} paid through AP4M for {slot}",
+                           {"order": oid, "receipt": res.get("receipt_url"), "voucher_tx": res.get("voucher_redeemed_tx")})
+        else:
+            self.store.log(pid, "ap4m_unpaid", f"{pid}: {slot} delivered, AP4M payment not made ({res.get('reason')})")
+        return res
+
+    def retry_payments(self, cid: str) -> int:
+        """Delivered orders whose AP4M payment did not go through (cap, rail down): try them again."""
+        if self._rail(cid) != "ap4m":
+            return 0
+        t = self.terms(cid)
+        rows = self.store.q("SELECT o.id, o.seller_id FROM orders o LEFT JOIN contract_payments cp ON cp.order_id=o.id "
+                            "WHERE o.buyer_id=? AND o.status='delivered' AND (cp.ok IS NULL OR cp.ok=0) ORDER BY o.id",
+                            t["institution_id"])
+        return sum(1 for r in rows if (self._pay(cid, r["seller_id"], r["id"]) or {}).get("ok"))
+
+    def _payment(self, oid: int, rail: str, status: str, amount: int) -> dict:
+        if rail != "ap4m":
+            return {"rail": "xrpl_escrow", "status": "paid" if status == "delivered" else
+                    ("held" if status in ("escrowed", "paid", "reserved") else "not_paid"), "amount_drops": amount}
+        p = self.store.one("SELECT * FROM contract_payments WHERE order_id=?", oid)
+        r = json.loads(p["result"]) if p else {}
+        state = "paid" if p and p["ok"] else ("unpaid" if status == "delivered" else "not_due")
+        fwd = r.get("forward_tx")
+        return {"rail": "ap4m", "status": state, "amount_drops": amount,
+                "payee": f"the member's wallet {r.get('forward_to') or ''}".strip() if fwd else AP4M_PAYEE,
+                "forward": {"tx": fwd, "url": r.get("forward_url")},
+                "reason": None if state != "unpaid" else (r.get("reason") or "not attempted yet"),
+                "claim_id": r.get("claim_id"), "receipt_url": r.get("receipt_url"),
+                "voucher_redeemed": {"tx": r.get("voucher_redeemed_tx"), "url": r.get("voucher_url")},
+                "settlement_tx": r.get("settlement_tx"), "verified": r.get("verified")}
 
     def action_message(self, pid: str, cid: str, action: str) -> bytes:
         """What the member's key signs for one approval or a withdrawal: a fresh signature each time,
@@ -428,13 +573,14 @@ class Lane:
             pa.approve(rid, items)
             if r["week"] is None:
                 return {"approved": items}
-            order = self._send_week(cid, pid, r["week"], list(t["items"]))
+            order = self._send_week(cid, pid, r["week"], list(t["items"]))        # pays, if AP4M
             self.sync_uniqdata(cid, pid)
             return {"approved": items, "order": order}
 
     def withdraw(self, pid: str, cid: str, signature: str | None) -> dict:
         """Revoke: no key is published for rounds not yet paid, so those escrows go back to the institution
-        at their deadline. Payments already made stay with the member."""
+        at their deadline. Payments already made stay with the member. On the AP4M rail nothing is paid
+        before delivery, so a withdrawal has nothing to refund: later weeks are simply never paid."""
         self._check_signature(cid, pid, "withdraw", signature)
         if self._member(cid, pid)["status"] == "withdrawn":
             raise ContractError("already withdrawn")
@@ -469,6 +615,7 @@ class Lane:
         """The member's orders in this contract as UniQdata settlement records. Amounts are the server's,
         one record per order, so a held escrow that finishes later updates the same record."""
         t, m = self.terms(cid), self._member(cid, pid)
+        ap4m = t.get("payment_rail") == "ap4m"
         out = []
         for r in self.store.q("SELECT id FROM orders WHERE buyer_id=? AND seller_id=? ORDER BY id", t["institution_id"], pid):
             o = self._order_view(r["id"])
@@ -477,12 +624,17 @@ class Lane:
                 continue                                    # a status this port does not know is never reported
             if status == "withheld" and o["escrow_cancel"]["tx"]:
                 status = "refunded"
+            if ap4m and status == "settled" and o["payment"]["status"] != "paid":
+                status = "held"                             # delivered, AP4M payment still to go through
             out.append({"contract_id": cid, "consent_hash": m["consent_hash"], "order_ref": f"order-{o['order_id']}",
                         "institution": t["institution"], "study_title": t["title"],
                         "period": "week " + o["slot"].rsplit("week", 1)[-1], "amount_micro": o["amount_drops"],
-                        "asset": units.UNIT, "display_unit": units.DISPLAY, "network": self.ledger.name,
-                        "status": status, "escrow_create_tx": o["escrow_create"]["tx"],
-                        "escrow_finish_tx": o["escrow_finish"]["tx"], "escrow_cancel_tx": o["escrow_cancel"]["tx"],
+                        "asset": units.UNIT, "display_unit": units.DISPLAY,
+                        "network": "testnet" if ap4m else self.ledger.name, "status": status,
+                        # XRPL L1 escrow hashes; an AP4M payment is on XRPL EVM and has its own receipt, not these
+                        "escrow_create_tx": None if ap4m else o["escrow_create"]["tx"],
+                        "escrow_finish_tx": None if ap4m else o["escrow_finish"]["tx"],
+                        "escrow_cancel_tx": None if ap4m else o["escrow_cancel"]["tx"],
                         "contract_status": "withdrawn" if m["status"] == "withdrawn" else "active"})
         return out
 
@@ -490,7 +642,8 @@ class Lane:
         """Push the member's payments to their UniQdata account. Only members who joined with a UniQdata
         account, and only from a test network (UniQdata keeps this record for dev chains only)."""
         m = self._member(cid, pid)
-        if not m["data_source"].startswith("uniqdata:") or self.ledger.name not in ("testnet", "devnet"):
+        test_net = self.ledger.name in ("testnet", "devnet") or self._rail(cid) == "ap4m"
+        if not m["data_source"].startswith("uniqdata:") or not test_net:
             return None
         recs = self.settlement_records(cid, pid)
         if not recs:
@@ -507,11 +660,14 @@ class Lane:
     # ---------- views ----------
 
     def _order_view(self, oid: int) -> dict:
-        o = self.store.one("SELECT o.id, o.status, o.price_drops, o.scope, p.tx_hash, p.finish_tx, p.cancel_tx "
-                           "FROM orders o LEFT JOIN payments p ON p.order_id=o.id WHERE o.id=?", oid)
+        o = self.store.one("SELECT o.id, o.status, o.price_drops, o.scope, o.buyer_id, p.tx_hash, p.finish_tx, "
+                           "p.cancel_tx FROM orders o LEFT JOIN payments p ON p.order_id=o.id WHERE o.id=?", oid)
         url = lambda h: self.ledger.explorer_url(h) if h else None
+        c = self.store.one("SELECT terms FROM research_contracts WHERE institution_id=?", o["buyer_id"])
+        rail = json.loads(c["terms"]).get("payment_rail", "ledger") if c else "ledger"
         return {"order_id": oid, "status": o["status"], "amount_drops": o["price_drops"],
                 "slot": json.loads(o["scope"])["slot"], "granted": json.loads(o["scope"])["granted"],
+                "payment": self._payment(oid, rail, o["status"], o["price_drops"]),
                 "escrow_create": {"tx": o["tx_hash"], "url": url(o["tx_hash"])},
                 "escrow_finish": {"tx": o["finish_tx"], "url": url(o["finish_tx"])},
                 "escrow_cancel": {"tx": o["cancel_tx"], "url": url(o["cancel_tx"])}}
@@ -526,7 +682,22 @@ class Lane:
                   self.store.q("SELECT id FROM orders WHERE buyer_id=? ORDER BY id", t["institution_id"])]
         rounds = [{"week": r["week"], "at": r["started_at"], "summary": json.loads(r["result"])}
                   for r in self.store.q("SELECT * FROM contract_rounds WHERE contract_id=? ORDER BY id", cid)]
-        return {**self.public(cid), "member_list": members, "orders": orders, "rounds": rounds}
+        paid = [o for o in orders if o["payment"]["status"] == "paid"]
+        unpaid = [o for o in orders if o["payment"]["status"] == "unpaid"]
+        return {**self.public(cid), "member_list": members, "orders": orders, "rounds": rounds,
+                "payments": {"rail": t.get("payment_rail", "ledger"), "paid_count": len(paid),
+                             "paid_drops": sum(o["amount_drops"] for o in paid), "unpaid_count": len(unpaid),
+                             "unpaid_drops": sum(o["amount_drops"] for o in unpaid)}}
+
+    @staticmethod
+    def _latest_tx(orders: list[dict]) -> dict | None:
+        for o in reversed(orders):
+            v = o["payment"].get("voucher_redeemed") or {}
+            if v.get("tx"):
+                return {**v, "receipt_url": o["payment"].get("receipt_url"), "rail": "ap4m"}
+            if o["payment"]["rail"] != "ap4m" and o["escrow_finish"]["tx"]:
+                return o["escrow_finish"]
+        return None
 
     def member_view(self, pid: str) -> dict:
         """One member's contracts in the shape the UniQdata 연구 기여 tab reads: proposals waiting for them,
@@ -540,8 +711,11 @@ class Lane:
             iid = t["institution_id"]
             orders = [self._order_view(r["id"]) for r in
                       self.store.q("SELECT id FROM orders WHERE buyer_id=? AND seller_id=? ORDER BY id", iid, pid)]
-            settled = sum(o["amount_drops"] for o in orders if o["status"] == "delivered")
-            held = sum(o["amount_drops"] for o in orders if o["status"] in ("escrowed", "paid", "reserved"))
+            # paid = what reached the payee on the contract's rail; held = escrowed, or delivered and the
+            # AP4M payment still to go through
+            settled = sum(o["amount_drops"] for o in orders if o["payment"]["status"] == "paid")
+            held = sum(o["amount_drops"] for o in orders if o["payment"]["status"] in ("held", "unpaid")
+                       or o["status"] in ("escrowed", "paid", "reserved"))
             asks = [{"request_id": r["id"], "week": r["week"], "kind": r["kind"], "items": json.loads(r["items"]),
                      "price_per_item_drops": r["offered_price_drops"]}
                     for r in self.store.q("SELECT * FROM approval_requests WHERE person_id=? AND buyer_id=? AND "
@@ -550,8 +724,9 @@ class Lane:
                               "institution_verified": "ethics credential on ledger (IRB number declared by the researcher)",
                               "items": json.loads(m["items"]), "automation": m["automation"], "status": m["status"],
                               "consent_hash": m["consent_hash"], "pending_approvals": asks,
+                              "payment_rail": t.get("payment_rail", "ledger"),
                               "settled_drops": settled, "held_drops": held,
-                              "latest_tx": next((o["escrow_finish"] for o in reversed(orders) if o["escrow_finish"]["tx"]), None)})
+                              "latest_tx": self._latest_tx(orders)})
             for o in orders:
                 history.append({"contract": m["contract_id"], "institution": t["institution"], "study": t["title"], **o})
         return {"person": pid, "unit": units.UNIT, "display_unit": units.DISPLAY, "ledger": self.ledger.name,

@@ -17,6 +17,30 @@ Contracts keep their own store, so `/api/reset` does not touch them.
 | `LEDGER` | `mock` or `testnet` (same as the engine) |
 | `UNIQDATA_ROSTER` | optional: UniQdata accounts members may join with (`uniqdata_account`); their vault reads that account and their payments are reported to it |
 | `AGENTRAIL_KEYSTORE` | keeps institution box keys and member keyrings across restarts. Default: `keystore/` on the volume |
+| `AGENTRAIL_CONTRACTS_PAY` | `ledger` (default: the XRPL escrow pays) or `ap4m`: every delivered member-week is paid through the AP4M rail (`agentrail/ap4m_rail.py`, `AP4M_RAIL_URL`, `AP4M_RAIL_TOKEN`) |
+| `AGENTRAIL_CONTRACTS_AUTORUN` | `0` turns the automatic rounds off (default on) |
+
+## Automatic rounds
+
+A contract posted with `round_every_s` runs itself: that many seconds after posting (then after each
+round) the institution's agent asks every member's agent for the next week, each member's agent answers
+from that member's own consent, and each delivered week is paid at once. After the last week the contract
+closes. Nobody runs a script per payment. `60` makes a recordable demo; `604800` is weekly.
+
+## AP4M payments
+
+With `AGENTRAIL_CONTRACTS_PAY=ap4m` a contract is posted with `payment_rail: "ap4m"` in its terms, and:
+
+- one payment per delivered member-week, price per item x items, at most 0.10 RLUSD (refused at posting
+  otherwise), from the `research` pool of the rail's budget;
+- the ref is `rc-{contract}-{order}`, so a retry never pays twice; a payment that does not go through
+  (rail down, budget used up) shows as "pending" with its reason and is tried again at the next round;
+- AP4M has one merchant per team, so the payment lands in the team's merchant wallet. A member who
+  joined with `payout_address` (XRPL EVM) gets it forwarded there by the rail, with its own tx link;
+  otherwise it stays in the team wallet and is credited to the member here. Both are shown as such;
+- the data key still moves through the engine's key-reveal escrow on the lane's ledger (on `mock`, that is
+  a delivery record, not a payment). The amount shown is the amount paid through AP4M;
+- a withdrawal has nothing to refund: nothing is paid before delivery, and later weeks are not delivered.
 
 Pages: `/apps/contracts/post.html` (researcher: post, invite link, run a week, members and orders with
 ledger links) and `/apps/contracts/join.html?contract=…&invite=…` (participant: Ed25519 key made in the
@@ -46,7 +70,7 @@ browser with WebCrypto, sign the consent, approve a waiting week, withdraw).
 | GET | `/api/contracts` | anyone: terms and member counts, no identities, never the invite code |
 | POST | `/api/contracts` | posting code: `{terms, researcher_key}` → `{contract, invite_code, researcher_sub, ethics_credential}` |
 | GET | `/api/contracts/{cid}` | anyone |
-| POST | `/api/contracts/{cid}/join/start` | invite code: `{invite_code, public_key, items?, automation, uniqdata_account?}` → `{pid, consent, consent_hash, sign}` |
+| POST | `/api/contracts/{cid}/join/start` | invite code: `{invite_code, public_key, items?, automation, uniqdata_account?, payout_address?}` → `{pid, consent, consent_hash, sign}` |
 | POST | `/api/contracts/{cid}/join/complete` | the joiner: `{pid, signature, generate_test_weeks?}` (signature over `sign`) |
 | GET | `/api/contracts/{cid}/console` | researcher of that contract |
 | POST | `/api/contracts/{cid}/rounds` | researcher: `{week}` |

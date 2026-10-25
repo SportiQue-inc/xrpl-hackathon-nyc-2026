@@ -1,4 +1,4 @@
-import { FOOTNOTE, ITEM_LABELS, actionText, amount, api, el, key, remember, sign, signIn, tx } from "./contracts.js";
+import { FOOTNOTE, ITEM_LABELS, actionText, amount, api, el, key, payLink, payState, remember, sign, signIn, tx } from "./contracts.js";
 
 const $ = (s) => document.querySelector(s);
 $("#foot").textContent = FOOTNOTE;
@@ -12,11 +12,14 @@ async function start() {
   const c = await api("GET", `/api/contracts/${cid}`);
   const t = c.terms;
   $("#terms").replaceChildren(el("h2", {}, t.title), el("p", { class: "sub" }, `${t.institution} · IRB ${t.irb_approval} (${t.irb_checked}) · weeks ${t.weeks[0]}-${t.weeks[1]}`),
-    el("p", {}, `${amount(t.price_per_item_drops)} per item per week, paid to you on the ledger when your agent releases each week. ${c.members} of ${t.capacity} joined.`),
+    el("p", {}, t.payment_rail === "ap4m"
+      ? `${amount(t.price_per_item_drops)} per item per week, paid through AP4M (XRPL EVM Testnet) as soon as your agent delivers each week${t.round_every_s ? `; a week runs every ${t.round_every_s} s` : ""}. ${c.members} of ${t.capacity} joined.`
+      : `${amount(t.price_per_item_drops)} per item per week, paid to you on the ledger when your agent releases each week. ${c.members} of ${t.capacity} joined.`),
     t.summary ? el("p", { class: "note" }, t.summary) : "");
   const k = await key(name);
   if (k.meta.pid) return mine();
   if (!invite) { $("#terms").append(el("p", { class: "err" }, "The invite code is missing from the link.")); return; }
+  if (t.payment_rail !== "ap4m") $("#payout-row").hidden = true;
   for (const i of t.items) $("#items").append(el("label", {}, el("input", { type: "checkbox", name: "item", value: i, checked: "" }), ITEM_LABELS[i] || i));
   $("#join").hidden = false;
   $("#form").addEventListener("submit", async (ev) => {
@@ -24,7 +27,7 @@ async function start() {
     const f = new FormData(ev.target);
     $("#err").textContent = "";
     try {
-      const s = await api("POST", `/api/contracts/${cid}/join/start`, { invite_code: invite, public_key: k.publicHex, items: f.getAll("item"), automation: f.get("automation") });
+      const s = await api("POST", `/api/contracts/${cid}/join/start`, { invite_code: invite, public_key: k.publicHex, items: f.getAll("item"), automation: f.get("automation"), ...(f.get("payout") ? { payout_address: f.get("payout") } : {}) });
       const weeks = f.get("testdata") ? Array.from({ length: t.weeks[1] - t.weeks[0] + 1 }, (_, i) => t.weeks[0] + i) : [];
       await api("POST", `/api/contracts/${cid}/join/complete`, { pid: s.pid, signature: await sign(k, s.sign), generate_test_weeks: weeks });
       remember(name, { pid: s.pid, consent_hash: s.consent_hash });
@@ -50,14 +53,14 @@ async function mine() {
       mine();
     } }, "Approve this week")));
   const leave = el("button", { class: "ar-btn danger", onclick: async () => {
-    if (!confirm("Withdraw? Weeks not yet released stay unpaid and the escrow returns to the institution. Payments made stay yours.")) return;
+    if (!confirm("Withdraw? Your agent stops answering: weeks not yet delivered are not paid (an open escrow returns to the institution). Payments made stay yours.")) return;
     const text = await actionText(pid, cid, "withdraw", c.consent_hash);
     await api("POST", `/api/p/${pid}/contracts/${cid}/withdraw`, { signature: await sign(k, text) }, h).catch((x) => alert(x.message));
     mine();
   } }, "Withdraw");
-  const hist = el("table", {}, el("tr", {}, el("th", {}, "Week"), el("th", {}, "Amount"), el("th", {}, "Status"), el("th", {}, "Tx")),
+  const hist = el("table", {}, el("tr", {}, el("th", {}, "Week"), el("th", {}, "Amount"), el("th", {}, "Status"), el("th", {}, "Receipt / tx")),
     ...v.history.filter((o) => o.contract === cid).map((o) => el("tr", {}, el("td", {}, o.slot.split("week")[1]), el("td", {}, amount(o.amount_drops)),
-      el("td", {}, o.status === "delivered" ? "paid" : o.status), el("td", {}, tx(o.escrow_finish.tx ? o.escrow_finish : o.escrow_create)))));
+      el("td", {}, payState(o.payment) || o.status), el("td", {}, payLink(o)))));
   box.replaceChildren(el("h2", {}, `You joined as ${pid}`),
     el("p", {}, `Status: ${c.status} · your choice: ${c.automation} · paid ${amount(c.settled_drops)} · held ${amount(c.held_drops)}`),
     el("p", { class: "note" }, `Signed consent ${c.consent_hash.slice(0, 16)}…`),

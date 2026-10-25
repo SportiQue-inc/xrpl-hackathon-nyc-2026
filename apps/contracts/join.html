@@ -19,6 +19,8 @@
           <option value="auto_standard">Standard items automatically, ask me for sensitive ones</option>
           <option value="auto_all">Everything I agreed to, automatically</option>
         </select></label>
+      <label id="payout-row">Your XRPL EVM address for payouts (optional; empty = kept in the team's AP4M wallet and credited to you here)
+        <input class="ar-input" name="payout" pattern="0x[0-9a-fA-F]{40}" placeholder="0x…"></label>
       <label class="row"><input type="checkbox" name="testdata" checked> This is a test account: store generated test readings for the contract weeks (no real health data)</label>
       <button class="ar-btn primary block" type="submit">Sign consent and join</button>
       <p class="err" id="err"></p>
