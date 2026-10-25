@@ -202,6 +202,47 @@ def scene_c(w: World) -> dict:
             "payments_for_order": 1}
 
 
+FIXTURE = os.path.join(os.path.dirname(__file__), "..", "fixtures", "testnet-addresses.public.json")
+
+
+def scene_d(w: World, n: int = 50, workers: int = 10) -> dict:
+    """Cohort round: one institution agent buys one week from n people at once.
+    Payees are public Testnet addresses (receive-only; no keys needed)."""
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    w.store.scene = "D"
+    e = w.engine
+    accounts = [a for a in json.load(open(FIXTURE))["accounts"] if a["role"] == "participant"][:n]
+    compliance = ComplianceRules(credential_check=lambda buyer: False)
+    e.add_party("org_cohort", "Cohort study (synthetic)", "organization", w.ledger.new_account("org_cohort"))
+    e.set_mandate(BuyerMandate("org_cohort", 60 * XRP, 2 * XRP, ["sleep_research"]))
+    people = []
+    for a in accounts:
+        pid = a["account_id"]
+        e.add_party(pid, f"Participant {pid}", "person", a["classic_address"])
+        pa = PersonalAgent(Person(pid, pid), e, compliance)
+        pa.set_consent("org_cohort", "sleep_research", ["sleep.daily"], automation="auto_all")
+        people.append(pa)
+    lab = InstitutionAgent("org_cohort", e, "sleep_research")
+    w.store.log("org_cohort", "round", f"week 1: buying sleep.daily from {len(people)} people, 1 XRP each, "
+                f"{workers} payments in flight")
+    oids = []
+    for pa in people:
+        d = pa.handle_request("org_cohort", "sleep_research", ["sleep.daily"], 1, 1 * XRP)
+        if d.ok:
+            oids.append(e.place_order(OrderRequest("org_cohort", pa.id, pa.id, "personal.weekly",
+                                                   f"{pa.id}|week1", "sleep_research", d.granted, 1 * XRP,
+                                                   pa.vault.extract(d.granted, 1), d)))
+    t0 = time.time()
+    with ThreadPoolExecutor(workers) as ex:
+        statuses = list(ex.map(e.process, oids))
+    dt = time.time() - t0
+    done = statuses.count("delivered")
+    w.store.log("org_cohort", "report", f"{done}/{len(oids)} people paid on a validated ledger and data "
+                f"delivered in {dt:.1f}s")
+    return {"orders": len(oids), "delivered": done, "seconds": round(dt, 1)}
+
+
 def summary(w: World) -> dict:
     s = w.store
     out = {}
@@ -220,9 +261,12 @@ def main():
     kind = os.environ.get("LEDGER", "mock")
     w = build_world(kind, os.environ.get("AGENTRAIL_DB", ":memory:"))
     results = {"A": scene_a_guarded(w), "B": scene_b(w), "C": scene_c(w)}
+    if os.environ.get("COHORT", "1") != "0":
+        results["D"] = scene_d(w, int(os.environ.get("COHORT_SIZE", "50")))
     for e in w.store.q("SELECT scene, actor, message FROM events ORDER BY id"):
         print(f"[{e['scene'] or '-'}] {e['actor']:<12} {e['message']}")
-    print(json.dumps({"scene_c": results["C"], "summary": summary(w)}, indent=1, default=str))
+    print(json.dumps({"scene_c": results["C"], "scene_d": results.get("D"), "summary": summary(w)},
+                     indent=1, default=str))
 
 
 if __name__ == "__main__":

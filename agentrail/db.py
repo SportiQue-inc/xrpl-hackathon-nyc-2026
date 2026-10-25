@@ -4,7 +4,9 @@ reservations and order creation are serialized across threads/processes."""
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import tempfile
 import threading
 import time
 from contextlib import contextmanager
@@ -77,9 +79,10 @@ class Store:
     """Thin wrapper; one connection per thread, shared file."""
 
     def __init__(self, path: str = ":memory:"):
-        # A shared in-memory DB needs a URI so several connections see it.
+        # Several threads need their own connections, so ":memory:" means a throwaway file.
         if path == ":memory:":
-            path = f"file:agentrail-{id(self)}?mode=memory&cache=shared"
+            fd, path = tempfile.mkstemp(prefix="agentrail-", suffix=".db")
+            os.close(fd)
         self.path = path
         self._local = threading.local()
         self._keepalive = self._connect()

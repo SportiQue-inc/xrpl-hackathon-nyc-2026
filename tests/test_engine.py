@@ -252,3 +252,11 @@ def test_agent_cannot_raise_its_own_budget_but_cosigned_top_up_can(w):
     assert "refused" in kinds and "top_up" in kinds
     assert mandate(w, "org_robodev")["total_drops"] == 35 * XRP
     assert w.ledger.account_settings(w.treasury) == {"network": "mock", "multisig": True, "master_disabled": True}
+
+
+def test_cohort_round_pays_fifty_people_once_each_in_parallel(w):
+    from agentrail.scenario import scene_d
+    res = scene_d(w, n=50, workers=10)
+    assert res == {"orders": 50, "delivered": 50, "seconds": res["seconds"]}
+    assert w.store.one("SELECT COUNT(DISTINCT payee_id) n FROM orders WHERE buyer_id='org_cohort'")["n"] == 50
+    assert mandate(w, "org_cohort")["spent_drops"] == 50 * XRP

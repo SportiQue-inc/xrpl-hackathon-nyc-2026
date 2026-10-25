@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 
 from xrpl.clients import JsonRpcClient
@@ -34,6 +35,8 @@ class XrplLedger(Ledger):
         self.client = JsonRpcClient(rpc_url)
         self.wallet_file = wallet_file
         self.wallets: dict[str, Wallet] = {}
+        self._seq: dict[str, int] = {}
+        self._seq_lock = threading.Lock()
         self._labels: dict[str, str] = {}
         if os.path.exists(wallet_file):
             with open(wallet_file) as f:
@@ -54,9 +57,19 @@ class XrplLedger(Ledger):
         self.wallets[w.classic_address] = w
         return w.classic_address
 
+    def _next_sequence(self, account: str) -> int:
+        """Local sequence counter so many payments can be signed and in flight at once."""
+        with self._seq_lock:
+            if account not in self._seq:
+                r = self.client.request(AccountInfo(account=account, ledger_index="current")).result
+                self._seq[account] = int(r["account_data"]["Sequence"])
+            seq = self._seq[account]
+            self._seq[account] = seq + 1
+            return seq
+
     def prepare_payment(self, source, destination, amount_drops, invoice_id, memo):
         tx = Payment(account=source, destination=destination, amount=str(amount_drops),
-                     invoice_id=invoice_id,
+                     invoice_id=invoice_id, sequence=self._next_sequence(source),
                      memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))])
         signed = autofill_and_sign(tx, self.client, self.wallets[source])
         return Prepared(tx_hash=signed.get_hash(), blob=encode(signed.to_xrpl()))
@@ -90,8 +103,13 @@ class XrplLedger(Ledger):
         return decode(blob).get("InvoiceID")
 
     def is_expired(self, blob: str) -> bool:
-        lls = decode(blob).get("LastLedgerSequence")
-        return lls is not None and get_latest_validated_ledger_sequence(self.client) > lls
+        tx = decode(blob)
+        lls = tx.get("LastLedgerSequence")
+        expired = lls is not None and get_latest_validated_ledger_sequence(self.client) > lls
+        if expired:
+            with self._seq_lock:  # the sequence was never consumed: re-read it from the ledger
+                self._seq.pop(tx["Account"], None)
+        return expired
 
     def wait_validated(self, tx_hash: str, timeout: float = 30.0) -> TxStatus:
         end = time.time() + timeout
