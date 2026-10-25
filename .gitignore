@@ -29,3 +29,8 @@ wallets.local.json
 
 # per-owner key stores (security/keystore.py)
 .keystore/
+
+# AP4M integration (ap4m/): keys, run records and SDK state stay local
+ap4m/.env
+ap4m/out/
+ap4m/state/
