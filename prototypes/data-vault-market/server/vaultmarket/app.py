@@ -225,15 +225,16 @@ def _trade_summaries(contracts, account):
         c["buyer_name"] = _name(c["buyer"]); c["sellers"] = json.loads(c["sellers"] or "[]")
         c["mine"] = c["buyer"] == account or c.get("seller") == account or account in c["sellers"]
         c["seller_name"] = _name(c.get("seller") or c["sellers"][0]) if c.get("seller") or len(c["sellers"])==1 else None
-        c["drops"] = M.s.one("SELECT COALESCE(SUM(drops),0) n FROM txs WHERE contract=? AND type LIKE 'EscrowFinish%' AND result='tesSUCCESS'", (c["id"],))["n"]
+        c["drops"] = M.s.one("SELECT COALESCE(SUM(drops),0) n FROM txs WHERE contract=? AND (type LIKE 'EscrowFinish%' AND result='tesSUCCESS' OR type='AP4M VoucherRedeemed')", (c["id"],))["n"]
         c["asset"] = c.get("asset") or "XRP"
-        t = s.one("SELECT hash FROM txs WHERE contract = ? AND hash IS NOT NULL ORDER BY id DESC LIMIT 1", (c["id"],))
-        c["tx_url"] = M.rail.explorer(t["hash"]) if t else None
+        t = s.one("SELECT hash, type, receipt FROM txs WHERE contract = ? AND hash IS NOT NULL ORDER BY id DESC LIMIT 1", (c["id"],))
+        c["tx_url"] = (f"{EVM_EXPLORER}/tx/{t['hash']}" if str(t["hash"]).startswith("0x") else M.rail.explorer(t["hash"])) if t else None
+        c["rail"] = "AP4M" if t and str(t["type"]).startswith(("AP4M", "RLUSD forward")) else None
     return contracts
 
 
 def _agent_styles(since=0):
-    receipts=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,COUNT(DISTINCT t.contract) sales,SUM(t.drops) micro FROM txs t JOIN contracts c ON c.id=t.contract WHERE t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' GROUP BY t.src,t.asset", (since,))
+    receipts=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,COUNT(DISTINCT t.contract) sales,SUM(t.drops) micro FROM txs t JOIN contracts c ON c.id=t.contract WHERE (t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' OR t.type='AP4M VoucherRedeemed') AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' GROUP BY t.src,t.asset", (since,))
     styles=[];verdicts=_seller_verdicts(since)
     for row in M.s.q("SELECT id FROM accounts WHERE id NOT LIKE 'u-%' AND id!='demo-vault'"):
         a=M.acct(row['id']);rules=a['sell_agent'];mins=rules.get('min',{})
@@ -271,7 +272,7 @@ def _why(name,sales,rs,ratio,rules,held,v):
     lost={k:n for k,n in v.items() if k!='agree'}
     top=max(lost,key=lost.get) if lost else None
     if sales:
-        earned=" + ".join(f"{r['micro']/1e6:.2f} {M.rail.label() if r['asset']=='test USD' else r['asset']}" for r in rs)
+        earned=" + ".join(f"{_micro(r['micro'] or 0)} {M.rail.label() if r['asset']=='test USD' else r['asset']}" for r in rs)
         tail=f"; {lost[top]} other negotiation{'s' if lost[top]>1 else ''} failed because {DECLINE_WHY.get(top,top)}" if top else ""
         return f"{name}: {sales} sale{'s' if sales>1 else ''}, {earned}. {setting}{tail}."
     if top:
@@ -300,7 +301,7 @@ def demo(minutes: int = 60):
         raise HTTPException(400,"Choose 15, 60, 180 minutes or all history")
     now=time.time();start=now-minutes*60 if minutes else M.s.one("SELECT COALESCE(MIN(created),?) t FROM txs",(now,))["t"]
     styles=_agent_styles(start);ids={a['id'] for a in styles}
-    rows=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,t.drops,t.created,t.contract,c.kind,b.name buyer_name FROM txs t LEFT JOIN contracts c ON c.id=t.contract LEFT JOIN accounts b ON b.id=c.buyer WHERE t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' ORDER BY t.created",(start,))
+    rows=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,t.drops,t.created,t.contract,c.kind,b.name buyer_name FROM txs t LEFT JOIN contracts c ON c.id=t.contract LEFT JOIN accounts b ON b.id=c.buyer WHERE (t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' OR t.type='AP4M VoucherRedeemed') AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' ORDER BY t.created",(start,))
     for a in styles:
         a['receipts']=[{'asset':r['asset'],'amount':r['drops']/1e6,'at':r['created'],'contract':r['contract'],'kind':r['kind'],'buyer':r['buyer_name']} for r in rows if r['src']==a['id']]
     activity=[]
@@ -361,7 +362,7 @@ def market(request: Request, account: str = "", domain: str | None = None):
 def _paid_now() -> dict:
     """What settled deals in the current settlement asset paid on the ledger. Older counters mix in the XRP era."""
     r = M.s.one("SELECT COALESCE(SUM(t.drops), 0) micro FROM contracts c JOIN txs t ON t.contract = c.id "
-                "AND t.type LIKE 'EscrowFinish%' AND t.result = 'tesSUCCESS' WHERE c.status = 'settled' AND c.asset = ?", (M.rail.symbol(),))
+                "AND (t.type LIKE 'EscrowFinish%' AND t.result = 'tesSUCCESS' OR t.type = 'AP4M VoucherRedeemed') WHERE c.status = 'settled' AND c.asset = ?", (M.rail.symbol(),))
     return {"micro":r["micro"],"units":r["micro"]/config.MICRO_PER_UNIT}
 
 
@@ -483,12 +484,12 @@ def portfolio(aid: str, request: Request):
     if not a:
         raise HTTPException(404)
     addr=a.get("payout") if a.get("payout") and M.rail.has_line(a["payout"]) else M.addr.get(aid)
-    income=M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND type LIKE 'EscrowFinish%' AND result='tesSUCCESS' GROUP BY asset",(aid,))
-    spending=M.s.q("SELECT t.asset,SUM(t.drops)/1000000.0 amount FROM txs t JOIN contracts c ON c.id=t.contract WHERE c.buyer=? AND t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' GROUP BY t.asset",(aid,))
+    income=M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND (type LIKE 'EscrowFinish%' AND result='tesSUCCESS' OR type='AP4M VoucherRedeemed') GROUP BY asset",(aid,))
+    spending=M.s.q("SELECT t.asset,SUM(t.drops)/1000000.0 amount FROM txs t JOIN contracts c ON c.id=t.contract WHERE c.buyer=? AND (t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' OR t.type='AP4M VoucherRedeemed') GROUP BY t.asset",(aid,))
     transactions=[]
-    rows=M.s.q("SELECT t.*,c.buyer FROM txs t LEFT JOIN contracts c ON c.id=t.contract WHERE (t.src=? OR c.buyer=?) AND t.result='tesSUCCESS' AND (t.type LIKE 'EscrowFinish%' OR t.type LIKE 'Payment%' OR t.type LIKE 'EscrowCancel%') ORDER BY t.id DESC",(aid,aid))
+    rows=M.s.q("SELECT t.*,c.buyer FROM txs t LEFT JOIN contracts c ON c.id=t.contract WHERE (t.src=? OR c.buyer=?) AND (t.result='tesSUCCESS' AND (t.type LIKE 'EscrowFinish%' OR t.type LIKE 'Payment%' OR t.type LIKE 'EscrowCancel%') OR t.type='AP4M VoucherRedeemed') ORDER BY t.id DESC",(aid,aid))
     for t in rows:
-        transactions.append({**{k:t[k] for k in ['id','contract','created','type','asset','hash','result']},"amount":t["drops"]/1000000.0,"direction":"in" if t["src"]==aid and t["type"].startswith("EscrowFinish") or t["type"].startswith("EscrowCancel") else "out","url":M.rail.explorer(t["hash"]) if t["hash"] else None})
+        transactions.append({**{k:t[k] for k in ['id','contract','created','type','asset','hash','result']},"amount":t["drops"]/1000000.0,"direction":"in" if t["src"]==aid and t["type"].startswith(("EscrowFinish","AP4M")) or t["type"].startswith("EscrowCancel") else "out","url":(f"{EVM_EXPLORER}/tx/{t['hash']}" if str(t["hash"]).startswith("0x") else M.rail.explorer(t["hash"])) if t["hash"] else None})
     note="Recorded market transfers"
     if addr and M.rail.name!="mock":
         try:
@@ -510,7 +511,7 @@ def account(aid: str, request: Request):
     files, bundles, demand = _bundles(aid)
     growth = M.s.q("SELECT CAST((created - (SELECT MIN(created) FROM files)) / 60 AS INT) m, COUNT(*) n FROM files WHERE account = ? GROUP BY m ORDER BY m", (aid,))
     fees = M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND contract IS NULL AND result='tesSUCCESS' GROUP BY asset", (aid,))
-    balances = M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND type LIKE 'EscrowFinish%' AND result='tesSUCCESS' GROUP BY asset", (aid,))
+    balances = M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND (type LIKE 'EscrowFinish%' AND result='tesSUCCESS' OR type='AP4M VoucherRedeemed') GROUP BY asset", (aid,))
     stats = {"fees_by_asset":fees, "earned_by_asset": balances, "agreed": sum(b["agreed"] for b in bundles), "declined": sum(b["declined"] for b in bundles),
              "earned_xrp": next((b["amount"] for b in balances if b["asset"]=="XRP"),0), "fees_xrp": next((b["amount"] for b in fees if b["asset"]=="XRP"),0)}
     trade_rows=M.s.q("SELECT id,buyer,seller,kind,status,reason,total,items,sellers,asset,unit_micro,created FROM contracts WHERE buyer=? OR seller=? OR sellers LIKE ? ORDER BY id DESC", (aid,aid,'%'+json.dumps(aid)+'%'))
@@ -747,9 +748,9 @@ def _converse(aid: str, text: str, body: dict, discovery: bool):
         demand = [{"kind": d["kind"], "n": d["n"], "best": d["best"]} for d in M.s.q("SELECT kind, COUNT(*) n, MAX(max) best FROM postings WHERE status='open' AND buyer != ? GROUP BY kind", (aid,))]
         history = [{"who": c["role"], "text": c["text"][:300]} for c in M.s.q("SELECT role, text FROM chat WHERE account = ? ORDER BY id DESC LIMIT 8", (aid,))][::-1]
         ctx = {"asset": M.rail.label(), "my_files": [dict(f) for f in files], "deals_sold": sold["n"], "sold_total": sold["t"],
-               "selling_mode": a["sell_agent"].get("mode"), "my_minimums": {k: round(v*u, 2) for k, v in (a["sell_agent"].get("min") or {}).items()},
-               "blocked_purposes": a["sell_agent"].get("blocks", []), "auto_buy_limit": round(a["buy_agent"].get("auto_limit", 0)*u, 2),
-               "matching_offers": [{"id": w["id"], "kind": w["kind"], "buyer": w["buyer_name"], "purpose": w["purpose"], "you_would_get": round(w["expected"]*u, 2), "buyer_budget": round(w["max"]*u, 2)} for w in offers],
+               "selling_mode": a["sell_agent"].get("mode"), "my_minimums": {k: round(v*u, 6) for k, v in (a["sell_agent"].get("min") or {}).items()},
+               "blocked_purposes": a["sell_agent"].get("blocks", []), "auto_buy_limit": round(a["buy_agent"].get("auto_limit", 0)*u, 6),
+               "matching_offers": [{"id": w["id"], "kind": w["kind"], "buyer": w["buyer_name"], "purpose": w["purpose"], "you_would_get": round(w["expected"]*u, 6), "buyer_budget": round(w["max"]*u, 6)} for w in offers],
                "open_demand_by_kind": demand, "kinds": {k: v["label"] for k, v in KINDS.items()}}
         out = agents.chat_reply(text, ctx, history)
         reply = str((out or {}).get("reply") or "").strip()

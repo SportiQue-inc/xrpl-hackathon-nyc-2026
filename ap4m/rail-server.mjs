@@ -18,7 +18,8 @@
 //   GET  /health   public: channel, per-pool spend and caps, payment count (no keys, no content)
 import { createServer } from 'node:http';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -77,6 +78,16 @@ export function createStore(dir) {
   };
 }
 
+/** The resource URL an earlier attempt's Merchant store was created for, or null. */
+export function priorResourceUrl(dir) {
+  const db = join(dir, 'merchant.sqlite');
+  if (!existsSync(db)) return null;
+  try {
+    const conn = new DatabaseSync(db, { readOnly: true });
+    try { return JSON.parse(conn.prepare('SELECT value FROM identity').get()?.value ?? 'null')?.resourceUrl ?? null; } finally { conn.close(); }
+  } catch { return null; }
+}
+
 function freePort() {
   return new Promise((resolve, reject) => {
     const s = createServer();
@@ -124,12 +135,16 @@ async function connect(env, store, log) {
 export async function payOnce(live, env, body) {
   const amountWei = BigInt(body.amount_micro) * MICRO;
   const op = `p-${refKey(body.ref).slice(0, 40)}`;
-  const port = await freePort();
-  const resourceUrl = `http://127.0.0.1:${port}/resource`;
+  // A retry of the same ref must offer the same resource URL: the Merchant store and the Agent's signed intent are
+  // bound to it. Reuse the URL the first attempt recorded, and clear a lock a crashed attempt left behind.
+  const merchantDir = join(env.AP4M_STATE_DIR, 'merchant', op);
+  const resourceUrl = priorResourceUrl(merchantDir) ?? `http://127.0.0.1:${await freePort()}/resource`;
+  const port = Number(new URL(resourceUrl).port);
+  rmSync(join(merchantDir, 'merchant.lock'), { force: true });   // payments are serial: no other Merchant uses this directory
   const content = { ref: body.ref, memo: body.memo ?? null, ...(body.content ? { content: body.content } : {}) };
   const merchant = live.x402.createX402Merchant({
     context: live.context, provider: live.provider, submitter: live.submitter,
-    stateDirectory: join(env.AP4M_STATE_DIR, 'merchant', op), resourceUrl,
+    stateDirectory: merchantDir, resourceUrl,
     merchantParticipantId: env.MERCHANT_ID, payout: live.payout, amount: amountWei.toString(), content,
   });
   await new Promise((resolve, reject) => { merchant.server.once('error', reject); merchant.server.listen(port, '127.0.0.1', resolve); });

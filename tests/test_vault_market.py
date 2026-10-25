@@ -765,3 +765,17 @@ def test_receipt_settled_later_is_filled_into_the_deal(market, monkeypatch):
     assert any(p.get("receipt_url") == "https://ap4m/r.json" for p in trace["protocol"])
     assert market.s.one("SELECT receipt FROM txs WHERE contract=? AND type='AP4M VoucherRedeemed'", (cid,))["receipt"] == "https://ap4m/r.json"
     assert market.backfill_ap4m_receipts() == 0
+
+
+def test_ap4m_deal_counts_as_paid_in_summaries_and_income(market, monkeypatch):
+    _fake_rail(monkeypatch)
+    monkeypatch.setattr(config, "MICRO_PER_UNIT", 1000)
+    c, cid = _trade(market)
+    assert c["status"] == "settled", c["reason"]
+    monkeypatch.setenv("VM_LEDGER", "mock")
+    from vaultmarket import app
+    monkeypatch.setattr(app, "M", market)
+    s = app._trade_summaries(market.s.q("SELECT * FROM contracts WHERE id=?", (cid,)), "seller")[0]
+    assert s["drops"] == round(c["total"] * 1000) > 0 and s["rail"] == "AP4M" and s["tx_url"].startswith(app.EVM_EXPLORER)
+    income = market.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND (type LIKE 'EscrowFinish%' AND result='tesSUCCESS' OR type='AP4M VoucherRedeemed') GROUP BY asset", ("seller",))
+    assert income and income[0]["amount"] == s["drops"] / 1e6

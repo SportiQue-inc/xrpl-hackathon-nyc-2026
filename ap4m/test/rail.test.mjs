@@ -96,3 +96,15 @@ test('paid claims settle later in one call and the ref gets its receipt', async 
     server.close();
   }
 });
+
+test('a retry reuses the resource URL the first attempt bound its Merchant store to', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { priorResourceUrl } = await import('../rail-server.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'merchant-'));
+  assert.equal(priorResourceUrl(dir), null);
+  const db = new DatabaseSync(join(dir, 'merchant.sqlite'));
+  db.exec('CREATE TABLE identity (id INTEGER PRIMARY KEY CHECK(id=1), value TEXT NOT NULL) STRICT');
+  db.prepare('INSERT INTO identity VALUES (1, ?)').run(JSON.stringify({ schemaId: 'x', resourceUrl: 'http://127.0.0.1:41234/resource' }));
+  db.close();
+  assert.equal(priorResourceUrl(dir), 'http://127.0.0.1:41234/resource');
+});

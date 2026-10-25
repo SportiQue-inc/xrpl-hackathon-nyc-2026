@@ -118,6 +118,9 @@ class Market:
                         body = data.make_record(k, rng2, acc["name"], j, home)
                         self.add_file(acc["id"], k, data.file_name(k, body, j), body, listed=acc["id"] == "demo-vault" or rng2.random() < 0.7, source="phone")
             self.s.bump("kinds_v2")
+        if not self.s.stat("ap4m_tx_src_v1"):   # AP4M rows written before this used src = buyer; EscrowFinish rows use src = the seller paid
+            self.s.x("UPDATE txs SET src = dst, dst = src WHERE type = 'AP4M VoucherRedeemed' AND src = (SELECT buyer FROM contracts WHERE contracts.id = txs.contract)")
+            self.s.bump("ap4m_tx_src_v1")
         rng3 = random.Random(404)
         for name in EXTRA_PEOPLE[: max(0, config.EXTRA_PEOPLE)]:
             aid = name.split()[0].lower().replace("-", "")
@@ -444,10 +447,14 @@ class Market:
 
         files = self.s.q("SELECT f.*, a.trust FROM files f JOIN accounts a ON a.id = f.account WHERE f.kind = ? AND f.status = 'listed' AND f.account != ?", (w["kind"], w["buyer"]))
         by_acct: dict[str, list] = {}
+        skipped_owned = 0
         for f in files:
             if (w["buyer"]=="demo-vault" and f["account"].startswith("u-")) or (w["buyer"].startswith("u-") and f["account"]=="demo-vault"):
                 continue  # The public demo never trades a real member's records.
             if f["account"] not in self.addr:      # wallet not funded yet: not in the market this round
+                continue
+            if not seller_id and owned and owned & set(json.loads(f["fps"] or "[]")):
+                skipped_owned += 1                 # the buyer agent only asks for records it does not own yet
                 continue
             by_acct.setdefault(f["account"], []).append(f)
         interested = {r["account"] for r in self.s.q("SELECT account FROM interests WHERE posting = ?", (w["id"],))}
@@ -458,7 +465,9 @@ class Market:
         if "demo-vault" in cands and self.rng.random() < 0.5:
             cands.remove("demo-vault");cands.insert(0,"demo-vault")  # the demo vault trades often so its history fills in
         cands = [seller_id] if seller_id in cands else [] if seller_id else cands[:1]
-        trace["buyer_trace"].append(f"{len(by_acct)} vaults list this kind; {len(low_trust)} below trust {w['min_trust']} skipped; asking {len(cands)}"
+        trace["buyer_trace"].append(f"{len(by_acct)} vaults list this kind; {len(low_trust)} below trust {w['min_trust']} skipped; "
+                                    + (f"{skipped_owned} listed files left out because the buyer already owns those records; " if skipped_owned else "")
+                                    + f"asking {len(cands)}"
                                     + (f", {len(interested & set(cands))} marked interest so they go first." if interested & set(cands) else "."))
         if cands:
             self.s.x("UPDATE contracts SET seller=?,overview=? WHERE id=?", (cands[0],json.dumps(self.describe_files(by_acct[cands[0]])),cid))
@@ -733,7 +742,7 @@ class Market:
     def _record_ap4m(self, cid: int, buyer_id: str, leg: dict, r: dict, trace: dict) -> bool:
         paid = [x for x in r["receipts"] if x.get("ok")]
         for x in paid:
-            self.s.insert("txs", contract=cid, type="AP4M VoucherRedeemed", hash=x["voucher_redeemed_tx"], src=buyer_id, dst=leg["seller"],
+            self.s.insert("txs", contract=cid, type="AP4M VoucherRedeemed", hash=x["voucher_redeemed_tx"], src=leg["seller"], dst=buyer_id,   # like EscrowFinish: src is who is paid
                           drops=round(float(x["amount_rlusd"]) * 1e6), result="verified" if x.get("verified") else "redeemed", asset="RLUSD (AP4M)")
             if x.get("forward_tx"):
                 self.s.insert("txs", contract=cid, type="RLUSD forward to seller", hash=x["forward_tx"], src="platform", dst=leg["seller"],
