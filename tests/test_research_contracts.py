@@ -1,0 +1,152 @@
+"""A research contract posted over HTTP, joined by people with their own keys, traded by their agents."""
+import pytest
+from fastapi.testclient import TestClient
+
+from agentrail import web
+from agentrail.security.devices import Device
+from agentrail.security.http import reset_rate_limits
+
+TERMS = {"title": "Sleep and fatigue, 4 weeks", "institution": "Test Sleep Lab", "irb_approval": "IRB-TEST-001",
+         "purpose": "sleep_research", "items": ["sleep.daily", "fatigue.survey", "blood_pressure.daily"],
+         "weeks": [1, 4], "price_per_item_drops": 200_000, "budget_drops": 50_000_000, "capacity": 10}
+
+
+@pytest.fixture
+def c():
+    reset_rate_limits()
+    web._state.pop("lane", None)
+    web.reset()
+    return TestClient(web.app)
+
+
+def token(c, dev: Device) -> dict:
+    n = c.post("/api/auth/challenge", json={"sub": dev.sub}).json()["nonce"]
+    r = c.post("/api/auth/token", json={"sub": dev.sub, "nonce": n, "signature": dev.sign_challenge(n)})
+    assert r.status_code == 200, r.text
+    return {"Authorization": "Bearer " + r.json()["access_token"]}
+
+
+def post(c, terms=TERMS):
+    researcher = Device("researcher-key")
+    r = c.post("/api/contracts", json={"terms": terms, "researcher_key": researcher.public_hex})
+    assert r.status_code == 200, r.text
+    out = r.json()
+    researcher.sub = out["researcher_sub"]
+    return out["contract"]["id"], out["invite_code"], researcher
+
+
+def join(c, cid, code, automation, name):
+    d = Device(name)
+    s = c.post(f"/api/contracts/{cid}/join/start",
+               json={"invite_code": code, "public_key": d.public_hex, "automation": automation}).json()
+    d.sub = s["pid"]
+    r = c.post(f"/api/contracts/{cid}/join/complete", json={"pid": s["pid"], "signature": d.sign_consent(s["consent_hash"])})
+    assert r.status_code == 200, r.text
+    h = token(c, d)
+    assert c.post(f"/api/p/{d.sub}/contracts/records", json={"generate_test_weeks": [1, 2]}, headers=h).json()["stored"] > 0
+    return d, h
+
+
+def test_nothing_is_in_the_code_terms_come_from_the_posting(c):
+    cid, code, _ = post(c)
+    pub = c.get(f"/api/contracts/{cid}").json()
+    assert pub["terms"]["institution"] == "Test Sleep Lab" and pub["terms"]["irb_approval"] == "IRB-TEST-001"
+    assert pub["terms"]["institution_id"] != "org_sleeplab" and pub["members"] == 0
+    assert code not in str(c.get("/api/contracts").json())             # the invite code is shown once, never listed
+
+
+def test_posting_rejects_t3_and_unknown_items(c):
+    r = c.post("/api/contracts", json={"terms": {**TERMS, "items": ["imaging.mri"]}, "researcher_key": "a" * 64})
+    assert r.status_code == 422 and "T3" in r.json()["detail"]
+    r = c.post("/api/contracts", json={"terms": {**TERMS, "items": ["diagnosis.rare"]}, "researcher_key": "a" * 64})
+    assert r.status_code == 422
+
+
+def test_join_needs_the_invite_and_the_joiners_own_signature(c):
+    cid, code, _ = post(c)
+    d = Device("x")
+    assert c.post(f"/api/contracts/{cid}/join/start", json={"invite_code": "wrong-code-1", "public_key": d.public_hex}).status_code == 403
+    s = c.post(f"/api/contracts/{cid}/join/start", json={"invite_code": code, "public_key": d.public_hex}).json()
+    other = Device("y")
+    other.sub = s["pid"]
+    r = c.post(f"/api/contracts/{cid}/join/complete", json={"pid": s["pid"], "signature": other.sign_consent(s["consent_hash"])})
+    assert r.status_code == 403
+    assert s["consent"]["contract"]["id"] == cid and s["consent"]["synthetic_demo"] is False
+
+
+def test_round_follows_each_members_own_choice_then_approve_and_withdraw(c):
+    cid, code, researcher = post(c)
+    a, ha = join(c, cid, code, "auto_all", "a")
+    b, hb = join(c, cid, code, "confirm_each", "b")
+    w, hw = join(c, cid, code, "auto_standard", "w")
+    rh = token(c, researcher)
+    assert c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=ha).status_code == 403   # not a researcher
+    r = c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=rh).json()
+    by = {x["person"]: x for x in r["results"]}
+    assert by[a.sub]["status"] == "delivered" and by[a.sub]["escrow_finish"]["tx"]
+    assert by[b.sub]["status"] == "needs_approval"
+    assert "blood_pressure.daily" not in by[w.sub]["granted"]          # sensitive item waits for the person
+
+    # b approves week 1 with a fresh signature; a replayed or missing one is refused
+    mine = c.get(f"/api/p/{b.sub}/contracts", headers=hb).json()
+    ask = mine["contracts"][0]["pending_approvals"][0]
+    items = ask["items"]
+    path = f"/api/p/{b.sub}/contracts/{cid}/requests/{ask['request_id']}/approve"
+    bad = c.post(path, json={"items": items, "signature": b.sign_consent("0" * 64)}, headers=hb)
+    assert bad.status_code == 403
+    lane = web.lane()
+    sig = b.sign(lane.action_message(b.sub, cid, f"approve:{ask['request_id']}:{','.join(sorted(items))}"))
+    ok = c.post(path, json={"items": items, "signature": sig}, headers=hb).json()
+    assert ok["order"]["status"] == "delivered"
+    assert c.get(f"/api/p/{a.sub}/contracts", headers=hb).status_code == 403    # only your own record
+
+    view = c.get(f"/api/p/{b.sub}/contracts", headers=hb).json()
+    assert view["settled_drops"] == len(items) * TERMS["price_per_item_drops"] and view["active_institutions"] == 1
+    assert view["history"][0]["escrow_finish"]["tx"] and view["display_unit"]
+
+    sig = w.sign(lane.action_message(w.sub, cid, "withdraw"))
+    out = c.post(f"/api/p/{w.sub}/contracts/{cid}/withdraw", json={"signature": sig}, headers=hw).json()
+    assert out["contracts"][0]["status"] == "withdrawn"
+    r2 = c.post(f"/api/contracts/{cid}/rounds", json={"week": 2}, headers=rh).json()
+    assert w.sub not in {x["person"] for x in r2["results"]}
+    con = c.get(f"/api/contracts/{cid}/console", headers=rh).json()
+    assert con["members"] == 2 and con["spent_drops"] > 0
+
+
+def test_contracts_survive_a_demo_reset(c):
+    cid, code, researcher = post(c)
+    a, _ = join(c, cid, code, "auto_all", "a")
+    web.reset()
+    assert c.get(f"/api/contracts/{cid}").json()["members"] == 1
+    assert c.get(f"/api/p/{a.sub}/contracts", headers=token(c, a)).status_code == 200
+    assert c.get(f"/api/contracts/{cid}/console", headers=token(c, researcher)).status_code == 200
+
+
+def test_payments_reach_the_members_uniqdata_account_once_per_order(c, monkeypatch):
+    cid, code, researcher = post(c)
+    lane = web.lane()
+    sent = []
+
+    class FakeUniQdata:
+        def report_settlements(self, records):
+            sent.append(records)
+            return {"written": len(records)}
+
+    lane.uniqdata["P-001"] = FakeUniQdata()
+    d = Device("u")
+    s = c.post(f"/api/contracts/{cid}/join/start", json={"invite_code": code, "public_key": d.public_hex,
+                                                         "automation": "auto_all", "uniqdata_account": "P-001"}).json()
+    d.sub = s["pid"]
+    # the vault reads that UniQdata account: give it stored rows for the test instead
+    from agentrail.research_contracts import StoredSource
+    monkeypatch.setattr(lane, "_agent", lambda pid, src, _orig=lane._agent: _orig(pid, "stored"))
+    assert c.post(f"/api/contracts/{cid}/join/complete",
+                  json={"pid": d.sub, "signature": d.sign_consent(s["consent_hash"])}).status_code == 200
+    assert isinstance(lane.people[d.sub].vault.sources[0], StoredSource)
+    lane.store_records(d.sub, generate_weeks=[1])
+    monkeypatch.setattr(lane.ledger, "name", "testnet")
+    c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=token(c, researcher))
+    assert len(sent) == 1 and len(sent[0]) == 1
+    r = sent[0][0]
+    assert r["status"] == "settled" and r["period"] == "week 1" and r["display_unit"] and r["escrow_finish_tx"]
+    assert r["consent_hash"] == s["consent_hash"] and r["contract_status"] == "active"
