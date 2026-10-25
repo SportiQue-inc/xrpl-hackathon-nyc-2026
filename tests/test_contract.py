@@ -156,6 +156,19 @@ def test_forecast_is_calibrated_better_than_the_base_rate_on_synthetic_histories
     assert all(abs(r["predicted"] - r["observed"]) < 0.35 for r in info["reliability"] if r["n"] >= 20)
 
 
+@pytest.mark.parametrize("method", ["platt", "isotonic"])
+def test_calibration_on_held_out_data_lowers_brier_and_calibration_error(method):
+    _, info = measure.train(calibration=method)
+    assert info["brier"] <= info["brier_before"] and info["ece"] < info["ece_before"]
+    assert info["train"] > info["calibration_set"] and info["calibration_set"] == info["test"]
+
+
+def test_isotonic_map_is_monotone():
+    iso = forecast.Isotonic().fit([.1, .2, .3, .4, .5, .6, .7, .8], [0, 1, 0, 0, 1, 1, 0, 1])
+    xs = [i / 20 for i in range(21)]
+    assert all(iso(a) <= iso(b) for a, b in zip(xs, xs[1:]))
+
+
 def test_contract_checks_and_the_forecast_cut_unfit_purchases_on_a_stream_with_bad_records():
     m, _ = measure.train()
     out = measure.compare(m, seeds=(21, 22, 23))["runs"]

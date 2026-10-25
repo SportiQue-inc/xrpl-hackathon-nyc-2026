@@ -89,9 +89,21 @@ decline or recover, device sync regularity, and with some probability a bad reco
 drift). Cheaper providers skew towards irregular sync and faults. These are assumptions of the
 generator, not measurements of a real market.
 
-Forecast, trained on 415 synthetic contributions, tested on 178: Brier score 0.179 against 0.201
-for always predicting the base rate (pass rate 0.86). It is overconfident below 0.8 (predicted
-0.68, observed 0.33, n = 15); the plot is `docs/img/reliability.svg`.
+Forecast: logistic regression fitted on 673 synthetic contributions, calibrated (Platt scaling) on
+337 others, reported on 337 more that neither step saw (pass rate 0.79).
+
+| | Brier score | expected calibration error |
+|---|---|---|
+| always predict the base rate | 0.133 | |
+| logistic, before calibration | 0.118 | 0.080 |
+| logistic + Platt calibration | 0.114 | 0.059 |
+
+Before calibration the model was too confident in the middle (0.5-0.6: predicted 0.57, observed
+0.33) and too cautious at the top (0.8-0.9: predicted 0.83, observed 0.90). After calibration the
+top bin reads 0.85 against 0.90 and the 0.4-0.6 bins sit within 0.05; the 0.6-0.7 bin is still
+under (0.66 against 0.88, n = 16). Isotonic regression is also implemented
+(`measure.train(calibration="isotonic")`, Brier 0.115, ECE 0.075). Plot, both curves:
+`docs/img/reliability.svg`.
 
 ![reliability](img/reliability.svg)
 
@@ -101,12 +113,12 @@ Same target (40 usable provider-windows), same five synthetic markets of 150 pro
 |---|---|---|---|---|---|---|
 | manual: lowest price, terms as asked, paid in full, reviewed at the end | 20.6 | 0/5 | 19.4 | 1.079 | 0.115 | 0.485 |
 | checks: negotiated contracts, incremental checks, 80/20 per contribution, replacement | 29.2 | 0/5 | 6.4 | 0.268 | 0.062 | 0.218 |
-| forecast: the same, ranked by expected usable per XRP, early backups | 39.6 | 4/5 | 7.4 | 0.318 | 0.063 | 0.192 |
+| forecast: the same, ranked by expected usable per XRP, early backups | 41.0 | 3/5 | 7.0 | 0.297 | 0.062 | 0.176 |
 
 What it shows on this generator: catching bad records per contribution (about a fifth of them before any
 payment) and holding 20% per contribution cuts what is paid for unfit data by about three quarters
 and halves the cost per usable record. The forecast adds less than the checks do: a slightly lower
-unfit rate, and it reaches the target because it recruits backups before a window falls short. It
+unfit rate, and it reaches the target more often (3 of 5 markets against 0 of 5) because it recruits backups before a window falls short. It
 pays more in total for that.
 
 ## 8. Run it

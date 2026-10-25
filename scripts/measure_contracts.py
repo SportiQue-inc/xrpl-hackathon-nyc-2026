@@ -23,5 +23,5 @@ cmp = measure.compare(model)
 out = os.path.join(os.path.dirname(__file__), "..", "docs", "img", "reliability.svg")
 os.makedirs(os.path.dirname(out), exist_ok=True)
 with open(out, "w") as f:
-    f.write(forecast.reliability_svg(info["reliability"]))
+    f.write(forecast.reliability_svg(info["reliability"], before=info["reliability_before"]))
 print(json.dumps({"forecast": info, "comparison": cmp}, indent=1))
