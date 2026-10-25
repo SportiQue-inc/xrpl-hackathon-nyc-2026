@@ -600,7 +600,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
             h("button", { class: "ar-btn primary", disabled: status === "approved", title: status === "sent" ? "Propose the next round" : undefined, onclick: async (e) => {
               st.goal = goal.value;
               const r = await busy(e.target, "The agent is reading the coverage table", () => api.setGoal(goal.value), err);
-              if (r) { st.lastApprove = null; load(); }
+              if (r) { st.lastApprove = null; st.approvalReq = null; load(); }
             } }, "Propose")),
           heatmap(s.heatmap))),
         h("div", { class: stepCls(2) }, h("span", { class: "n" }, "2"), h("div", { class: "ar-card col" },
