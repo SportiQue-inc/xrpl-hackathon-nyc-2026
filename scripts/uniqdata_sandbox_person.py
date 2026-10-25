@@ -19,12 +19,13 @@ import json
 import os
 import subprocess
 import sys
+import time
 import uuid
 
 import httpx
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from agentrail.uniqdata_live import SoftPasskey  # noqa: E402
+from agentrail.uniqdata_live import SoftPasskey, UniQdataClient  # noqa: E402
 
 IN_CONTAINER = r'''
 import asyncio, sys, uuid
@@ -42,23 +43,22 @@ print("TOKEN=" + create_access_token(pid, session_id=uuid.uuid4(), auth_level=2)
 '''
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--container", default="uniqdata-hk-core-1")
-    ap.add_argument("--base", default="http://localhost:8001")
-    ap.add_argument("--out", default=".uniqdata_person.json")
-    a = ap.parse_args()
-
+def make_person(container: str, base: str, label: str) -> dict:
+    """One synthetic UniQdata account: account row + first token (in the sandbox), then passkey and
+    collection consent through UniQdata's API. Returns its session (token + software passkey)."""
     pid = uuid.uuid4()
-    email = f"agentrail-{pid.hex[:8]}@synthetic.local"
-    run = subprocess.run(["docker", "exec", "-i", "-w", "/app", "-e", "PYTHONPATH=/app", a.container,
+    email = f"agentrail-{label.lower()}-{pid.hex[:6]}@synthetic.local"
+    run = subprocess.run(["docker", "exec", "-i", "-w", "/app", "-e", "PYTHONPATH=/app", container,
                           "python", "-", str(pid), email], input=IN_CONTAINER, text=True,
                          capture_output=True, check=True)
     token = next(line[6:] for line in run.stdout.splitlines() if line.startswith("TOKEN="))
-
-    api = a.base.rstrip("/") + "/api/v1"
+    api = base.rstrip("/") + "/api/v1"
     h = {"Authorization": f"Bearer {token}", "X-App-Id": "uniqdata-auth"}
-    o = httpx.post(f"{api}/auth/passkey/register/options", json={"email": email}, headers=h, timeout=30)
+    for wait in (20, 40, 60, 60, 0):              # the sandbox rate-limits passkey registration per client
+        o = httpx.post(f"{api}/auth/passkey/register/options", json={"email": email}, headers=h, timeout=30)
+        if o.status_code != 429 or not wait:
+            break
+        time.sleep(wait)
     o.raise_for_status()
     o = o.json()
     pk = SoftPasskey.new()
@@ -67,25 +67,46 @@ def main():
                    json={"challengeId": o.get("challengeId"), "device_name": "agentrail-person-agent",
                          **pk.attestation(o["challenge"])})
     r.raise_for_status()
-    token = r.json()["access_token"]
-    h["Authorization"] = f"Bearer {token}"
-
-    c = httpx.post(f"{api}/consents/", headers=h, timeout=30, json={
+    client = UniQdataClient(base, r.json()["access_token"], pk)
+    c = client._call("POST", "/consents/", {
         "scopes": ["health:*:write:all"], "consent_type": "sensitive_health_collection",
         "policy_id": "sensitive_health_collection_v1", "policy_version": 1})
-    c.raise_for_status()
-    cid = c.json()["consent_id"]
-    ap_ = httpx.post(f"{api}/consents/{cid}/approve", headers=h, json={}, timeout=30)
-    ap_.raise_for_status()
+    approved = client.approve_consent(c["consent_id"])
+    return {"base_url": base, "person_id": str(pid), "email": email, "token": client.token,
+            "passkey": pk.dump(), "collection_consent_id": c["consent_id"],
+            "collection_consent_status": approved["status"]}
 
-    pk_path = a.out + ".passkey"
-    pk.save(pk_path)
-    fd = os.open(a.out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+
+def _write_private(path: str, obj):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
-        json.dump({"base_url": a.base, "person_id": str(pid), "email": email, "token": token,
-                   "passkey": pk_path, "collection_consent_id": cid,
-                   "collection_consent_status": ap_.json()["status"]}, f)
-    print(f"synthetic person {pid} ready; collection consent {ap_.json()['status']}; saved {a.out}")
+        json.dump(obj, f)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--container", default="uniqdata-hk-core-1")
+    ap.add_argument("--base", default="http://localhost:8001")
+    ap.add_argument("--out", default=".uniqdata_person.json")
+    ap.add_argument("--cohort", action="store_true",
+                    help="one account per cohort participant (fixtures), written as a roster to --out")
+    ap.add_argument("--resume", action="store_true", help="keep accounts already in the roster")
+    a = ap.parse_args()
+    if not a.cohort:
+        p = make_person(a.container, a.base, "p-017")
+        _write_private(a.out, p)
+        print(f"synthetic person {p['person_id']} ready; collection consent {p['collection_consent_status']}; saved {a.out}")
+        return
+    from agentrail.scenario import FIXTURE
+    pids = [x["account_id"] for x in json.load(open(FIXTURE))["accounts"] if x["role"] == "participant"][:50]
+    roster = json.load(open(a.out)) if os.path.exists(a.out) and a.resume else {}
+    for i, pid in enumerate(pids):
+        if pid in roster:
+            continue
+        roster[pid] = make_person(a.container, a.base, pid)
+        _write_private(a.out, roster)                 # saved as it goes; a rerun starts a new roster
+        print(f"[{i + 1}/{len(pids)}] {pid} ready", flush=True)
+    print(f"{len(roster)} synthetic UniQdata accounts saved to {a.out}")
 
 
 if __name__ == "__main__":

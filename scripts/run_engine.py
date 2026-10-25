@@ -63,6 +63,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--serve", action="store_true", help="keep the API and dashboard running after the trade")
+    ap.add_argument("--uniqdata-server", help="UniQdata server whose dev lane holds the followed person's "
+                    "records, e.g. https://api.kr.uniqdata.io; asks for the QA account password")
+    ap.add_argument("--qa-fixture", default="core-authority-qa-v1")
     ap.add_argument("--goal", default="Bring the primary analysis back to 80% power before the interim report.")
     a = ap.parse_args()
 
@@ -71,6 +74,15 @@ def main():
         os.makedirs(os.path.join(ROOT, "runs"), exist_ok=True)
         os.environ["AGENTRAIL_DB"] = os.path.join(ROOT, "runs", f"{kind}-{time.strftime('%Y%m%d-%H%M%S')}.db")
     os.environ.setdefault("AGENTRAIL_ANCHOR_S", "0")
+
+    uq = bool(os.environ.get("UNIQDATA_PERSON") or a.uniqdata_server)
+    if a.uniqdata_server:
+        import getpass
+        from agentrail import uniqdata_live
+        pw = getpass.getpass(f"UniQdata QA password for {a.qa_fixture} (dev lane, not shown or stored): ")
+        uniqdata_live.CLIENT = uniqdata_live.server_login(a.uniqdata_server, a.qa_fixture, "subject", pw)
+        del pw
+        log(f"signed in to {a.uniqdata_server} dev lane as QA fixture {a.qa_fixture} (subject)")
 
     import uvicorn
     from agentrail import web
@@ -86,7 +98,7 @@ def main():
 
     api.call("POST", "/api/reset", who=O)
     log("world built: parties, credentials, multisig treasury, cohort of 50 (synthetic)")
-    if os.environ.get("UNIQDATA_PERSON"):          # the followed person's records live in UniQdata
+    if uq:          # the followed person's records live in UniQdata
         d = api.call("GET", "/api/p/P-017/data", who="P-017")
         up = api.call("POST", "/api/p/P-017/data/upload", {}, who="P-017")
         log(f"P-017 uploaded {up['written']} records to UniQdata ({d['records']} before, {up['records']} now; "
@@ -104,7 +116,7 @@ def main():
     log(f"co-signed budget release: {res.get('status')}")
     s = api.call("POST", "/api/study/send", who=R)
     log(f"requests sent; power {s.get('heatmap', {}).get('power_before')} -> {s.get('heatmap', {}).get('power')}")
-    if os.environ.get("UNIQDATA_PERSON"):
+    if uq:
         rid = api.call("GET", "/api/p/P-017", who="P-017")["requests"][0]["id"]
         pv = api.call("GET", f"/api/p/P-017/preview?request={rid}", who="P-017")
         log(f"P-017 preview: {pv['row_count']} rows from {pv['from']['records']} UniQdata records")

@@ -20,7 +20,7 @@ import httpx
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-ORIGIN = os.environ.get("UNIQDATA_WEBAUTHN_ORIGIN", "https://app.uniqdata.io")
+ORIGIN = os.environ.get("UNIQDATA_WEBAUTHN_ORIGIN", "http://localhost:8000")
 ASSERTION_HEADER, ACTION_ID_HEADER = "X-UniQdata-Action-Assertion", "X-UniQdata-Action-Id"
 
 # engine item -> UniQdata (OMOP) records, with concepts UniQdata accepts without a vocabulary load.
@@ -66,7 +66,8 @@ class SoftPasskey:
     """ES256 software passkey for a synthetic person. Stored in a local file, never committed."""
 
     def __init__(self, key: ec.EllipticCurvePrivateKey, cred_id: bytes, rp_id: str = "uniqdata.io"):
-        self.key, self.cred_id, self.rp_id, self.count = key, cred_id, rp_id, 1
+        # signature counter must only go up across runs: derive it from the clock
+        self.key, self.cred_id, self.rp_id, self.count = key, cred_id, rp_id, int(time.time() * 10) & 0x7FFFFFFF
 
     @classmethod
     def new(cls) -> "SoftPasskey":
@@ -78,12 +79,20 @@ class SoftPasskey:
         key = serialization.load_pem_private_key(d["key"].encode(), None)
         return cls(key, base64.urlsafe_b64decode(d["cred"] + "=="), d["rp_id"])
 
-    def save(self, path: str):
+    def dump(self) -> dict:
         pem = self.key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
                                      serialization.NoEncryption()).decode()
+        return {"key": pem, "cred": _b64(self.cred_id), "rp_id": self.rp_id}
+
+    @classmethod
+    def from_dump(cls, d: dict) -> "SoftPasskey":
+        key = serialization.load_pem_private_key(d["key"].encode(), None)
+        return cls(key, base64.urlsafe_b64decode(d["cred"] + "=="), d["rp_id"])
+
+    def save(self, path: str):
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
-            json.dump({"key": pem, "cred": _b64(self.cred_id), "rp_id": self.rp_id}, f)
+            json.dump(self.dump(), f)
 
     def _rp_hash(self):
         return hashlib.sha256(self.rp_id.encode()).digest()
@@ -100,7 +109,7 @@ class SoftPasskey:
                 "clientDataJson": _b64(cdj), "transports": "internal"}
 
     def assertion(self, challenge: str) -> dict:
-        self.count += 1
+        self.count = max(self.count + 1, int(time.time() * 10) & 0x7FFFFFFF)
         auth = self._rp_hash() + bytes([0x05]) + self.count.to_bytes(4, "big")
         cdj = json.dumps({"type": "webauthn.get", "challenge": challenge, "origin": ORIGIN,
                           "crossOrigin": False}).encode()
@@ -109,12 +118,37 @@ class SoftPasskey:
                 "authenticatorData": _b64(auth), "clientDataJson": _b64(cdj), "signature": _b64(sig)}
 
 
-class UniQdataClient:
-    """The person's side of UniQdata: write records, list what is held, read rows back."""
+class DevLaneApproval:
+    """Approval on a UniQdata server's dev lane (synthetic QA accounts): instead of a device passkey,
+    the account password is re-confirmed for each exact request (`dev-action-preflight`). The password
+    stays in this process's memory only; it is never logged or written."""
 
-    def __init__(self, base_url: str, token: str, passkey: SoftPasskey):
+    def __init__(self, password: str):
+        self._password = password
+
+    def proof(self, client: "UniQdataClient", method: str, path: str, params, content: bytes | None) -> tuple[str, str]:
+        pairs = sorted([[k, str(v)] for k, v in (params or {}).items()])
+        q = hashlib.sha256(json.dumps(pairs, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        r = client.http.post(client.base + "/auth/identity-authority/dev-action-preflight", json={
+            "method": method, "path": "/api/v1" + path, "query_sha256": q,
+            "body_sha256": hashlib.sha256(content or b"").hexdigest(), "dev_password": self._password})
+        if r.status_code >= 400:
+            raise RuntimeError(f"UniQdata dev-lane approval refused -> {r.status_code}: {r.text[:200]}")
+        att = r.json()["attestation"]
+        return att["actionId"], _b64(json.dumps({"devSessionProof": att["devSessionProof"]}).encode())
+
+
+class UniQdataClient:
+    """The person's side of UniQdata: write records, list what is held, read rows back. Each sensitive
+    request is approved by the person's software passkey (local sandbox) or, on a server's dev lane,
+    by re-confirming the QA account password (DevLaneApproval)."""
+
+    def __init__(self, base_url: str, token: str, passkey: "SoftPasskey | DevLaneApproval | None",
+                 email: str | None = None):
         self.base = base_url.rstrip("/") + "/api/v1"
         self.passkey = passkey
+        self.token = token
+        self.email = email
         self.http = httpx.Client(timeout=30, headers={"Authorization": f"Bearer {token}",
                                                       "X-App-Id": "uniqdata-auth"})
 
@@ -130,13 +164,70 @@ class UniQdataClient:
             time.sleep(wait)
         detail = r.json().get("detail") if r.headers.get("content-type", "").startswith("application/json") else None
         if r.status_code in (401, 428) and isinstance(detail, dict) and detail.get("attestation"):
-            opt = detail["attestation"]
-            proof = _b64(json.dumps(self.passkey.assertion(opt["challenge"])).encode())
+            if isinstance(self.passkey, DevLaneApproval):
+                action_id, proof = self.passkey.proof(self, method, path, params, content)
+            else:
+                opt = detail["attestation"]
+                action_id = opt["actionId"]
+                proof = _b64(json.dumps(self.passkey.assertion(opt["challenge"])).encode())
             r = self.http.request(method, self.base + path, content=content, params=params,
-                                  headers={**hdr, ACTION_ID_HEADER: opt["actionId"], ASSERTION_HEADER: proof})
+                                  headers={**hdr, ACTION_ID_HEADER: action_id, ASSERTION_HEADER: proof})
         if r.status_code >= 400:
             raise RuntimeError(f"UniQdata {method} {path} -> {r.status_code}: {r.text[:300]}")
         return r.json()
+
+    def approve_consent(self, consent_id: str) -> dict:
+        """UniQdata's consent-signing ceremony: the challenge is derived from the consent's own hash,
+        the passkey signs it, UniQdata verifies and stores the signature with that consent."""
+        opt = self._call("POST", f"/consents/{consent_id}/attestation/options", {})
+        a = self.passkey.assertion(opt["challenge"])
+        return self._call("POST", f"/consents/{consent_id}/approve",
+                          {"passkey_assertion": {"challengeId": opt.get("challengeId"), **a}})
+
+    # ---- the six calls the engine's passkey approval (agentrail/security/passkey.py) relays ----
+
+    def passkey_register_options(self) -> dict:
+        """PublicKeyCredentialCreationOptions for the person's own device passkey (Touch ID). When the
+        person's agent already holds a passkey, UniQdata's managed path adds this one as a second
+        passkey, approved by the existing one."""
+        if self.passkey is not None:
+            return self._call("POST", "/auth/passkeys/register/options", {"device_name": "Touch ID (participant page)"})
+        return self._call("POST", "/auth/passkey/register/options", {"email": self.email})
+
+    def passkey_register_complete(self, body: dict) -> dict:
+        path = "/auth/passkeys/register/complete" if self.passkey is not None else "/auth/passkey/register/complete"
+        out = self._call("POST", path, {"device_name": "Touch ID (participant page)", **body})
+        if out.get("access_token"):                 # UniQdata issues a passkey-level session
+            self.token = out["access_token"]
+            self.http.headers["Authorization"] = f"Bearer {self.token}"
+        self._credential_ids = [out.get("credential_id")]
+        return {"credential_id": out.get("credential_id")}
+
+    def passkey_registered(self) -> list[str]:
+        """UniQdata has no list call; its session says whether a passkey is registered."""
+        if getattr(self, "_credential_ids", None):
+            return list(self._credential_ids)
+        claims = json.loads(base64.urlsafe_b64decode(self.token.split(".")[1] + "=="))
+        return ["registered"] if claims.get("passkey_registered") else []
+
+    def consent_create_pending(self, statement: dict, statement_hash: str) -> dict:
+        """A pending UniQdata consent that carries the request's statement: its consent hash (what the
+        passkey ceremony signs) covers the statement hash through participation_request_id."""
+        items = sorted({i.split(".")[0] for i in statement.get("items", [])}) or ["research"]
+        c = self._call("POST", "/consents/", {
+            "scopes": [f"health:{i}:read" for i in items], "consent_type": "app_access",
+            "app_id": f"agentrail.{statement.get('study', 'study')}",
+            "participation_request_id": f"agentrail-{statement_hash[:40]}"})
+        return {"id": c["consent_id"], "consent_hash": c.get("consent_hash")
+                or hashlib.sha256(json.dumps(c, sort_keys=True, default=str).encode()).hexdigest(),
+                "participation_request_id": c.get("participation_request_id")}
+
+    def consent_attestation_options(self, consent_id: str) -> dict:
+        return self._call("POST", f"/consents/{consent_id}/attestation/options", {})
+
+    def consent_approve(self, consent_id: str, assertion: dict) -> dict:
+        out = self._call("POST", f"/consents/{consent_id}/approve", {"passkey_assertion": assertion})
+        return {"status": out.get("status"), "xrpl_tx_hash": out.get("xrpl_tx_hash")}
 
     def write(self, records: list[dict]) -> dict:
         return self._call("POST", "/data/write/batch", {"data_points": records})
@@ -278,6 +369,29 @@ def provenance(pa, items: list[str], weeks: list[int]) -> dict | None:
     return {"system": "UniQdata", "records": len(hashes), "record_hashes": hashes}
 
 
+CLIENT: "UniQdataClient | None" = None    # set by a launcher that signed in on a UniQdata server
+
+
+def server_login(base_url: str, fixture_id: str, role: str, password: str) -> UniQdataClient:
+    """Sign in a dev-lane QA fixture account on a UniQdata server; approvals re-confirm the password."""
+    r = httpx.post(base_url.rstrip("/") + "/api/v1/auth/dev/qa/authenticate", timeout=30,
+                   headers={"X-App-Id": "uniqdata-auth"},
+                   json={"fixture_id": fixture_id, "role": role, "password": password})
+    if r.status_code >= 400:
+        raise RuntimeError(f"UniQdata QA sign-in refused -> {r.status_code}")
+    return UniQdataClient(base_url, r.json()["access_token"], DevLaneApproval(password))
+
+
+def _client(s: dict) -> UniQdataClient:
+    pk = s["passkey"]
+    key = SoftPasskey.from_dump(pk) if isinstance(pk, dict) else SoftPasskey.load(pk) if pk else None
+    return UniQdataClient(s["base_url"], s["token"], key, s.get("email"))
+
+
 def load_person(path: str) -> UniQdataClient:
-    s = json.load(open(path))
-    return UniQdataClient(s["base_url"], s["token"], SoftPasskey.load(s["passkey"]))
+    return _client(json.load(open(path)))
+
+
+def load_roster(path: str) -> dict[str, UniQdataClient]:
+    """pid -> client, from scripts/uniqdata_sandbox_person.py --cohort."""
+    return {pid: _client(s) for pid, s in json.load(open(path)).items()}
