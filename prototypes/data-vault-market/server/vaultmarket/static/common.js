@@ -124,11 +124,11 @@ function walletDlg() {
 window.addEventListener("unhandledrejection", (e) => { e.preventDefault(); showError(e.reason); });
 
 // "Tell my agent": the request goes to the agent as a chat message, and its answer comes back in the chat
-async function tellAgent(text) {
+async function tellAgent(text, intent) {
   if (!canAct()) return false;
   const el = $("chat"); el.dataset.open = "1";
   try {
-    await post(`/api/account/${ME}/chat`, {text});
+    await post(`/api/account/${ME}/chat`, {text,intent});
     await refresh();
     $("agentQueue")?.scrollIntoView({block: "nearest"});
     return true;

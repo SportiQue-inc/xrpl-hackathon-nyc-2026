@@ -356,7 +356,8 @@ def test_record_quantity_is_not_mistaken_for_permission_to_change_the_price(mark
     assert market.acct('seller')['sell_agent']['min']['sleep_log']==7
 
 
-def test_old_group_approval_is_archived_without_deleting_its_history(market):
+def test_old_group_approval_is_archived_without_deleting_its_history(market, monkeypatch):
+    monkeypatch.setattr(market, '_connect_all', lambda: None)
     text='Buyer wants your data. Sell inside a lot of at least 5 people?'
     mid=market.s.insert('chat',account='seller',role='agent',text=text,actions=[{'t':'OK','do':'interest','posting':market.test_post}])
     market.seed()
@@ -556,3 +557,29 @@ def test_current_asset_statistics_count_each_actual_finish_once(market, monkeypa
     legacy = market.s.insert('contracts', buyer='buyer', seller='seller', kind='sleep_log', status='settled', total=2.9, asset='XRP', unit_micro=10000)
     market.s.insert('txs', contract=legacy, type='EscrowFinish (key released)', src='seller', dst='buyer', drops=29000, asset='XRP', result='tesSUCCESS')
     assert web._paid_now() == {'units': 13.7, 'micro': 13700000}
+
+
+@pytest.mark.parametrize('body', [
+    {'text': 'What can I sell from my DB?'},
+    {'text': 'What can I sell from sleep logs?'},
+    {'text': 'What does request #{posting} offer?'},
+    {'text': '뭘팔수있어?'},
+    {'text': 'sell my sleep logs', 'intent': 'discover'},
+])
+def test_discovery_questions_never_authorize_a_sale(market, monkeypatch, body):
+    from fastapi.testclient import TestClient
+    from vaultmarket import app as web, agents
+    monkeypatch.setattr(web, 'M', market)
+    monkeypatch.setattr(config, 'PUBLIC', False)
+    monkeypatch.setattr(agents, 'parse_chat', lambda text: {'intent': 'sell', 'kind': 'sleep_log', 'price': 1})
+    request = {**body, 'text': body['text'].format(posting=market.test_post)}
+    client = TestClient(web.app)
+    assert client.post('/api/account/seller/chat', json=request).status_code == 200
+    assert market.s.one('SELECT count(*) n FROM sale_queue')['n'] == 0
+    assert market.s.one('SELECT count(*) n FROM interests')['n'] == 0
+    assert market.s.one('SELECT status FROM files WHERE id=?', (market.test_file,))['status'] == 'private'
+    account = client.get('/api/account/seller').json()
+    assert account['account']['sell_agent']['min']['sleep_log'] == 7
+    answer = account['chat'][-1]
+    assert answer['role'] == 'agent'
+    assert any(action.get('posting') == market.test_post for action in answer['actions'])
