@@ -11,7 +11,7 @@ class LostResponse(Exception):
 @dataclass
 class Prepared:
     tx_hash: str
-    blob: str  # signed transaction; safe to store, contains no secret
+    blob: str  # Private outbox: an unpublished EscrowFinish includes the decryption key.
     sequence: int | None = None
 
 
@@ -59,6 +59,10 @@ class Ledger:
 
     def is_expired(self, blob: str) -> bool:
         """True once the tx can no longer be included (past LastLedgerSequence)."""
+        return False
+
+    def can_replace(self, blob: str) -> bool:
+        """Authoritative proof that an expired signed transaction never applied."""
         return False
 
     def wait_validated(self, tx_hash: str, timeout: float = 30.0) -> TxStatus:

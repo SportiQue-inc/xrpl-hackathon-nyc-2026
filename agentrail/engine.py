@@ -24,7 +24,7 @@ from nacl.secret import SecretBox
 
 from . import units
 from .db import Store
-from .ledger import Ledger, LostResponse, Prepared
+from .ledger import Ledger, LostResponse, Prepared, TxStatus
 from .ledger.conditions import condition_hex, fulfillment_hex, key_from_fulfillment, new_key
 from .policy import BuyerMandate, Decision
 
@@ -349,6 +349,8 @@ class Engine:
         st = self.ledger.wait_validated(p["tx_hash"])
         if not st.found:
             if self.ledger.is_expired(p["tx_blob"]):
+                if not self.ledger.can_replace(p["tx_blob"]):
+                    raise RuntimeError("Reconcile the expired payment; its prior outcome is unknown")
                 with self.store.tx() as c:
                     c.execute("UPDATE payments SET tx_hash=NULL, tx_blob=NULL, status='pending' WHERE order_id=?", (oid,))
                     self.store.log("engine", "expired", f"order {oid}: tx expired unapplied; will re-sign")
@@ -396,14 +398,19 @@ class Engine:
         o = self.store.one("SELECT * FROM orders WHERE id=?", oid)
         d = self._recheck(o, for_delivery=True)
         if not d.ok:
+            escrow = self.store.one("SELECT kind FROM payments WHERE order_id=?", oid)["kind"] == "escrow"
             with self.store.tx() as c:
                 c.execute("UPDATE orders SET status='withheld', note=? WHERE id=?", (d.reason, oid))
                 c.execute("UPDATE outbox SET status='done', last_error=? WHERE order_id=? AND kind='deliver'",
                           (d.reason, oid))
                 if d.status != "hold":
+                    if escrow:
+                        c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "cancel", "pending"))
                     c.execute("INSERT INTO exceptions (order_id,kind,detail,cost_bearer,ts) VALUES (?,?,?,?,?)",
-                              (oid, "delivery_withheld", d.reason + "; payment kept", o["buyer_id"], time.time()))
-                self.store.log("engine", "withheld", f"order {oid}: delivery withheld ({d.reason}); payment kept")
+                              (oid, "delivery_withheld", d.reason + ("; escrow will return" if escrow else "; payment kept"),
+                               o["buyer_id"], time.time()))
+                self.store.log("engine", "withheld", f"order {oid}: delivery withheld ({d.reason}); "
+                               + ("escrow will return" if escrow else "payment kept"))
             if d.status == "hold":  # fail closed but retryable
                 with self.store.tx() as c:
                     c.execute("UPDATE orders SET status='paid' WHERE id=?", (oid,))
@@ -437,11 +444,14 @@ class Engine:
 
     # ---------- escrow: payment and data key in one ledger transaction ----------
 
-    def _send(self, oid: int, col: str, prep_fn, may_resign=lambda: True) -> tuple[str, object]:
+    def _send(self, oid: int, col: str, prep_fn, may_resign=lambda: True,
+              may_submit=lambda: True) -> tuple[str | None, object]:
         """Sign once, store hash+blob, submit, look up; resubmit the same blob if not found."""
         p = self.store.one("SELECT * FROM payments WHERE order_id=?", oid)
         h, blob = p[f"{col}_tx" if col != "create" else "tx_hash"], p[f"{col}_blob" if col != "create" else "tx_blob"]
         if h is None:
+            if not may_submit():
+                return None, TxStatus(found=False)
             prep = prep_fn()
             hc, bc = ("tx_hash", "tx_blob") if col == "create" else (f"{col}_tx", f"{col}_blob")
             with self.store.tx() as c:
@@ -451,11 +461,16 @@ class Engine:
                     c.execute("UPDATE payments SET offer_sequence=?, status='submitted' WHERE order_id=?",
                               (prep.sequence, oid))
             h, blob = prep.tx_hash, prep.blob
-            self._submit(oid, prep)
+            if may_submit():
+                self._submit(oid, prep)
         st = self.ledger.wait_validated(h)
         if not st.found:
-            if self.ledger.is_expired(blob) and may_resign():
-                # Past LastLedgerSequence and never applied: sign again (new sequence, new hash).
+            if self.ledger.is_expired(blob):
+                if not may_resign() or not may_submit():
+                    return h, st
+                if not self.ledger.can_replace(blob):
+                    raise RuntimeError("Reconcile the expired transaction; its prior outcome is unknown")
+                # Expiry plus an unconsumed sequence proves the prior tx never applied.
                 prep = prep_fn()
                 hc, bc = ("tx_hash", "tx_blob") if col == "create" else (f"{col}_tx", f"{col}_blob")
                 with self.store.tx() as c:
@@ -464,8 +479,9 @@ class Engine:
                     if col == "create":
                         c.execute("UPDATE payments SET offer_sequence=? WHERE order_id=?", (prep.sequence, oid))
                 h, blob = prep.tx_hash, prep.blob
-            self._submit(oid, Prepared(h, blob))
-            st = self.ledger.wait_validated(h)
+            if may_submit():
+                self._submit(oid, Prepared(h, blob))
+                st = self.ledger.wait_validated(h)
         return h, st
 
     def _consent_tag(self, o) -> str:
@@ -498,9 +514,17 @@ class Engine:
         memo = _memo(oid, o, pv, mh) + self._consent_tag(o)
         if p["tx_hash"] is None:
             p = self._refresh_deadline(oid, p)
+        may_submit = lambda: self._recheck(o, for_delivery=False).ok and self._mandate_check(o, p)[0]
         h, st = self._send(oid, "create", lambda: self.ledger.prepare_escrow_create(
-            buyer_addr, p["payee_address"], p["amount_drops"], p["condition"], p["cancel_after"], memo))
+            buyer_addr, p["payee_address"], p["amount_drops"], p["condition"], p["cancel_after"], memo),
+            may_submit=may_submit)
         if not st.validated:
+            saved = self.store.one("SELECT tx_blob FROM payments WHERE order_id=?", oid)["tx_blob"]
+            if (not may_submit() and not st.found and saved and self.ledger.is_expired(saved)
+                    and self.ledger.can_replace(saved)):
+                with self.store.tx() as c:
+                    self._release(c, o, "blocked", "authorization ended before the escrow applied")
+                    c.execute("UPDATE payments SET status='failed' WHERE order_id=?", (oid,))
             return False
         with self.store.tx() as c:
             ok = (st.success and st.tx_type == "EscrowCreate" and st.destination == p["payee_address"]
@@ -620,10 +644,19 @@ class Engine:
         payee = p["payee_address"]
         submitter = payee if self.ledger.can_sign(payee) else self.relay
         buyer_addr = self.party(o["buyer_id"])["address"]
+        may_submit = lambda: fulfillment is not None and self._recheck(o, for_delivery=True).ok and self._finish_in_time(p)
         h, st = self._send(oid, "finish", lambda: self.ledger.prepare_escrow_finish(
             submitter, buyer_addr, p["offer_sequence"], p["condition"], fulfillment, f"order:{oid}"),
-            may_resign=lambda: self._finish_in_time(p))
+            may_resign=lambda: self._finish_in_time(p), may_submit=may_submit)
         if not st.validated:
+            saved = self.store.one("SELECT finish_blob FROM payments WHERE order_id=?", oid)["finish_blob"]
+            if (not may_submit() and not st.found and saved and self.ledger.is_expired(saved)
+                    and self.ledger.can_replace(saved)):
+                with self.store.tx() as c:
+                    c.execute("UPDATE orders SET status='withheld', note='key release no longer authorized' WHERE id=?", (oid,))
+                    c.execute("UPDATE outbox SET status='done', last_error='key not published' "
+                              "WHERE order_id=? AND kind='finish'", (oid,))
+                    c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "cancel", "pending"))
             return False
         with self.store.tx() as c:
             if not st.success:

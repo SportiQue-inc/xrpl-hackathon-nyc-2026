@@ -50,10 +50,26 @@ class XrplLicenceMixin:
         return mpt_id, [h1, h2, h3, h4]
 
     def licence_held(self, holder: str, mpt_id: str) -> bool:
-        r = self.client.request(GenericRequest(method="account_objects", account=holder, type="mptoken",
-                                               ledger_index="validated")).result
-        return any(o.get("MPTokenIssuanceID", "").upper() == mpt_id.upper() and int(o.get("MPTAmount", "0")) > 0
-                   for o in r.get("account_objects", []))
+        marker, ledger_index, seen = None, "validated", set()
+        while True:
+            response = self.client.request(GenericRequest(method="account_objects", account=holder, type="mptoken",
+                ledger_index=ledger_index, **({"marker": marker} if marker is not None else {})))
+            r = response.result
+            if (not response.is_successful() or r.get("validated") is not True or r.get("account") != holder
+                    or type(r.get("ledger_index")) is not int or not isinstance(r.get("account_objects"), list)
+                    or (ledger_index != "validated" and r["ledger_index"] != ledger_index)):
+                raise RuntimeError("Validated licence status is unavailable")
+            if any(o.get("MPTokenIssuanceID", "").upper() == mpt_id.upper() and int(o.get("MPTAmount", "0")) > 0
+                   for o in r["account_objects"]):
+                return True
+            marker = r.get("marker")
+            if marker is None:
+                return False
+            key = json.dumps(marker, sort_keys=True)
+            if key in seen:
+                raise RuntimeError("Licence pagination did not advance")
+            seen.add(key)
+            ledger_index = r["ledger_index"]
 
     def licence_metadata_of(self, mpt_id: str) -> str | None:
         """The licence terms as written on the ledger (MPTokenMetadata of the issuance)."""
