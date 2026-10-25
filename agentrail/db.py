@@ -86,9 +86,6 @@ CREATE TABLE IF NOT EXISTS holdbacks (
   order_ids TEXT NOT NULL DEFAULT '[]',                      -- the delivered weeks this held share covers
   review TEXT, create_tx TEXT, finish_tx TEXT, cancel_tx TEXT, ts REAL NOT NULL
 );
-CREATE TABLE IF NOT EXISTS review_keys (
-  holdback_id INTEGER PRIMARY KEY, key_hex TEXT NOT NULL   -- held by the review service, not the study team
-);
 CREATE TABLE IF NOT EXISTS integrity_cases (
   id INTEGER PRIMARY KEY AUTOINCREMENT, study TEXT NOT NULL, person TEXT NOT NULL, request_id INTEGER,
   signals TEXT NOT NULL, status TEXT NOT NULL,                  -- suspected | confirmed | cleared

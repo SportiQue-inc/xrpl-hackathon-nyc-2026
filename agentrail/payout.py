@@ -62,6 +62,16 @@ def _url(w, h):
     return w.ledger.explorer_url(h) if h else None
 
 
+def _review_keys(w):
+    """The review service's own key store (not the study's DB): it holds each held share's fulfillment."""
+    ks = w.__dict__.get("review_keystore")
+    if ks is None:
+        from .security.keystore import LocalKeyStore
+        root = os.environ.get("AGENTRAIL_KEYSTORE") or (".keystore" if w.ledger.name == "testnet" else None)
+        ks = w.review_keystore = LocalKeyStore("review_service", root)
+    return ks
+
+
 def _send(w, prep):
     w.ledger.submit(prep)
     return w.ledger.wait_validated(prep.tx_hash)
@@ -136,13 +146,13 @@ def _create(w, kind, study, pid, rid, cells, amount, finish_after, review_until,
                          finish_after, review_until, cancel_after, status, json.dumps(sorted(order_ids)),
                          prep.tx_hash, time.time()))
         hid = cur.lastrowid
-        c.execute("INSERT INTO review_keys (holdback_id, key_hex) VALUES (?,?)", (hid, key.hex()))
         c.execute("UPDATE mandates SET spent_drops=spent_drops+? WHERE buyer_id=?", (amount, study))
+    _review_keys(w).get_or_create(f"holdback.{w.ledger.name}.{owner}.{prep.sequence}", lambda: key)
     return hid
 
 
 def _finish(w, hb) -> bool:
-    key = bytes.fromhex(w.store.one("SELECT key_hex FROM review_keys WHERE holdback_id=?", hb["id"])["key_hex"])
+    key = _review_keys(w).get(f"holdback.{w.ledger.name}.{hb['owner']}.{hb['offer_sequence']}")
     L = w.ledger
     prep = L.prepare_escrow_finish(hb["owner"], hb["owner"], hb["offer_sequence"], hb["condition"],
                                    fulfillment_hex(key), f"{hb['kind']}:r{hb['request_id']}|release",
