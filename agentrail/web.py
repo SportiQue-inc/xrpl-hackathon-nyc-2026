@@ -528,6 +528,15 @@ def market_products(pid: str = Query(default="P-017"), tap: bool = Query(default
     return json.loads(json.dumps(r, default=str))
 
 
+@app.get("/api/market/cohorts")
+def market_cohorts():
+    """Lots of at least k people assembled by the sellers' agents per need; nothing leaves below k."""
+    from .market import cohort
+    r = cohort.run()
+    _state["cohorts"] = r
+    return r
+
+
 @app.get("/api/market/activity")
 def market_activity(act: int = Query(default=1, ge=1, le=2)):
     return _market_view(act)
@@ -568,7 +577,7 @@ def run_report():
         w = world()
         markets = [_market_view(a) for a in (1, 2) if f"market{a}" in _state]
         return HTMLResponse(report.render(onledger.view(w), markets, {"flows": ec.flows(w)}, ledger=w.ledger.name,
-                                          products=_state.get("products")))
+                                          products=_state.get("products"), cohorts=_state.get("cohorts")))
 
 
 @app.get("/api/engine/check")

@@ -16,9 +16,11 @@ the ledger through the engine (`LedgerSettle`), where every escrow and release i
 """
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import dataclass, field
 
+from .. import payout_schedule
 from ..cohort import power
 from . import fitness, forecast, market
 from .profile import profile
@@ -48,6 +50,10 @@ def as_asked(req: Requirements, provider: str, price: int, prof: dict, holder: s
 class Accounting:
     """No ledger: amounts only."""
     name = "accounting"
+
+    def key_for(self, rnd, p, k, wnum) -> bytes:
+        """The participant agent's K for this window (synthetic, deterministic per contribution)."""
+        return hashlib.sha256(f"K|{p.id}|{k.hash}|{wnum}".encode()).digest()
 
     def pay_immediate(self, rnd, p, k, wnum, payload, amount):
         return {"paid": amount, "payload": payload}
@@ -87,6 +93,7 @@ class Round:
         self.projections: list[dict] = []
         self.warnings: list[dict] = []
         self.seen: dict = {}
+        self.history: dict[str, list[bool]] = {}         # provider -> verified weeks, for the continuity curve
         self.twins = {}
 
     # ---------- provider side ----------
@@ -191,20 +198,26 @@ class Round:
         p, k = self.by_id[pid], self.contracts[pid]
         x = self.features(pid, k, wnum)
         consent = self.consent_hash_of(pid) if self.consent_hash_of else "synthetic-consent-v1"
-        payload = fitness.deliver(p, k, wnum, self.issuers, consent, self.twins.get(pid))
-        price = k.price_drops_per_window
-        held = price * 20 // 100
+        key = self.settle.key_for(self, p, k, wnum) if hasattr(self.settle, "key_for") else None
+        payload = fitness.deliver(p, k, wnum, self.issuers, consent, self.twins.get(pid), key=key)
+        hist = self.history.setdefault(pid, [])
+        terms = payout_schedule.prospective(k.price_drops_per_window, hist)
+        price = terms["week_drops"]
         if not self.checks:                             # manual flow: paid in full now, reviewed later
             r = self.settle.pay_immediate(self, p, k, wnum, payload, price)
             sig = fitness.precheck(payload["manifest"], k, self.registry)
             sig = sig + fitness.check_values(r["payload"], k, self.profiles[pid], self.seen, pid)
             return self._record(pid, k, wnum, "end_review", sig, r["paid"], 0, 0, r.get("txs"), x)
-        pre = fitness.precheck(payload["manifest"], k, self.registry)
+        # every check that needs no opening runs first: source signatures and credentials, the records
+        # exactly as the source stamped them at intake, period, holder
+        pre = fitness.precheck(payload["manifest"], k, self.registry, payload)
         if pre:
+            hist.append(False)
             return self._record(pid, k, wnum, "before_payment", pre, 0, 0, 0, None, x)
-        r = self.settle.pay_immediate(self, p, k, wnum, payload, price - held)
-        post = fitness.check_values(r["payload"], k, self.profiles[pid], self.seen, pid)
-        h = self.settle.hold(self, p, k, wnum, held, not post, post, r)
+        r = self.settle.pay_immediate(self, p, k, wnum, payload, terms["upfront_drops"])
+        post = fitness.check_values(r["payload"], k, self.profiles[pid], self.seen, pid, key)
+        hist.append(not post)
+        h = self.settle.hold(self, p, k, wnum, terms["held_drops"], not post, post, r)
         return self._record(pid, k, wnum, "after_reveal", post, r["paid"], h["held"], h["released"],
                             {**(r.get("txs") or {}), **(h.get("txs") or {})}, x)
 

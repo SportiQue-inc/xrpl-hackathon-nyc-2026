@@ -19,10 +19,12 @@ import hashlib
 
 from . import market
 from .profile import _num
-from .provenance import Holder, manifest, values_hash, verify_manifest, verify_values
+from .provenance import (Holder, manifest, open_sealed, seal_values, values_hash, verify_manifest, verify_seals,
+                         verify_values, wrap_key)
 from .terms import canonical
 
-PRE = {"bad_signature", "wrong_contract", "wrong_source", "different_person", "wrong_period"}
+PRE = {"bad_signature", "wrong_contract", "wrong_source", "different_person", "wrong_period", "tampered", "unsealed"}
+POST_SEAL = {"unopenable"}
 POST = {"tampered", "incomplete", "wrong_unit", "impossible_value", "drift", "duplicate"}
 
 
@@ -33,7 +35,7 @@ def holder_for(provider_id: str, buyer: str) -> Holder:
 # ---------------- provider side ----------------
 
 def deliver(p: market.Provider, contract, wnum: int, issuers: dict, consent_hash: str,
-            twins: dict | None = None) -> dict:
+            twins: dict | None = None, key: bytes | None = None) -> dict:
     """What the provider's agent seals for one window: rows, native values, manifest. Faults in the
     synthetic provider change what it sends; the code that checks it does not know about them."""
     fault = next((p.faults[w] for w in sorted(p.faults) if w <= wnum), None)
@@ -43,7 +45,7 @@ def deliver(p: market.Provider, contract, wnum: int, issuers: dict, consent_hash
     a, b = market.slots_for_window(src_w)
     slots = list(range(a, b + 1))
     rows = [{"slot": s} for s in range(lo, hi + 1)]
-    native, atts, steps = {}, [], []
+    native, atts, steps, sealed, wrapped = {}, [], [], {}, {}
     for t in contract.terms:
         if wnum not in t["windows"]:
             continue
@@ -66,26 +68,49 @@ def deliver(p: market.Provider, contract, wnum: int, issuers: dict, consent_hash
         issuer = issuers["unknown_app"] if fault == "wrong_source" else issuers[p.cols[col].source if col in p.cols
                                                                                   else t["source"]]
         holder = holder_for(f"other-of-{p.id}", contract.buyer).pub if fault == "different_person" else me.pub
-        atts.append(issuer.attest(holder, col, slots, vals))
+        if key is None:
+            atts.append(issuer.attest(holder, col, slots, vals))
+        else:
+            # stamped at intake: the source sealed and signed these records when they entered the
+            # person's store; the agent only wraps the intake key with the escrow's K
+            ik = hashlib.sha256(f"intake|{p.id}|{col}|{src_w}".encode()).digest()
+            a, blob = issuer.seal(holder, col, slots, vals, ik)
+            if fault == "tampered":
+                # the provider "improves" values after intake; it can re-encrypt them with the intake
+                # key, but cannot sign as the source
+                vals = [None if v is None else round(v * 1.15, 3) for v in vals]
+                native[col] = vals
+                for r, v in zip(rows, vals):
+                    r[col] = None if v is None else round(v * factor, 3)
+                blob = seal_values(vals, ik, col)
+            atts.append(a)
+            sealed[col] = blob.hex()
+            wrapped[col] = wrap_key(ik, key, col)
         steps.append({"column": col, "from": p.cols[col].native_unit if col in p.cols else t["unit"],
                       "to": t["unit"], "factor": factor})
     qc = {"rows": len(rows), "filled": {c: sum(v is not None for v in vs) for c, vs in native.items()}}
     m = manifest(me, contract.hash, consent_hash, wnum, atts, steps, qc)
-    return {"rows": rows, "native": native, "manifest": m}
+    return {"rows": rows, "native": native, "manifest": m, **({"sealed": sealed, "wrapped": wrapped} if key is not None else {})}
 
 
 # ---------------- buyer side ----------------
 
-def precheck(m: dict, contract, registry) -> list[dict]:
-    return verify_manifest(m, registry, contract, contract.holder or None, market.slots_for_window)
+def precheck(m: dict, contract, registry, payload: dict | None = None) -> list[dict]:
+    out = verify_manifest(m, registry, contract, contract.holder or None, market.slots_for_window)
+    if payload is not None and "sealed" in payload:
+        out += verify_seals(m, payload)
+    return out
 
 
 def _series_key(native: dict) -> str:
     return hashlib.sha256(canonical(sorted((c, v) for c, v in native.items())).encode()).hexdigest()
 
 
-def check_values(payload: dict, contract, profile: dict, seen: dict, provider: str) -> list[dict]:
+def check_values(payload: dict, contract, profile: dict, seen: dict, provider: str,
+                 key: bytes | None = None) -> list[dict]:
     m, out = payload["manifest"], verify_values(payload["manifest"], payload)
+    if key is not None and payload.get("sealed"):
+        out += open_sealed(m, payload, key)
     wnum = m["window"]
     for t in contract.terms:
         if wnum not in t["windows"]:

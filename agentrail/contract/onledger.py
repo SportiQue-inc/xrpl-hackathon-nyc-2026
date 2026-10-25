@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 
 from .. import payout
-from ..engine import BudgetExceeded, NeedsHumanApproval, OrderRequest
+from ..engine import BudgetExceeded, NeedsHumanApproval, OrderRequest, sha256_hex
 from . import market, provenance
 from .round import Round, requirements
 
@@ -52,6 +52,14 @@ class LedgerSettle:
     def __init__(self, w):
         self.w = w
 
+    def key_for(self, rnd, p, k, wnum) -> bytes | None:
+        """The escrow K the participant's keyring will lock this order with; it wraps the intake keys."""
+        holder = self.w.engine.key_holders.get(p.id)
+        if holder is None or not hasattr(holder, "key"):
+            return None
+        ok = sha256_hex(f"{LAB}|{p.id}|contract:{k.hash}|{p.id}|w{wnum}:contract|{k.purpose}")
+        return holder.key(ok)
+
     def pay_immediate(self, rnd, p, k, wnum, payload, amount):
         w = self.w
         pa = w.cohort_people[p.id]
@@ -61,7 +69,8 @@ class LedgerSettle:
             raise RuntimeError(f"{p.id}: consent does not cover {items} for window {wnum} ({d.reason or d.status})")
         r = OrderRequest(LAB, p.id, p.id, f"contract:{k.hash}", f"{p.id}|w{wnum}:contract", k.purpose, items,
                          amount, payload["rows"], d, settle="escrow",
-                         extra={"native": payload["native"], "manifest": payload["manifest"], "contract": k.body()})
+                         extra={"native": payload["native"], "manifest": payload["manifest"], "contract": k.body(),
+                                **{x: payload[x] for x in ("sealed", "wrapped") if x in payload}})
         oid = w.engine.place_order(r)
         w.engine.process(oid)
         pm = w.store.one("SELECT * FROM payments WHERE order_id=?", oid)

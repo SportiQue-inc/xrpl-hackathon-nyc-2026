@@ -1,7 +1,7 @@
 """One trade pipeline for every kind of data and every direction.
 
   need -> discover offers -> pre-trade quality check -> rank (grade x price) -> contract
-       -> policy (plug-in) -> settle (XRPL escrow, key reveal) -> fitness check -> holdback
+       -> policy (plug-in) -> settle (XRPL escrow, key reveal) -> fitness check
 
 Every account has its own agent, its own data and its own needs. Agents trade among themselves with
 no human in the loop. The only thing that changes between an open market (Act 1) and healthcare
@@ -9,9 +9,12 @@ research (Act 2) is the policy plugged into the seller's agent: `OpenPolicy` let
 owner listed; `SensitivityPolicy` adds tiered consent, safety-gate packages and the T3 rules. Same
 code path, same ledger flow.
 
-Prices are fixed quotes per tier and grade, never haggled. Payment is 80% by key-reveal escrow
-through the engine; the other 20% is paid after the buyer's fitness check passes and withheld if
-it fails.
+Prices are fixed quotes per tier and grade, never haggled. A market dataset already exists in full,
+so it is a retrospective purchase (payout_schedule.retrospective): the buyer's agent inspects it
+before buying (quality certificate, a sample opened against the committed root, the policy and
+gates) and pays it whole by key-reveal escrow, nothing held. A delivery that fails the fitness check
+after opening is recorded against the seller (its pass rate, and so its grade on every later
+offer, falls) and noted as a refund claim off the ledger; paid money is never pulled back on chain.
 """
 from __future__ import annotations
 
@@ -26,6 +29,7 @@ from ..engine import BudgetExceeded, Engine, NeedsHumanApproval, OrderRequest
 from ..ledger.mock import MockLedger
 from ..policy import ALLOW, BuyerMandate, Decision
 from ..catalog import columns as catalog
+from .. import payout_schedule
 from . import quality
 
 # ---------------- columns any account may hold ----------------
@@ -109,8 +113,9 @@ class Dataset:
     def delivered(self) -> tuple[list, list]:
         """What the seller actually sends. Honest sellers send what they committed."""
         if self.fault == "wrong_unit":
-            c = next(c for c in self.columns if spec(c)["tier"] != "R" and isinstance(self.rows[0].get(c), (int, float))
-                     or c in ROBOT)
+            c = next((c for c in self.columns if c in ROBOT or catalog.CATALOG[c].kind == "numeric"), None)
+            if c is None:                   # nothing numeric to put in the wrong unit
+                return self.rows, self.salts
             return [{**r, c: (r[c] * 60 if isinstance(r.get(c), (int, float)) else r.get(c))} for r in self.rows], self.salts
         if self.fault == "bait":
             return [{**r, **{c: None for c in self.columns}} if i % 2 else r for i, r in enumerate(self.rows)], self.salts
@@ -346,7 +351,7 @@ class Exchange:
         if trade.get("output") == "aggregate":
             from .genomic import aggregate
             part = aggregate(part, need_cols, trade.get("loci", []))
-        main = price * 8 // 10
+        main = payout_schedule.retrospective(price)["upfront_drops"]
         self._grants[(trade["buyer"], seller.id, trade["contract"])] = Decision(ALLOW, granted=list(need_cols))
         req = OrderRequest(trade["buyer"], seller.id, seller.id, f"contract:{trade['contract']}",
                            f"{ds.id}|{trade['need']}", trade["purpose"], list(need_cols), main, part,
@@ -363,15 +368,14 @@ class Exchange:
         pm = self.engine.store.one("SELECT * FROM payments WHERE order_id=?", oid)
         payload = self.engine.open_payload(trade["buyer"], oid)
         ok, signals = self.fitness(o["cert"], payload, need_cols, seller.id)
-        held = price - main
         txs = {"escrow_create": pm["tx_hash"], "escrow_finish": pm["finish_tx"]}
         if ok:
             seller.passed += 1
-            txs["holdback"] = self._pay(trade["buyer"], seller.id, held)
         else:
             seller.failed += 1
         return self._log({**base, "status": "settled" if ok else "settled_unfit", "stage": "fitness",
-                          "order_id": oid, "paid_drops": main + (held if ok else 0), "withheld_drops": 0 if ok else held,
+                          "order_id": oid, "paid_drops": main, "withheld_drops": 0, "schedule": "retrospective",
+                          **({} if ok else {"refund_claim_drops": main}),
                           "signals": signals, "txs": txs, "filled_h": round(at_h, 3),
                           "hours_to_fill": round(at_h - trade["posted_h"], 3),
                           "urls": {k: self.ledger.explorer_url(v) for k, v in txs.items() if v}})
@@ -405,14 +409,6 @@ class Exchange:
             sig.append({"code": "duplicate", "detail": f"same series as {first}"})
         return not sig, sig
 
-    def _pay(self, src: str, dst: str, drops: int) -> str | None:
-        if drops <= 0:
-            return None
-        a, b = self.engine.party(src)["address"], self.engine.party(dst)["address"]
-        p = self.ledger.prepare_payment(a, b, drops, None, "holdback:released after fitness pass")
-        self.ledger.submit(p)
-        return p.tx_hash
-
     def _log(self, r: dict) -> dict:
         self.trades.append(r)
         return r
@@ -428,6 +424,7 @@ class Exchange:
         return {"trades": len(t), "by_status": by, "needs": len([e for e in self.events if e["kind"] == "need"]),
                 "volume_xrp": round(sum(x.get("paid_drops", 0) for x in settled) / 1e6, 6),
                 "withheld_xrp": round(sum(x.get("withheld_drops", 0) for x in settled) / 1e6, 6),
+                "refund_claims_xrp": round(sum(x.get("refund_claim_drops", 0) for x in settled) / 1e6, 6),
                 "median_hours_to_fill": hrs[len(hrs) // 2] if hrs else None,
                 "awaiting_owner": len(self.pending),
                 "auto_collected": len([e for e in self.events if e["kind"] == "collected"]),

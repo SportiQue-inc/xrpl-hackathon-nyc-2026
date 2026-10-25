@@ -185,7 +185,8 @@ Code decides, people confirm, the LLM never judges.
 2. Penalties apply only to fraud (fabricated data, duplicate accounts, someone else's device or
    data) and to missing an accepted round. Code detects signals; `fraud_confirmed` needs a human
    reviewer (`reviewer_id`) and a notice-and-response period.
-3. Two-part round payment: 80% paid on contribution (Payment); 20% held per round in an Escrow
+3. Two-part round payment on the continuity curve (`payout_schedule.py`): 50% of a verified week paid
+   on contribution, rising 10 points per consecutive week up to 90%; the rest held per round in an Escrow
    (FinishAfter 7 days, up to 14 more if fraud is suspected, CancelAfter later than that). Passing
    review or time running out releases it by default; only `fraud_confirmed` stops it.
 4. After withdrawal, held parts that passed review or timed out are still paid; if withdrawal

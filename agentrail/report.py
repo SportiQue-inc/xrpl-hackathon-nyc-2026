@@ -46,7 +46,8 @@ def projection_svg(ps: list[dict]) -> str:
 
 
 def render(contract: dict | None = None, markets: list[dict] | None = None, engine_check: dict | None = None,
-           title: str = "AgentRail run report", ledger: str = "", products: dict | None = None) -> str:
+           title: str = "AgentRail run report", ledger: str = "", products: dict | None = None,
+           cohorts: dict | None = None) -> str:
     out = [f"<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
            f"<title>{e(title)}</title><style>{CSS}</style></head><body><h1>{e(title)}</h1>"
            f"<p class=muted>Generated {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}"
@@ -104,16 +105,28 @@ def render(contract: dict | None = None, markets: list[dict] | None = None, engi
                    f"{e(', '.join(c['column'] for c in pr['collected'] if c['collected']) or 'nothing')} · "
                    f"re-identification check: {e('; '.join(pr['k_anonymity']))}</p>"
                    "<table><tr><th>direction</th><th>domain</th><th>columns</th><th>tier</th><th>grade</th><th>XRP</th>"
-                   "<th>review</th><th>de-identification</th><th>sale</th></tr>")
+                   "<th>review</th><th>payout</th><th>de-identification</th><th>sale</th></tr>")
         for c in pr["candidates"]:
             sale = c.get("sale") or {}
             sold = (f"sealed push to {sale.get('institution')}, paid" if sale.get("sold") else sale.get("why", "not listed"))
             out.append(f"<tr><td>{e(c['direction'])}</td><td>{e(c['domain'])}</td><td>{e(', '.join(c['columns']))}</td>"
                        f"<td>{e(c['tier'])}</td><td>{e(c['grade'])}</td><td>{c['price_drops'] / 1e6:g}</td>"
-                       f"<td>{e(c['review']['how'])}: {e(c['review']['why'])}</td><td>{e('; '.join(c.get('deid', [])))}</td>"
+                       f"<td>{e(c['review']['how'])}: {e(c['review']['why'])}</td><td>{e((c.get('payout') or {}).get('schedule', ''))}</td>"
+                       f"<td>{e('; '.join(c.get('deid', [])))}</td>"
                        f"<td class={'ok' if sale.get('sold') else 'muted'}>{e(sold)}</td></tr>")
         out.append("</table><table><tr><th>study posting</th><th>institution</th><th>matched</th><th>why</th></tr>" + "".join(
             f"<tr><td>{e(x['posting'])}</td><td>{e(x['institution'])}</td><td>{e(', '.join(x['matched']))}</td>"
             f"<td>{e(x['why'])}</td></tr>" for x in pr["postings_searched"]) + "</table>")
+    if cohorts:
+        out.append(f"<h2>Cohort lots (k={e(cohorts['k'])})</h2><p>{e(cohorts['lots_released'])} of {e(cohorts['needs'])} "
+                   f"needs cleared as lots; one person at a time: {e(cohorts['cleared_one_at_a_time'])}. Median fill "
+                   f"{e(cohorts['median_fill_h'])} h.</p><table><tr><th>need</th><th>status</th><th>domain</th><th>tier</th>"
+                   "<th>members</th><th>released quasi-identifiers</th><th>fill (h)</th></tr>")
+        for x in cohorts["lots"]:
+            n = len(x["members"]) if isinstance(x.get("members"), list) else x.get("members", 0)
+            out.append(f"<tr><td>{e(x['need'])}</td><td>{e(x['status'])}</td><td>{e(x.get('domain', ''))}</td>"
+                       f"<td>{e(x.get('tier', ''))}</td><td>{e(n)}</td><td>{e(', '.join(x.get('released_quasi') or []) or 'country only')}</td>"
+                       f"<td>{e(x.get('fill_h', ''))}</td></tr>")
+        out.append("</table>")
     out.append("<p class=foot>Synthetic data, XRPL Testnet. Legal requirements are reflected in the design; this is not a compliance claim.</p></body></html>")
     return "".join(out)

@@ -23,6 +23,8 @@ from nacl.encoding import HexEncoder
 from nacl.exceptions import BadSignatureError
 from nacl.signing import SigningKey, VerifyKey
 
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
 from .terms import canonical
 
 DATA_SOURCE = "DATA_SOURCE"
@@ -45,6 +47,27 @@ class SourceIssuer:
         body = {"issuer": self.name, "holder": holder, "column": column, "slots": slots,
                 "values": values_hash(native)}
         return {**body, "sig": self._key.sign(canonical(body).encode()).signature.hex()}
+
+    def seal(self, holder: str, column: str, slots: list[int], native: list, key: bytes) -> tuple[dict, bytes]:
+        """Provenance stamped at intake: when the record enters the person's store (FHIR export, device
+        sync), the source encrypts it with an intake key kept in the person's vault and signs the
+        sealed bytes. At sale time there is no round trip to the source: the bundle carries the sealed
+        records as stamped, and the buyer checks the signatures before paying. A value changed after
+        intake would need the source's signature again."""
+        sealed = seal_values(native, key, column)
+        body = {"issuer": self.name, "holder": holder, "column": column, "slots": slots,
+                "values": values_hash(native), "sealed": hashlib.sha256(sealed).hexdigest()}
+        return {**body, "sig": self._key.sign(canonical(body).encode()).signature.hex()}, sealed
+
+
+def seal_values(native: list, key: bytes, column: str) -> bytes:
+    n = hashlib.sha256(f"seal|{column}".encode()).digest()[:12]     # one K per window and column set
+    return n + AESGCM(key).encrypt(n, canonical(native).encode(), column.encode())
+
+
+def open_values(sealed: bytes, key: bytes, column: str) -> list:
+    import json
+    return json.loads(AESGCM(key).decrypt(sealed[:12], sealed[12:], column.encode()))
 
 
 class Registry:
@@ -70,7 +93,7 @@ def verify_attestation(a: dict, registry: Registry) -> str | None:
     """None if valid, else the failure code."""
     if a.get("issuer") not in registry.keys:
         return "unregistered_source"
-    body = {k: a[k] for k in ("issuer", "holder", "column", "slots", "values")}
+    body = {k: a[k] for k in ("issuer", "holder", "column", "slots", "values", "sealed") if k in a}
     try:
         VerifyKey(registry.keys[a["issuer"]], encoder=HexEncoder).verify(canonical(body).encode(),
                                                                        bytes.fromhex(a["sig"]))
@@ -128,6 +151,52 @@ def verify_manifest(m: dict, registry: Registry, contract, expected_holder: str 
     for col, src in sorted(want - got):
         if not any(x["column"] == col for x in out):
             out.append({"code": "wrong_source", "column": col, "detail": f"no attestation from {src}"})
+    return out
+
+
+def wrap_key(intake_key: bytes, escrow_key: bytes, column: str) -> str:
+    """The intake key travels inside the bundle wrapped with the escrow's K: it opens only once the
+    escrow is finished."""
+    n = hashlib.sha256(f"wrap|{column}".encode()).digest()[:12]
+    return (n + AESGCM(escrow_key).encrypt(n, intake_key, column.encode())).hex()
+
+
+def unwrap_key(wrapped: str, escrow_key: bytes, column: str) -> bytes:
+    b = bytes.fromhex(wrapped)
+    return AESGCM(escrow_key).decrypt(b[:12], b[12:], column.encode())
+
+
+def verify_seals(m: dict, payload: dict) -> list[dict]:
+    """Before payment: every column carries the source's intake stamp, and the sealed bytes delivered
+    are exactly the ones the source signed (issuer key and DATA_SOURCE credential are checked with
+    the attestation)."""
+    out = []
+    for a in m["attestations"]:
+        if "sealed" not in a:
+            out.append({"code": "unsealed", "column": a["column"], "detail": "the source did not seal this column"})
+            continue
+        blob = (payload.get("sealed") or {}).get(a["column"])
+        if blob is None or hashlib.sha256(bytes.fromhex(blob)).hexdigest() != a["sealed"]:
+            out.append({"code": "tampered", "column": a["column"],
+                        "detail": "sealed records differ from what the source signed at intake: refused before payment"})
+    return out
+
+
+def open_sealed(m: dict, payload: dict, escrow_key: bytes) -> list[dict]:
+    """After the key reveal: unwrap each intake key with K and open the stamped records; they must be
+    the values the bundle's rows were built from."""
+    out = []
+    for a in m["attestations"]:
+        col = a["column"]
+        if col not in (payload.get("sealed") or {}):
+            continue
+        try:
+            vals = open_values(bytes.fromhex(payload["sealed"][col]), unwrap_key(payload["wrapped"][col], escrow_key, col), col)
+        except Exception:
+            out.append({"code": "unopenable", "column": col, "detail": "the stamped records do not open with the released key"})
+            continue
+        if values_hash(vals) != a["values"] or vals != payload["native"].get(col):
+            out.append({"code": "tampered", "column": col, "detail": "rows differ from the stamped records"})
     return out
 
 

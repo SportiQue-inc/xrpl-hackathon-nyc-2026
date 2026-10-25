@@ -2,7 +2,7 @@
 
 Act 1, an open market. Every account's agent lists what its owner holds and posts what its owner
 wants. The agents find each other, check quality before the trade, agree a contract, settle by
-escrow with key reveal, check fitness and release or withhold the holdback, with no human in the
+escrow with key reveal (bought whole after inspection, nothing held) and check fitness, with no human in the
 loop except where the owner's own setting says "ask me". Health columns, robot and fleet logs and
 smart-home meters trade side by side. One trade runs the other way: a person buys a wellness trait
 report from a credentialed provider and sends only the loci the report needs.
@@ -65,8 +65,11 @@ def datasets_for(pid: str, p: dict, rng: random.Random, key: bytes) -> list[Data
     series = [c for c in cols if catalog.CATALOG[c].kind not in ("variants", "image")]
     out = []
     if series:
-        out.append(Dataset(f"{pid}:health", pid, series, 8, rng.uniform(0.7, 0.98),
-                           {c: ISSUERS[_kind(c)] for c in series}))
+        # one dataset per domain and tier (products.bundles): a certificate never spans sleep and labs
+        from .products import bundles
+        comp = rng.uniform(0.7, 0.98)
+        for dom, tier, cs in bundles(series):
+            out.append(Dataset(f"{pid}:{dom}:{tier}", pid, cs, 8, comp, {c: ISSUERS[_kind(c)] for c in cs}))
     for c in cols:
         k = catalog.CATALOG[c].kind
         if k == "image":
@@ -127,7 +130,7 @@ def participants(prof: dict, act: int, seed: int = 11) -> list[Account]:
         level, bars, never = preset_for(p)
         home = "MN" if i >= len(prof["participants"]) - 2 else "KR"
         a = Account(pid, pid, "person", attrs={**person_record(pid, rng), "country": home},
-                    datasets=datasets_for(pid, p, rng, key), credentials=set(ISSUERS.values()))
+                    datasets=datasets_for(pid, p, random.Random(f"data|{pid}|{seed}"), key), credentials=set(ISSUERS.values()))
         signed = ([{"institution": "org_genomics", "purpose": "genomics_research", "loci": ["CYP1A2", "MCM6"]}]
                   if rng.random() < 0.5 else [])
         common = dict(preset=level, bars=bars, never=never, home=home, manual=pid == MANUAL,
@@ -142,6 +145,7 @@ def participants(prof: dict, act: int, seed: int = 11) -> list[Account]:
                                                         device=TouchID(hashlib.sha256(pid.encode()).digest())),
                                                   **common)
         a.attrs["sources"] = connected_sources(pid)
+        a.attrs["account"] = pid
         a.needs_spec = p.get("wants", []) if p.get("budget_xrp", 0) > 0 else []
         a.budget_xrp = p.get("budget_xrp", 2)
         out.append(a)
@@ -149,6 +153,25 @@ def participants(prof: dict, act: int, seed: int = 11) -> list[Account]:
 
 
 # ---------------- Act 1 ----------------
+
+def manual_needs(accounts: list[Account]) -> list[Need]:
+    """One need per day aimed at the manual approver's lifestyle data from the lowest-graded buyer, so
+    the demo always shows a decision waiting for a person (whatever the random draws were)."""
+    me = next((a for a in accounts if a.id == MANUAL), None)
+    col = next((c for d in (me.datasets if me else []) for c in d.columns
+                if c in catalog.CATALOG and catalog.CATALOG[c].tier == "T1"), None)
+    if col is None:
+        return []
+    others = [a for a in accounts if a.id != MANUAL and a.budget_xrp > 0]
+    if not others:
+        return []
+    low = max(others, key=lambda a: (policies.GRADES.index(policies.trust_grade({**a.attrs, "owner_country": "KR"})[0]),
+                                      a.id))
+    return [Need(f"{low.id}-asks-{MANUAL}-r{r + 1}", low.id, [col], 1, 1, "personal_research",
+                 match={"account": MANUAL}, posted_h=r * 24 + 1.0, why=f"{low.id} asks {MANUAL} for {col}")
+            for r in range(3)]
+
+
 
 PURPOSE_OF = {"R": "model_training", "T0": "personal_research", "T1": "personal_research",
               "T2": "personal_research", "T3": "personal_research"}
@@ -181,6 +204,7 @@ def act1(seed: int = 11, ledger=None, store=None, prof: dict | None = None, roun
                 needs.append(Need(f"{a.id}-r{rnd + 1}-n{j + 1}", a.id, [c], 1 if one else rng.choice([1, 2]), 3,
                                   PURPOSE_OF[_kind(c)], posted_h=round(rnd * 24 + rng.uniform(0, 24), 2),
                                   why=f"{a.id} wants {w}"))
+    needs += manual_needs(accounts)
     results = [ex.fill(n) for n in sorted(needs, key=lambda n: n.posted_h)]
     reports = []
     buyers = [a for a in accounts if any(d.columns == ["genome.vcf"] for d in a.datasets)][:3]

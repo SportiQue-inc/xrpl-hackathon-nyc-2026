@@ -136,7 +136,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
         r.items.map((i) => itemCard(r, i, decided || !credentialOk))),
       h("div", { class: "ar-card col" },
         h("div", { class: "spread" }, h("h3", {}, "Participation payment"), h("b", {}, xrp(price * (pickedCells + autoCells)))),
-        h("p", { class: "small" }, `${r.payment.immediate_pct}% when each week is delivered, ${r.payment.held_pct}% after a ${r.payment.review} review. The held part is paid by default.`),
+        h("p", { class: "small" }, `${r.payment.first_week_pct}% of a verified week when it is delivered, rising with each consecutive week up to ${r.payment.max_pct}%; the rest after a ${r.payment.review} review. The held part is paid by default.`),
         r.completion_bonus_xrp ? h("p", { class: "small" }, `Completion bonus ${xrp(r.completion_bonus_xrp)} when every requested week is delivered.`) : null,
         h("p", { class: "small muted" }, "Locked on the ledger before you send. Released when your agent publishes the key.")),
       h("div", { class: "ar-card col" },

@@ -77,6 +77,11 @@ class ParticipantKeyring:
         k = self.ks.get_or_create(f"escrow.{order_key}", new_key)
         return SecretBox(k).encrypt(inner), condition_hex(k)
 
+    def key(self, order_key: str) -> bytes:
+        """K for an order before it is placed: the agent hands it to the source issuer, which seals its
+        export with it (provenance seal); the escrow is then created with the same K's condition."""
+        return self.ks.get_or_create(f"escrow.{order_key}", new_key)
+
     def fulfillment(self, order_key: str) -> str | None:
         k = self.ks.get(f"escrow.{order_key}")
         return fulfillment_hex(k) if k else None
