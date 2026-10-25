@@ -40,7 +40,7 @@ def presend(pid: str, rows: list[dict], propose=None) -> dict:
     qs = [f"{s['day']}일차 {s['column']} 값이 {s['value']}로 나옵니다(가능 범위 {s['range'][0]}~{s['range'][1]}). 맞나요?"
           for s in slips]
     if slips:
-        out, src = _ask(propose, ASK_SYSTEM, {"person": pid, "slips": slips})
+        out, src = _ask(propose, ASK_SYSTEM, {"person": pid, "slips": slips}, side="participant")
         if out and isinstance(out.get("questions"), list) and len(out["questions"]) == len(slips):
             qs = [str(q)[:200] for q in out["questions"]]
     return {"person": pid, "hold_until_answered": bool(slips), "slips": slips, "questions": qs}

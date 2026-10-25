@@ -147,6 +147,8 @@ def main():
         api.call("POST", "/api/study/payout/release", who=R)
     chk = api.call("GET", "/api/engine/check", who=R)
     print(summary(chk["flows"]))
+    from agentrail.costs import line
+    print(line(api.call("GET", "/api/costs", who=R)))
     from agentrail import report
     rp = os.path.join(os.path.dirname(os.environ["AGENTRAIL_DB"]) or ".", f"report-{kind}-{int(time.time())}.html")
     with open(rp, "w") as f:

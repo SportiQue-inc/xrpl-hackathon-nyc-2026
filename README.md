@@ -199,6 +199,13 @@ on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 
 ## 8. Potential and market
 
+**Running cost per participant-week** (mock run, 50 participants, 75 delivered participant-weeks; printed at
+the end of `scripts/run_engine.py` and served at `GET /api/costs`): 4.9 ledger transactions and about
+0.00005 XRP in fees, 0.013 LLM calls (counted separately for the research side and the participant side,
+with input and output tokens), 7.2 XRP of owner reserve tied up in open escrows for the whole run, plus the
+1 XRP base reserve each participant wallet holds. On Testnet the fee is summed from each sent transaction's
+Fee field instead of the 10-drop reference fee.
+
 ### Expansion: layers 1 and 2 in any industry
 
 Layers 1 and 2 do not depend on health data. Scene A runs them alone: a robot developer's agent closes
@@ -316,7 +323,8 @@ bundle with the key from the ledger.
 ```bash
 pip install -r requirements.txt
 cp .env.example .env                     # optional: OPENAI_API_KEY=... (never committed)
-python -m pytest -q                      # 254 tests on the mock ledger (25 attack tests)
+python -m pytest -q                      # 256 tests on the mock ledger (25 attack tests)
+python scripts/export_network.py          # Act 1 as a node network, replayed offline: docs/demo/act1-network.html
 python scripts/run_health_demo.py        # whole health study, mock ledger, JSON summary
 LEDGER=testnet python scripts/run_health_demo.py   # same on XRPL Testnet (faucet wallets)
 LEDGER=testnet python -m agentrail.scenario        # robot scene A, cohort round, failure scene

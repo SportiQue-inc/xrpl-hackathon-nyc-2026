@@ -305,7 +305,8 @@ class Exchange:
         verdict, why = (seller.policy or OpenPolicy()).check(trade)
         base = {"need": need.id, "seller": seller.id, "buyer": need.buyer, "contract": contract[:16],
                 "grade": o["grade"], "price_drops": price, "policy": getattr(seller.policy, "name", "open"),
-                "columns": need.columns}
+                "columns": need.columns, "weeks": need.weeks, "purpose": need.purpose, "posted_h": need.posted_h,
+                "need_why": need.why, "min_grade": need.min_grade, "sample_k": SAMPLE_K, "root": o["cert"]["root"][:16]}
         try:
             from .policies import trust_grade
             base["buyer_grade"] = trust_grade({**self.accounts[need.buyer].attrs,

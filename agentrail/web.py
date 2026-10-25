@@ -580,6 +580,28 @@ def run_report():
                                           products=_state.get("products"), cohorts=_state.get("cohorts")))
 
 
+@app.get("/api/market/network")
+def market_network():
+    """Act 1 as a node network replayed from the trade log, with one settled and one refused trade
+    zoomed in and the agent's decision stepped through (self-contained HTML)."""
+    from fastapi.responses import HTMLResponse
+    from . import network_view
+    from .market import acts
+    with _lock:
+        if "market1" not in _state:
+            _state["market1"] = acts.act1()
+        return HTMLResponse(network_view.render(network_view.build(_state["market1"]["exchange"])))
+
+
+@app.get("/api/costs")
+def running_costs():
+    """What keeping the agents up cost in this run: LLM calls and tokens per side, ledger transactions and
+    fees, reserve tied up, per participant-week."""
+    from . import costs
+    with _lock:
+        return costs.summarize(world())
+
+
 @app.get("/api/engine/check")
 def engine_check():
     """One row per flow of the health trade, each with the ledger transaction that proves it."""
