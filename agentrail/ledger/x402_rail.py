@@ -41,7 +41,7 @@ class X402Mixin:
                                    pay_to=destination, max_timeout_seconds=300,
                                    extra={"invoiceId": invoice, "sourceTag": SOURCE_TAG})
 
-    def prepare_payment(self, source, destination, amount_drops, invoice_id, memo):
+    def prepare_payment(self, source, destination, amount_drops, invoice_id, memo, xrp: bool = False):
         state = self._x402_state()
         # invoiceId carries the order terms; a nonce keeps it unique across demo runs.
         invoice = f"{memo}|n:{uuid.uuid4().hex[:8]}"

@@ -174,8 +174,9 @@ class XrplLedger(Ledger):
     def _parse_amount(self, a) -> int | None:
         return int(a) if isinstance(a, str) else None
 
-    def prepare_payment(self, source, destination, amount_drops, invoice_id, memo):
-        tx = Payment(account=source, destination=destination, amount=self._amount(amount_drops),
+    def prepare_payment(self, source, destination, amount_drops, invoice_id, memo, xrp: bool = False):
+        tx = Payment(account=source, destination=destination,
+                     amount=str(int(amount_drops)) if xrp else self._amount(amount_drops),
                      credential_ids=self.credential_ids_for(source, destination),
                      invoice_id=invoice_id, sequence=self._next_sequence(source),
                      memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))])
@@ -284,7 +285,8 @@ class XrplLedger(Ledger):
             amount_drops=self._parse_amount(delivered),
             invoice_id=txj.get("InvoiceID"), tx_type=txj.get("TransactionType"),
             result=meta.get("TransactionResult"), condition=txj.get("Condition"),
-            fulfillment=txj.get("Fulfillment"), sequence=txj.get("Sequence"))
+            fulfillment=txj.get("Fulfillment"), sequence=txj.get("Sequence"),
+            xrp_drops=int(delivered) if isinstance(delivered, str) else None)
 
     def invoice_field_of(self, blob: str) -> str | None:
         return decode(blob).get("InvoiceID")

@@ -375,3 +375,20 @@ def test_clinic_export_is_paid_over_real_http_402(w):
 def test_participant_reports_the_configured_ledger(w, monkeypatch, network):
     monkeypatch.setattr(w.ledger, "name", network)
     assert study.participant_view(w, HERO)["ledger"] == network
+
+
+def test_clinic_export_fee_settles_in_xrp_when_orders_settle_in_a_token(w, monkeypatch):
+    """Token mode: the ledger's amount parser only counts the settlement token, so an XRP fee read as
+    'no amount' used to fail with not_settled:tesSUCCESS. The clinic now checks the delivered XRP."""
+    import dataclasses
+    from agentrail import clinic
+    assert study.approve(w, ["owner", "compliance"])["ok"]
+    study.send(w)
+    real = w.ledger.lookup
+    monkeypatch.setattr(w.ledger, "lookup", lambda h: dataclasses.replace(
+        real(h), amount_drops=None, xrp_drops=real(h).amount_drops))
+    n = len(w.study.export_fees)
+    study._export_fee(w, w.cohort_people[HERO], ["blood_pressure.daily"])
+    f = w.study.export_fees[n]
+    assert f["ok"] and f["http"] == [402, 200], f
+    assert clinic._cfg["fee"] > 0

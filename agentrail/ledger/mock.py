@@ -42,7 +42,7 @@ class MockLedger(Ledger):
         self.sequences.setdefault(addr, 1)
         return addr
 
-    def prepare_payment(self, source, destination, amount_drops, invoice_id, memo):
+    def prepare_payment(self, source, destination, amount_drops, invoice_id, memo, xrp: bool = False):
         with self.lock:
             seq = self.sequences[source]
             self.sequences[source] = seq + 1
