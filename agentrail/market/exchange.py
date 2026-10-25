@@ -18,6 +18,7 @@ offer, falls) and noted as a refund claim off the ledger; paid money is never pu
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import random
@@ -268,6 +269,15 @@ class Exchange:
                 "anchor_tx": self.book.anchor_tx if self.book else None, "dropped": {}, "sampled": [],
                 "ranked": []}
         gated = self._fill_pass(need, now_h, None, cands, rejected, fills, disc)
+        if not gated and not cands and not fills:
+            # nothing passed the buyer's own bar: when only its grade or length bar emptied the book, the agent
+            # steps back to the rule floor (grade C, the owner's default weeks) once and says so in the plan
+            relaxed = self._relaxed(need, disc["dropped"])
+            if relaxed is not None:
+                disc["relaxed"] = {"from": {"min_grade": need.min_grade, "weeks": need.weeks},
+                                   "to": {"min_grade": relaxed.min_grade, "weeks": relaxed.weeks}}
+                need = relaxed
+                gated = self._fill_pass(need, now_h, None, cands, rejected, fills, disc)
         if not gated and len(fills) < need.quantity:
             # short: the sellers' agents may collect the missing data from sources their people connected
             collected = self.collect(need, need.quantity - len(fills))
@@ -289,6 +299,18 @@ class Exchange:
                "plan": need.plan, "discovery": disc}
         self.events.append({"kind": "need", **{k: v for k, v in out.items() if k not in ("fills", "rejected")}})
         return out
+
+    @staticmethod
+    def _relaxed(need: "Need", dropped: dict):
+        """The need at the rule floor, or None when the floor is no lower or the bar was not what emptied it."""
+        if not (dropped.get("grade below minimum") or dropped.get("too few weeks")):
+            return None
+        floor_weeks = min(need.weeks, (need.plan or {}).get("rule_weeks") or 1)
+        if dropped.get("too few weeks"):
+            floor_weeks = 1
+        if need.min_grade == "C" and floor_weeks == need.weeks:
+            return None
+        return dataclasses.replace(need, min_grade="C", weeks=floor_weeks)
 
     @staticmethod
     def _row_key(row: dict, cols: list) -> str:
