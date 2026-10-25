@@ -589,7 +589,7 @@ export function mountResearcher(root, { base = "", embedded = false, basePath = 
           goal,
           h("div", { class: "spread" },
             h("span", { class: "small muted" }, `Power ${s.heatmap.power_before ?? s.heatmap.power} → target ${s.power_target} · ${s.heatmap.complete_pairs} of ${s.heatmap.total} pairs`),
-            h("button", { class: "ar-btn primary", disabled: status === "approved" || status === "sent", onclick: async (e) => {
+            h("button", { class: "ar-btn primary", disabled: status === "approved", title: status === "sent" ? "Propose the next round" : undefined, onclick: async (e) => {
               st.goal = goal.value;
               const r = await busy(e.target, "The agent is reading the coverage table", () => api.setGoal(goal.value), err);
               if (r) { st.lastApprove = null; load(); }
