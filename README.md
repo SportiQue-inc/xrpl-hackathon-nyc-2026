@@ -203,12 +203,13 @@ licence terms replace personal consent; schema matching, budget limits, the owne
 the multi-signed treasury top-up and settlement on XRPL are the same code as the health run
 (`scenario.scene_a`, `POST /api/run/a`; Testnet payments in section 1.1).
 
-Market size, directional only (definitions differ by several times between sources):
+Context for agent purchasing, directional only. These are forecasts of spend that agents intermediate,
+not the size of a data market and not our TAM:
 
 | Ring | Size | Source |
 |---|---|---|
-| Agent-mediated B2B purchases | about $15T by 2028 | Gartner (secondary) |
-| Agentic commerce, global | $3-5T by 2030 | McKinsey |
+| B2B spend intermediated by AI agents | over $15T by 2028 (forecast: 90% of B2B buying) | [Gartner, Oct 2025](https://www.gartner.com/en/newsroom/press-releases/2025-10-21-gartner-unveils-top-predictions-for-it-organizations-and-users-in-2026-and-beyond) |
+| Consumer (B2C) goods commerce orchestrated by AI agents, global | $3-5T by 2030 (goods only, excludes services and B2B; US $0.9-1T) | [McKinsey, Oct 2025](https://www.mckinsey.com/capabilities/quantumblack/our-insights/the-agentic-commerce-opportunity-how-ai-agents-are-ushering-in-a-new-era-for-consumers-and-merchants) |
 | **Beachhead: person-level longitudinal health research** | SAM about $2.5B (estimate) | [docs/MARKET.md](docs/MARKET.md) |
 
 Health research is the first market because it is the hardest boundary; other industries need only a
