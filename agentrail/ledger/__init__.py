@@ -1,5 +1,6 @@
 import os
 
+from . import source_tag  # noqa: F401  (tags every L1 tx we sign)
 from .base import Ledger, LostResponse, Prepared, TxStatus
 from .mock import MockLedger
 
