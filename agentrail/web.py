@@ -989,6 +989,13 @@ def contracts_post(body: ContractPost, request: Request):
     return _lcall(post)
 
 
+@app.get("/api/institutions/overview")
+def institutions_overview():
+    """The institution dashboard: research contracts, vault deals and AP4M runs, each with its own source."""
+    from . import institution_view
+    return institution_view.overview(lane())
+
+
 @app.get("/api/contracts/{cid}")
 def contracts_get(cid: str):
     return _lcall(lambda L: L.public(cid))
@@ -1139,6 +1146,11 @@ def personal_agent_card(pid: str):
 @app.get("/participant")
 def participant_page():
     return _page("apps", "participant", "index.html")
+
+
+@app.get("/institutions")
+def institutions_page():
+    return _page("apps", "institutions", "index.html")
 
 
 @app.get("/console")
