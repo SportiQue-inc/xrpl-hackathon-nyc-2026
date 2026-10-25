@@ -264,3 +264,17 @@ def test_every_later_access_rereads_the_licence_on_the_ledger(w):
     w.ledger.clawback_licence(w.engine.party(HERO)["address"], w.engine.party(study.LAB)["address"], lic["mpt_id"])
     with pytest.raises(PermissionError, match="licence_revoked"):
         study.open_bundle(w, oid)
+
+
+def test_ethics_credential_expires_or_is_withdrawn_on_the_ledger(w):
+    from agentrail.scenario import ETHICS_CREDENTIAL
+    pa = w.cohort_people[HERO]
+    L, lab, board = w.ledger, w.engine.party(study.LAB)["address"], w.engine.party("org_ethics")["address"]
+    items = ["sleep.daily", "blood_pressure.daily"]
+    assert pa.policy.compliance.check(study.LAB, "sleep_research", items)[0] == items
+    L.delete_credential(board, lab, ETHICS_CREDENTIAL)
+    assert pa.policy.compliance.check(study.LAB, "sleep_research", items)[0] == ["sleep.daily"]
+    L.issue_credential(board, lab, ETHICS_CREDENTIAL, expiration=L.now() + 60)
+    assert pa.policy.compliance.check(study.LAB, "sleep_research", items)[0] == items
+    L.clock += 61
+    assert pa.policy.compliance.check(study.LAB, "sleep_research", items)[0] == ["sleep.daily"]

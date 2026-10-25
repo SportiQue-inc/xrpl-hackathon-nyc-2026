@@ -25,6 +25,7 @@ class MockLedger(Ledger):
         self.drop_next_submit = False     # raise LostResponse without applying
         self.submit_calls = 0
         self.credentials: set[tuple[str, str, str]] = set()
+        self.cred_expiry: dict[tuple[str, str, str], int | None] = {}
         self.signer_lists: dict[str, tuple[list[str], int]] = {}
         self.master_disabled: set[str] = set()
         self.deposit_auth: set[str] = set()
@@ -177,13 +178,20 @@ class MockLedger(Ledger):
     def new_keypair(self, label: str) -> str:
         return "r" + hashlib.sha256(("key:" + label).encode()).hexdigest()[:24]
 
-    def issue_credential(self, issuer, subject, cred_type):
+    def issue_credential(self, issuer, subject, cred_type, expiration=None):
         self.credentials.add((subject, issuer, cred_type))
+        self.cred_expiry[(subject, issuer, cred_type)] = expiration
         return [self._fake_tx("CredentialCreate", Account=issuer, Subject=subject),
                 self._fake_tx("CredentialAccept", Account=subject, Issuer=issuer)]
 
     def has_credential(self, subject, issuer, cred_type):
-        return (subject, issuer, cred_type) in self.credentials
+        k = (subject, issuer, cred_type)
+        exp = self.cred_expiry.get(k)
+        return k in self.credentials and (exp is None or exp > self.now())
+
+    def delete_credential(self, issuer, subject, cred_type):
+        self.credentials.discard((subject, issuer, cred_type))
+        return self._fake_tx("CredentialDelete", Account=issuer, Subject=subject)
 
     def setup_multisig(self, account, signers, quorum):
         self.signer_lists[account] = (list(signers), quorum)

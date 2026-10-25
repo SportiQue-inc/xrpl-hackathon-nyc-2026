@@ -23,6 +23,7 @@ from .policy import BuyerMandate, ComplianceRules, SellerPolicy
 XRP = 1_000_000
 CELL_PRICE = XRP // 5          # 0.2 XRP per participant-week item
 ETHICS_CREDENTIAL = "ETHICS_REVIEW"   # no study topic or condition on the ledger
+ETHICS_VALID_S = 365 * 86400          # ethics approval valid one year
 
 # What the buyer's owner types, and what the company already holds and has measured.
 GOAL_TEXT = "Close the gaps our latest evaluation found before commercial deployment. Spend up to 40 XRP."
@@ -148,7 +149,9 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
     party("org_adtech", "Ad network (synthetic)", "organization")
     party("org_ethics", "Ethics review board (synthetic)", "organization")
     addr = lambda pid: engine.party(pid)["address"]
-    hashes = ledger.issue_credential(addr("org_ethics"), addr("org_sleeplab"), ETHICS_CREDENTIAL)
+    # The approval has a validity period on the ledger (Expiration); after it, sensitive items stop.
+    hashes = ledger.issue_credential(addr("org_ethics"), addr("org_sleeplab"), ETHICS_CREDENTIAL,
+                                     expiration=ledger.now() + ETHICS_VALID_S)
     store.log("org_ethics", "credential", f"issued XRPL Credential {ETHICS_CREDENTIAL} to org_sleeplab "
               "(accepted on ledger)", {"tx": hashes, "url": ledger.explorer_url(hashes[-1])})
     compliance = ComplianceRules(credential_check=lambda buyer: ledger.has_credential(
