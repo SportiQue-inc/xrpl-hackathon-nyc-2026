@@ -56,7 +56,11 @@ class Http:
         if path == "/api/contracts" and self.code:
             kw.setdefault("headers", {})["x-posting-code"] = self.code
         for attempt in range(4):
-            r = self.c.request(method, path, **kw)
+            try:
+                r = self.c.request(method, path, **kw)
+            except Exception as e:   # a round on another contract holds the lane lock while AP4M pays one by one
+                raise SystemExit(f"{method} {path}: {type(e).__name__}; the engine may be busy with another "
+                                 "contract's round, run this step again once it is idle")
             if r.status_code != 429:
                 break
             time.sleep(2 ** attempt)

@@ -119,7 +119,7 @@ def research(lane) -> dict:
         by_inst.setdefault(r["institution"], []).append(r)
     runs: dict[str, list] = {}
     for r in rows:
-        if r["run"]:
+        if r["run"] and r["members_total"]:     # a step that stopped before anyone joined measured nothing
             runs.setdefault(r["run"], []).append(r)
     contracts = [{k: v for k, v in r.items() if k != "latencies"} | {"request_to_paid": _stats(r["latencies"])}
                  for r in rows]
