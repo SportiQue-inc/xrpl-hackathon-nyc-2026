@@ -267,13 +267,28 @@ def send(w, workers: int = 8) -> dict:
             w.store.log(LAB, "progress", f"requests answered: {len(s.requests)} of {len(s.needs.cells)}")
     with ThreadPoolExecutor(workers) as ex:
         list(ex.map(w.engine.process, oids))
-    for req in s.requests.values():
+
+    def after(req):
         _after_contribution(w, req)
         if req["person"] == HERO:
             payout.offer_bonus(w, LAB, req, BONUS_DROPS)
         _settle(w, req)
+    # Licence, held part and its release are several ledger round trips per person. On a live ledger
+    # they run for several people at once (each account's own txs stay in order, see submit_and_wait).
+    n = settle_workers(w)
+    if n > 1:
+        with ThreadPoolExecutor(n) as ex:
+            list(ex.map(after, list(s.requests.values())))
+    else:
+        for req in s.requests.values():
+            after(req)
     s.status = "sent"
     return study_view(w)
+
+
+def settle_workers(w) -> int:
+    """People settled at once after the payouts: 1 on the mock ledger (deterministic), 8 on a live one."""
+    return max(1, int(os.environ.get("SETTLE_WORKERS") or (1 if w.ledger.name == "mock" else 8)))
 
 
 def _answer(w, req, hold_last=False) -> list[int]:

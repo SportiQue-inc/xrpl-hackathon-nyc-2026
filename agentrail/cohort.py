@@ -71,7 +71,7 @@ def synthetic_coverage(people: list[str], seed: int = 7) -> Coverage:
     heart rate missing for a subgroup in weeks 4-5; blood pressure never collected."""
     rng = random.Random(seed)
     cov = Coverage(people, {p: {w: set() for w in WEEKS} for p in people})
-    hr_gap = set(rng.sample(people, 12))
+    hr_gap = set(rng.sample(people, min(12, max(1, len(people) // 4))))   # 12 of 50; fewer in a smaller cohort
     for p in people:
         for w in WEEKS:
             have = {"sleep.daily", "activity.daily"} if rng.random() > 0.02 else {"activity.daily"}

@@ -26,6 +26,7 @@ from . import units
 import hashlib
 import json
 import os
+import threading
 import time
 
 from .agents import talk
@@ -455,7 +456,17 @@ def resume_requests(w, study: str, pid: str):
 
 # ---------------- release / return ----------------
 
+_RELEASE_LOCK = threading.RLock()
+
+
 def release_due(w) -> dict:
+    """Pay what is due, return what must go back. One caller at a time, so participants settled in
+    parallel never finish the same held part twice."""
+    with _RELEASE_LOCK:
+        return _release_due(w)
+
+
+def _release_due(w) -> dict:
     """Pay what is due, return what must go back. Default is to pay. On the mock ledger the clock
     is moved forward: first to the latest release time, then past the deadlines of what returns."""
     L = w.ledger
