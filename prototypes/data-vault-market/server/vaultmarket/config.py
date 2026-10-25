@@ -24,6 +24,7 @@ DB_PATH = os.environ.get("VM_DB", os.path.join(DATA_DIR, "vaultmarket.db"))
 LEDGER = os.environ.get("VM_LEDGER", "testnet")            # testnet | devnet | mock (tests only; the UI says so)
 WALLETS = os.environ.get("VM_WALLETS", os.path.join(DATA_DIR, "wallets.local.json"))
 AGENTS = int(os.environ.get("VM_AGENTS", "50"))
+EXTRA_PEOPLE = int(os.environ.get("VM_EXTRA_PEOPLE", "0"))     # extra simulated members added on start, up to 40, kept once added
 TICK_SECONDS = float(os.environ.get("VM_TICK_SECONDS", "30"))   # one negotiation round per tick
 # Settlement asset. USD: a test USD token (IOU) on the ledger, issued by this application, settled by token
 # escrow; XRP: the fallback. Amounts are kept in millionths of the asset (drops for XRP).

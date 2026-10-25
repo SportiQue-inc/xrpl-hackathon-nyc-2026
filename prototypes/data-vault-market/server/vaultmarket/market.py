@@ -22,6 +22,12 @@ PEOPLE = ["Dana Park", "Minho Lee", "Sora Kim", "Jae Choi", "Lina Haddad", "Omar
           "Zoe Carter", "Kofi Mensah", "Elif Demir", "Mateo Ruiz", "Aisha Bello", "Noah Fischer", "Jin Park", "Lucia Gomez", "Sam Taylor", "Amara Obi",
           "Theo Martin", "Rin Takahashi", "Diego Alvarez", "Maya Cohen", "Ola Nordmann", "Ethan Brooks", "Seo-yeon Han", "Farah Aziz", "Jonas Berg", "Bo Zhang",
           "Tara Singh", "Wen Chen"]
+# more market personas, added to a running vault by VM_EXTRA_PEOPLE (seed() tops up; existing vaults are kept)
+EXTRA_PEOPLE = ["Ines Duarte", "Kwame Asante", "Hye-jin Yoon", "Marco Bianchi", "Leila Rahimi", "Arjun Mehta", "Clara Weber", "Tunde Bakare",
+                "Saki Mori", "Pablo Ortega", "Greta Lund", "Yusuf Kaya", "Nina Kowalski", "Dae-ho Kang", "Lea Dubois", "Kai Nakamura",
+                "Rosa Silva", "Emre Aydin", "Ivy Tran", "Felix Huber", "Zara Malik", "Joon Seo", "Alma Torres", "Viktor Lindqvist",
+                "Chloe Nguyen", "Hamza Idris", "Mina Choi", "Oskar Nilsson", "Freya Holm", "Rami Saleh", "Lily Evans", "Ji-ho Shin",
+                "Paula Mendes", "Sven Aalto", "Nour Haddad", "Ryo Fujita", "Esme Clarke", "Adil Rahman", "Yara Costa", "Hugo Laurent"]
 ORGS = [
     {"id": "atlas-maps", "name": "Atlas Maps", "buys": [("gps_track", 11, 14, "route-safety model", 6, 0)]},
     {"id": "restwell", "name": "Restwell App", "buys": [("sleep_log", 7, 9, "sleep coaching feature", 6, 0)]},
@@ -112,6 +118,11 @@ class Market:
                         body = data.make_record(k, rng2, acc["name"], j, home)
                         self.add_file(acc["id"], k, data.file_name(k, body, j), body, listed=acc["id"] == "demo-vault" or rng2.random() < 0.7, source="phone")
             self.s.bump("kinds_v2")
+        rng3 = random.Random(404)
+        for name in EXTRA_PEOPLE[: max(0, config.EXTRA_PEOPLE)]:
+            aid = name.split()[0].lower().replace("-", "")
+            if not self.s.one("SELECT id FROM accounts WHERE id = ?", (aid,)):
+                self._add_persona(aid, name, rng3)
         if not self.s.stat("demo_vault_auto_v1") and self.s.one("SELECT id FROM accounts WHERE id='demo-vault'"):
             # The demo vault's agent sells on its own within its minimums, like the market personas, with enough records to trade.
             rules=self.acct("demo-vault")["sell_agent"];rules["mode"]="auto"
@@ -169,6 +180,20 @@ class Market:
         self.rail.setup_token(holders, funder=self.addr.get("coop-broker") or self.platform)
         self.asset_ready = True
         self._bal.clear(); self.events += 1
+
+    def _add_persona(self, aid: str, name: str, rng: random.Random):
+        """One simulated member whose agent sells on its own within its minimums, with records of every kind."""
+        mins = {k: round(KINDS[k]["price"] * rng.uniform(0.6, 1.25), 1) for k in KINDS}
+        blocks = (["insurance pricing"] if rng.random() < 0.55 else []) + (["speech model training"] if rng.random() < 0.2 else [])
+        self.s.insert("accounts", id=aid, name=name, type="person", trust=round(rng.uniform(0.72, 0.97), 2), verified=0,
+                      sell_agent={"mode": "auto", "min": mins, "blocks": blocks}, buy_agent={"auto_limit": 60, "min_trust": 0.7, "max_overlap": 0.3})
+        home = (round(40.66 + rng.random() * 0.14, 5), round(-74.01 + rng.random() * 0.1, 5))
+        counts = {"gps_track": rng.randint(1, 6), "sleep_log": rng.randint(0, 3), "purchase_receipts": rng.randint(0, 2), "audio": rng.randint(0, 1),
+                  **{k: rng.randint(1, 3) for k in data.NEW_KINDS}}
+        for k, c in counts.items():
+            for j in range(c):
+                body = data.make_record(k, rng, name, j, home)
+                self.add_file(aid, k, data.file_name(k, body, j), body, listed=rng.random() < 0.7, source=body.get("device_serial", "phone"))
 
     def add_user_account(self, aid: str, name: str):
         """A signed-up member: an empty vault, an agent that asks before every sale, and its own XRPL wallet."""

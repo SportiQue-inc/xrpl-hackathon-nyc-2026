@@ -729,3 +729,16 @@ def test_ap4m_caps_the_buyer_budget_per_seller_at_010(market, monkeypatch):
     monkeypatch.setattr(config, "MICRO_PER_UNIT", 20000)   # the seller's minimum of 7 units is 0.14 RLUSD, above the cap
     c, cid = _trade(market)
     assert c["status"] == "rejected" and not calls
+
+
+def test_extra_people_join_a_running_vault_once(market, monkeypatch):
+    monkeypatch.setattr(config, "EXTRA_PEOPLE", 5)
+    market.seed()
+    market.seed()
+    from vaultmarket.market import EXTRA_PEOPLE
+    ids = [n.split()[0].lower().replace("-", "") for n in EXTRA_PEOPLE[:5]]
+    rows = market.s.q(f"SELECT id FROM accounts WHERE id IN ({','.join('?' * len(ids))})", ids)
+    assert sorted(r["id"] for r in rows) == sorted(ids)
+    for aid in ids:
+        assert market.acct(aid)["sell_agent"]["mode"] == "auto"
+        assert {f["kind"] for f in market.s.q("SELECT kind FROM files WHERE account = ?", (aid,))} >= set(data.NEW_KINDS)
