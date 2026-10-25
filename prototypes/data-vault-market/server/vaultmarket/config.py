@@ -30,5 +30,5 @@ LLM_PROVIDER = os.environ.get("VM_LLM_PROVIDER") or os.environ.get("LLM_PROVIDER
     "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "openai" if os.environ.get("OPENAI_API_KEY") else "none")
 ANTHROPIC_MODEL = os.environ.get("VM_ANTHROPIC_MODEL", "claude-haiku-5-5")
 OPENAI_MODEL = os.environ.get("VM_OPENAI_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
-LLM_RPM = int(os.environ.get("VM_LLM_RPM", "20"))                 # calls per minute, all agents together
-LLM_DAILY_CALLS = int(os.environ.get("VM_LLM_DAILY_CALLS", "3000"))
+LLM_RPM = int(os.environ.get("VM_LLM_RPM", "4"))                 # calls per minute, all agents together
+LLM_DAILY_CALLS = int(os.environ.get("VM_LLM_DAILY_CALLS", "600"))
