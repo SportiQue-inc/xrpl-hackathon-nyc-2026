@@ -75,6 +75,11 @@ Access: on localhost everything works. On a public deploy, set `AGENTRAIL_SANDBO
 Visitors who enter it (or open `/try?code=…`) act through the demo devices; everyone else gets the read-only
 `/api/public/live` view. The operator (reset, scene runner) stays localhost-only either way.
 
+Sandbox limit: the code is one shared demo key. Anyone holding it can sign in as any participant or
+institution role except the operator, including both budget co-signers, so one visitor can play both
+signers of the 2-of-2 approval. That is fine for a shared demo with synthetic people and a mock or Testnet
+ledger. Never set `AGENTRAIL_SANDBOX_CODE` on a deployment that holds real people, real keys or real money.
+
 Deploy as a second Railway service from this repo: config file `railway.engine.json`
 (builds `docker/engine.Dockerfile`), variables `AGENTRAIL_SANDBOX_CODE`, `LEDGER` (`mock` or `testnet`) and,
 for the token unit, the build thread's settlement variables.
