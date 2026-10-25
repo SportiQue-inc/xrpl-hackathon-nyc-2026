@@ -8,13 +8,14 @@
 """
 from __future__ import annotations
 
-from xrpl.models.requests import GenericRequest
+from xrpl.models.requests import AccountInfo, AccountTx, GenericRequest
 from xrpl.models.transactions import (AccountSet, AccountSetAsfFlag, CredentialAccept, CredentialCreate,
                                       Payment, SignerEntry, SignerListSet)
 from xrpl.transaction import autofill, multisign, sign, submit_and_wait
 from xrpl.wallet import Wallet
 
 LSF_ACCEPTED = 0x00010000
+LSF_DISABLE_MASTER = 0x00100000
 
 
 def _hex(s: str) -> str:
@@ -30,6 +31,18 @@ def _check(resp, what: str) -> str:
 
 
 class XrplExtrasMixin:
+    def _past_hashes(self, account: str, wanted: list[str], match=lambda tx: True) -> list[str]:
+        """Hashes of earlier successful txs of the given types (re-runs reuse wallets.local.json)."""
+        found: dict[str, str] = {}
+        r = self.client.request(AccountTx(account=account, limit=200)).result
+        for t in r.get("transactions", []):
+            tx = t.get("tx_json") or t.get("tx") or {}
+            ty = tx.get("TransactionType")
+            if (ty in wanted and ty not in found and match(tx)
+                    and t.get("meta", {}).get("TransactionResult") == "tesSUCCESS"):
+                found[ty] = t.get("hash") or tx.get("hash")
+        return [found[ty] for ty in wanted if ty in found]
+
     def new_keypair(self, label: str) -> str:
         """Unfunded key (signer entries do not need to be funded accounts)."""
         if label in self._labels:
@@ -44,6 +57,9 @@ class XrplExtrasMixin:
     # ---------- credentials ----------
 
     def issue_credential(self, issuer: str, subject: str, cred_type: str) -> list[str]:
+        if self.has_credential(subject, issuer, cred_type):
+            return self._past_hashes(subject, ["CredentialCreate", "CredentialAccept"],
+                                     lambda tx: tx.get("CredentialType", "").upper() == _hex(cred_type))
         h1 = _check(submit_and_wait(CredentialCreate(account=issuer, subject=subject,
                                                      credential_type=_hex(cred_type)),
                                     self.client, self.wallets[issuer]), "CredentialCreate")
@@ -65,6 +81,13 @@ class XrplExtrasMixin:
     # ---------- multi-signing ----------
 
     def setup_multisig(self, account: str, signers: list[str], quorum: int) -> list[str]:
+        info = self.client.request(AccountInfo(account=account, ledger_index="validated",
+                                               signer_lists=True)).result
+        flags = int(info.get("account_data", {}).get("Flags", 0))
+        lists = info.get("signer_lists") or info.get("account_data", {}).get("signer_lists") or []
+        current = {e["SignerEntry"]["Account"] for e in (lists[0]["SignerEntries"] if lists else [])}
+        if flags & LSF_DISABLE_MASTER and current == set(signers) and lists[0]["SignerQuorum"] == quorum:
+            return self._past_hashes(account, ["SignerListSet", "AccountSet"])
         w = self.wallets[account]
         h1 = _check(submit_and_wait(SignerListSet(
             account=account, signer_quorum=quorum,
