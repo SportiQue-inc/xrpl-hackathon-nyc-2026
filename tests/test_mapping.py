@@ -42,9 +42,9 @@ def test_parse_every_format():
 def test_code_catches_unit_dimension_range_and_missing_field():
     f = run("fhir_bundle")
     assert not f["sleep_minutes"]["accepted"] and "declares h" in f["sleep_minutes"]["verdict"]
-    assert not f["resting_hr"]["accepted"] and "mmHg" in f["resting_hr"]["verdict"]
+    assert not f["resting_hr"]["accepted"] and "resting" in f["resting_hr"]["verdict"]
     g = run("garmin_json")
-    assert not g["sleep_minutes"]["accepted"] and "converted values" in g["sleep_minutes"]["verdict"]
+    assert not g["sleep_minutes"]["accepted"] and "deep" in g["sleep_minutes"]["verdict"]
     assert g["resting_hr"]["accepted"]
     r = run("robot_log_csv")
     assert not r["accel_x"]["accepted"] and "declares mg" in r["accel_x"]["verdict"]
@@ -52,14 +52,41 @@ def test_code_catches_unit_dimension_range_and_missing_field():
     assert r["lidar_points"]["accepted"]
 
 
-def test_semantic_mistakes_pass_checks_and_are_counted_as_missed():
-    assert run("fitbit_json")["sleep_minutes"]["accepted"]           # time in bed looks like sleep
+def test_name_guard_catches_semantic_mistakes():
+    a = run("apple_health_xml")
+    assert not a["resting_hr"]["accepted"] and "lacks resting" in a["resting_hr"]["verdict"]
+    f = run("fitbit_json")
+    assert not f["sleep_minutes"]["accepted"] and "inbed" in f["sleep_minutes"]["verdict"]
     m = M.measure(scripted, seeds=(1,))
     out = {(d["format"], d["column"]): d["outcome"] for d in m["detail"]}
-    assert out[("fitbit_json", "sleep_minutes")] == "missed"
-    assert out[("garmin_json", "sleep_minutes")] == "caught"
+    assert out[("fitbit_json", "sleep_minutes")] == "caught"
     assert out[("survey_csv", "sleep_minutes")] == "declined"
-    assert m["counts"]["caught"] == 5 and m["counts"]["missed"] == 2
+    assert m["counts"].get("missed", 0) == 0 and m["counts"]["caught"] == 7
+
+
+OPAQUE = "day,m1,m2\n" + "".join(f"2026-09-0{d},{430 + d},{395 + d}\n" for d in range(1, 8))   # m1 in bed, m2 asleep
+
+
+def test_provider_agent_review_catches_what_names_cannot():
+    wrong = lambda s, i: {"mappings": [{"column": "sleep_minutes", "field": "m1", "unit": "min"},
+                                       {"column": "resting_hr", "field": None, "unit": None}]}
+    r = M.map_source(None, "t", "export_csv", OPAQUE, M.HEALTH, wrong)
+    assert r["mappings"][0]["accepted"]                       # opaque names pass every code check
+    knows = lambda s, i: {"reviews": [{"column": "sleep_minutes", "agree": False, "better_field": "m2",
+                                       "why": "m1 is time in bed on our device; m2 is time asleep"}]}
+    r = M.map_source(None, "t", "export_csv", OPAQUE, M.HEALTH, wrong, reviewer=knows)
+    row = r["mappings"][0]
+    assert row["accepted"] and row["final"]["field"] == "m2" and "re-checked" in row["verdict"]
+    objects = lambda s, i: {"reviews": [{"column": "sleep_minutes", "agree": False, "better_field": None, "why": "unsure"}]}
+    row = M.map_source(None, "t", "export_csv", OPAQUE, M.HEALTH, wrong, reviewer=objects)["mappings"][0]
+    assert not row["accepted"] and row["final"] is None
+
+
+def test_reviewer_cannot_widen():
+    bad = lambda s, i: {"reviews": [{"column": "sleep_minutes", "agree": False, "better_field": "sleep.timeInBed"}]}
+    good = lambda s, i: {"mappings": [{"column": "sleep_minutes", "field": "sleep.minutesAsleep", "unit": "min"}]}
+    row = M.map_source(None, "t", "fitbit_json", M.fitbit(seed=1), ["sleep_minutes"], good, reviewer=bad)["mappings"][0]
+    assert not row["accepted"] and "failed code checks" in row["verdict"]
 
 
 def test_conversion_factor_and_declared_unit_agree():

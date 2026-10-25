@@ -140,16 +140,19 @@ python -m pytest -q tests/test_contract.py
 | metadata | a unit that disagrees with what the source declares (FHIR `unit`, Apple `unit`, `InSeconds`, `_mg`, `_kmh`) |
 | range | fewer than 90% of converted values in the column's possible range |
 | typical | a median outside the column's typical band |
+| name | a field whose own name or label contradicts the meaning (in bed, a sleep stage, average, self-report), or lacks a word the meaning needs (resting) |
 
 A rejected mapping leaves the column unmapped for that source; nothing is guessed. Every proposal and verdict is kept in the proposals log.
+
+**A second agent as another defense layer.** Names do not always speak (a generic export with columns `m1`, `m2`). So after code accepts, the provider's own agent, which knows its device and answers for what it delivers, reviews each accepted mapping against the column's meaning. It may object, or point at a better field in the same source; the better field goes back through every code check. It can narrow, never widen: it cannot accept what code rejected (tested).
 
 Measured against ground truth, 13 cases per seed × 3 seeds (`scripts/measure_mapping.py`):
 
 | proposer | correct | declined (rightly none) | caught by code | missed (wrong, accepted) |
 |---|---|---|---|---|
-| name-matching rules (no LLM) | 30 | 3 | 3 | 3 |
-| scripted model with typical mistakes (tests) | 12 | 6 | 15 | 6 |
+| name-matching rules (no LLM) | 30 | 3 | 6 | 0 |
+| scripted model with typical mistakes (tests) | 12 | 6 | 21 | 0 |
 
-What code caught from the scripted model: FHIR sleep in hours called minutes, systolic blood pressure offered as resting heart rate, Garmin deep sleep offered as total sleep, robot acceleration in mg called m/s², a field that does not exist. What it cannot catch: time in bed offered as time asleep, average heart rate offered as resting heart rate. Both are plausible values in the right unit; they count as missed. The survey's self-reported sleep is a correct "none": the column asks for a device measure.
+What code caught from the scripted model: FHIR sleep in hours called minutes, systolic blood pressure offered as resting heart rate, Garmin deep sleep offered as total sleep, Fitbit time in bed offered as time asleep, Apple average heart rate offered as resting, robot acceleration in mg called m/s², a field that does not exist. Before the name check, time in bed and average heart rate passed (plausible values in the right unit); the name check closes those, and the provider agent's review covers sources whose names say nothing (test with an opaque export: code accepts `m1`, the provider's agent replaces it with `m2`, code re-checks). The survey's self-reported sleep is a correct "none": the column asks for a device measure.
 
 The run with the real LLM goes on the machine that holds the key (`LLM_RECORD=1 python scripts/measure_mapping.py`); the replay cache then lets anyone repeat it without a key.
