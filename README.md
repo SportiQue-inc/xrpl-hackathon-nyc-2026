@@ -1,163 +1,205 @@
-# AgentRail - agents that procure data within a mandate, settled on XRPL
+# AgentRail - research on one person's whole record, with consent, licence and reward bound on XRPL
 
 XRPL AI & Fintech Hackathon NYC 2026 (Oct 24-25) - SportiQue team.
-Track: **Agentic Finance**. Everything in this repository was built during the hackathon.
+Track: **Agentic Finance**. Everything in this repository was built during the hackathon
+(reused material is listed in [docs/REUSE_LOG.md](docs/REUSE_LOG.md)).
 
 ## 1. One line, and the problem
 
-Give your agent a goal, a quality bar and a budget. It finds data held in other
-organizations' (or people's) own databases, checks samples, compares their agents'
-fixed quotes, confirms contract terms, pays each holder on XRPL and receives exactly what was agreed - and it **stops**
-when a request falls outside what the holder allowed, even at a higher price.
+**Not big data, but one person's whole record.** A study's research agent asks people to take
+part. Each person's own agent gathers their scattered records (wearable, clinic visits, surveys)
+on one time axis and contributes only what they agreed to. **The LLM proposes, code verifies, the
+ledger enforces**: consent, a per-study data licence and the reward are bound to every
+contribution on XRPL.
 
-Data that AI and research teams need (robot trajectories, sensor logs, personal health
-time series) sits in many separate databases. Buying it today means emails, NDAs,
-manual quality checks, invoices and one-off file drops. Agents can do the searching and
-paying, but an agent that can pay is only safe if:
+Health research increasingly needs the same person followed over weeks, not a large anonymous
+table. Today a study that loses three weeks of fatigue surveys for half its cohort has no way to
+fill those gaps: getting data takes a median of 80 days of agreements, a $20 weekly reward costs
+$0.88 in card fees, and nobody can check what each person agreed to round by round. So the study
+recruits more people instead, at $2,000+ each.
 
-- it cannot spend beyond its mandate (budget, per-order limit, allowed purposes),
-- the seller's terms - and, for personal data, the person's consent - are enforced by
-  code, not by a prompt,
-- every payment is tied to exactly one order, one data version and one usage scope.
+Person-level health records are the hardest case: consent, re-identification and withdrawal all
+apply at once. **We solved that boundary first.** An engine that passes it handles organization
+data, AI training and evaluation data or robot sensor data by making the consent layer lighter;
+scene A (robot data between companies) runs on the same engine as the Testnet proof.
 
-## 2. Architecture
+## 2. How we solved the hard boundaries
+
+Each row: the problem, our answer, where code or the ledger enforces it, the moment in the demo,
+and the evidence. `POST /api/run/boundaries` runs every check and returns the evidence with tx links
+(`agentrail/boundaries.py`); the dashboard shows the same list.
+
+| Issue | Problem | Our answer | Enforced by | Demo moment | Evidence |
+|---|---|---|---|---|---|
+| **Consent** | Use is allowed only for the purpose, period and recipient the person agreed to, checked every round | Per-study consent document with GA4GH DUO codes (HMB, NCU, IRB, NPOA), versioned and hashed. The person's agent answers every request: inside consent runs automatically, outside waits for the person, prohibited purposes are refused | Code: `PersonalConsentPolicy.evaluate` on order and again before the key is published. Ledger: consent hash in every escrow memo; ethics-review Credential read from the ledger before sensitive items | The same lab asks for a commercial product: DUO drops NCU, the request stops at "needs your approval", nothing sent, no escrow | `test_new_purpose_waits_for_the_person`, `test_prohibited_purpose_refused_even_with_consent`, `test_payment_memo_carries_consent_version_hash`; Credential tx below |
+| **Re-identification** | The more of one life is joined, the easier it is to tell who it is | Only the protocol's items and weeks leave the device; per-study pseudonym (studies cannot link records); per-study date shift known only to the person's agent; bundle sealed to the study's key; two or more quasi-identifiers (birth date, postal code, rare diagnosis) never released together; the ledger sees hashes only | Code: `PersonalVaultConnector.extract`, `ComplianceRules.check`, SealedBox. Ledger: memo = order id, bundle hash, consent hash | Birth date + postal code + rare diagnosis refused; the operator fails to open a bundle with its own key; the same person has different IDs in two studies | `test_quasi_identifier_combination_is_never_released`, `test_pseudonym_differs_per_study`, `test_locked_bundle_cannot_be_opened_before_finish` |
+| **Withdrawal** | People must be able to stop, and know what stops, what comes back and what cannot be recalled | Three kinds. **Decline this round**: nothing leaves, nothing on the ledger. **Pause**: no new rounds; rewards and licence stay. **Revoke**: the study's data licence (MPT) is clawed back, rounds not yet released are withheld and their escrow is refunded after the deadline, consent history kept. Delivered rounds cannot be recalled, and the person is told so | Ledger: `Clawback` of the per-(study, participant) MPT; `EscrowCancel` after `CancelAfter`. Code: key published only after re-checking consent and that the study still holds the licence | P-017 taps revoke: Clawback tx, held week-5 escrow withheld, EscrowCancel refund, P-017's row greys out on the researcher heatmap | `test_approve_contributes_and_issues_a_licence_then_revoke_claws_back_and_refunds`, `test_clawed_back_licence_alone_stops_the_key`, `test_three_withdrawals_on_one_study`; Escrow cancel tx below |
+| **Other domains are easier** | Does it carry over where data is not about a person? | Robot sensor data between companies: seller licence terms replace personal consent; schema matching, licence reading, budget, multi-signed top-up and settlement unchanged | Code: `SellerPolicy`. Ledger: multi-signed treasury, payment memo with terms hash | The robot company's agent closes its evaluation gaps from two sellers | Scene A payments below |
+
+## 3. Architecture
 
 ```mermaid
 flowchart LR
-  subgraph Buyer["Buyer organization"]
-    BH[Owner] -->|goal, budget, quality bar,<br/>sensitive fields, auto-approval limit| BA[Buyer agent]
-    BT[(Treasury<br/>multi-signed)] -->|top-up needs owner + compliance| BW[(Agent spending account)]
+  subgraph Lab["Research institution"]
+    R[Researcher] -->|goal, budget| RA[Research agent]
+    RT[(Study treasury<br/>multi-signed)] -->|budget needs PI + compliance| RW[(Agent account)]
   end
-  subgraph Holders["Data holders"]
-    SA[Seller agents A-D<br/>one per organization] --- SC[(Org database)]
-    PA[Personal agent<br/>one per person] --- PV[(Personal vault)]
-    PH[Person] -->|consent, automation level,<br/>approve / pause / revoke| PA
+  subgraph Person["Each participant (phone)"]
+    P[Person] -->|consent, approve,<br/>decline / pause / revoke| PA[Personal agent]
+    PA --- W[(Wearable)] & S[(Survey app)] & C[(Clinic export<br/>fee paid by the agent)]
   end
-  subgraph Engine["Trade engine (deterministic code)"]
-    POL[Policy gate<br/>seller policy, consent,<br/>compliance]
-    ORD[Orders + budget reservation]
-    OB[Outbox: pay -> verify -> deliver]
+  subgraph Engine["Engine (deterministic code)"]
+    POL[Consent + compliance gate]
+    ORD[Orders, budget reservation]
+    OB[Outbox: escrow -> sealed delivery -> key -> payment]
   end
-  BA <-->|catalog, sample, fixed quote, terms| SA
-  BA <-->|weekly request| PA
-  SA --> POL
-  PA --> POL
-  POL -->|granted scope| ORD --> OB
-  OB -->|Payment + InvoiceID + memo| XRPL[(XRPL Testnet)]
-  OB -->|re-check permission,<br/>sealed bundle| BA
+  RA -->|participation request| PA
+  PA -->|answer: auto / ask person / blocked| POL --> ORD --> OB
+  OB -->|EscrowCreate with sha256 of key| XRPL[(XRPL)]
+  PA -->|EscrowFinish publishes key = reward paid| XRPL
+  RA -->|reads key from ledger, opens sealed bundle| XRPL
+  PA -->|licence MPT, Clawback on revoke| XRPL
   ETH[Ethics board] -->|Credential| XRPL
-  POL -.->|reads Credential| XRPL
-  LLM[[GPT / Claude API<br/>optional]] -.->|sentences only| BA & SA & PA
+  LLM[[LLM: GPT by default]] -.->|proposals only:<br/>gap reading, request summary,<br/>schema and licence reading| RA & PA
 ```
 
-### The three agents
-
-| Agent | Owner gives it | What it does |
+| Agent | Given by its owner | Does |
 |---|---|---|
-| Buyer agent (`BuyerAgent`, `InstitutionAgent`) | goal, required fields and scenarios, minimum quality (sample missing / duplicate rate), sensitive-field allowance, auto-approval limit, budget and per-order limit (mandate) | discovery over seller catalogs -> sample quality check -> fixed quotes -> cheapest combination that covers every required scenario within budget -> contract terms confirmed (fields, purpose, licence, policy version) -> purchase -> receipt and report |
-| Seller agents A-D (`SellerAgent`) | catalog with fixed prices, allowed purposes, excluded fields, licence | publishes price and terms; answers each quote with what it can provide (all fields / without excluded fields / decline) |
-| Personal agent (`PersonalAgent`) | per-institution consent (items, purpose, weeks), automation level (`confirm_each` / `auto_standard` / `auto_all`), minimum price, pause / revoke | provides consented items automatically, asks the person for anything outside consent, confirms sensitive items by name each round, blocks prohibited purposes |
+| Research agent (`study.py`, `cohort.py`) | goal, protocol, budget cap, allowed purposes | reads the coverage table and the analysis note, proposes which person-weeks are missing (code recomputes each one from the table), sends participation requests, escrows rewards, opens bundles with the key from the ledger, tracks study power |
+| Personal agent (`PersonalAgent`, `PersonalVaultConnector`) | the person's consent per study, automation level, pause / revoke | joins the person's sources on a time axis, answers each request (auto / ask / block), previews exactly what would leave, seals and contributes, publishes the key to get the reward, issues and claws back the study's licence |
+| Seller agents (scene A only) | catalog, fixed prices, licence text | fixed quotes, confirm the buyer's reading of the licence |
 
-Every step is written to a decision log that the dashboard shows as a conversation
-(who -> whom, what, and the facts code decided).
+**LLM proposes, code verifies, ledger enforces.** The LLM reads the coverage table and analysis
+note (which weeks and items are missing, and why), one person's 8-week record ("P-017: week 4
+heart rate, weeks 3-5 fatigue"), seller schemas and licence text. Every proposal is stored with its
+hash in `proposals` and checked by code: a gap the table does not show is removed, a purpose
+outside the mandate is replaced, a budget above the cap is capped. The LLM can only narrow what
+the code allows; money and permission are widened only by code and the ledger
+(`test_hostile_llm_can_only_narrow`, `test_hostile_llm_cannot_widen_the_study`). Without a key the
+agents fall back to rules, and recorded LLM answers are replayed when a live call fails.
 
-### Where code decides and where the LLM speaks
-
-| Decided by code (never by the LLM) | Written by the LLM (optional) |
-|---|---|
-| budget, per-order limit, reservation (`engine.place_order`) | the sentence each agent says in the log: discovery summary, reason for the selection |
-| seller policy, consent, sensitivity, compliance (`policy.py`) | explanations to the owner / the person |
-| auto-approval limit, sensitive-field filter (`BuyerAgent.procure`) | |
-| duplicate / conflict checks (order key), ledger verification before release | |
-
-The LLM receives only the decision's facts (item names, prices, reasons), never raw data,
-and its text is never parsed back into a decision. Without a key, or on any API error,
-the agents use rule-based sentences and the run continues (`agentrail/llm.py`).
-`test_llm_is_never_on_the_decision_path` feeds a hostile LLM reply and checks the
-purchase is unchanged.
-
-More detail (ERD, identifiers, order state machine): [docs/DESIGN.md](docs/DESIGN.md).
-
-## 3. XRPL implementation
+## 4. XRPL implementation
 
 | XRPL feature | Why | How | Code | Testnet evidence |
 |---|---|---|---|---|
-| `Payment` with `InvoiceID` + memo | one payment per order, matched to order and terms | `InvoiceID` = order key; memo = order id, bundle hash, consent/terms hash; signed blob and hash stored **before** submit; lost response -> look up by hash, resubmit same blob | `engine._pay`, `ledger/xrpl_ledger.py` | [B1 purchase](https://testnet.xrpl.org/transactions/339DF06F94E57C92978A4815BAFFD8CB837E593305301F06A99D4BD4DC771902), [weekly payment to a person](https://testnet.xrpl.org/transactions/170A308F4B9C71C48217CAD45BAA0968C4A30B5F849A6CDB123C2248BB3FD2F7) |
-| Validated-ledger check | data is released only after settlement | destination, amount, `InvoiceID`, `tesSUCCESS` and `validated` checked before delivery; permission re-checked just before release | `engine._release`, `XrplLedger.lookup` | [recovered order (scene C)](https://testnet.xrpl.org/transactions/170AFDAFA8E21E56BF5414BAC1DE7B57B1DDA1B7A9AE84783BCBADEAAF3A9E30): lost ack + restart, one payment |
-| Multi-signing | an agent cannot raise its own budget | buyer treasury has a SignerList (owner + compliance, quorum 2) and master key disabled; agent-only top-up is rejected by the ledger (`tefBAD_SIGNATURE`/`tefBAD_QUORUM`); co-signed top-up raises the mandate | `ledger/xrpl_extras.py`, `scenario.top_up` | [SignerListSet](https://testnet.xrpl.org/transactions/0271D31421D869DC7BCEA5EC5384BB21B59E3AAC41464BA27305F5763F1EC3E6), [master key off](https://testnet.xrpl.org/transactions/D4A4D4E26B15A0E75BAEB0F1A72014FCAC8D21D1E311F3B50347E51600232EB9), [co-signed top-up](https://testnet.xrpl.org/transactions/06F45F9E79D899534C5F232CF31B26AB51F919834B63B5412E6F3C696B434C3F) |
-| Credentials | sensitive items only for an ethics-approved buyer | ethics board issues `ETHICS_REVIEW_SLEEP` (CredentialCreate + CredentialAccept); the consent policy reads the accepted credential from the ledger | `XrplExtrasMixin.issue_credential / has_credential`, `ComplianceRules` | [CredentialCreate](https://testnet.xrpl.org/transactions/8CD96B22DE3D4A31122B31C659397ED92FD6264FFDE5A7D359B837C715898BAA), [CredentialAccept](https://testnet.xrpl.org/transactions/EF323EA2408533E61623288827372D2F6BDEAEB0A9CEDC4F5E8046E051FFDB59) |
-| x402 (T54 facilitator) | HTTP-native pay-per-request for agents | gate answers 402 PaymentRequirements; buyer presigns; facilitator verifies and settles; engine still confirms on a validated ledger | `ledger/x402_rail.py` (`PAYMENT_RAIL=x402`) | Testnet run pending |
-| Many payees, parallel payments | weekly rounds pay each person directly | local sequence counter; 50-person cohort paid in parallel, once each | `XrplLedger._next_sequence`, `scenario.scene_d` | 53 public demo accounts verified (`scripts/check_addresses.py`) |
-| QuickNode RPC | production endpoint | any rippled JSON-RPC via `XRPL_RPC_URL` | `ledger/xrpl_ledger.py` | config only |
+| **Escrow (key reveal)** | reward is paid only when the data can be opened, and refunded if the person withdraws | bundle encrypted with key K and sealed to the study; `EscrowCreate` with a PREIMAGE-SHA-256 condition on K and `CancelAfter`; the personal agent publishes K in `EscrowFinish` to get paid; the study reads K from the ledger; withheld key -> `EscrowCancel` refund | `engine._escrow_*`, `ledger/conditions.py` | [EscrowCreate](https://testnet.xrpl.org/transactions/04C820C4EC1CC1A586F26CEE455BBD1CEAF8DE72C6D0CB308574F6FF4A068AAC), [EscrowFinish with key](https://testnet.xrpl.org/transactions/6A96310816B9EC9F7B445C113FFBB719E794A588AC20BE06D71C086C435706C4), [EscrowCreate 15 s](https://testnet.xrpl.org/transactions/E8ED3C1F14BD44C9F895E88B862041E1BBA2E568254FC658DE8156352795D7FB), [EscrowCancel refund](https://testnet.xrpl.org/transactions/6BD9AF3ACF2EADEEF650BC06E2358894AFC6ED0F8606C953ADDB641A10C76587) |
+| **MPT data licence** | the study holds a licence per (study, participant) that cannot be passed on and is taken back on revoke | issuer = participant's agent; `MPTokenIssuanceCreate` (supply 1, RequireAuth, CanClawback, no CanTransfer, metadata = study, DUO codes, consent hash); holder and issuer `MPTokenAuthorize`; MPT `Payment`; `Clawback` on revoke; the key is published only while the study holds it | `ledger/licence.py`, `study._after_contribution`, `study.participant_revoke` | Testnet run in progress |
+| **Credentials** | sensitive items only for an ethics-approved study; verified organization badge | ethics board issues `ETHICS_REVIEW_SLEEP`; the consent gate reads the accepted credential from the ledger | `ledger/xrpl_extras.py`, `ComplianceRules` | [CredentialCreate](https://testnet.xrpl.org/transactions/58656AB4E6ABEC47BAA92F90C3F304B8959D1FDAE03AE6ED193FA2D98CBD1A37), [CredentialAccept](https://testnet.xrpl.org/transactions/FC7710C97C3783157778952291A28B2322E2FD65DBBDB5B52F4662DF9D514218) |
+| **Multi-signing** | an agent cannot raise its own budget | study and buyer treasuries have a SignerList (owner + compliance, quorum 2), master key disabled; agent-only top-up refused by the ledger | `ledger/xrpl_extras.py`, `scenario.top_up`, `study.approve` | [SignerListSet](https://testnet.xrpl.org/transactions/6812EB098980EFEA7478517484AFDD082BD119CF32E9128D630B6D7AECFA029A), [master key off](https://testnet.xrpl.org/transactions/5FAAF7FE40D30E9558B120E27A49BAA55443F53BBF400C7596437864D620C8F8), [co-signed top-up](https://testnet.xrpl.org/transactions/E6F9FD3BB14245F7ED3ADF79FAA185C83155C1D40F70241FACDDA7178AB16D1C); agent alone: `tefBAD_SIGNATURE` |
+| `Payment` + `InvoiceID` + memo | one payment per order, tied to order, bundle and terms; clinic export fee paid by the person's agent | signed blob and hash stored before submit; lost response -> look up by hash, resubmit the same blob | `engine._pay`, `study._export_fee` | scene A: [B1 20 XRP](https://testnet.xrpl.org/transactions/FD14E5D69E6F244D5ECF6AFE8B8EBF038D6E75BD5C03D16A4F32DDB76B362B03), [C1 15 XRP](https://testnet.xrpl.org/transactions/AD54A5E8064C13DA41E6D24D97A95E5E77B6A7BFB6386758C771C8D81036C98A); 50 people paid in parallel in 58.7 s |
+| DepositAuth + DepositPreauth by credential | only verified organizations can pay into participants' and sources' accounts | mock done (`MockLedger.require_credential_deposits`); Testnet in progress | `ledger/mock.py` | in progress |
+| x402 (T54 facilitator) | HTTP pay-per-request for agents | 402 PaymentRequirements, presigned payment, facilitator settles; the engine still checks the validated ledger | `ledger/x402_rail.py` (`PAYMENT_RAIL=x402`) | in progress |
+| QuickNode RPC | production endpoint | any rippled JSON-RPC via `XRPL_RPC_URL` | `ledger/xrpl_ledger.py` | config |
 
-Only hashes go on-chain: no health values, names or consent text. In production,
-institutional budget top-up approvals would be signed with a hardware wallet such as Ledger.
+Amendments checked on Testnet with the `feature` RPC: MPTokensV1, Credentials, DepositAuth,
+DepositPreauth, TokenEscrow, BatchV1_1, PermissionedDomains, AMM, PriceOracle enabled.
+Only hashes go on-chain: no health values, names or consent text.
 
-## 4. Track and judging fit
+## 5. Two app surfaces on one engine
 
-| Criterion | How AgentRail meets it | Evidence |
+| Surface | For | Flow | API |
+|---|---|---|---|
+| Participant app: research participation request | one participant on their phone | request with verified-institution badges from the ledger, LLM summary of why, DUO codes -> each item marked auto / needs you / blocked -> preview of exactly what leaves (pseudonym, shifted dates, requested items only) -> approve -> sealed contribution, reward by escrow -> licence -> decline / pause / revoke with the ledger result | `GET /api/p/{pid}`, `/preview`, `POST .../approve`, `/decline`, `/pause`, `/revoke` |
+| Researcher console | the study team | goal and protocol -> 50 x 8 coverage heatmap and LLM gap reading next to the code verdict -> co-signed budget approval (one signer refused) -> participation requests -> responses (auto / approval / blocked) -> sealed bundles opened with the key from the ledger -> power before and after -> settlement record | `GET /api/study`, `POST /api/study/goal`, `/approve`, `/send`, `/close-round`, `/sweep`, `GET /api/study/bundle/{id}` |
+
+Both pages poll `GET /api/events` and share the same engine and ledger: a tap on the phone shows
+on the console at the next poll. Contract: [docs/API.md](docs/API.md).
+
+## 6. Track and judging fit
+
+| Criterion | How | Evidence |
 |---|---|---|
-| Agentic Finance track: agents that move money | buyer agents discover, compare, contract and pay autonomously inside a mandate; holders' agents answer for them | scene A, scene B, `agents.py` |
-| Safe autonomy | spending limits, consent and compliance are code; multisig treasury stops self-funding | `policy.py`, `engine.py`, 23 tests (`pytest -q`) |
-| Idea (25%) | one engine for organization data and personal data; consent and sensitivity are part of the trade | sections 1-2, scene B |
-| Implementation (25%) | Payment + InvoiceID + validated-ledger release, idempotent recovery, Credentials, Multi-signing, x402 rail | section 3, `tests/test_engine.py` |
-| Demo (25%) | one command runs both scenes; dashboard shows agent dialogue, orders and explorer links | section 5 |
-| Potential (25%) | any data holder with a connector can sell; people are paid directly per round | section 6 |
-| Bonus: QuickNode | RPC endpoint configurable | `XRPL_RPC_URL` |
-| Bonus: x402 | payment rail through the T54 facilitator | `PAYMENT_RAIL=x402`, `ledger/x402_rail.py` |
+| Agentic Finance: escrow, multi-signing, on-chain credentials | all three are in the main flow, not side demos | section 4 tx links |
+| Idea | research on one person's whole record, contributed by that person's agent; the counterpart is a person, not a dataset | sections 1-2 |
+| Implementation | key-reveal escrow, MPT licence with clawback, Credentials, multi-signed treasury, idempotent payments and recovery, 48 tests | `tests/`, section 4 |
+| Demo | phone request -> contribution -> researcher heatmap fills -> revoke -> clawback and refund, all with explorer links | section 8 |
+| Potential | small, frequent contributions that cards and 80-day agreements cannot carry | section 7 |
+| Bonus: QuickNode, x402 | `XRPL_RPC_URL`; `PAYMENT_RAIL=x402` | section 4 |
 
-## 5. Demo scenes and how to run
+## 7. Potential and market
 
-**Scene A - organization to organization (robotics data).** Goal: night warehouse
-navigation, LiDAR + IMU, dynamic obstacles + narrow aisles, commercial training. The
-buyer agent skips raw video (sensitive, not allowed by its settings), excludes A1 (no
-LiDAR), C2 (licence: evaluation only) and D1 (20% missing in sample), compares fixed
-quotes, confirms the terms of B1 (20 XRP) and C1 (15 XRP) and buys both for 35 XRP. With a
-30 XRP budget it buys nothing and asks for +5 XRP; it cannot sign the top-up alone; owner + compliance
-co-sign; it completes the purchase.
+**Data sells for a lot, but rarely.** The AI training dataset market grows from $3.2B (2025) to
+$16.3B (2033, 22.6% CAGR) ([Grand View Research](https://www.giikorea.co.kr/report/grvi2018158-ai-training-dataset-market-size-share-trends.html)),
+and real-world evidence solutions are a $2-2.6B market ([IMARC](https://www.imarcgroup.com/real-world-evidence-solutions-market)).
+Yet supply moves through a few large contracts: Reddit -> Google (~$60M/yr), News Corp -> OpenAI
+($250M+ over 5 years), Tempus -> AstraZeneca ($200M over 3 years). Only 28 AI content-licensing
+deals were publicly reported in 2024 ([Media and the Machine](https://mediaandthemachine.substack.com/p/ai-content-licensing-deals-june-2026)).
+Getting research data takes a median of 80 days, 35 of them to sign the data use agreement
+([Yale YODA](https://yoda.yale.edu/wp-content/uploads/2026/07/YODA-Project-Dashboard-Metrics-July-2026.pdf)).
 
-**Scene B - same engine, personal health data.** Three people with different
-automation levels. Week 1 runs automatically within consent (one person confirms by
-hand). Week 2 the lab also asks for fatigue survey and blood pressure at a higher price:
-nothing extra is sent; people are asked. One person approves only the fatigue survey;
-blood pressure (sensitive) stays blocked. Week 3 runs in the new scope without the
-person opening the app. A pause stops the next week; an ad network with a prohibited
-purpose is refused.
+**Research needs small gaps filled.** Recruiting one trial participant costs $2,273-6,533, and
+15-40% drop out. In remote wearable studies, median retention is 5.5 days
+([Pratap et al. 2020](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7026051/)). Filling a few missing
+weeks is too small for an 80-day agreement, and paying for it by card costs more than the reward
+($0.30 fixed fee, [Stripe](https://stripe.com/nl/help/pricing)). So that contribution does not
+happen today, and studies over-recruit instead.
 
-**Scene C - failures.** Same order twice, lost payment response, lost delivery ack,
-server restart: one order, one payment, same bundle re-delivered.
+**We drive the transaction cost toward zero.** The study's agent infers what is missing, each
+participant's agent consents per round, and XRPL settles with Escrow, MPT licences and Credentials
+in 3-5 seconds for under $0.0001. A $20 weekly contribution costs $0.88 to settle by card and about
+$0.00002 on XRPL (estimate at XRP $2). Agentic payments on XRPL already passed 13.5M transactions
+across 168 x402 merchants.
+
+**Revenue (estimate):** $20 per participant-week, 10% take rate, $12k per study per year.
+Year 3: 300 studies x 500 participants x 26 weeks = 3.9M settlements a year, $78M contributed value,
+$11.4M revenue, under 1% of the ~35k clinical trials started each year.
+
+| Layer | Size | Source |
+|---|---|---|
+| TAM: AI training data + RWE + data marketplaces (2025) | ~$7B | Grand View, IMARC, GMI (sum, overlapping; estimate) |
+| SAM: institutions using person-level longitudinal health data | ~$2.5B | RWE market (estimate) |
+| SOM: year 3, bottom-up | $11.4M revenue / $78M contributed | our model (estimate) |
+
+Sources and the full model: market research note kept with the team's review documents.
+
+## 8. Demo and how to run
+
+1. **Researcher console**: the sleep study is stalled at power 0.65. The LLM reads the coverage
+   table and note; code keeps fatigue weeks 3-5 and heart rate weeks 4-5 and shows why. One
+   signer cannot release the budget (`tefBAD_QUORUM` / `tefBAD_SIGNATURE`); PI + compliance can.
+   Requests go out; auto contributions fill the heatmap; power rises.
+2. **P-017's phone**: a request from a lab with an ethics-review badge read from the ledger, a
+   two-sentence reason, DUO chips, fatigue weeks 3-5 "needs you", heart rate week 4 "auto". Preview
+   shows what leaves. Approve: three escrows, keys published, rewards paid, licence issued.
+3. **Boundaries**: new purpose stops for approval; quasi-identifier combination refused; operator
+   cannot open a bundle; decline / pause / revoke with Clawback and EscrowCancel links.
+4. **Other domains**: robot company's agent buys two datasets on Testnet with a multi-signed top-up.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env            # optional: put OPENAI_API_KEY=... in .env (never committed)
-pytest -q                                          # MockLedger, all safety tests
-python -m agentrail.scenario                       # all scenes on MockLedger
-LEDGER=testnet python -m agentrail.scenario        # same scenes on XRPL Testnet (faucet wallets)
-LEDGER=testnet PAYMENT_RAIL=x402 python -m agentrail.scenario   # settle via x402 facilitator
-uvicorn agentrail.web:app --reload                 # dashboard at http://127.0.0.1:8000
+cp .env.example .env                     # optional: OPENAI_API_KEY=... (never committed)
+python -m pytest -q                      # 48 tests on the mock ledger
+python scripts/run_health_demo.py        # whole health study, mock ledger, JSON summary
+LEDGER=testnet python scripts/run_health_demo.py   # same on XRPL Testnet (faucet wallets)
+LEDGER=testnet python -m agentrail.scenario        # robot scene A, cohort round, failure scene
+uvicorn agentrail.web:app --reload       # API + dashboard at http://127.0.0.1:8000
 ```
 
-`.env` settings: `LLM_PROVIDER` (`openai` | `anthropic` | `none`), `OPENAI_API_KEY`,
-`OPENAI_MODEL`, `XRPL_RPC_URL`, `PAYMENT_RAIL`. Testnet wallets are created from the
-faucet at run time and kept only in `wallets.local.json` (git-ignored).
+`.env`: `LLM_PROVIDER` (`openai` | `anthropic` | `replay` | `none`), `OPENAI_API_KEY`,
+`OPENAI_MODEL`, `XRPL_RPC_URL`, `PAYMENT_RAIL`, `LLM_SAY`. Testnet wallets come from the faucet
+and are kept only in `wallets.local.json` (git-ignored).
 
-## 6. Safety, privacy, limits
+## 9. Safety, privacy, limits
 
-- All organizations, people, records and amounts are **synthetic**. XRPL Testnet only.
-- The service does not hold anyone's funds: buyers pay holders directly. Secrets stay in
-  `.env` / `wallets.local.json` (both git-ignored); the engine stores signed blobs and
-  hashes only.
-- Raw data never goes to an LLM or on-chain. Bundles are sealed to the buyer's key; the
-  gate operator cannot open them.
-- Unknown state never becomes "allowed": an unreadable consent store holds the trade.
-- Quality checks run on samples and are labelled "sample-verified", not a guarantee for
-  the whole dataset.
-- Pausing stops future releases; data already delivered cannot be recalled.
+- All people, institutions, records and amounts are **synthetic**. XRPL Testnet only.
+- The service does not hold anyone's funds: the study escrows rewards to each participant's
+  account; secrets stay in `.env` / `wallets.local.json` (git-ignored).
+- Raw records never go to an LLM or on-chain. The LLM sees coverage counts, item names and the
+  protocol; bundles are sealed to the study's key and the operator cannot open them.
+- Re-identification risk is reduced (minimization, per-study pseudonyms and date shifts,
+  quasi-identifier rule), not eliminated; delivered rounds cannot be recalled, and the person is
+  told so before approving.
+- Unknown state never becomes "allowed": an unreadable consent store holds the round.
 - Not a medical device; no diagnosis.
 
-Next steps: escrow so payment releases on delivery, RLUSD pricing, aggregate products
-across many people with minimum group sizes, production key custody for personal vaults.
+## 10. Where this goes (production targets)
 
-See [docs/PLAN.md](docs/PLAN.md), [docs/DESIGN.md](docs/DESIGN.md),
-[docs/DEMO_SCOPE.md](docs/DEMO_SCOPE.md), [docs/REUSE_LOG.md](docs/REUSE_LOG.md).
+The two surfaces in this repository were built during the hackathon to show where the engine
+plugs in. The team runs two existing products that are the intended production targets:
+**UniQdata** (participant app: research participation requests) and **UniQLab** (researcher
+workspace). No code from them is in this repository except what is listed in
+[docs/REUSE_LOG.md](docs/REUSE_LOG.md).
+
+More: [docs/API.md](docs/API.md), [docs/PLAN.md](docs/PLAN.md), [docs/DESIGN.md](docs/DESIGN.md),
+[docs/DEMO_SCOPE.md](docs/DEMO_SCOPE.md).
