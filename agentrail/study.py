@@ -311,44 +311,34 @@ def _done(w, req, wk, its):
     return any(o["week"] == wk and set(its) <= set(o["items"]) for o in req["orders"])
 
 
-def _x402(ledger):
-    """The clinic's export API answers HTTP 402; on Testnet the fee goes through the x402 facilitator.
-    Same wallets and client as the main ledger."""
-    if ledger.name != "testnet" or getattr(ledger, "rail", "") == "x402":
-        return ledger, getattr(ledger, "rail", "direct")
-    try:
-        from .ledger.x402_rail import X402Mixin
-    except Exception:
-        return ledger, "direct"
-    x = object.__new__(type("ClinicX402", (X402Mixin, type(ledger)), {}))
-    x.__dict__ = ledger.__dict__
-    return x, "x402"
-
-
 def _export_fee(w, pa, items):
-    """Clinic records come through the clinic's export service, which charges a small fee.
-    The participant's agent pays it from the participant's account (no custody by the service)."""
+    """Clinic records come through the clinic's export service, which charges a small fee per export.
+    The participant's agent asks over HTTP, gets 402 Payment Required (x402), signs exactly the payment
+    asked for from the participant's own account (no custody by the service) and retries."""
+    from . import clinic
     addr = w.engine.party(pa.id)["address"]
     if not w.ledger.can_sign(addr):
         return
+    if not clinic._cfg or clinic._cfg.get("ledger") is not w.ledger:
+        clinic.configure(w.ledger, w.engine.party(CLINIC)["address"], HospitalExportSource.export_fee_drops)
     fee = HospitalExportSource.export_fee_drops
-    inv = hashlib.sha256(f"export|{pa.id}|{items}|{time.time()}".encode()).hexdigest().upper()
-    L, rail = _x402(w.ledger)
+    nonce = hashlib.sha256(f"{pa.id}|{items}|{time.time()}".encode()).hexdigest()[:16]
     try:
-        prep = L.prepare_payment(addr, w.engine.party(CLINIC)["address"], fee, inv, "clinic records export")
-        L.submit(prep)
+        trail, body = clinic.pay_and_fetch(w.ledger, addr, pa.id, list(items), nonce,
+                                           os.environ.get("CLINIC_EXPORT_URL") or None)
     except Exception as e:
-        if rail != "x402":
-            raise
-        w.store.log(pa.id, "error", f"x402 export payment failed ({e}); paying the clinic directly")
-        L, rail = w.ledger, "direct"
-        prep = L.prepare_payment(addr, w.engine.party(CLINIC)["address"], fee, inv, "clinic records export")
-        L.submit(prep)
-    st = w.ledger.wait_validated(prep.tx_hash)
-    w.study.export_fees.append({"person": pa.id, "amount_xrp": fee / XRP, **_tx(w, prep.tx_hash),
-                                "ok": bool(st.success), "rail": rail})
-    w.store.log(pa.id, "export", f"{pa.id}'s agent paid the clinic {fee / XRP:g} XRP ({rail}) to export visit records",
-                {"tx_hash": prep.tx_hash, "url": _url(w, prep.tx_hash)})
+        trail, body = ["error"], {"error": f"{type(e).__name__}: {e}"}
+    rec = body.get("receipt") or {}
+    ok = trail[-1] == 200 and rec.get("success")
+    rail = f"x402 ({rec.get('settledBy')})" if ok else "failed"
+    w.study.export_fees.append({"person": pa.id, "amount_xrp": fee / XRP, **_tx(w, rec.get("transaction")),
+                                "ok": bool(ok), "rail": rail, "http": trail})
+    if ok:
+        w.store.log(pa.id, "export", f"{pa.id}'s agent asked the clinic for its records: HTTP "
+                    f"{' -> '.join(map(str, trail))}; paid {fee / XRP:g} XRP by x402, settled by "
+                    f"{rec.get('settledBy')}", {"tx_hash": rec.get("transaction"), "url": _url(w, rec.get("transaction"))})
+    else:
+        w.store.log(pa.id, "error", f"clinic export not paid: HTTP {trail} {body.get('error') or body}")
 
 
 def set_payout_currency(w, pid: str, currency: str) -> dict:
