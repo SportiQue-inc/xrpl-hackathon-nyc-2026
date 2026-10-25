@@ -6,10 +6,10 @@ import os
 import threading
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from . import scenario
+from . import scenario, study
 from .llm import voice
 
 app = FastAPI(title="AgentRail")
@@ -47,6 +47,11 @@ def run(scene: str, budget: float | None = None):
             r = scenario.scene_c(w)
         elif scene == "d":
             r = scenario.scene_d(w)
+        elif scene == "h":
+            r = scenario.scene_h(w)
+        elif scene == "boundaries":
+            from . import boundaries
+            r = boundaries.run(w)
         else:
             return {"error": "unknown scene"}
         _state["results"][scene] = r
@@ -88,6 +93,115 @@ def state():
         "accounts": accounts,
         "results": _state.get("results", {}),
     }
+
+
+# ---------- participant app and researcher console (docs/API.md) ----------
+
+def _call(fn, *a, **k):
+    w = world()
+    with _lock:
+        try:
+            return fn(w, *a, **k)
+        except KeyError as e:
+            raise HTTPException(404, f"not found: {e}")
+
+
+@app.get("/api/events")
+def events(after: int = 0):
+    return _call(study.events, after)
+
+
+@app.get("/api/boundaries")
+def boundaries_view():
+    from . import boundaries
+    return _call(boundaries.view)
+
+
+@app.get("/api/p/{pid}")
+def participant(pid: str):
+    return _call(study.participant_view, pid)
+
+
+@app.get("/api/p/{pid}/preview")
+def participant_preview(pid: str, request: int):
+    return _call(study.preview, pid, request)
+
+
+@app.post("/api/p/{pid}/requests/{rid}/approve")
+def participant_approve(pid: str, rid: int, body: dict = Body(default={})):
+    return _call(study.participant_approve, pid, rid, list(body.get("items") or []))
+
+
+@app.post("/api/p/{pid}/requests/{rid}/decline")
+def participant_decline(pid: str, rid: int):
+    return _call(study.participant_decline, pid, rid)
+
+
+@app.post("/api/p/{pid}/pause")
+def participant_pause(pid: str):
+    return _call(study.participant_pause, pid)
+
+
+@app.post("/api/p/{pid}/resume")
+def participant_resume(pid: str):
+    return _call(study.participant_pause, pid, True)
+
+
+@app.post("/api/p/{pid}/revoke")
+def participant_revoke(pid: str):
+    return _call(study.participant_revoke, pid)
+
+
+@app.get("/api/study")
+def study_state():
+    return _call(study.study_view)
+
+
+@app.post("/api/study/goal")
+def study_goal(body: dict = Body(default={})):
+    return _call(study.set_goal, body.get("goal") or "")
+
+
+@app.post("/api/study/approve")
+def study_approve(body: dict = Body(default={})):
+    return _call(study.approve, list(body.get("signers") or []))
+
+
+@app.post("/api/study/send")
+def study_send():
+    return _call(study.send)
+
+
+@app.post("/api/study/close-round")
+def study_close_round():
+    return _call(study.close_round)
+
+
+@app.post("/api/study/sweep")
+def study_sweep():
+    return _call(study.sweep)
+
+
+@app.get("/api/study/bundle/{oid}")
+def study_bundle(oid: int):
+    return _call(study.open_bundle, oid)
+
+
+def _page(*parts):
+    p = Path(__file__).parent.parent.joinpath(*parts)
+    if not p.exists():
+        raise HTTPException(404, "page not built yet")
+    return FileResponse(p)
+
+
+@app.get("/participant")
+def participant_page():
+    return _page("apps", "participant", "index.html")
+
+
+@app.get("/console")
+def console_page():
+    return _page("apps", "researcher", "index.html")
 
 
 @app.get("/")

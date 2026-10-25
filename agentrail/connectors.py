@@ -160,5 +160,6 @@ class PersonalVaultConnector:
                 src = self.by_item[it]
                 rng = random.Random(f"{self.person.id}-{week}-{it}-{day}")
                 row[it] = src.read(self.person.id, it, day, rng)
-            rows.append(row)
+            if any(row[it] is not None for it in items):   # days with nothing requested never leave
+                rows.append(row)
         return rows

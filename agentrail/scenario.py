@@ -163,10 +163,10 @@ def scene_a(w: World, budget_xrp: float | None = None) -> dict:
     return w.robot_buyer.procure(w.goal, w.sellers)
 
 
-def top_up(w: World, buyer_id: str, amount_xrp: float, signers: list[str]) -> str | None:
+def top_up(w: World, buyer_id: str, amount_xrp: float, signers: list[str], treasury: str | None = None) -> str | None:
     """Raise an agent's budget. Only a multi-signed treasury payment can do it."""
     try:
-        h = w.ledger.multisig_payment(w.treasury, w.engine.party(buyer_id)["address"],
+        h = w.ledger.multisig_payment(treasury or w.treasury, w.engine.party(buyer_id)["address"],
                                       int(amount_xrp * XRP), signers)
     except Exception as e:
         # submit_and_wait wraps the engine result in a timeout message; show just the code.
@@ -316,10 +316,16 @@ def build_cohort(w: World, n: int = 50):
     w.cohort_people = {}
     for i, a in enumerate(accounts):
         pid = a["account_id"]
-        addr = a["classic_address"] if w.ledger.name == "testnet" else w.ledger.new_account(pid)
+        from .cohort import HERO
+        if w.ledger.name != "testnet":
+            addr = w.ledger.new_account(pid)
+        elif pid == HERO:
+            addr = w.ledger.new_account(f"participant_{pid}")   # the followed participant's agent holds a key
+        else:
+            addr = a["classic_address"]                        # receive-only public fixture address
         e.add_party(pid, f"Participant {pid}", "person", addr)
         pa = PersonalAgent(Person(pid, pid), e, compliance)
-        auto = COHORT_PROFILES[i % len(COHORT_PROFILES)]
+        auto = "auto_standard" if pid == HERO else COHORT_PROFILES[i % len(COHORT_PROFILES)]
         items = STANDARD_ITEMS + (["fatigue.survey"] if auto != "auto_standard" else [])
         pa.set_consent("org_sleeplab", "sleep_research", items, automation=auto, quiet=True)
         w.cohort_people[pid] = pa
