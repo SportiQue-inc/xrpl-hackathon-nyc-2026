@@ -101,7 +101,7 @@ function structure() {
       h("b", { class: "small" }, "New sub-project under this scope (no new contract)"),
       h("input", { name: "name", value: "Caffeine and sleep", required: true }),
       h("input", { name: "purpose", value: "sleep_research" }),
-      h("input", { name: "types", value: "heart_rate.daily, caffeine.diary" }),
+      h("input", { name: "types", value: "heart_rate.daily, caffeine", title: "in scope: heart_rate.daily, fatigue.survey · outside: caffeine · T3: genome.vcf, mri" }),
       h("div", { class: "row" }, h("input", { name: "budget", type: "number", value: "20", step: "0.01", title: `budget in ${unit}` }), h("input", { name: "weeks", type: "number", value: "4", title: "weeks" })),
       h("button", { class: "btn primary", disabled: !!st.busy }, "Create · agents route it")) :
       h("p", { class: "muted tiny" }, "Sub-project creation appears here once the engine exposes /api/institution."));
