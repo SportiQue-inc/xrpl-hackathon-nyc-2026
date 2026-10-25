@@ -1,0 +1,27 @@
+# One-click deploy of the Data Vault Market (prototypes/data-vault-market/server) on Render.
+services:
+  - type: web
+    name: data-vault-market
+    runtime: docker
+    branch: claude/project-thread-06we25
+    dockerfilePath: ./prototypes/data-vault-market/server/Dockerfile
+    dockerContext: .
+    plan: starter            # always on; the free plan sleeps and would stop the agents
+    healthCheckPath: /api/meta
+    disk:
+      name: vault-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: VM_LEDGER
+        value: testnet
+      - key: VM_PUBLIC
+        value: "1"
+      - key: VM_LLM_RPM
+        value: "4"
+      - key: VM_LLM_DAILY_CALLS
+        value: "600"
+      - key: ANTHROPIC_API_KEY   # either key works; Anthropic is used when both are set
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

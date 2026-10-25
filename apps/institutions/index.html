@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentRail · Institution dashboard</title>
+<link rel="stylesheet" href="/apps/demo/demo.css">
+<link rel="stylesheet" href="/apps/institutions/inst.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Institution view · measured from the records</p>
+      <h1>Every agent trade, as the institution sees it</h1>
+      <p class="lead muted">Research labs and data buyers: what their agents asked for, what came back, what was refused before any payment, what it cost and how long it took. Each figure names the run it came from; figures from different runs are never added together.</p>
+    </div>
+    <div class="controls">
+      <label class="small muted" for="inst">Institution</label>
+      <select id="inst"><option value="">All institutions</option></select>
+      <button class="btn" id="reload" type="button">Refresh</button>
+      <span class="small muted" id="read"></span>
+    </div>
+  </header>
+
+  <section aria-labelledby="eff-t">
+    <h2 id="eff-t">Efficiency, measured</h2>
+    <p class="muted small" id="baseline"></p>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section aria-labelledby="scale-t">
+    <h2 id="scale-t">More projects, more participants</h2>
+    <p class="muted small">Each row is one measured run on this engine (<code>scripts/scale_run.py</code>): that many research contracts from different institutions, that many participants per contract with their own keys and signed consent, week 1 asked and paid. Time is from the institution's request to the payment recorded.</p>
+    <div class="card"><div id="chart" class="chart"></div></div>
+    <div class="tablewrap"><table id="runs"></table></div>
+  </section>
+
+  <section aria-labelledby="res-t">
+    <h2 id="res-t">Research contracts</h2>
+    <p class="muted small" id="res-src"></p>
+    <div class="tablewrap"><table id="res-inst"></table></div>
+    <details><summary>Every contract</summary><div class="tablewrap"><table id="res-c"></table></div></details>
+  </section>
+
+  <section aria-labelledby="v-t">
+    <h2 id="v-t">Data market: buyer organizations</h2>
+    <p class="muted small" id="v-src"></p>
+    <div class="tablewrap"><table id="v-org"></table></div>
+    <details open><summary>Latest deals</summary><div class="tablewrap"><table id="v-deals"></table></div></details>
+  </section>
+
+  <section aria-labelledby="a-t">
+    <h2 id="a-t">AP4M agent payment runs</h2>
+    <p class="muted small" id="a-src"></p>
+    <div class="tablewrap"><table id="a-runs"></table></div>
+  </section>
+
+  <footer class="small muted" id="foot"></footer>
+</main>
+<script type="module" src="/apps/institutions/inst.js"></script>
+</body>
+</html>

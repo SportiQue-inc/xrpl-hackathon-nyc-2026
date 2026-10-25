@@ -1,0 +1,28 @@
+.wrap{max-width:1180px;margin:auto;padding:32px 20px 40px;display:flex;flex-direction:column;gap:36px}
+h1{font-size:clamp(28px,4vw,42px);line-height:1.1;letter-spacing:-.03em;margin:6px 0 10px}
+h2{font-size:22px;margin:0 0 6px}
+.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:12px;font-weight:700;color:var(--brand);margin:0}
+.lead{font-size:16px;max-width:860px;margin:0}
+.top{display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between;align-items:flex-end}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select{padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font:inherit}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:12px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:4px}
+.kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .v small{font-size:14px;font-weight:500;color:var(--text-2)}
+.kpi .l{font-weight:600}
+.kpi .s{font-size:12px;color:var(--text-2)}
+.kpi .vs{font-size:13px;color:var(--green);font-weight:600}
+.tablewrap{overflow-x:auto;margin-top:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-2);background:var(--row)}
+td.n,th.n{text-align:right}
+tr:last-child td{border-bottom:0}
+td.w{white-space:normal;min-width:220px}
+details{margin-top:10px} summary{cursor:pointer;font-weight:600;color:var(--brand)}
+.chart{width:100%;min-height:220px}
+.chart svg{width:100%;height:auto;display:block}
+.empty{padding:16px;color:var(--text-2)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--row);padding:1px 4px;border-radius:4px}
+a{color:var(--brand)}

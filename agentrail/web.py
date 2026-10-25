@@ -989,6 +989,13 @@ def contracts_post(body: ContractPost, request: Request):
     return _lcall(post)
 
 
+@app.get("/api/institutions/overview")
+def institutions_overview():
+    """The institution dashboard: research contracts, vault deals and AP4M runs, each with its own source."""
+    from . import institution_view
+    return institution_view.overview(lane())
+
+
 @app.get("/api/contracts/{cid}")
 def contracts_get(cid: str):
     return _lcall(lambda L: L.public(cid))
@@ -1023,6 +1030,12 @@ def contracts_round(cid: str, body: RoundBody):
 @app.post("/api/contracts/{cid}/close")
 def contracts_close(cid: str):
     return _lcall(lambda L: L.close(cid))
+
+
+@app.post("/api/contracts/{cid}/payments/retry")
+def contracts_retry_payments(cid: str):
+    """Pay delivered weeks whose AP4M payment did not go through (same ref: never paid twice)."""
+    return _lcall(lambda L: {"paid": L.retry_payments(cid), "payments": L.console(cid)["payments"]})
 
 
 @app.get("/api/p/{pid}/contracts")
@@ -1133,6 +1146,11 @@ def personal_agent_card(pid: str):
 @app.get("/participant")
 def participant_page():
     return _page("apps", "participant", "index.html")
+
+
+@app.get("/institutions")
+def institutions_page():
+    return _page("apps", "institutions", "index.html")
 
 
 @app.get("/console")

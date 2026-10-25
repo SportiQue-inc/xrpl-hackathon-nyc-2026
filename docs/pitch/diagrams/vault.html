@@ -1,0 +1,80 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0}
+body{width:1920px;height:1080px;background:#0B1424;color:#F5F4EF;font-family:"DejaVu Sans","Liberation Sans",Arial,sans-serif;position:relative;overflow:hidden}
+.t{position:absolute;left:80px;top:56px;font-size:46px;font-weight:700;letter-spacing:-.5px}
+.s{position:absolute;left:80px;top:118px;font-size:24px;color:#9FB0CC}
+.box{position:absolute;border-radius:24px;padding:28px}
+.vault{left:80px;top:190px;width:430px;height:610px;background:#13213A;border:2px solid #2E4470}
+.agent{left:640px;top:190px;width:640px;height:610px;background:#16264A;border:3px solid #5B86FF;box-shadow:0 0 60px rgba(91,134,255,.25)}
+.mkt{left:1410px;top:190px;width:430px;height:610px;background:#13213A;border:2px solid #2E4470}
+h3{font-size:30px;margin-bottom:6px}
+.cap{font-size:20px;color:#9FB0CC;margin-bottom:18px}
+.row{display:flex;align-items:center;gap:12px;background:#1C2D4D;border-radius:12px;padding:12px 16px;margin-bottom:10px;font-size:21px}
+.tag{font-size:16px;font-weight:700;padding:4px 10px;border-radius:999px;margin-left:auto}
+.t0{background:#1E4D34;color:#8EE09F}.t2{background:#24345C;color:#9DB5F5}.t3{background:#5A2C12;color:#F2A877}
+.pol{background:#0F1A2E;border:1px dashed #5B86FF;border-radius:12px;padding:14px 16px;font-size:19px;color:#C9D6F0;margin-top:14px;line-height:1.4}
+.step{display:flex;gap:14px;align-items:flex-start;margin-bottom:12px}
+.n{flex:none;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
+.st b{font-size:22px}.st p{font-size:18px;color:#B5C3DD;margin-top:2px}
+.outs{display:flex;gap:10px;margin-top:14px}
+.o{flex:1;border-radius:12px;padding:12px;font-size:18px;line-height:1.3}
+.o b{display:block;font-size:20px;margin-bottom:3px}
+.buyer{background:#1C2D4D;border-radius:14px;padding:16px;margin-bottom:12px}
+.buyer b{font-size:22px}.buyer p{font-size:18px;color:#B5C3DD;margin-top:4px}
+.g{display:inline-block;font-size:16px;font-weight:700;padding:3px 9px;border-radius:999px;background:#24345C;color:#9DB5F5;margin-left:8px}
+.arrow{position:absolute;height:6px;background:#5B86FF;border-radius:3px}
+.arrow:after{content:"";position:absolute;right:-14px;top:-9px;border-left:18px solid #5B86FF;border-top:12px solid transparent;border-bottom:12px solid transparent}
+.al{position:absolute;font-size:18px;color:#9FB0CC;text-align:center;width:120px}
+.pay{position:absolute;left:640px;top:822px;width:1200px;height:66px;background:#2557E8;border-radius:16px;padding:18px 28px;font-size:22px}
+.pay b{font-size:24px}
+.sec{position:absolute;left:80px;top:906px;width:1760px;height:148px;background:#F5F4EF;color:#101B2E;border-radius:18px;padding:16px 28px}
+.sec h4{font-size:20px;letter-spacing:2px;color:#2557E8;margin-bottom:10px}
+.chips{display:flex;gap:12px}
+.chip{flex:1;font-size:18px;line-height:1.3;border-left:4px solid #2557E8;padding-left:10px}
+.chip b{display:block;font-size:19px}
+.back{position:absolute;left:80px;top:822px;width:520px;height:66px;border:2px dashed #46A758;border-radius:16px;display:flex;align-items:center;padding:0 22px;font-size:21px;color:#8EE09F}
+</style></head><body>
+<div class="t">A personal data vault with its own agent</div>
+<div class="s">The agent reads her vault and her rules, decides on its own, finds the right buyer, negotiates and gets her paid. Sensitive data always waits for her.</div>
+
+<div class="box vault"><h3>Her data vault</h3><div class="cap">UniQdata · records stamped by their source at intake</div>
+<div class="row">⌚ Steps, sleep, HRV<span class="tag t0">T0</span></div>
+<div class="row">🍽 Meals, mood, fatigue<span class="tag t0">T1</span></div>
+<div class="row">🏥 Diagnoses, labs, BP<span class="tag t2">T2</span></div>
+<div class="row">🧬 Genome, MRI, CT<span class="tag t3">T3</span></div>
+<div class="pol"><b style="color:#F5F4EF">Her policy</b><br>Sell T0–T1 for research, min 8 RLUSD/wk<br>Grade A buyers only · no marketing<br>Never: imaging abroad</div>
+</div>
+
+<div class="box agent"><h3>Her agent decides</h3><div class="cap">The LLM proposes · code verifies · the ledger enforces</div>
+<div class="step"><div class="n" style="background:#5A1E22;color:#FF9C9F">1</div><div class="st"><b>Hard gates</b><p>Prohibited use, no IRB for T2+, expired credential, excluded country → block</p></div></div>
+<div class="step"><div class="n" style="background:#5A2C12;color:#F2A877">2</div><div class="st"><b>Tier</b><p>T3 genome, MRI, CT → always a fresh passkey from her</p></div></div>
+<div class="step"><div class="n" style="background:#24345C;color:#9DB5F5">3</div><div class="st"><b>Buyer grade A–D vs her baseline</b><p>Credentials, deletion record, audits, disputes</p></div></div>
+<div class="step"><div class="n" style="background:#1E4D34;color:#8EE09F">4</div><div class="st"><b>Scope</b><p>Inside what she agreed? New purpose, field or country → back to her</p></div></div>
+<div class="outs">
+<div class="o" style="background:#1E4D34"><b style="color:#8EE09F">Act alone</b>routine data, inside policy</div>
+<div class="o" style="background:#5A2C12"><b style="color:#F2A877">Ask her</b>one package, one passkey</div>
+<div class="o" style="background:#3A2730"><b style="color:#FF9C9F">Block</b>with the reason</div>
+</div></div>
+
+<div class="box mkt"><h3>Buyer agents</h3><div class="cap">Institutions and labs post needs; agents meet agent to agent</div>
+<div class="buyer"><b>Northside Sleep Lab</b><span class="g">A</span><p>Needs fatigue survey, weeks 3–5 · sleep research</p></div>
+<div class="buyer"><b>Atlas Maps</b><span class="g">B</span><p>Running GPS tracks · route-safety model</p></div>
+<div class="buyer"><b>Neuro-imaging Institute</b><span class="g">A</span><p>Brain MRI · needs her fresh yes</p></div>
+<div class="buyer" style="opacity:.6"><b>DataCo-op Broker</b><span class="g" style="background:#3A2730;color:#FF9C9F">C</span><p>Resale → blocked by her policy</p></div>
+</div>
+
+<div class="arrow" style="left:518px;top:470px;width:104px"></div><div class="al" style="left:510px;top:420px">reads</div>
+<div class="arrow" style="left:1288px;top:440px;width:104px"></div><div class="al" style="left:1280px;top:390px">offers</div>
+<div class="arrow" style="left:1288px;top:540px;width:104px;transform:rotate(180deg)"></div><div class="al" style="left:1280px;top:560px">needs</div>
+
+<div class="back">↩ Payout lands in her wallet · paid money never taken back</div>
+<div class="pay"><b>Settle:</b> sample check → sealed delivery → <b>Mastercard AP4M</b> pays in RLUSD, inside the cap</div>
+
+<div class="sec"><h4>SECURITY LAYER UNDERNEATH</h4><div class="chips">
+<div class="chip"><b>Payment = key</b>the key is released by the payment itself</div>
+<div class="chip"><b>Provenance first</b>tampered data gets 0 before payment</div>
+<div class="chip"><b>Push, not read</b>sealed to the buyer; platform holds no keys</div>
+<div class="chip"><b>Withdraw on-chain</b>licence clawed back, unreleased rounds refunded</div>
+<div class="chip"><b>Says no</b>to injected or out-of-scope requests</div>
+</div></div>
+</body></html>

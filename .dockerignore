@@ -1,0 +1,6 @@
+**/.env
+**/*.local.json
+**/intake_key.local
+**/*.db
+**/__pycache__
+.git

@@ -1,0 +1,38 @@
+<section id="security" data-transition="fade" style="background:#F5F4EF;color:#101B2E;font-family:'DM Sans', Arial, sans-serif;padding:112px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<p style="font-size:28px;color:#2557E8;letter-spacing:3px;text-transform:uppercase;font-weight:700">The security layer underneath</p>
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1;width:1664px">Money, keys and consent are tied together on the ledger.</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px">
+<div style="display:flex;flex-direction:column;gap:10px;background:#FCFBF8;border:1px solid #DAD7CC;padding:32px;border-radius:20px">
+<x-icon name="Key" style="color:#2557E8;width:48px;height:48px"></x-icon>
+<h3 style="font-size:32px;font-weight:700">Payment is the key</h3>
+<p style="font-size:24px;color:#4A5568;line-height:1.4">The data key K is the escrow’s preimage. The transaction that pays is the one that unlocks.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#FCFBF8;border:1px solid #DAD7CC;padding:32px;border-radius:20px">
+<x-icon name="Verified" style="color:#2557E8;width:48px;height:48px"></x-icon>
+<h3 style="font-size:32px;font-weight:700">Stamped at intake</h3>
+<p style="font-size:24px;color:#4A5568;line-height:1.4">Hospitals and devices sign records as they enter her DB. A tampered week fails before payment: 0 RLUSD.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#FCFBF8;border:1px solid #DAD7CC;padding:32px;border-radius:20px">
+<x-icon name="Lock" style="color:#2557E8;width:48px;height:48px"></x-icon>
+<h3 style="font-size:32px;font-weight:700">Push, not read</h3>
+<p style="font-size:24px;color:#4A5568;line-height:1.4">Sealed end to end to the buyer’s key. Nobody gets read access to her store; the platform holds no keys or funds.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#FCFBF8;border:1px solid #DAD7CC;padding:32px;border-radius:20px">
+<x-icon name="Link" style="color:#2557E8;width:48px;height:48px"></x-icon>
+<h3 style="font-size:32px;font-weight:700">One order, one record</h3>
+<p style="font-size:24px;color:#4A5568;line-height:1.4">Consent hash, bundle hash and escrow are bound into one trade record anyone can check.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#FCFBF8;border:1px solid #DAD7CC;padding:32px;border-radius:20px">
+<x-icon name="Warning" style="color:#C2581A;width:48px;height:48px"></x-icon>
+<h3 style="font-size:32px;font-weight:700">Withdrawal on-chain</h3>
+<p style="font-size:24px;color:#4A5568;line-height:1.4">Her research licence (MPT) is clawed back; unreleased rounds are refunded. Delivered rounds can’t be recalled, and she is told first.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#FCFBF8;border:1px solid #DAD7CC;padding:32px;border-radius:20px">
+<x-icon name="Trust" style="color:#C2581A;width:48px;height:48px"></x-icon>
+<h3 style="font-size:32px;font-weight:700">An agent that says no</h3>
+<p style="font-size:24px;color:#4A5568;line-height:1.4">Expired ethics credential, out-of-scope field, “ignore consent” hidden in a record: refused, 0 orders.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-size:24px;color:#6A7179">25 attack-replay tests in tests/test_security.py · each XRPL primitive verified on Testnet, including its expected rejection</p>
+<aside>Underneath sits the security layer. The key that opens the data is the escrow's preimage, so paying and unlocking are one transaction. Provenance is stamped when records enter the person's database, so a tampered week is blocked before any payment. Data is pushed sealed to the buyer; nobody gets read access, and the platform never holds keys or funds. If she withdraws, the research licence is clawed back on the ledger and unreleased rounds are refunded. And her agent turns money down: expired ethics approval, out-of-scope fields, or a prompt injection hidden in a medical record. 25 attack replays are in the test suite.</aside>
+</section>

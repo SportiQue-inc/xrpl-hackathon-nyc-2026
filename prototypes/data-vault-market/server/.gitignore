@@ -1,0 +1,6 @@
+*.db
+*.db-*
+*.local.json
+intake_key.local
+.env
+__pycache__/

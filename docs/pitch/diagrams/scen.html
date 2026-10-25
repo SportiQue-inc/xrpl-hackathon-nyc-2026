@@ -1,0 +1,67 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0}
+body{width:1920px;height:1080px;background:#0B1424;color:#F5F4EF;font-family:"DejaVu Sans","Liberation Sans",Arial,sans-serif;padding:48px 64px}
+.t{font-size:42px;font-weight:700}.s{font-size:22px;color:#9FB0CC;margin:8px 0 26px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.c{background:#13213A;border-radius:18px;padding:20px 20px 16px;border-top:6px solid var(--k);height:420px;display:flex;flex-direction:column}
+.c h3{font-size:23px;line-height:1.2;margin-bottom:4px}
+.c .w{font-size:16px;color:var(--k);font-weight:700;letter-spacing:1.5px;margin-bottom:10px}
+.r{display:flex;gap:10px;margin-bottom:9px;font-size:16.5px;line-height:1.32;color:#D3DDF0}
+.r b{flex:none;width:72px;font-size:13px;letter-spacing:1px;color:#8A97AD;padding-top:3px}
+.res{margin-top:auto;background:#0F1A2E;border-radius:10px;padding:9px 12px;font-size:16.5px;font-weight:700;color:var(--k)}
+.f{margin-top:18px;font-size:17px;color:#8A97AD}
+</style></head><body>
+<div class="t">Eight scenarios, one loop: read the vault → decide → trade → pay out</div>
+<div class="s">Every scenario runs through the same agent, the same four checks, and the same Mastercard AP4M payment rail.</div>
+<div class="grid">
+<div class="c" style="--k:#5B86FF"><div class="w">1 · B2B</div><h3>Institution ↔ institution data deal</h3>
+<div class="r"><b>READ</b>Seller’s offer book and owner terms: min price, allowed uses</div>
+<div class="r"><b>DECIDE</b>Buyer grade ≥ owner baseline; records not already owned</div>
+<div class="r"><b>TRADE</b>Sample check, price from the last 20 ledger trades</div>
+<div class="r"><b>PAY</b>AP4M in RLUSD, inside the buyer’s cap</div>
+<div class="res">Settled in seconds, no owner tap</div></div>
+<div class="c" style="--k:#46A758"><div class="w">2 · ROUTINE DATA</div><h3>She sells sleep data automatically</h3>
+<div class="r"><b>READ</b>T0 sleep weeks + her policy: research only, ≥ 8 RLUSD/week</div>
+<div class="r"><b>DECIDE</b>Inside her standing grant → act alone</div>
+<div class="r"><b>TRADE</b>Sealed push to the lab, no read access</div>
+<div class="r"><b>PAY</b>AP4M; her leg paid on to her wallet</div>
+<div class="res">Shared and paid while she sleeps</div></div>
+<div class="c" style="--k:#E8803A"><div class="w">3 · SENSITIVE DATA</div><h3>MRI, CT, genome wait for her</h3>
+<div class="r"><b>READ</b>Brain MRI request: grade A institute, grade C broker</div>
+<div class="r"><b>DECIDE</b>T3 → fresh passkey for A; C held: “needs grade A+ and a controlled workspace”</div>
+<div class="r"><b>TRADE</b>Only after her yes, inside a controlled workspace</div>
+<div class="r"><b>PAY</b>AP4M after the key is released</div>
+<div class="res">Never automatic, never standing</div></div>
+<div class="c" style="--k:#9DB5F5"><div class="w">4 · RESEARCHER AGENT</div><h3>Selecting data across sub-projects</h3>
+<div class="r"><b>READ</b>Lab goal “back to 80% power” + gap map of missing weeks</div>
+<div class="r"><b>DECIDE</b>Each person’s agent routes each sub-project: handled / back to her / blocked</div>
+<div class="r"><b>TRADE</b>Requests exactly the missing person-weeks</div>
+<div class="r"><b>PAY</b>Per verified week, through AP4M</div>
+<div class="res">No new contract per sub-project</div></div>
+<div class="c" style="--k:#FF6B70"><div class="w">5 · QUALITY</div><h3>Tampered data refused before payment</h3>
+<div class="r"><b>READ</b>Source stamps signed when records entered her vault</div>
+<div class="r"><b>DECIDE</b>Week 4 hash ≠ hospital’s signature → fail</div>
+<div class="r"><b>TRADE</b>Stopped before any money moves</div>
+<div class="r"><b>PAY</b>Nothing; seller grade drops</div>
+<div class="res">0 RLUSD for tampered data</div></div>
+<div class="c" style="--k:#5B86FF"><div class="w">6 · PAYOUT CURVE</div><h3>Staying pays more, up front</h3>
+<div class="r"><b>READ</b>Her run of consecutive verified weeks</div>
+<div class="r"><b>DECIDE</b>50% up front, +10 points a week, up to 90%; ×1.1/1.2/1.3 at 2/4/8 weeks</div>
+<div class="r"><b>TRADE</b>The rest held 7 days (+14 if fraud suspected)</div>
+<div class="r"><b>PAY</b>Paid by default, even after withdrawal</div>
+<div class="res">Paid money is never taken back</div></div>
+<div class="c" style="--k:#C9D2E3"><div class="w">7 · WITHDRAWAL</div><h3>She leaves; the ledger follows</h3>
+<div class="r"><b>READ</b>Her withdrawal, signed with a fresh passkey</div>
+<div class="r"><b>DECIDE</b>Stop every next round for that study</div>
+<div class="r"><b>TRADE</b>Research licence (MPT) clawed back; deletion requested and confirmed</div>
+<div class="r"><b>PAY</b>Unreleased escrows refunded to the lab</div>
+<div class="res">What she earned stays hers</div></div>
+<div class="c" style="--k:#B98CFF"><div class="w">8 · CROSS-BORDER</div><h3>A buyer in another country</h3>
+<div class="r"><b>READ</b>Buyer location vs her consents</div>
+<div class="r"><b>DECIDE</b>Needs one-time cross-border consent per institution and country; “never abroad” types blocked</div>
+<div class="r"><b>TRADE</b>Sealed copy pushed; no remote read access</div>
+<div class="r"><b>PAY</b>AP4M as usual</div>
+<div class="res">Asked once, then automatic</div></div>
+</div>
+<div class="f">Synthetic data · XRPL Testnet / XRPL EVM Testnet · Testnet: test USD stands in for RLUSD</div>
+</body></html>

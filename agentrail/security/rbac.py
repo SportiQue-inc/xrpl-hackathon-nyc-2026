@@ -113,6 +113,7 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/api/agent/explain/presets"): Rule(public=True),
     ("POST", "/api/agent/explain"): Rule(public=True),
     ("GET", "/api/contracts"): Rule(public=True),
+    ("GET", "/api/institutions/overview"): Rule(public=True),   # counts and timings only, no member ids
     ("POST", "/api/contracts"): Rule(public=True),
     ("GET", "/api/contracts/{cid}"): Rule(public=True),
     ("POST", "/api/contracts/{cid}/join/start"): Rule(public=True),
@@ -120,6 +121,7 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/api/contracts/{cid}/console"): Rule((R, O), "contract"),
     ("POST", "/api/contracts/{cid}/rounds"): Rule((R,), "contract"),
     ("POST", "/api/contracts/{cid}/close"): Rule((R,), "contract"),
+    ("POST", "/api/contracts/{cid}/payments/retry"): Rule((R,), "contract"),
     ("GET", "/api/p/{pid}/contracts"): SELF,
     ("POST", "/api/p/{pid}/contracts/records"): SELF,
     ("POST", "/api/p/{pid}/contracts/{cid}/requests/{rid}/approve"): SELF,
@@ -134,6 +136,7 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("GET", "/"): Rule(public=True),
     ("GET", "/participant"): Rule(public=True),
     ("GET", "/console"): Rule(public=True),
+    ("GET", "/institutions"): Rule(public=True),
     ("GET", "/demo"): Rule(public=True),
     ("GET", "/try"): Rule(public=True),
     ("GET", "/api/public/live"): Rule(public=True),
