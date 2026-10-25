@@ -15,7 +15,10 @@ from xrpl.models.requests import AccountInfo, GenericRequest
 from xrpl.models.transactions import AccountSet, AccountSetAsfFlag, Payment, TrustSet
 
 from .. import units
+from xrpl.transaction import autofill, multisign, sign
+
 from .xrpl_extras import submit_capture
+from .xrpl_ledger import submit_and_wait
 
 LSF_DEFAULT_RIPPLE = 0x00800000
 LSF_ALLOW_TRUSTLINE_LOCKING = 0x40000000
@@ -66,8 +69,12 @@ class TokenSettleMixin:
                                                ledger_index="validated")).result
         line = next((l for l in r.get("lines", []) if l.get("currency") == self.code), None)
         if line is None:
-            h, res, _ = submit_capture(self.client, TrustSet(account=addr, limit_amount=IssuedCurrencyAmount(
-                currency=self.code, issuer=self.issuer, value="100000000")), self.wallets[addr])
+            trust = TrustSet(account=addr, limit_amount=IssuedCurrencyAmount(
+                currency=self.code, issuer=self.issuer, value="100000000"))
+            h, res, _ = submit_capture(self.client, trust, self.wallets[addr])
+            if res == "tefMASTER_DISABLED":
+                # a saved multisig account (an earlier run disabled its master key): its cosigners sign
+                res = self._multisigned(trust, addr)
             if res != "tesSUCCESS":
                 raise RuntimeError(f"TrustSet for {label or addr}: {res}")
             bal = 0.0
@@ -80,6 +87,25 @@ class TokenSettleMixin:
                 self.wallets[self.issuer])
             if res != "tesSUCCESS":
                 raise RuntimeError(f"funding {label or addr} with {units.UNIT}: {res}")
+
+    def _multisigned(self, tx, account: str) -> str:
+        info = self.client.request(AccountInfo(account=account, ledger_index="validated",
+                                               signer_lists=True)).result
+        lists = info.get("signer_lists") or info.get("account_data", {}).get("signer_lists") or []
+        if not lists:
+            return "tefMASTER_DISABLED"
+        entries = lists[0]["SignerEntries"]
+        signers = [e["SignerEntry"]["Account"] for e in entries if e["SignerEntry"]["Account"] in self.wallets]
+        signers = signers[:lists[0]["SignerQuorum"]]
+        if len(signers) < lists[0]["SignerQuorum"]:
+            return "tefMASTER_DISABLED"
+        tx = autofill(tx, self.client, signers_count=len(signers))
+        signed = [sign(tx, self.wallets[s], multisign=True) for s in signers]
+        try:
+            submit_and_wait(multisign(tx, signed), self.client, autofill=False)
+        except Exception as e:  # noqa: BLE001 - reported as the result code below
+            return f"multisigned TrustSet: {e}"
+        return "tesSUCCESS"
 
     def _amount(self, drops: int):
         self._token_setup()
