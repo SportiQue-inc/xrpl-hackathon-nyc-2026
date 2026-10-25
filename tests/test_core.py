@@ -52,3 +52,20 @@ def test_escrowed_bundle_opens_with_the_key_from_the_ledger(e):
     assert e.open_bundle("lab", oid) == ROWS
     p = e.store.one("SELECT finish_tx FROM payments WHERE order_id=?", oid)
     assert e.ledger.lookup(p["finish_tx"]).fulfillment
+
+
+def test_escrow_deadline_counts_from_creation_not_from_the_order():
+    """A slow ledger between order and EscrowCreate must not eat the window (Testnet runs 1-4:
+    EscrowFinish landed after CancelAfter, tecNO_PERMISSION)."""
+    L = MockLedger()
+    e = Engine(Store(":memory:"), L)
+    e.add_party("lab", "Lab (synthetic)", "organization", L.new_account("lab"))
+    e.add_party("p1", "Participant (synthetic)", "person", L.new_account("p1"))
+    e.policies["p1"] = Allow()
+    e.set_mandate(BuyerMandate("lab", 5 * XRP, 3 * XRP, ["sleep_research"]))
+    oid = e.place_order(req(settle="escrow"))
+    placed = e.store.one("SELECT cancel_after FROM payments WHERE order_id=?", oid)["cancel_after"]
+    L.clock += 900                                  # longer than the 600 s window
+    assert e.process(oid) == "delivered"
+    p = e.store.one("SELECT cancel_after, finish_tx FROM payments WHERE order_id=?", oid)
+    assert p["cancel_after"] >= placed + 900 and L.lookup(p["finish_tx"]).success

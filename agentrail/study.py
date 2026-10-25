@@ -304,7 +304,7 @@ def _answer(w, req, hold_last=False) -> list[int]:
         last = hold_last and i == len(granted) - 1
         r = OrderRequest(LAB, pa.id, pa.id, "cohort.fill", f"{pa.id}|w{wk}:{'+'.join(its)}", req["purpose"],
                          sorted(its), payout.immediate(len(its) * CELL_PRICE, i), rows, decisions[wk], settle="escrow",
-                         escrow_window_s=HOLD_WINDOW_S if last else 600)
+                         escrow_window_s=HOLD_WINDOW_S if last else (600 if w.ledger.name == "mock" else 1800))
         try:
             oid = w.engine.place_order(r)
         except (BudgetExceeded, NeedsHumanApproval) as e:

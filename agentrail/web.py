@@ -609,6 +609,15 @@ def market_contracts(act: int = Query(default=1, ge=1, le=2), i: int | None = Qu
             for k, c in enumerate(cs)]
 
 
+@app.get("/api/proof")
+def proof_of_one_trade():
+    """One paid contract checked link by link (contract, stamps, escrow memo, K, bundle), one
+    contribution refused before payment, one withdrawal that stopped the next delivery."""
+    from . import binding
+    with _lock:
+        return json.loads(json.dumps(binding.proof(world()), default=str))
+
+
 @app.get("/api/costs")
 def running_costs():
     """What keeping the agents up cost in this run: LLM calls and tokens per side, ledger transactions and

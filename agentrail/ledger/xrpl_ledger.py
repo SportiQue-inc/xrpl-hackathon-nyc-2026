@@ -272,6 +272,15 @@ class XrplLedger(Ledger):
                 self._seq.pop(tx["Account"], None)
         return expired
 
+    def memo_of(self, tx_hash: str) -> str | None:
+        r = _retry(lambda: self.client.request(Tx(transaction=tx_hash))).result
+        txj = r.get("tx_json") or r
+        for m in txj.get("Memos", []):
+            d = m.get("Memo", {}).get("MemoData")
+            if d:
+                return bytes.fromhex(d).decode(errors="replace")
+        return None
+
     def wait_validated(self, tx_hash: str, timeout: float = 30.0) -> TxStatus:
         end = time.time() + timeout
         st = TxStatus(found=False)

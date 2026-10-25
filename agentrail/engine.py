@@ -222,8 +222,8 @@ class Engine:
             if data_key:
                 c.execute("INSERT INTO escrow_keys VALUES (?,?)", (oid, data_key.hex()))
             if condition:
-                c.execute("UPDATE payments SET cancel_after=? WHERE order_id=?",
-                          (self.ledger.now() + req.escrow_window_s, oid))
+                c.execute("UPDATE payments SET cancel_after=?, escrow_window_s=? WHERE order_id=?",
+                          (self.ledger.now() + req.escrow_window_s, req.escrow_window_s, oid))
             c.execute("INSERT INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "pay", "pending"))
             chain = self.mandate_chains.get(req.buyer_id)
             if chain is not None and chain.l2:
@@ -480,6 +480,8 @@ class Engine:
         buyer_addr = self.party(o["buyer_id"])["address"]
         pv = json.loads(o["policy_snapshot"]).get("version", "")
         memo = _memo(oid, o, pv, mh)
+        if p["tx_hash"] is None:
+            p = self._refresh_deadline(oid, p)
         h, st = self._send(oid, "create", lambda: self.ledger.prepare_escrow_create(
             buyer_addr, p["payee_address"], p["amount_drops"], p["condition"], p["cancel_after"], memo))
         if not st.validated:
@@ -505,6 +507,18 @@ class Engine:
                                                                              "url": self.ledger.explorer_url(h)})
         return True
 
+    def _refresh_deadline(self, oid: int, p) -> dict:
+        """CancelAfter counts from the moment the escrow is prepared, not from when the order was placed:
+        on a slow ledger the time between the two would otherwise eat the whole window, and the finish
+        would land after the deadline (tecNO_PERMISSION)."""
+        win = p["escrow_window_s"] if "escrow_window_s" in p.keys() else None
+        if not win or not p["condition"]:
+            return dict(p)
+        ca = self.ledger.now() + win
+        with self.store.tx() as c:
+            c.execute("UPDATE payments SET cancel_after=? WHERE order_id=?", (ca, oid))
+        return {**dict(p), "cancel_after": ca}
+
     def escrow_create_batch(self, oids: list[int]) -> bool:
         """Create every week's escrow of one participant's round in one Batch (ALL_OR_NOTHING), so the
         participant never holds half a promise. Each order passes the same checks as alone; if any
@@ -525,6 +539,7 @@ class Engine:
             ok, why, mh = self._mandate_check(o, p)
             if not ok:
                 return False
+            p = self._refresh_deadline(oid, p)
             pv = json.loads(o["policy_snapshot"]).get("version", "")
             legs.append({"destination": p["payee_address"], "amount_drops": p["amount_drops"],
                          "condition": p["condition"], "cancel_after": p["cancel_after"],

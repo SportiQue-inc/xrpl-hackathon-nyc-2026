@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS payments (
   invoice_id TEXT NOT NULL, tx_hash TEXT, tx_blob TEXT, status TEXT NOT NULL,
   ledger_index INTEGER, updated_at REAL NOT NULL,
   kind TEXT NOT NULL DEFAULT 'payment', condition TEXT, offer_sequence INTEGER, cancel_after INTEGER,
-  finish_tx TEXT, finish_blob TEXT, cancel_tx TEXT, cancel_blob TEXT
+  finish_tx TEXT, finish_blob TEXT, cancel_tx TEXT, cancel_blob TEXT, escrow_window_s INTEGER
 );
 CREATE TABLE IF NOT EXISTS escrow_keys (
   order_id INTEGER PRIMARY KEY, key_hex TEXT NOT NULL   -- held by the contributor's agent until it finishes
@@ -133,6 +133,8 @@ class Store:
         for col in ("prev_hash", "hash"):           # databases created before the hash chain
             if col not in cols:
                 self._keepalive.execute(f"ALTER TABLE events ADD COLUMN {col} TEXT")
+        if "escrow_window_s" not in {r[1] for r in self._keepalive.execute("PRAGMA table_info(payments)")}:
+            self._keepalive.execute("ALTER TABLE payments ADD COLUMN escrow_window_s INTEGER")
         self.scene = None
 
     def _connect(self) -> sqlite3.Connection:

@@ -42,7 +42,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 3a9129b8b7c5bc5d\u2026, tx B6D95E1EC243F686\u2026"
+      "detail": "root 089262e5140bbc4a\u2026, tx 140F146927FB87E2\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -151,7 +151,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 178DA357FCD20197\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 30C01D8471479754\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -171,7 +171,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 4942D8F82FFB67B6\u2026: paid.",
+    "message": "EscrowFinish 4187EAAC13DCDFA0\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -195,8 +195,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "178DA357FCD201970141F45FFC52686EEE3E0823BD3B7792B65FAE97097C6004",
-   "escrow_finish": "4942D8F82FFB67B682032FA25AE07E292758C03744CD5597DDE34BBEE6F745BE"
+   "escrow_create": "30C01D847147975473F91A0FFC3E53837B8D87B2EDEE0105AB8962108B7BE9B4",
+   "escrow_finish": "4187EAAC13DCDFA0E1F79212C2BE91E9ED9669F41B9B58B4D3089B0E0C57901A"
   },
   "urls": {
    "escrow_create": null,
@@ -246,7 +246,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 3a9129b8b7c5bc5d\u2026, tx B6D95E1EC243F686\u2026"
+      "detail": "root 089262e5140bbc4a\u2026, tx 140F146927FB87E2\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -355,7 +355,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 830CF77AB6B4EBB1\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 783FFBC05BBB8FF5\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -375,7 +375,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 2D07E254BFA8169C\u2026: paid.",
+    "message": "EscrowFinish 55B1B14D2CD78170\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -399,8 +399,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "830CF77AB6B4EBB1EAA2A4C82697F1737ECC9C97269D0FE7140A24663A9006C5",
-   "escrow_finish": "2D07E254BFA8169C7BECD2F4E1143F1224FAB808474324C89F2ADB1222D6805C"
+   "escrow_create": "783FFBC05BBB8FF58E27CA51328FC96269B956C5A04894D5817D9F407F1B5052",
+   "escrow_finish": "55B1B14D2CD78170BDBD598EC7C2514D58F96A8E0EADAC0E4C9D67D34612D719"
   },
   "urls": {
    "escrow_create": null,
@@ -450,7 +450,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 3a9129b8b7c5bc5d\u2026, tx B6D95E1EC243F686\u2026"
+      "detail": "root 089262e5140bbc4a\u2026, tx 140F146927FB87E2\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -559,7 +559,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 58ECEA099F8A6539\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 3BA421249C92613C\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -579,7 +579,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish DF409A63E45518B1\u2026: paid.",
+    "message": "EscrowFinish 6025C510C0474F57\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -603,8 +603,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "58ECEA099F8A653966895FF42E1612014EBBA49A8DB9BAB30857228FD0145941",
-   "escrow_finish": "DF409A63E45518B1F590B5075B13554F1F2094EE7E5107C0CF1E5C78BF265DA1"
+   "escrow_create": "3BA421249C92613C5741809C939CE22EF92AD2DBEE7E20D55758883508ADF7A0",
+   "escrow_finish": "6025C510C0474F57A440AE99B35603007C721AE297490463BB2A13C8448C849A"
   },
   "urls": {
    "escrow_create": null,
@@ -654,7 +654,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 3a9129b8b7c5bc5d\u2026, tx B6D95E1EC243F686\u2026"
+      "detail": "root 089262e5140bbc4a\u2026, tx 140F146927FB87E2\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -819,7 +819,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -928,7 +928,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 0D51ED913A47478B\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 160B65CD2D9597F9\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -948,7 +948,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 79A76BCD707CFB46\u2026: paid.",
+    "message": "EscrowFinish 228C68473DDC0C9C\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -972,8 +972,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "0D51ED913A47478B9A06E631BDBFF0AF8726FAB8931BDEE67A84B5E0B89C3F16",
-   "escrow_finish": "79A76BCD707CFB46F625675E8C7A4EB06BB7CE0124CB63A36068E7E6E15CFCF8"
+   "escrow_create": "160B65CD2D9597F9BAE4FC16B62479289DC8759CDAFBB012206A9AAF591295F9",
+   "escrow_finish": "228C68473DDC0C9CD1ACA5E889AD320EDD8A320CA81AD3420CB39E897D1B2C84"
   },
   "urls": {
    "escrow_create": null,
@@ -1023,7 +1023,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1132,7 +1132,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 59F884D39BB50628\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate D1F0F84F50268B95\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -1152,7 +1152,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish D661E04AC9C8DA72\u2026: paid.",
+    "message": "EscrowFinish E61F798D9F5EF0E4\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -1188,8 +1188,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "59F884D39BB50628E7A634399C228276C6A5054D975D8DDAB07A5D8E74B11A65",
-   "escrow_finish": "D661E04AC9C8DA723F5F935A8B30709CF14BA069444F040033B9A57DB82EC032"
+   "escrow_create": "D1F0F84F50268B9567505644BC3359AF39FA6AB52DA7099FDBA639B9A5EBA295",
+   "escrow_finish": "E61F798D9F5EF0E4CF336718651278BA1EBEEF31ABC452BABD4D7DF771649D08"
   },
   "urls": {
    "escrow_create": null,
@@ -1239,7 +1239,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1348,7 +1348,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 226D16E9122D3D21\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 5822307651BBFA95\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -1368,7 +1368,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 77518B62A4E9C4B9\u2026: paid.",
+    "message": "EscrowFinish 9924F6C5EF597CFB\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -1392,8 +1392,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "226D16E9122D3D21648A1693A82E700E89B0C47985A9B900F5FD2BD7045FEDA6",
-   "escrow_finish": "77518B62A4E9C4B9252BC097E873BF4C05C13707B989E1770C738D12631CF54C"
+   "escrow_create": "5822307651BBFA9576F8E3564696C43F3E37865F3D3CDF54B47921AC12C8FF39",
+   "escrow_finish": "9924F6C5EF597CFBB17FFAC86BD69C1946FD48450051466853D6FEB1AAE79538"
   },
   "urls": {
    "escrow_create": null,
@@ -1443,7 +1443,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1552,7 +1552,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate F7F30C2228C4733B\u2026: 0.009124 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 6E12456818E0C307\u2026: 0.009124 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -1572,7 +1572,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 04E6EC575710933A\u2026: paid.",
+    "message": "EscrowFinish 3F66628258CF1D16\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -1596,8 +1596,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "F7F30C2228C4733B45B1094B1F86FD89EFE58FA4838F7E46A064EE8861732A1E",
-   "escrow_finish": "04E6EC575710933A88A8DE70AF0680987956EB29ADB3C6CA426165C494985E2A"
+   "escrow_create": "6E12456818E0C307AFB3DD35DD4FC34AEF0B7AFBB8CF4B29315DAA3F70A7149D",
+   "escrow_finish": "3F66628258CF1D16D99AA7ACF159ACCA8BE3A61527B28B9C91BBAB786161B22D"
   },
   "urls": {
    "escrow_create": null,
@@ -1647,7 +1647,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1756,7 +1756,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5264A0DCA39240F7\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 47C60926CDF05B51\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -1776,7 +1776,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 93F682A5C09F65E9\u2026: paid.",
+    "message": "EscrowFinish E068C06641A90D29\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -1800,8 +1800,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5264A0DCA39240F785CFA8E0238A948227BF5982843DF62A4C3BACF286B127EF",
-   "escrow_finish": "93F682A5C09F65E99931ECC24B50B45C60326B551E7CBD86FA24ED18235345FE"
+   "escrow_create": "47C60926CDF05B51FDCAA8B327B110F1F52BB7D823CB2432D044EEC9100E37CB",
+   "escrow_finish": "E068C06641A90D295E87667F6A4A3AD135A5E90EE4B9C9976F0AED80E4533343"
   },
   "urls": {
    "escrow_create": null,
@@ -1851,7 +1851,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -1960,7 +1960,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate F3F9ADBB96F8A817\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate D84E92BABD4C9709\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -1980,7 +1980,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 73D85635F4E3785F\u2026: paid.",
+    "message": "EscrowFinish 92585A161D479C18\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -2004,8 +2004,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "F3F9ADBB96F8A817450CB86B4A21DDA3B28AD5C16DE61B1D2AD4A26C654652D0",
-   "escrow_finish": "73D85635F4E3785F2ED238D5B54A2A466F4F4FB9AD00B55BF337951AC9C279D8"
+   "escrow_create": "D84E92BABD4C97095FEFFA56608B5A8AF165310E1845761790A62409FAA64769",
+   "escrow_finish": "92585A161D479C1865305ADFCF572DB851413EC9C162920FC2E422781846B7E9"
   },
   "urls": {
    "escrow_create": null,
@@ -2055,7 +2055,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2218,7 +2218,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2334,7 +2334,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 83FF6AFAEFACFA9F\u2026: 0.027374 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 95DE791CEF55F741\u2026: 0.027374 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -2354,7 +2354,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 356C44995B6D7A99\u2026: paid.",
+    "message": "EscrowFinish 83569C9885BAA373\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -2378,8 +2378,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "83FF6AFAEFACFA9FA139EA3E87A1CD3D3FCCE922620487DFB0A60531672B4D53",
-   "escrow_finish": "356C44995B6D7A9945EDC304037564C592F5E322706EC01575E0D20633F036B8"
+   "escrow_create": "95DE791CEF55F741D07A62CED3060D7883EA7C108D7B3D3AB743B6085A7BF482",
+   "escrow_finish": "83569C9885BAA3733FB3581C7ED7646778BF928EAF760FA8FE7F4D4DA0EEEB04"
   },
   "urls": {
    "escrow_create": null,
@@ -2429,7 +2429,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2538,7 +2538,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 71EC1FC7BE69A89F\u2026: 0.021899 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 3F9C7D9BF4B6D9C1\u2026: 0.021899 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -2558,7 +2558,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 9A55764254AEEDA9\u2026: paid.",
+    "message": "EscrowFinish 26A717649AD6E9A6\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -2582,8 +2582,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "71EC1FC7BE69A89F1AA7A64496A7B791C0218FD937C041DD6A30561837975626",
-   "escrow_finish": "9A55764254AEEDA9BEA7A8779EA9A5D8411385627E3599ABAB0C7738C7DCD7F4"
+   "escrow_create": "3F9C7D9BF4B6D9C14C691179261A352C0A670A2FC87E80FE6A07078E36EF9036",
+   "escrow_finish": "26A717649AD6E9A698E40E3BF3EC15E6E521EC0C34A6961FA10161D32B10043C"
   },
   "urls": {
    "escrow_create": null,
@@ -2633,7 +2633,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2742,7 +2742,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate C246E5B152B1E505\u2026: 0.021899 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 875EFA5AC5BAC17D\u2026: 0.021899 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -2762,7 +2762,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 74912ADB07320CD2\u2026: paid.",
+    "message": "EscrowFinish C72E236040096751\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -2786,8 +2786,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "C246E5B152B1E505CF1C3DD3308BB7B03585B89DA5AE1CA7F54139BC04B058F4",
-   "escrow_finish": "74912ADB07320CD2A951FB0FCB4328B4BE686C5CA44EA37A298FEA2F2A554AC3"
+   "escrow_create": "875EFA5AC5BAC17D0FDBAF049DEDA7539851086AE237719EDFD47F77C735996F",
+   "escrow_finish": "C72E236040096751D78B629B0DB6B922796812F10AB46765D7D4EFB6AFF3FEEC"
   },
   "urls": {
    "escrow_create": null,
@@ -2837,7 +2837,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -2953,7 +2953,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 39F87A9E27FBE792\u2026: 0.027374 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 0CF17F9883FF8B5C\u2026: 0.027374 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -2973,7 +2973,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 7B1F7F4A42442B72\u2026: paid.",
+    "message": "EscrowFinish 69637DF77D482B1F\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -2997,8 +2997,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "39F87A9E27FBE79237867F772F20C0C4553BEBBABA269DDC1DBF48CB1B7C73F6",
-   "escrow_finish": "7B1F7F4A42442B72D03052D817B9FAAB9083A425681F55FA55BB7FAA6625BCC0"
+   "escrow_create": "0CF17F9883FF8B5CA6AA4009EC055CBC5F15CB27B46F6F9A4ED7EE63FE686FB5",
+   "escrow_finish": "69637DF77D482B1F3F8121B1C85B685660DF8A9E2997AA9A75511F8E09144D3E"
   },
   "urls": {
    "escrow_create": null,
@@ -3048,7 +3048,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -3157,7 +3157,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate EC17E3131B569DE1\u2026: 0.021899 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 1197EDF04156896F\u2026: 0.021899 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3177,7 +3177,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 4C5200569266B8C9\u2026: paid.",
+    "message": "EscrowFinish 997B9EC5CA0C269D\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -3201,8 +3201,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "EC17E3131B569DE1E5E27CC8ACD50C96B2FF23BD315E243BB0D6F3BDFE1D15CB",
-   "escrow_finish": "4C5200569266B8C96806F43C8812C58A9E0FA0BF8B1C954948630900BE47A4E6"
+   "escrow_create": "1197EDF04156896F43E4ACE2A7A4EA5EDF86F9422A8D4B37380623619FA83900",
+   "escrow_finish": "997B9EC5CA0C269D1F53EACAE45A25E8C40D490BD6F8A00CCCD1A17748F963D4"
   },
   "urls": {
    "escrow_create": null,
@@ -3252,7 +3252,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -3361,7 +3361,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate A617FEE3A7950688\u2026: 0.021899 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 1FBB6D27AEA5209F\u2026: 0.021899 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3381,7 +3381,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish DE6EB49FFDBD9ADE\u2026: paid.",
+    "message": "EscrowFinish 033E2BC95A871B1A\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -3405,8 +3405,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "A617FEE3A7950688BB9997800553929B5D864FE0AA2B7D62106870781A229521",
-   "escrow_finish": "DE6EB49FFDBD9ADECBEDE5018C807B285AF87053B198888C944495F3B24DB938"
+   "escrow_create": "1FBB6D27AEA5209F70C00CB1BDD6109D3914B325782D872FA6FCD9EE0A773EFE",
+   "escrow_finish": "033E2BC95A871B1A61EF1AFCDDB5530B3C4443A7A0200BD0F35052EB098883E8"
   },
   "urls": {
    "escrow_create": null,
@@ -3456,7 +3456,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -3565,7 +3565,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate EA89F3D61E0E9A1E\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 0E9FE2A9EA08FC3C\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3585,7 +3585,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 9B54B3AECD13187E\u2026: paid.",
+    "message": "EscrowFinish FEB9CD9721657335\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -3609,8 +3609,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "EA89F3D61E0E9A1EF077FDE92B6E29D020838FBA9727308D95A9B5DE46376135",
-   "escrow_finish": "9B54B3AECD13187EF4A4B58AB0CACEBC2B2DF59762D332EA1C85D30DD046ED40"
+   "escrow_create": "0E9FE2A9EA08FC3CAC69FE210C06C9C585595C782EC182E94200C37760AD8150",
+   "escrow_finish": "FEB9CD97216573355F439568642DCDBCC53272DC3FDA7690998EEA5241BF794E"
   },
   "urls": {
    "escrow_create": null,
@@ -3660,7 +3660,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -3769,7 +3769,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate EAD8BE9F48A6D76E\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 89F9A9FF629EC3A7\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3789,7 +3789,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 09A77BC6D67E31C4\u2026: paid.",
+    "message": "EscrowFinish F5F2F4B23685B678\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -3813,8 +3813,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "EAD8BE9F48A6D76EC16E129EFCB5CCD4C908AEB7982FA6AAD6C1359317E8659B",
-   "escrow_finish": "09A77BC6D67E31C41815504DCAE0905E1451B72A72B0550D901CC516898E81C7"
+   "escrow_create": "89F9A9FF629EC3A77D3BECFC1085EBF38F19775E63A059084836C961A88BE502",
+   "escrow_finish": "F5F2F4B23685B67882E3B5BE32F6A2DB1CA0EFBFC2548C9271407E01417AFD7D"
   },
   "urls": {
    "escrow_create": null,
@@ -3864,7 +3864,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -3973,7 +3973,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 57EAB4A357246004\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 464C154A0FB06A9E\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -3993,7 +3993,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 5894E42D0E2CB3A7\u2026: paid.",
+    "message": "EscrowFinish 9415E4384CD871BF\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -4017,8 +4017,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "57EAB4A3572460041CA4C1792CCD6D78EC50382ADEDE8BFAC2462AB0E43D0714",
-   "escrow_finish": "5894E42D0E2CB3A771CABBAF7197495DE24DEEFBD5EBFF30F6821E3E06CF7B0A"
+   "escrow_create": "464C154A0FB06A9E123C2627D3E5CE206B871DBAE2B18E5C0E5C59A238606B6E",
+   "escrow_finish": "9415E4384CD871BFFEA8D218C8048E365A2A8A1EE15F35FA80B8B5DD3C32F741"
   },
   "urls": {
    "escrow_create": null,
@@ -4068,7 +4068,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4177,7 +4177,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 03E6CB13175E327B\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 6E336288EF130578\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -4197,7 +4197,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish E9436A1B0C2FD9B4\u2026: paid.",
+    "message": "EscrowFinish 5FA5A84FC2D05FD5\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -4221,8 +4221,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "03E6CB13175E327BA1CE434A19882334D81EF63B8C7886DABD2647164E4CE8F5",
-   "escrow_finish": "E9436A1B0C2FD9B4692199771FB8310420882E5814B656890D7F1FBA71002E55"
+   "escrow_create": "6E336288EF130578377E3F1E5AF116E1756715A9606F354506835FEA33A04F5B",
+   "escrow_finish": "5FA5A84FC2D05FD506DC78653C8C30E104477FC4A3BDE8335ED246F1F9433745"
   },
   "urls": {
    "escrow_create": null,
@@ -4272,7 +4272,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4381,7 +4381,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 192B5CE732112DF0\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 1E15711ABC1143F5\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -4401,7 +4401,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 837D53F2FC60F9BF\u2026: paid.",
+    "message": "EscrowFinish 73B418A14C96B480\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -4425,8 +4425,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "192B5CE732112DF0769CF0538920C3C7930A59C5989E5879897CC2424B4F73E7",
-   "escrow_finish": "837D53F2FC60F9BF2B3AA8D9CE550D11A09D8DBB7B3BFAE4CCA95C54D33D34CA"
+   "escrow_create": "1E15711ABC1143F5610083B7D463395E62A223A9CC9C79965091FDE31A133566",
+   "escrow_finish": "73B418A14C96B48056CACC7D355C282FFBE968551EBD38AFDF07153DAA726B78"
   },
   "urls": {
    "escrow_create": null,
@@ -4476,7 +4476,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4585,7 +4585,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate FF85B2A4CB1170CC\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 91359D9B2C388613\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -4605,7 +4605,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C2F894A048A56BF2\u2026: paid.",
+    "message": "EscrowFinish F4C8343ABEF995C3\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -4629,8 +4629,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "FF85B2A4CB1170CC491537FD7A54DDD927BE2E41F1CED9AE125FF6F7FE696EDC",
-   "escrow_finish": "C2F894A048A56BF2EC11328BC20AF7A61402632A4D554EE03A51AB2D26552085"
+   "escrow_create": "91359D9B2C388613677622C1CB206446CEEB5E6B1B85888E72816E0FCDE5F254",
+   "escrow_finish": "F4C8343ABEF995C36DA64F76C88CD44C1B3772E807795B88B877A0DE46E797AC"
   },
   "urls": {
    "escrow_create": null,
@@ -4680,7 +4680,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -4843,7 +4843,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5006,7 +5006,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5115,7 +5115,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate F8E5443A3FA0E3BE\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 05B19A7A79AB724B\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -5135,7 +5135,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 53FB28A942040FAF\u2026: paid.",
+    "message": "EscrowFinish BD4900D1FEF12CB1\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -5159,8 +5159,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "F8E5443A3FA0E3BE4BC67CAF797CBF149CA086EED1F5553A48AD5E6356C57FA9",
-   "escrow_finish": "53FB28A942040FAF8CB2B371DE8F8FE8EEFB0174FAF22DD5B740F724CCEBB414"
+   "escrow_create": "05B19A7A79AB724BC8372B85DAAE5F1E61FA6266DB2301A0975BC4E994F8A4A0",
+   "escrow_finish": "BD4900D1FEF12CB11C7EDD92819981D908CC8FE56CAB6D7C6ED33A2250C78365"
   },
   "urls": {
    "escrow_create": null,
@@ -5210,7 +5210,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5326,7 +5326,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate AAAC35A3BDC9AD2B\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 314FFFCE86835DC8\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -5346,7 +5346,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish F01C5E703AAC4265\u2026: paid.",
+    "message": "EscrowFinish A5697D828A075ABB\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -5370,8 +5370,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "AAAC35A3BDC9AD2BBBD16212C44316D054CB1950529C4CBCA612D1618109CBDF",
-   "escrow_finish": "F01C5E703AAC42652EA2F9751796E290A8BF5B4F3463063A9CFED6AF3A9DB20A"
+   "escrow_create": "314FFFCE86835DC8B900AE5747D7910112C8AD3EBAC1FFEF93BB721FE72A1D7B",
+   "escrow_finish": "A5697D828A075ABB90BB1E9736C84E2D11C1E63A54B0B0F2ECBB41EC4C27F612"
   },
   "urls": {
    "escrow_create": null,
@@ -5380,7 +5380,7 @@
  },
  {
   "schema": "agentrail.contract_trace/1",
-  "contract": "0f65e6cd08dbcb0f",
+  "contract": "c41b030825831d0e",
   "need": "P-012-r1-n1",
   "buyer": "P-012",
   "seller": "P-015",
@@ -5421,7 +5421,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5584,7 +5584,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5706,7 +5706,7 @@
  },
  {
   "schema": "agentrail.contract_trace/1",
-  "contract": "8ea1e44aa40ce430",
+  "contract": "2215326f579f9d37",
   "need": "P-009-r1-n1",
   "buyer": "P-009",
   "seller": "P-016",
@@ -5747,7 +5747,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -5910,7 +5910,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -6019,7 +6019,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 643C7961C5D53935\u2026: 0.009124 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 6A943DCBEFD1C5B0\u2026: 0.009124 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -6039,7 +6039,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C1398791710D80D8\u2026: paid.",
+    "message": "EscrowFinish 90285FB629B095FD\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -6063,8 +6063,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "643C7961C5D53935B03C14D5470A7181DB908ECE70E843D0AE65F619354AB638",
-   "escrow_finish": "C1398791710D80D8DDC011064492D73A5D560F31DDE2F21E02952A38C1E48EC8"
+   "escrow_create": "6A943DCBEFD1C5B0575B1CBB4EA915A92B9466D546ACC51C65B7B68C1FE85B0A",
+   "escrow_finish": "90285FB629B095FD218DAFE94031B2D8D1394E75A0A65733B88F26A8FFE1FF80"
   },
   "urls": {
    "escrow_create": null,
@@ -6114,7 +6114,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -6223,7 +6223,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 56CFCB0AF4C9E82E\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 72978F99643A6C12\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -6243,7 +6243,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 04160CD565D24B32\u2026: paid.",
+    "message": "EscrowFinish 16959291BF8FE29E\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -6267,8 +6267,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "56CFCB0AF4C9E82E59E2DB1DF49B335E0D35E38C4F02D635B626BF42362EDBC5",
-   "escrow_finish": "04160CD565D24B32564E08E1FE67E5AACDDDD0DDC82303ECBA6399DDF6B41A22"
+   "escrow_create": "72978F99643A6C12235DA09A00E9F203C4EDC705473A293E676BB75F1470903B",
+   "escrow_finish": "16959291BF8FE29EEE0D528DD3112D88F7881923C335B22639C07254E6D678D6"
   },
   "urls": {
    "escrow_create": null,
@@ -6318,7 +6318,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -6427,7 +6427,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 82E17404ADB0A67D\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate B80900BA1E88B39E\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -6447,7 +6447,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish B57742F250E685EC\u2026: paid.",
+    "message": "EscrowFinish 1058849A3F8C6E66\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -6483,8 +6483,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "82E17404ADB0A67DE84367F893F3B1272B3E7E5D5EA9402A42334D5CFE69C20A",
-   "escrow_finish": "B57742F250E685EC5D0655D2E849CC0B0218708FE48E1C50BBADF4AA2915F39F"
+   "escrow_create": "B80900BA1E88B39EA6A0962176271644C96FF49CED23BD2DDD2EC888D105515A",
+   "escrow_finish": "1058849A3F8C6E66B91EE99531EC10B4C944A46644B4D7FEB2FA9680B611DF8C"
   },
   "urls": {
    "escrow_create": null,
@@ -6534,7 +6534,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -6643,7 +6643,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 9B63EFFB3F55D310\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 2E543FA46DC7C00B\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -6663,7 +6663,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 8DA4D2A51D42984B\u2026: paid.",
+    "message": "EscrowFinish 95801126E4653E39\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -6687,8 +6687,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "9B63EFFB3F55D31095B28B18E283120D7339C0184FA48AE53663DE3E5C5F2DBD",
-   "escrow_finish": "8DA4D2A51D42984BE2D5345F91F71D4012922F5DC5B73075D897AE0F003DC658"
+   "escrow_create": "2E543FA46DC7C00B5D166238EE4AAB4F548BF872C6B6D0C50628376445B573CC",
+   "escrow_finish": "95801126E4653E390F01AD080D1A52748EF2A3B42D2B4FFE11558C0A5DEF0A96"
   },
   "urls": {
    "escrow_create": null,
@@ -6738,7 +6738,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -6847,7 +6847,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 7E0E981235777E72\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 98F9D99087B79AFD\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -6867,7 +6867,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish EA9346AD9111D193\u2026: paid.",
+    "message": "EscrowFinish B0F6E1C8A719E7C7\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -6891,8 +6891,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "7E0E981235777E72190A6319009057AC276066C8F6C9075C160641574BA5F2F0",
-   "escrow_finish": "EA9346AD9111D193041C90D8B0A237271ED137AC0D9D862F3091BAE560F5865D"
+   "escrow_create": "98F9D99087B79AFD73DC93CF350DFE8C96859A1A0A07BCF2AB7EB6F823F97667",
+   "escrow_finish": "B0F6E1C8A719E7C7749C6E3E521461001C8A0D4CE9E55A530B11E55851D2BADA"
   },
   "urls": {
    "escrow_create": null,
@@ -6942,7 +6942,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7051,7 +7051,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 2C2F6ECB19C15582\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 59CED6901C1AFCDE\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -7071,7 +7071,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 8C33186E67CD27D8\u2026: paid.",
+    "message": "EscrowFinish 2A3E8350996DDAA3\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -7095,8 +7095,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "2C2F6ECB19C15582B2210A44C097668562B3F201BB253B2ED38ED3268F1C74E5",
-   "escrow_finish": "8C33186E67CD27D82587B6F655A69043A34113AFD478344C7E1AD51B57C53309"
+   "escrow_create": "59CED6901C1AFCDE779DBD2B6DB49D117A540E7E3A0ED2A23C8DFA1D918DA426",
+   "escrow_finish": "2A3E8350996DDAA3F93C38C44BF79C1147D8BD7CC2198A36417967A555B39B13"
   },
   "urls": {
    "escrow_create": null,
@@ -7146,7 +7146,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7255,7 +7255,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate A2FB3160DE7BEFEA\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 23BCD3521D3CA915\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -7275,7 +7275,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 812918765A0333B4\u2026: paid.",
+    "message": "EscrowFinish EF7A2B85A7ADEB45\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -7299,8 +7299,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "A2FB3160DE7BEFEAA3AD61CA87144E98B1872B07112B88B92C8D4A74BC96EBF9",
-   "escrow_finish": "812918765A0333B4FBDD568FB8B4A43D003983B185359F9ACA512EBE731E0E88"
+   "escrow_create": "23BCD3521D3CA91504C19B2F637647FDC0260527A6992C776DFFB5004E40C4CF",
+   "escrow_finish": "EF7A2B85A7ADEB45ACAF2FCD528B996736F13F6BCE33EBE9DC52DB7EC1FB0906"
   },
   "urls": {
    "escrow_create": null,
@@ -7350,7 +7350,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7466,7 +7466,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 843F127DFB1EEF80\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 3E2986CB8582BC1B\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -7486,7 +7486,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 1A865502F05534DB\u2026: paid.",
+    "message": "EscrowFinish D14F6576551BCC4E\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -7510,8 +7510,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "843F127DFB1EEF80D2554C4408C2C3BC510549DB350A183A0149C9CB15DAF546",
-   "escrow_finish": "1A865502F05534DBA5D696017325AB546924B9E2D890277EEF6E108738BC563D"
+   "escrow_create": "3E2986CB8582BC1B6D578353CB5CD57491BA740D21B82BD0C9E58BC4874DDFD7",
+   "escrow_finish": "D14F6576551BCC4EB61E62A9ED8F7FC97771490B4AD96B529E8018CD9B50FBEE"
   },
   "urls": {
    "escrow_create": null,
@@ -7561,7 +7561,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7677,7 +7677,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 3900FA6464CD8C86\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate A43F06F8A97B6426\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -7697,7 +7697,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 0BA05C068E575691\u2026: paid.",
+    "message": "EscrowFinish D9F6D93834F0FF86\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -7721,8 +7721,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "3900FA6464CD8C8688D35FEC07887E4115795CB4FECC81FFCFBF15B106B34E25",
-   "escrow_finish": "0BA05C068E57569169EEC1B46BA3B532FFBE62C0B87B4D389007D0259345328F"
+   "escrow_create": "A43F06F8A97B6426675605E899F355DB58CB3A117534D5E274F015148CE73C0E",
+   "escrow_finish": "D9F6D93834F0FF8643CC5A53B3022D501876F3C966A78C65F1D901754FF94F22"
   },
   "urls": {
    "escrow_create": null,
@@ -7772,7 +7772,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -7937,7 +7937,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8053,7 +8053,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 6ACBE7CBE7989428\u2026: 0.027374 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate ABE012C1E1B2F0F0\u2026: 0.027374 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -8073,7 +8073,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 60E91D1B49262413\u2026: paid.",
+    "message": "EscrowFinish F257B2161A0448CA\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -8097,8 +8097,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "6ACBE7CBE7989428270C741565C1840EBEB443E0A57334EDD99A3A285BD24A62",
-   "escrow_finish": "60E91D1B4926241317EDD7D9B41F12BCE77DBD5AECB2E4737E604FFF261C79FF"
+   "escrow_create": "ABE012C1E1B2F0F0019BB55179C9198CDDD74706DFF2A88A42FC48DAB5685668",
+   "escrow_finish": "F257B2161A0448CA6276B3152D0AABF9EDDA3B3999C5AB1EF2B83D9D4ADDE66C"
   },
   "urls": {
    "escrow_create": null,
@@ -8148,7 +8148,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8264,7 +8264,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CBC166F97582BEF7\u2026: 0.027374 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate CB23E08CC311767E\u2026: 0.027374 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -8284,7 +8284,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 1E5353E56C1C2A34\u2026: paid.",
+    "message": "EscrowFinish 3A5C970E0A1065D7\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -8308,8 +8308,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CBC166F97582BEF7BFE513108655DA6F9C9BC2B8AF1FBF4FFDE5D1E1876B8969",
-   "escrow_finish": "1E5353E56C1C2A34FAFB1B44A46FF350712312CB51B5CB1ED8F9EC0B3F9A4857"
+   "escrow_create": "CB23E08CC311767E85A501652E604A3DC9B94553913981F7BD1CFC528D503A38",
+   "escrow_finish": "3A5C970E0A1065D741548B0C63221FCBBB2A2F1B712EE87C118021482A7422D3"
   },
   "urls": {
    "escrow_create": null,
@@ -8359,7 +8359,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8475,7 +8475,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate F00DC509B174ACAA\u2026: 0.021899 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 719ADE75926D6DB9\u2026: 0.021899 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -8495,7 +8495,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 6FFFF465E9C2CE1F\u2026: paid.",
+    "message": "EscrowFinish 1C54B3DBF40ED1CB\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -8519,8 +8519,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "F00DC509B174ACAA96C77AAA663708820503EC939FFF86C987BF393AD72A53C9",
-   "escrow_finish": "6FFFF465E9C2CE1F2E6F46F049B7AEEFF959E109057BAB829581BDCA39EFA731"
+   "escrow_create": "719ADE75926D6DB9F922656C59A62D54FB641337192D28D13C9C132867857D95",
+   "escrow_finish": "1C54B3DBF40ED1CB8EA6F5864962BE820EE7800C45FBA1B2B8438F4018676D61"
   },
   "urls": {
    "escrow_create": null,
@@ -8570,7 +8570,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8679,7 +8679,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 45FD5B439B7AE232\u2026: 0.018249 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 06F1CADE99501C68\u2026: 0.018249 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -8699,7 +8699,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish EC5BDEEB66F14C4F\u2026: paid.",
+    "message": "EscrowFinish 1BC35228A1328D31\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -8723,8 +8723,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "45FD5B439B7AE23291D35802C2A8822AF6210AD02678DE021527582339589D86",
-   "escrow_finish": "EC5BDEEB66F14C4F8568E419FF5B79EE85903D67C39599830032E3C941BD23B7"
+   "escrow_create": "06F1CADE99501C686E6ADB13061665322DD8E2AFFD501A4AC9DB4F940CCEA0A0",
+   "escrow_finish": "1BC35228A1328D31D02310707F5608B9634884740E75F2ED1963820F40627FC8"
   },
   "urls": {
    "escrow_create": null,
@@ -8774,7 +8774,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -8883,7 +8883,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 388F4BD55A00ECC0\u2026: 0.018249 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 536810527F3C09AB\u2026: 0.018249 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -8903,7 +8903,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish A6F6E5B53C0F8CAE\u2026: paid.",
+    "message": "EscrowFinish 15AC0571DFD0CFEB\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -8927,8 +8927,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "388F4BD55A00ECC099BFF74320A62026557A0D50CE485858CF2F63F54E65B28B",
-   "escrow_finish": "A6F6E5B53C0F8CAE04832C44BAD36A50F7638C52B5E31BB3844B8F58EC570478"
+   "escrow_create": "536810527F3C09AB89B74A0D7A110DC6C9A2F8D8CA44BC1B0FFBBC611FD0991E",
+   "escrow_finish": "15AC0571DFD0CFEB5C543F299538AC4D73263091FED265424940A78EBA74220A"
   },
   "urls": {
    "escrow_create": null,
@@ -8978,7 +8978,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9087,7 +9087,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 1D8822B85CB5123E\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 02240E5B1EB01E01\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -9107,7 +9107,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 90460FE7A402B3A6\u2026: paid.",
+    "message": "EscrowFinish 746DD165F77D0070\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -9131,8 +9131,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "1D8822B85CB5123E9EEC65EA9574C50A8D98202A3B53BEEDD8B4B79A672CD271",
-   "escrow_finish": "90460FE7A402B3A6ABC7D11407EA0425881472531A64ABC45152419CE57811D2"
+   "escrow_create": "02240E5B1EB01E01FF8A6C21A104CC8023C8D8A92BF195AF7E93E44324555E68",
+   "escrow_finish": "746DD165F77D0070477F13B6CAE7693F3380041E38C78BE4116CDF72ADDE9B44"
   },
   "urls": {
    "escrow_create": null,
@@ -9182,7 +9182,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9304,7 +9304,7 @@
  },
  {
   "schema": "agentrail.contract_trace/1",
-  "contract": "73c5c50bc3d8b8e2",
+  "contract": "dfbee2550bdb7d62",
   "need": "P-039-r1-n1",
   "buyer": "P-039",
   "seller": "P-016",
@@ -9345,7 +9345,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9467,7 +9467,7 @@
  },
  {
   "schema": "agentrail.contract_trace/1",
-  "contract": "c678abe4f1b257a6",
+  "contract": "ba6db45aae21316e",
   "need": "P-020-r1-n1",
   "buyer": "P-020",
   "seller": "P-015",
@@ -9508,7 +9508,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9671,7 +9671,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9793,7 +9793,7 @@
  },
  {
   "schema": "agentrail.contract_trace/1",
-  "contract": "d7d3b1efe25949b4",
+  "contract": "264b478b773ba725",
   "need": "P-032-r1-n1",
   "buyer": "P-032",
   "seller": "P-015",
@@ -9834,7 +9834,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -9997,7 +9997,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10106,7 +10106,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 3F8320D992AE5C2E\u2026: 0.009124 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 6B28876EC7C23237\u2026: 0.009124 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -10126,7 +10126,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish A5D0209BDFD38D06\u2026: paid.",
+    "message": "EscrowFinish E831C9505B1C8289\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -10150,8 +10150,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "3F8320D992AE5C2E76487996BF4FF7FDF278F303C8B0EF771CF0C4396AEF6CA9",
-   "escrow_finish": "A5D0209BDFD38D064BF5B6FAAC650F7F02535FFDCE8311B4F9542F4DF399F203"
+   "escrow_create": "6B28876EC7C2323761A3C592659DEB1D34887853678DEE37BB0BBB5B80CB9128",
+   "escrow_finish": "E831C9505B1C8289ABAEC48434FE317D8D9F9B1F411F7AB3E41F949F4221AE5A"
   },
   "urls": {
    "escrow_create": null,
@@ -10201,7 +10201,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10310,7 +10310,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 8CDDD6123F16AF3C\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 2C536D0D14CE9C29\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -10330,7 +10330,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C8B012F9183A0298\u2026: paid.",
+    "message": "EscrowFinish 76AC99509CE546FD\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -10354,8 +10354,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "8CDDD6123F16AF3CFA1B95024A57C3BA662D373FFE7AEA0774C4D0FF61001F4A",
-   "escrow_finish": "C8B012F9183A029895E368ABF06C125F9B274BCDC16DD6A0FA7CD5526CDDD2B6"
+   "escrow_create": "2C536D0D14CE9C293EA7E7335EF3917004324314F4B8CC977DB5D2951C47083A",
+   "escrow_finish": "76AC99509CE546FD489CEBCC581903F23278FB9867D3F5F370FC3862BB748727"
   },
   "urls": {
    "escrow_create": null,
@@ -10405,7 +10405,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10514,7 +10514,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5CC0EA62FBDF66FF\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 21A7C6DCDE257F74\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -10534,7 +10534,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish EC3FF426BF60B3F2\u2026: paid.",
+    "message": "EscrowFinish 059DCF57A394221D\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -10558,8 +10558,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5CC0EA62FBDF66FF0A2BAE165168F98232DE48402E02B6CA3B76F751A007F852",
-   "escrow_finish": "EC3FF426BF60B3F2459A1917D33B764D13DC3EF0C05D64BC6E3D2DDB2AED6C1A"
+   "escrow_create": "21A7C6DCDE257F744F5CA5F9DCB3912B201E553FB928A0A260A6C65CF9BB859F",
+   "escrow_finish": "059DCF57A394221D6F1D6C1B1A89B4F3EDAD524604B352BBD330AB2919AC09EA"
   },
   "urls": {
    "escrow_create": null,
@@ -10609,7 +10609,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10718,7 +10718,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 75294E2E54EDE366\u2026: 0.009124 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 7C43E3B9CE85088A\u2026: 0.009124 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -10738,7 +10738,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 199ECA12D58169E5\u2026: paid.",
+    "message": "EscrowFinish B422F6D5DBFFDC02\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -10779,8 +10779,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "75294E2E54EDE366B7E909E401F5F8F9B7F95AD0E1463E667AEB0992B81C9A82",
-   "escrow_finish": "199ECA12D58169E5398E5A0EDD98F489F03BD78D0DA9B29CCFBA3A2667B6430C"
+   "escrow_create": "7C43E3B9CE85088A553852637F7F3FB55ABB1CC5DD5D5E2F218BFBCE143065D9",
+   "escrow_finish": "B422F6D5DBFFDC021D5C59934FAED32D721E1E6DB87EDFCCA7E7FE25335681EB"
   },
   "urls": {
    "escrow_create": null,
@@ -10830,7 +10830,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -10939,7 +10939,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CAF41E5DAD7D18B3\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate BB7672060568B632\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -10959,7 +10959,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish D3345B8BE7D6599C\u2026: paid.",
+    "message": "EscrowFinish 2D463D48612D5316\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -10983,8 +10983,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CAF41E5DAD7D18B3EF611907FB329DE291FAC793AEAEC8D4C4A6497FE48A5D94",
-   "escrow_finish": "D3345B8BE7D6599C12B204D781DA8F09F75A889473504D07B173AABDE9AC41EB"
+   "escrow_create": "BB7672060568B63269C2E465EE7A767D5E8111D6B0D68B170E4CF529F2B8E2B4",
+   "escrow_finish": "2D463D48612D53166238AA5C27C07185B01CC46324A3F6337DFFD5B9E81550C2"
   },
   "urls": {
    "escrow_create": null,
@@ -11034,7 +11034,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -11143,7 +11143,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 81D6ABD4D85F2850\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 4F24F86B716304B1\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -11163,7 +11163,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 199F13EDACEB1081\u2026: paid.",
+    "message": "EscrowFinish 0C480FE34D793BDF\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -11187,8 +11187,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "81D6ABD4D85F2850136A9FA3656D1729F605AF08B02C38916DC8148D39B3067F",
-   "escrow_finish": "199F13EDACEB1081F47F4219C959A058BEC3C75F2292F554B7207C0A3F54D50F"
+   "escrow_create": "4F24F86B716304B127685C51E6399047EDEA432226D4AB540C6DADDA6D9A50C3",
+   "escrow_finish": "0C480FE34D793BDFA2B61AE8BA88CA25EC719080E9222185D4179835453509C6"
   },
   "urls": {
    "escrow_create": null,
@@ -11238,7 +11238,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -11347,7 +11347,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CD02915F9A7179B1\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 22E37D3B94B740EC\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -11367,7 +11367,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 4A003BE5DCB41AAD\u2026: paid.",
+    "message": "EscrowFinish 4E8ECEE7A2B8CA59\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -11391,8 +11391,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CD02915F9A7179B194F6DA0B5616568B646CDF1F41236B51EB66BECABC475466",
-   "escrow_finish": "4A003BE5DCB41AAD8C373CC7F579113F615662F280B9CD15FCB16622115A886E"
+   "escrow_create": "22E37D3B94B740EC326A3E8704742BC659A31A7824D3E9339030AC68FA3EE626",
+   "escrow_finish": "4E8ECEE7A2B8CA593A9183F36B82F94A87B762FA8D4E39D5DFB55B7742FA2FFC"
   },
   "urls": {
    "escrow_create": null,
@@ -11442,7 +11442,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -11551,7 +11551,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 239832018E2EC416\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate DDB5AD8903BE7060\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -11571,7 +11571,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish A6ABF2CEEA8EF114\u2026: paid.",
+    "message": "EscrowFinish 963E43ED97330441\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -11595,8 +11595,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "239832018E2EC416C0B536AA698683D3BCEEFDF06AE2D32CD10369639F89A716",
-   "escrow_finish": "A6ABF2CEEA8EF1145C594979F0993A13D85D6D2E58241390F9D1F01D35F70348"
+   "escrow_create": "DDB5AD8903BE7060B33C0B29A664EAA041CFCD6F67F7A954829AEBBA8A83B8FF",
+   "escrow_finish": "963E43ED9733044125C9BA8D357F40D9426C580AE88E2A80F025CE9D46EE7893"
   },
   "urls": {
    "escrow_create": null,
@@ -11646,7 +11646,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -11755,7 +11755,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 6CAE65F0C69DEE49\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate DA456ECC0C11718B\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -11775,7 +11775,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish DFCB9448F40EE735\u2026: paid.",
+    "message": "EscrowFinish 3B15DA07EA733258\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -11799,8 +11799,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "6CAE65F0C69DEE4915704C6A62893BD50792BEC811B7953E0577B721A81D2620",
-   "escrow_finish": "DFCB9448F40EE735853ADB702DA9B2EA8E5FF2A43CBD9CBFCB1E12CC644F600E"
+   "escrow_create": "DA456ECC0C11718B69AAA121F0F062F34224E6E9A31C9A17BEFB2277BE90EF36",
+   "escrow_finish": "3B15DA07EA733258AE61B944431F6531FF1B0CF06ED1E094C34F638CD5B3F589"
   },
   "urls": {
    "escrow_create": null,
@@ -11850,7 +11850,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12015,7 +12015,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12124,7 +12124,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 8801D7CC4A854138\u2026: 0.010949 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 0AD5AE1127ABCBAD\u2026: 0.010949 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -12144,7 +12144,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish EEE9BE39E3826414\u2026: paid.",
+    "message": "EscrowFinish 39805818B44A7C3C\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -12168,8 +12168,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "8801D7CC4A854138DB8ECA349D5723CCC9100602F5B58F3D13C2266C6DDDC100",
-   "escrow_finish": "EEE9BE39E382641484ACDACE881E3EA7C26899C4362B2A2FF8F94EB12F806CD8"
+   "escrow_create": "0AD5AE1127ABCBAD4B9F96CBC899D32A9DC4DB87E4E4BA32F9EC8991364983A9",
+   "escrow_finish": "39805818B44A7C3CDA65DF10935324F3A91936F4F710AF3498F5C5C7B37F3F40"
   },
   "urls": {
    "escrow_create": null,
@@ -12219,7 +12219,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12335,7 +12335,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate A24E501513E4E045\u2026: 0.010949 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate C7A31FE63525E593\u2026: 0.010949 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -12355,7 +12355,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 3F087018E0527408\u2026: paid.",
+    "message": "EscrowFinish 128EE47091A74DD3\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -12379,8 +12379,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "A24E501513E4E0450EE8382C3C0702565D928CB8E483F9DA39404DA13B891A4A",
-   "escrow_finish": "3F087018E05274089E92EA0D5C5FBC801F5A9830B1CCA08325FB66F2E3CD4256"
+   "escrow_create": "C7A31FE63525E593AB7FC32F5478E42971441C5AD676AAFB6564652471721DAD",
+   "escrow_finish": "128EE47091A74DD3582AE596C894BE1144C52E8ADA8F5028E1DFAF48B89A4BE8"
   },
   "urls": {
    "escrow_create": null,
@@ -12430,7 +12430,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12546,7 +12546,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 433F450B0D58F728\u2026: 0.010949 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate B7A9D6966EB60357\u2026: 0.010949 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -12566,7 +12566,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 76C40972B0C4EBFF\u2026: paid.",
+    "message": "EscrowFinish 5AC15742D3C9F8B7\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -12602,8 +12602,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "433F450B0D58F72879870A754E3166CE68D9DB32542855CDE3143666F512AFE0",
-   "escrow_finish": "76C40972B0C4EBFF41A21E9A2432D58B59AE4ED1E564E7BB2F660E3D05B3DAFB"
+   "escrow_create": "B7A9D6966EB60357FE8C3CD7D00670DCD7F3A4D9377E13F2BA635165FE7064EA",
+   "escrow_finish": "5AC15742D3C9F8B710F0641220362C9E1D69BFA2ED8118142BD14AF470EF0A35"
   },
   "urls": {
    "escrow_create": null,
@@ -12653,7 +12653,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12816,7 +12816,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -12979,7 +12979,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root aeb9af300ab931ef\u2026, tx B1EEDFEAFA525648\u2026"
+      "detail": "root 614141dc7247f7a5\u2026, tx A23663E7715100F6\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -13144,7 +13144,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -13253,7 +13253,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 1856BF4BE2DBD8B7\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 5D12BF2BC3B9AE10\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -13273,7 +13273,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 0AD2004956299407\u2026: paid.",
+    "message": "EscrowFinish E003DC5E853C9532\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -13297,8 +13297,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "1856BF4BE2DBD8B72A476C636E24BC1143B747725ED0FDAEDDA4028CF6156B1A",
-   "escrow_finish": "0AD2004956299407609F02B75ABE51723919464FE79506E497831B6DA9060BFE"
+   "escrow_create": "5D12BF2BC3B9AE10E59FB05C6EA701B72AA3A9EA1A53C1EABE41D0870464EEF2",
+   "escrow_finish": "E003DC5E853C9532425D97A3BB784DD2013A7EFB0C4BC7D130B566BF10FBD556"
   },
   "urls": {
    "escrow_create": null,
@@ -13348,7 +13348,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -13457,7 +13457,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 19AEADA15D2E56BF\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 442C946097C88B9C\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -13477,7 +13477,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 0C00EC775C062A18\u2026: paid.",
+    "message": "EscrowFinish 430B47530E41BF14\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -13501,8 +13501,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "19AEADA15D2E56BF1ED394DEC7F6D94B5A538F8D47A90497A769F258070256A7",
-   "escrow_finish": "0C00EC775C062A1809BC3D1C5E4E04EF35F90AE92AE042A3EE41C04FFB63424F"
+   "escrow_create": "442C946097C88B9C90FEB68D546E538B25492ADF13DBC6756AE1DC6844DF754A",
+   "escrow_finish": "430B47530E41BF14B3908CE9000D02330384125794A6B64EF067A245FF308D14"
   },
   "urls": {
    "escrow_create": null,
@@ -13552,7 +13552,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -13661,7 +13661,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate D142884E38954F91\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate E46C379A1235D3CC\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -13681,7 +13681,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish B8783F3E51E8399A\u2026: paid.",
+    "message": "EscrowFinish 2E11AB1BB9169DF6\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -13705,8 +13705,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "D142884E38954F91E7C7C9FEE9C2344ED0F51BCADD17EA0B748D82F9D9CAE7D2",
-   "escrow_finish": "B8783F3E51E8399A23BCA866713773520DAF9E00B3C5C5100CB289D74A9F151C"
+   "escrow_create": "E46C379A1235D3CC8B4E934B030F6442628BC8B8555510D547A4CBE5545EE463",
+   "escrow_finish": "2E11AB1BB9169DF6A907754DFFF90EBA67E1396C5D2AF1730CBAA62ECFFDF657"
   },
   "urls": {
    "escrow_create": null,
@@ -13756,7 +13756,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -13919,7 +13919,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14028,7 +14028,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate DF1E61116D1E9BDF\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 14A5DFB12F8BAA99\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -14048,7 +14048,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 12B4E4D02D7F9C1F\u2026: paid.",
+    "message": "EscrowFinish C0CC2E9F18D210B2\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -14072,8 +14072,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "DF1E61116D1E9BDF4A6FC26ABFBA6CCFBDE57538EAC7A1047D99A44AA2B5EAF3",
-   "escrow_finish": "12B4E4D02D7F9C1FC72544386F2C38D91E1876198348B6610760F99A50992319"
+   "escrow_create": "14A5DFB12F8BAA9927B50A2BCB0B38E40D92924E9EE66AE6374A8915E582D62C",
+   "escrow_finish": "C0CC2E9F18D210B2FE591FF85098CF329B68355E5263082C6C1BAFABB7FDCCEF"
   },
   "urls": {
    "escrow_create": null,
@@ -14123,7 +14123,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14245,7 +14245,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 32914C7B99561F7E\u2026: 0.010949 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 6E04D14FD2B79F77\u2026: 0.010949 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -14265,7 +14265,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 130D96794395F15F\u2026: paid.",
+    "message": "EscrowFinish 917800AA61504352\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -14289,8 +14289,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "32914C7B99561F7EDAD7A26B5E180AB46266A923BE8669D1958CEDF6E2F0FB04",
-   "escrow_finish": "130D96794395F15F1EF04495C0B50254C00F68CE9DCE65D74BCCC91F5090DF05"
+   "escrow_create": "6E04D14FD2B79F77E79D2B34C20456FA342E58C21FF6DAEC7CA51933229AB0F4",
+   "escrow_finish": "917800AA615043522B66960CA9446D2D0E550EEC82BB5A41A5091709F76D5B90"
   },
   "urls": {
    "escrow_create": null,
@@ -14340,7 +14340,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14449,7 +14449,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 60A9420A2C57C5E4\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 1737410EF8C9233D\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -14469,7 +14469,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish A2FF36BED1642085\u2026: paid.",
+    "message": "EscrowFinish 3A0134FA2B7471F1\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -14493,8 +14493,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "60A9420A2C57C5E4670782A6DADBC4D5277CFC112991A9CFFC67BE081F97DCAA",
-   "escrow_finish": "A2FF36BED164208570B95B8BC5EF80EFDB3B09D497D260FE1FC4AAD516509BD6"
+   "escrow_create": "1737410EF8C9233D47DBBAA531EC4E396D02203469B5F3354A1EE9D22D42B88A",
+   "escrow_finish": "3A0134FA2B7471F154C2968EE00E445561D608E571EA8B88B487BBE7035B626B"
   },
   "urls": {
    "escrow_create": null,
@@ -14544,7 +14544,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14653,7 +14653,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 06073DFF07B10FDE\u2026: 0.009124 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate B68608A39CCDB887\u2026: 0.009124 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -14673,7 +14673,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish D634E53439986A70\u2026: paid.",
+    "message": "EscrowFinish 2B12BF36D49F4440\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -14697,8 +14697,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "06073DFF07B10FDE50CB9F1446B130CD2C05943C9FD15138E95F9219B9BFBF16",
-   "escrow_finish": "D634E53439986A70835B51D1E44D44CCA42B0F056C49AC5AFCD1DB14CFB7803F"
+   "escrow_create": "B68608A39CCDB8872B83CC37AB8AF9C4C1B012915E280A2E0F9EBA24CCD2BE5F",
+   "escrow_finish": "2B12BF36D49F444017B4E8B2D6E12EFBC9AECA66E3E5344C9B1A9535F629E203"
   },
   "urls": {
    "escrow_create": null,
@@ -14748,7 +14748,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -14857,7 +14857,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5D6F9D03907B3837\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 85DCED2FF97C850B\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -14877,7 +14877,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 4BC7CF60874AEB79\u2026: paid.",
+    "message": "EscrowFinish B0DDA06C5C540430\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -14901,8 +14901,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5D6F9D03907B383731542A81B422C697B40C9E71FC5D6C1DBBB6B35E40C481EA",
-   "escrow_finish": "4BC7CF60874AEB791B3B79FA5755C1E0976D835C83D85482CACDD093E3FFE76A"
+   "escrow_create": "85DCED2FF97C850BC926363AD4A2B2D602E727E2E9EBBF4D4EDEA80598B7EE2F",
+   "escrow_finish": "B0DDA06C5C540430531D80DB852B5BCDEC88EF49A73E559C400AF7E088C616DD"
   },
   "urls": {
    "escrow_create": null,
@@ -14952,7 +14952,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -15068,7 +15068,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 7A3BBFE100A724A3\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate B38B22ABC64B8423\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -15088,7 +15088,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 48BC640A4F4B7195\u2026: paid.",
+    "message": "EscrowFinish B91FD1B4AEE97C1F\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -15112,8 +15112,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "7A3BBFE100A724A3D6F13E98DA26C2AA17652F4427C0AA0FD35F5DA80A09AE89",
-   "escrow_finish": "48BC640A4F4B71957A8A6BB49CD5FC7C24F061DD4806241A6EF2B2B18F3A2F85"
+   "escrow_create": "B38B22ABC64B8423C98D44364EEE5CFC1858F3F330BDBBEF385211481F8D53AE",
+   "escrow_finish": "B91FD1B4AEE97C1FA3C2D700F9BE636A279935F4BCA538FF6C79D47242A0B0C8"
   },
   "urls": {
    "escrow_create": null,
@@ -15163,7 +15163,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -15272,7 +15272,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 6BD0BE988C4E2D8A\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 68BBF32325439315\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -15292,7 +15292,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 126AA19690960617\u2026: paid.",
+    "message": "EscrowFinish 579F6D37F90FEC80\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -15316,8 +15316,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "6BD0BE988C4E2D8AE9BE223672B7DF5566EEFDB2AE3B0888B8B5DC55CE38BFF7",
-   "escrow_finish": "126AA19690960617A627161478D57599C2510A34C124C95F1F8E5F846F282FF0"
+   "escrow_create": "68BBF32325439315F102C55C07C6DD48B9F5867F36A697DA1311E658FE790A1F",
+   "escrow_finish": "579F6D37F90FEC80E8D7714EE757EEC0043147D919AE32139EDB6651EFC386E9"
   },
   "urls": {
    "escrow_create": null,
@@ -15367,7 +15367,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -15476,7 +15476,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 609CD5E0D44970EC\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate A620B99217C065B5\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -15496,7 +15496,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 5172227885CA5DE6\u2026: paid.",
+    "message": "EscrowFinish 7200F3950E99D602\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -15520,8 +15520,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "609CD5E0D44970ECF733A6C399437DEF80F372A63F58ECEB50C2AAF4BB7B23F4",
-   "escrow_finish": "5172227885CA5DE6BA05BEDB0DD7A7B8B967268290DF807ABDC57E87855A71E9"
+   "escrow_create": "A620B99217C065B5C021A4EAE0C64837DB0E9E225D2A8F730551A286B211EF8F",
+   "escrow_finish": "7200F3950E99D60225ADE9DA0C96D85E54B7D2AE4BBC286A9E62336CE1AE9081"
   },
   "urls": {
    "escrow_create": null,
@@ -15571,7 +15571,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -15687,7 +15687,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate DCF91E17C44F21FA\u2026: 0.013686 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate AA85FBC85379B38D\u2026: 0.013686 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -15707,7 +15707,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 02AE1F9E312B8137\u2026: paid.",
+    "message": "EscrowFinish 570DE0E234A2458D\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -15731,8 +15731,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "DCF91E17C44F21FAB95CEABE2DE881D84FCCDE8371FF495736086D2A384E7002",
-   "escrow_finish": "02AE1F9E312B813744734E2B8244AB5FC88412C98F43F15CD9871DFA28C0D88D"
+   "escrow_create": "AA85FBC85379B38D333069BA40E1778CE695B55724DA794E59D3FD57F4E773C8",
+   "escrow_finish": "570DE0E234A2458DCBF8B6C83D7BBF0AB6E15025C65DA727F318C2F2F73D1E1A"
   },
   "urls": {
    "escrow_create": null,
@@ -15782,7 +15782,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -15898,7 +15898,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate FAF11624CD3D2CE2\u2026: 0.013686 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 0BDBDE09B31A9B49\u2026: 0.013686 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -15918,7 +15918,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish B5A5BE22F02C8DD4\u2026: paid.",
+    "message": "EscrowFinish 41BC49B4FA102CB2\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -15942,8 +15942,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "FAF11624CD3D2CE23768B431D3D742BA4D0A8AD1D868F3FE606AA0AC32EB7EDA",
-   "escrow_finish": "B5A5BE22F02C8DD4651A14E101E48D52094A5426725AB189B91CDC1672A7A4FD"
+   "escrow_create": "0BDBDE09B31A9B49223A51E761F4F85FF81DE49FC93F6E2704A6B4D23553EFAA",
+   "escrow_finish": "41BC49B4FA102CB2221AE4F17E07761D9D6F78273E2A99506752B008A3EC2BFD"
   },
   "urls": {
    "escrow_create": null,
@@ -15993,7 +15993,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16158,7 +16158,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16323,7 +16323,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16488,7 +16488,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16604,7 +16604,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate C13A647F26F0F779\u2026: 0.010949 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 7924C3E91E257C33\u2026: 0.010949 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -16624,7 +16624,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 7DC988F1CC33AD76\u2026: paid.",
+    "message": "EscrowFinish 53061FEE6F8E24E4\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -16660,8 +16660,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "C13A647F26F0F77978A37DD425A1799B408989DD6502BAA3F1477DBD44122849",
-   "escrow_finish": "7DC988F1CC33AD769CB683950DF95E0678538268800BEDA0FF69E9A8DC764AC9"
+   "escrow_create": "7924C3E91E257C33B4BA8588D2AD57184C1CDFF4F7EBB2E21AD64186621129A7",
+   "escrow_finish": "53061FEE6F8E24E46E9EF5059ACF9D4CD970F3D438CD12BAD6B5A3F8EB987EDE"
   },
   "urls": {
    "escrow_create": null,
@@ -16711,7 +16711,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16874,7 +16874,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -16983,7 +16983,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5A4D3CFA5BD89B8D\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate E157A7A1A1B575EB\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17003,7 +17003,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 5060470CEC46ECD4\u2026: paid.",
+    "message": "EscrowFinish 4195137E9E794350\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -17027,8 +17027,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5A4D3CFA5BD89B8DBA0E9C5C926CFE74F6D9892EDF187B72C9BBA72439EDF9CF",
-   "escrow_finish": "5060470CEC46ECD447D275C4B4F0953F82E36F60370D5E9314BA6C3645A4A63F"
+   "escrow_create": "E157A7A1A1B575EBB3F81BF6C1D5C07D711292B465F993AB12925A61FBBD95B4",
+   "escrow_finish": "4195137E9E79435093695BE0A3C24CCB5EAD19E3E277300ADFB58F8E234416BC"
   },
   "urls": {
    "escrow_create": null,
@@ -17078,7 +17078,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17187,7 +17187,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate A8AFE7BC958FF7C4\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate B89F0598856DBEA3\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17207,7 +17207,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish AA9DACC652C65FD6\u2026: paid.",
+    "message": "EscrowFinish 94F05ECC566465B7\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -17231,8 +17231,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "A8AFE7BC958FF7C4840EFC8EC8ECBE139623779F06C1ED5EF4AFC39E8F60E1B1",
-   "escrow_finish": "AA9DACC652C65FD636EB626B85B9CDA58698B8D68AFC0E56D4852BF7BF75DA12"
+   "escrow_create": "B89F0598856DBEA3B1C0D217A12F60919C08E089F076692F1F08B63FA5801FAF",
+   "escrow_finish": "94F05ECC566465B763220EDAA55356F52D43091E1E345F4C0771A189F49D838F"
   },
   "urls": {
    "escrow_create": null,
@@ -17282,7 +17282,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17391,7 +17391,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 648C6C0A086E1A47\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate A9494008F1090BBD\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17411,7 +17411,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 6DE00B7770EB1925\u2026: paid.",
+    "message": "EscrowFinish 267C332520957D60\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -17435,8 +17435,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "648C6C0A086E1A476B4E90C2BD25E1AA09755A11B481D58D63C4F0A5D92C85C0",
-   "escrow_finish": "6DE00B7770EB1925E6685326CD220BA750C4686685F3054A274CA5C7F82FA47B"
+   "escrow_create": "A9494008F1090BBD2466EBD9A78D1AEDC7AD436613FBF6B56E10A5E7A2CCEBAF",
+   "escrow_finish": "267C332520957D6084E1A8D8417B115E8AA18863F8FADA6524ECD80CC857A414"
   },
   "urls": {
    "escrow_create": null,
@@ -17486,7 +17486,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17649,7 +17649,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17758,7 +17758,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate E74F088F6A1466D6\u2026: 0.018249 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 5B436DA6C5D70B35\u2026: 0.018249 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17778,7 +17778,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 00D0A5C54439C5F6\u2026: paid.",
+    "message": "EscrowFinish D54C47584C9E4443\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -17802,8 +17802,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "E74F088F6A1466D621551193B4BBDAAE21F1CD1E4E56E81CF42B1FC3CF5838BA",
-   "escrow_finish": "00D0A5C54439C5F6970F42E5FD77487CADF95E326B3741678DDD718E2EF8DC74"
+   "escrow_create": "5B436DA6C5D70B351CC6AD77F9C83E86487BF1CEF563EAAC8E4F6DEE19B06717",
+   "escrow_finish": "D54C47584C9E444314C6D1BBCAB66A11D31B446264F08DE2809FC1DDE65DF1F4"
   },
   "urls": {
    "escrow_create": null,
@@ -17853,7 +17853,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -17962,7 +17962,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5F93F92333010FB7\u2026: 0.018249 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate CB278061DAB8D90B\u2026: 0.018249 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -17982,7 +17982,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C3F8DA089A374D47\u2026: paid.",
+    "message": "EscrowFinish D6ABD84DE3974B7F\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -18006,8 +18006,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5F93F92333010FB7BB6CE07E39EAC7C562659B70E87B21D536C8DB340692E5D9",
-   "escrow_finish": "C3F8DA089A374D478D813593D64227C507B9A5EFC957F4E18554013DA4C0A4B5"
+   "escrow_create": "CB278061DAB8D90BAE01B0B4D920C04508E2527DFAC62CBFF6EB7850C1E2A236",
+   "escrow_finish": "D6ABD84DE3974B7F8C38248569431ACAB5F77135EDE9B59001DE985A4D9524CC"
   },
   "urls": {
    "escrow_create": null,
@@ -18057,7 +18057,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18166,7 +18166,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 8A974717F560DEFA\u2026: 0.018249 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 77C4AFF02D1B2562\u2026: 0.018249 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -18186,7 +18186,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish D5CEE816E1DF31A0\u2026: paid.",
+    "message": "EscrowFinish 35626AD212F92CFF\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -18222,8 +18222,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "8A974717F560DEFA4FBD287137898CC900A36594836218D698EE5DDBFA371FA3",
-   "escrow_finish": "D5CEE816E1DF31A0AA0568A84D1AAAC730E4C2670C899D97ED19F055FCB532C4"
+   "escrow_create": "77C4AFF02D1B25623A45930FC7EB1A73E0F890B8FF007805A0524F897E14CAEA",
+   "escrow_finish": "35626AD212F92CFF58CE01A3BAC9EDA124D843B7449627D0F9A8ECEC97FFC643"
   },
   "urls": {
    "escrow_create": null,
@@ -18273,7 +18273,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18382,7 +18382,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 6BD50D02C68A1DFE\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 9B7FD599253442E1\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -18402,7 +18402,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish B0323417AFD8F75B\u2026: paid.",
+    "message": "EscrowFinish 8BE1A0D401AC1A22\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -18426,8 +18426,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "6BD50D02C68A1DFE0B6747B25630ADD5A370FB201CDC52A02141642A82334BCD",
-   "escrow_finish": "B0323417AFD8F75B86205FE6063DE71C3744B56E86CACB0FCFED1E9B2CC8F70A"
+   "escrow_create": "9B7FD599253442E18702AC0F37DD66DFFE9232351F397A792A096EA72DC24897",
+   "escrow_finish": "8BE1A0D401AC1A22FC8507E129C4082BFF9D15E0882E193468357C93BB7EEE23"
   },
   "urls": {
    "escrow_create": null,
@@ -18477,7 +18477,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18640,7 +18640,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18749,7 +18749,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate C764DA757473D5E7\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 9665AF5CD5C7CDB0\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -18769,7 +18769,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 6D818A978A0F1DDF\u2026: paid.",
+    "message": "EscrowFinish E6047A51069AB823\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -18793,8 +18793,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "C764DA757473D5E7216C0E1281A03D6059546E6792A6F877E524DE20F5AA0913",
-   "escrow_finish": "6D818A978A0F1DDFA3C30337C12C6129CA6E41BD8314F9525541E18B5D110027"
+   "escrow_create": "9665AF5CD5C7CDB0DE5A2A1F4F0302210CEA79DCA07CA62DAE87CF3E7D20F1F5",
+   "escrow_finish": "E6047A51069AB82344C94F496BCF1C438C6258F0FE98BFA2DF09E46D8E9AD5C9"
   },
   "urls": {
    "escrow_create": null,
@@ -18844,7 +18844,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -18953,7 +18953,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 74DD2A2C88D8E115\u2026: 0.018249 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 6E5C0919FD5385D0\u2026: 0.018249 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -18973,7 +18973,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 2290D0EFA31640E9\u2026: paid.",
+    "message": "EscrowFinish D022375387B822F5\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -18997,8 +18997,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "74DD2A2C88D8E11590150F36A54A72EA11E3BFEFED5708C243FCD41930938802",
-   "escrow_finish": "2290D0EFA31640E9B236C8F96B3FEEAFD60ABBBC40998C90BD2B3743E6E5A5DC"
+   "escrow_create": "6E5C0919FD5385D0531C7620EE9C8A5235DA1E947935DC342AC7ECA780A7EC06",
+   "escrow_finish": "D022375387B822F53D6A7CD2E0E28E135AA8683E4A54362C9CA94A5960AC95DC"
   },
   "urls": {
    "escrow_create": null,
@@ -19048,7 +19048,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19157,7 +19157,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate E62B3A2E977ECDDC\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 3EFAAD8F8671AF3A\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -19177,7 +19177,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 8BFCA8FFCA8467C0\u2026: paid.",
+    "message": "EscrowFinish BE81B838F9F8F0CE\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -19201,8 +19201,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "E62B3A2E977ECDDC4F2D43E285257DF88DB24A8195E8C5AF1A291F088A3FCFFF",
-   "escrow_finish": "8BFCA8FFCA8467C0DEA4AF76E1FD8073E405986CB7B9683529DECFE03F286456"
+   "escrow_create": "3EFAAD8F8671AF3A0744FE3A36D88B65136FB892277618981505470CEFF343EC",
+   "escrow_finish": "BE81B838F9F8F0CEE63505A84163FED42C1F6CA4E3FE428BFAFBEAEB1BD2D8DC"
   },
   "urls": {
    "escrow_create": null,
@@ -19252,7 +19252,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19361,7 +19361,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 188C1B0D1071ACAF\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate F3FE776D84C2E0F6\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -19381,7 +19381,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 45D2CFF023745EF9\u2026: paid.",
+    "message": "EscrowFinish A49279BCE6AB5588\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -19405,8 +19405,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "188C1B0D1071ACAFA5667BB003B2F4E7A3084656D55DDFB99C2298AB240E19FB",
-   "escrow_finish": "45D2CFF023745EF9DA24CACA88C630734BAAC335BAB255F38BE7F1B6FBF1ABEB"
+   "escrow_create": "F3FE776D84C2E0F6FC11478DA913F66355BAC671487A27A1638631F259550B9F",
+   "escrow_finish": "A49279BCE6AB55889AAB3BD9ECE80683F3410465D48D74E318E0A73D9E6C290A"
   },
   "urls": {
    "escrow_create": null,
@@ -19456,7 +19456,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19565,7 +19565,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5EBB8620ED951205\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 656B58967D9FF69C\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -19585,7 +19585,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 23F59AFCDA5799F2\u2026: paid.",
+    "message": "EscrowFinish BCA51E4433372603\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -19621,8 +19621,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5EBB8620ED95120544B9A7AB7C2144F461443D3D7D86DBF1EBE78C5A71BEA451",
-   "escrow_finish": "23F59AFCDA5799F28E0F1377F1F8F5F8E0A34FDECFFD1B56C84BB3B3FFC5A20C"
+   "escrow_create": "656B58967D9FF69C130A977DCC021498F2B6E60932F92DCD8F5DA812B2514CDD",
+   "escrow_finish": "BCA51E443337260327C07B6E0860245863D65D4FACFC406A96FED13B83BE8500"
   },
   "urls": {
    "escrow_create": null,
@@ -19672,7 +19672,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19781,7 +19781,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 7EBEBD7CB8358101\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 94C292C7E57FAF9A\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -19801,7 +19801,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 84DBF12DC742029D\u2026: paid.",
+    "message": "EscrowFinish F9706DC130A175CB\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -19825,8 +19825,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "7EBEBD7CB835810170D48DDE1CDADF46F9EF8F8316D126E4B2A4493EA3FB22B2",
-   "escrow_finish": "84DBF12DC742029D397E5FE3A1E67F0B6221DB6F5ECDFE2A0A250947F1DC521D"
+   "escrow_create": "94C292C7E57FAF9AA48456F0F5E11D7F7DE3F466DAFE93A7495F0DA9AAE07494",
+   "escrow_finish": "F9706DC130A175CB6FE62A110B215DC5CE32E71F088E8CACDD052630501D9624"
   },
   "urls": {
    "escrow_create": null,
@@ -19876,7 +19876,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -19985,7 +19985,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate DAC04A030B327167\u2026: 0.029199 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 6933B439387D60C1\u2026: 0.029199 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -20005,7 +20005,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish E898A154996E588B\u2026: paid.",
+    "message": "EscrowFinish 77ED24A22018617C\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -20029,8 +20029,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "DAC04A030B3271676A799C604689CB98B490B2B1965EED1A66AA6D1A5E86CCB6",
-   "escrow_finish": "E898A154996E588B7F337CAADE86363206759AD4756652ADE8E27CD5CCBA07E1"
+   "escrow_create": "6933B439387D60C192DB4112F5E1B0D1FAA7516C64C210C6101FF8591860D1DE",
+   "escrow_finish": "77ED24A22018617C8C516BF0A6C076E911A3C692C4469485274968217BAA5679"
   },
   "urls": {
    "escrow_create": null,
@@ -20080,7 +20080,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -20196,7 +20196,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 2DBAF3C4730B75C1\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 82D85A95C750CC0D\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -20216,7 +20216,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 780C09360DB33016\u2026: paid.",
+    "message": "EscrowFinish 9049F5F3BBE7C315\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -20240,8 +20240,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "2DBAF3C4730B75C1BA94C6F8B9212B39935B0FDB4D0623564D68052BEB0DE329",
-   "escrow_finish": "780C09360DB33016C9D3A5E1C2AE11AF0BA7BB611829D3605F4DC565EBEEE8BF"
+   "escrow_create": "82D85A95C750CC0DF36F0361266D160EB6E5F34093222FC87546F45C37B2D17A",
+   "escrow_finish": "9049F5F3BBE7C3152682DCF11E3FE1EB17AD54B8D6E261E26838CD586A1C4A3D"
   },
   "urls": {
    "escrow_create": null,
@@ -20291,7 +20291,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -20407,7 +20407,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 611411610B1488E2\u2026: 0.013686 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 71656E3184FE09D5\u2026: 0.013686 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -20427,7 +20427,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 77213A4DDF513C8F\u2026: paid.",
+    "message": "EscrowFinish 8C142764453E6359\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -20451,8 +20451,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "611411610B1488E2FACBD901515C6A71652A1275BC7158CEB813C14A75EC5447",
-   "escrow_finish": "77213A4DDF513C8F2E0D300CC8E078BF78D8E1BDD826069013C6ECB464DB02AA"
+   "escrow_create": "71656E3184FE09D5C341BB2EE5CAB19288F43E474C777F454E7FFF0EC8D2FDBC",
+   "escrow_finish": "8C142764453E63593808E4B2CA0211BF5055F859879A2BD17A954F4D026888FC"
   },
   "urls": {
    "escrow_create": null,
@@ -20502,7 +20502,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -20618,7 +20618,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate DCE6A7E800339B8E\u2026: 0.010949 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 8CE6707FEF26F9E5\u2026: 0.010949 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -20638,7 +20638,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 1C685515EE75BBF4\u2026: paid.",
+    "message": "EscrowFinish 5B1A597B59A647E5\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -20662,8 +20662,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "DCE6A7E800339B8E29783281AA7765452B89A80A9FF4A08CC4F9C410681271B7",
-   "escrow_finish": "1C685515EE75BBF48C6B566A522D03D5E5A07BBE80AA52181FD3BDA8321CCC93"
+   "escrow_create": "8CE6707FEF26F9E54057026F9298259D816D49B27F7F8EF9305D56480F10AFB1",
+   "escrow_finish": "5B1A597B59A647E5EA26EAD61B17B172BC9B9B3F7EDA0F1EF6324BF8C8F08788"
   },
   "urls": {
    "escrow_create": null,
@@ -20713,7 +20713,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -20822,7 +20822,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 12F296E983755A5C\u2026: 0.010949 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate EC335B3215152822\u2026: 0.010949 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -20842,7 +20842,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish E380DCCEF5CB1C61\u2026: paid.",
+    "message": "EscrowFinish 6C0D637887A4758D\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -20866,8 +20866,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "12F296E983755A5C5A7D21B2461249DB95EC81E036240207E97BA9562A45EF21",
-   "escrow_finish": "E380DCCEF5CB1C619D556D115DA9302E1D9CBA13005C9CADDE5B4C4A875F7A91"
+   "escrow_create": "EC335B321515282205748B83A36662BA812946FAD84AB0305FEF4849C3E8D3ED",
+   "escrow_finish": "6C0D637887A4758D3061B89393A49D70FEEA05C2EB49F634B39FAF5E0E65AA67"
   },
   "urls": {
    "escrow_create": null,
@@ -20917,7 +20917,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21026,7 +21026,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 62DCEEB705AB72CC\u2026: 0.009124 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate AF5E2FC4320AF371\u2026: 0.009124 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -21046,7 +21046,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C39855BA6950D6BC\u2026: paid.",
+    "message": "EscrowFinish AC63D2D38282C57F\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -21070,8 +21070,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "62DCEEB705AB72CC1471FAC2891CC65C1C1420CFBBD86C2CA36D79CE18AED30A",
-   "escrow_finish": "C39855BA6950D6BCA69F16F16F156F265FA0F0A5643F6B5177DF2FFBCEAA2E54"
+   "escrow_create": "AF5E2FC4320AF3718296DFB2D2B1BE3D15BA3AE1C401C07F61988516948072C0",
+   "escrow_finish": "AC63D2D38282C57F81A3A200D1FD4F9D6B6F36EA7C2CD125A40818152E7BB3ED"
   },
   "urls": {
    "escrow_create": null,
@@ -21121,7 +21121,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21230,7 +21230,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate DBED7A2DC0BEDC47\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate BF45A1B976080B7F\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -21250,7 +21250,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 74F57324AEDB8D2C\u2026: paid.",
+    "message": "EscrowFinish 4D45BCCD0E0ABCED\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -21274,8 +21274,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "DBED7A2DC0BEDC47C138590BE4366FE947CD23915ADD5D6BE04BAD39C3733577",
-   "escrow_finish": "74F57324AEDB8D2C5B0FE55052A4CB4386EB6BDE94A050E3F522891D0861479B"
+   "escrow_create": "BF45A1B976080B7FD607CC1D1B804697FC4C66BC0B0D6469CEEDBAB92191BCE3",
+   "escrow_finish": "4D45BCCD0E0ABCED1E11AE19A29DC4E195FC66B216BF17E7581B32A6B89F80D9"
   },
   "urls": {
    "escrow_create": null,
@@ -21325,7 +21325,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21434,7 +21434,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate A71B74DFFA01A42C\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate E6BAD222B4B07D35\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -21454,7 +21454,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 42935BD289BA6C7C\u2026: paid.",
+    "message": "EscrowFinish 152DD6750ABC62E3\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -21478,8 +21478,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "A71B74DFFA01A42C7AC78858153305E4CCBA4700E231E41C9E42313B0781F17A",
-   "escrow_finish": "42935BD289BA6C7CD721689849ED70116973FBEE110A1B8017A4FFF5F540D946"
+   "escrow_create": "E6BAD222B4B07D35C58F70F74212E36199726978D1E4402200A5596A1487210B",
+   "escrow_finish": "152DD6750ABC62E3738190CCF8D3DA88FCA470443E7735F9D32428D2C23F56B4"
   },
   "urls": {
    "escrow_create": null,
@@ -21529,7 +21529,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21638,7 +21638,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 6B0C679CFB99EFBE\u2026: 0.018249 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate F30024F2903AF51A\u2026: 0.018249 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -21658,7 +21658,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 84A57653C30FB531\u2026: paid.",
+    "message": "EscrowFinish B172442471DF2B1F\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -21682,8 +21682,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "6B0C679CFB99EFBE9BC25BBB3CA2C93DBC4E5E4EEDDAD387283E127035C85B67",
-   "escrow_finish": "84A57653C30FB5311B36C643B04CE9D2460729CD2AA6FAF1200D26759BEE0D5B"
+   "escrow_create": "F30024F2903AF51AE320B720E4ED94847BF1C6F1EB95A16AD6B09CBB7DF7C1E4",
+   "escrow_finish": "B172442471DF2B1F0B8DE969B50CB03BFD4DA9C6A8C63DFB4AB24933A75B2B34"
   },
   "urls": {
    "escrow_create": null,
@@ -21733,7 +21733,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -21842,7 +21842,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 87069E1A3BDCE9D6\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 80F20C021EFB9F1E\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -21862,7 +21862,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 62E8E2C9C6C07D15\u2026: paid.",
+    "message": "EscrowFinish 10FC01B9314A4985\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -21886,8 +21886,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "87069E1A3BDCE9D6005436361283BC36C30D75FB9B5AB0BC042BCC577C40EEBC",
-   "escrow_finish": "62E8E2C9C6C07D151AAE9B108B9393780A65AC5259AE90D45FB3F1A372F41893"
+   "escrow_create": "80F20C021EFB9F1EBB615829944D63841965E7A54448DF4A8C0D76A11CD774CC",
+   "escrow_finish": "10FC01B9314A49855D423AAA92D4269E93BE9E5623277D21560B90556AC5628A"
   },
   "urls": {
    "escrow_create": null,
@@ -21937,7 +21937,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22046,7 +22046,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 41DF4C68B91B10FF\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate CBAEEC08A4EB69CC\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -22066,7 +22066,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 801BCDBCB147222D\u2026: paid.",
+    "message": "EscrowFinish 09032A0A2DF108BE\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -22090,8 +22090,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "41DF4C68B91B10FF9BD64DAA543CAE6B81D7670E6CA4902551D3CF801974F832",
-   "escrow_finish": "801BCDBCB147222D078049261CA449543856A7B570AC3A6B0658737ED7F68429"
+   "escrow_create": "CBAEEC08A4EB69CC226DDAAFFC0020DBEA745829614A129F093C81C5F2064BE9",
+   "escrow_finish": "09032A0A2DF108BE527A8ACAF761F26161E06BE498233E48C9B1D45D8385F720"
   },
   "urls": {
    "escrow_create": null,
@@ -22141,7 +22141,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root a2e59f8a32edb9d3\u2026, tx 9534914DCB7E96B6\u2026"
+      "detail": "root 9a1a9d407bd430df\u2026, tx D0124B94421728F3\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22306,7 +22306,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22469,7 +22469,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22632,7 +22632,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22741,7 +22741,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 36404B8F101FF324\u2026: 0.018249 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate DE9E51A95D3321D6\u2026: 0.018249 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -22761,7 +22761,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 725855170C901B5F\u2026: paid.",
+    "message": "EscrowFinish 41FEE3A65B6F9CAA\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -22785,8 +22785,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "36404B8F101FF324CCE32032FECB76598B6BCCA8B29CA3841C25609C4DB5F48E",
-   "escrow_finish": "725855170C901B5F4ED8C32FE785F147984F28E73465EE53C2EBE51EDA1942C0"
+   "escrow_create": "DE9E51A95D3321D68B0B20B25FE360C8DBF6F96EF1A94AA45CAAA213CB818692",
+   "escrow_finish": "41FEE3A65B6F9CAA9EDEB95F4A0ADF00A6C1EA411241D15FD24F186A999D34D5"
   },
   "urls": {
    "escrow_create": null,
@@ -22836,7 +22836,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -22945,7 +22945,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 59A81D6AAED56883\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 2F8FDEE50DCC02D6\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -22965,7 +22965,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish ADB5649279A0679E\u2026: paid.",
+    "message": "EscrowFinish 6E8EC63BC8AABCF7\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -22989,8 +22989,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "59A81D6AAED568834702F255562C852498C5BC20A8E7B1202F1284B9699E7103",
-   "escrow_finish": "ADB5649279A0679E2F86BA735F466911C66805672CED0A9554971C93B83FD999"
+   "escrow_create": "2F8FDEE50DCC02D68D68D1D49ABCF6E672F70024ACCF95E43C786AE94855ACF4",
+   "escrow_finish": "6E8EC63BC8AABCF7CF4C575AD9B90D3103DAB52D659823B5E21D9B748AFBCAC0"
   },
   "urls": {
    "escrow_create": null,
@@ -23040,7 +23040,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23149,7 +23149,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 50A9353027268234\u2026: 0.014599 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 0ACEBD544D22A520\u2026: 0.014599 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -23169,7 +23169,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 7F4DDBB6FE5A999D\u2026: paid.",
+    "message": "EscrowFinish 6460CA22D9050607\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -23193,8 +23193,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "50A9353027268234BC536179F050EAA77D6CF9C2D14B06CC3980D8F827C5C790",
-   "escrow_finish": "7F4DDBB6FE5A999D2911FEC6A7033A5B79647F5CA34E935BAF9CE37C3D15BB38"
+   "escrow_create": "0ACEBD544D22A5208042B9D476928242A63F96708611A6A4003982D6C7685ECD",
+   "escrow_finish": "6460CA22D9050607455F451FA3D5D56FC71E560D9D7AA062EC00C2C90F3951CC"
   },
   "urls": {
    "escrow_create": null,
@@ -23244,7 +23244,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23407,7 +23407,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23516,7 +23516,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 79BC8D576AF060F7\u2026: 0.009124 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 6A4E30C7C40C4D03\u2026: 0.009124 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -23536,7 +23536,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 67906A9101905492\u2026: paid.",
+    "message": "EscrowFinish F6CEA27D27A09562\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -23560,8 +23560,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "79BC8D576AF060F746FB7D10EAF042BCFD42BCC502A4C2CBFE116E1119F0EF94",
-   "escrow_finish": "67906A9101905492893AAF00841966661046AFD59C200172B90C8920614D0720"
+   "escrow_create": "6A4E30C7C40C4D03D351786BC8ABE748EBC584DB9CE0FC0FC856509590659CDA",
+   "escrow_finish": "F6CEA27D27A0956272E471E0E147FFDCED6E9D167F841572495D4F74E1ABE754"
   },
   "urls": {
    "escrow_create": null,
@@ -23611,7 +23611,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23720,7 +23720,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 6F9C8CB7FFA87028\u2026: 0.007299 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate DBFACDFAEDEB12EF\u2026: 0.007299 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -23740,7 +23740,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 16787DC619DBF4F0\u2026: paid.",
+    "message": "EscrowFinish 6876D775E1170135\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -23764,8 +23764,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "6F9C8CB7FFA870287E3818CBC3257FA6F7758E186E4A2569CDBBF92C30080142",
-   "escrow_finish": "16787DC619DBF4F035216DDC82DAEF311669FA23EE52A835B86BC076FF68B7DD"
+   "escrow_create": "DBFACDFAEDEB12EFAC74CAE00BB912E2C019F7AC9CA3E61B8CB0E631CAD23067",
+   "escrow_finish": "6876D775E11701359E80296282C2ED2A6EB12FEC66E80972F5FBBF85AF3EF1F1"
   },
   "urls": {
    "escrow_create": null,
@@ -23815,7 +23815,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -23937,7 +23937,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 5F7682CD5B93907B\u2026: 0.005474 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 37CAD336EB3F744A\u2026: 0.005474 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -23957,7 +23957,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish C28C1D3147A697CC\u2026: paid.",
+    "message": "EscrowFinish 4F49776F312FEEB0\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -23993,8 +23993,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "5F7682CD5B93907B19F8B6C65A2C0780D4D9AC97029208C0AB1C2E410E853C4C",
-   "escrow_finish": "C28C1D3147A697CC81DF0D452F54333B91A11F85C7024F7B9019634A48C3D665"
+   "escrow_create": "37CAD336EB3F744AE316E8826D019AB36B06A3B685FAF04C04EFC017B5D01E70",
+   "escrow_finish": "4F49776F312FEEB0BEBBDE1AB8CBD1605B09FDF70CAD42461E52D2B5A9264475"
   },
   "urls": {
    "escrow_create": null,
@@ -24044,7 +24044,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -24207,7 +24207,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -24370,7 +24370,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -24479,7 +24479,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CDF6CE9C7105E93D\u2026: 0.018249 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 96908215408BBB58\u2026: 0.018249 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -24499,7 +24499,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 3278ECED8D01CAAB\u2026: paid.",
+    "message": "EscrowFinish EB34F3AD3B0197BE\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -24523,8 +24523,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CDF6CE9C7105E93D06043DCD4BBC8EE56A4FECC03E78043DB6F619E1E70FE0BA",
-   "escrow_finish": "3278ECED8D01CAAB8F30C7E466985939BD6A0660B6E71C10AD916F4104B9491D"
+   "escrow_create": "96908215408BBB582AAE2940CE3F871D71F81BC0D7B2B68841A1FA8CEC9A5885",
+   "escrow_finish": "EB34F3AD3B0197BE37BEABEBFDD86DABD2DE4E842776C40E3BF1AE7498D4645D"
   },
   "urls": {
    "escrow_create": null,
@@ -24574,7 +24574,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -24683,7 +24683,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 8C930674A914233D\u2026: 0.018249 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate FC5A7D1980B20338\u2026: 0.018249 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -24703,7 +24703,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 79F8A9BECC841513\u2026: paid.",
+    "message": "EscrowFinish A5A8E26D7887ABA3\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -24727,8 +24727,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "8C930674A914233D80F62D81F4621E6EF45E19DCA87AD4AFE206A452441573E2",
-   "escrow_finish": "79F8A9BECC8415136DE4A4563D60D7F9C64E8E724D7495BCEC783304BC18D2B5"
+   "escrow_create": "FC5A7D1980B20338C144F4869A03CEEE45A799776B71B00144D71B1F87282C9D",
+   "escrow_finish": "A5A8E26D7887ABA3329503A9E23DC851456F2B9024CF509D116D5C1702393C8A"
   },
   "urls": {
    "escrow_create": null,
@@ -24778,7 +24778,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -24900,7 +24900,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate FA63DFF36BD055D9\u2026: 0.009731 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 641D7756C6CCE902\u2026: 0.009731 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -24920,7 +24920,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 1541087F6DDE7644\u2026: paid.",
+    "message": "EscrowFinish C0E97D929E36429A\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -24956,8 +24956,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "FA63DFF36BD055D9195D677642A530615E52EB404851E6F778B497DBB7FF6CB3",
-   "escrow_finish": "1541087F6DDE764489EED21658E50F67B6DE91A5A023A91E29B227F470E19883"
+   "escrow_create": "641D7756C6CCE9021C4A722DA55CCB426351E55595BF71E03288931B5F63D34D",
+   "escrow_finish": "C0E97D929E36429A79A1B56C64E4F35346B6C985F95CF61FE3DD731323140BC2"
   },
   "urls": {
    "escrow_create": null,
@@ -25007,7 +25007,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -25170,7 +25170,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -25279,7 +25279,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 86DCE9119943DE9D\u2026: 0.009124 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 209F80453BF9C63B\u2026: 0.009124 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -25299,7 +25299,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 37C8E94C2F3475DA\u2026: paid.",
+    "message": "EscrowFinish 41636E7DC1897DFD\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -25323,8 +25323,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "86DCE9119943DE9D8763BAC43B8C448CE9CE708BC10DE66E089F4496BD49FE6B",
-   "escrow_finish": "37C8E94C2F3475DA177F221C4AEB6290AEB713BA05AEFD322B4A7BABE90E23F6"
+   "escrow_create": "209F80453BF9C63B97237E14EF2400B5B42C75D06644B99513E37BA04354178A",
+   "escrow_finish": "41636E7DC1897DFDE1760692980E5A1FD9439AB929498EA8B434C9BA369929EA"
   },
   "urls": {
    "escrow_create": null,
@@ -25374,7 +25374,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -25483,7 +25483,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate E51F5B4B1FCFE21C\u2026: 0.009124 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 6358781CAA802325\u2026: 0.009124 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -25503,7 +25503,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 435CAED7516D0CCF\u2026: paid.",
+    "message": "EscrowFinish 2C6EB6E55253D849\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -25527,8 +25527,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "E51F5B4B1FCFE21C1C6444AC33F597B901DAFD4244BF61B9A9BED2E1FDEBE748",
-   "escrow_finish": "435CAED7516D0CCF45CA78E97707FC60602AE65F826509867E6E057C6078EAE2"
+   "escrow_create": "6358781CAA8023252DB73B0FFB50360928B98DE88DB69DFF6D35FB2365659B84",
+   "escrow_finish": "2C6EB6E55253D849C6958C824BEA664A53786AEFCEF042E9C7F47B692F08D441"
   },
   "urls": {
    "escrow_create": null,
@@ -25578,7 +25578,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -25687,7 +25687,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate CECB7184F9FA2E1C\u2026: 0.009124 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 429E352DAB30E61C\u2026: 0.009124 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -25707,7 +25707,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 08A2219B19C1044D\u2026: paid.",
+    "message": "EscrowFinish 573A40D6BCABDA13\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -25731,8 +25731,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "CECB7184F9FA2E1C344A559C871A8DEAE123B8F5DBFC5341A99F7EFE062277E2",
-   "escrow_finish": "08A2219B19C1044D61EEA6A5174E7A5FF328084A2D6EF019DD0966EBA8649E7C"
+   "escrow_create": "429E352DAB30E61C07F4694EC42CE848F3573FF5EC8F0E733AE14A73FBF79C1E",
+   "escrow_finish": "573A40D6BCABDA13E87EB2513437A705F318D3EF5908D06616608232A2A4C55B"
   },
   "urls": {
    "escrow_create": null,
@@ -25782,7 +25782,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -25947,7 +25947,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -26056,7 +26056,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate A3304779A749BA3F\u2026: 0.027374 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate F425CD9B75134F6D\u2026: 0.027374 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -26076,7 +26076,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 0B4C5910690C3FD4\u2026: paid.",
+    "message": "EscrowFinish 5F3CAE8494D162F7\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -26100,8 +26100,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "A3304779A749BA3F5EDFB1B6505E003E8C1E03A96A7B6A9F12F3FA0BCF781BB9",
-   "escrow_finish": "0B4C5910690C3FD497598AA8E34EE2F8785C5789C5F75DD86A9CEE8036F5857E"
+   "escrow_create": "F425CD9B75134F6DDA92141F7A501E879F0EE6A69D7FCF56439BCEBC2A0FDEC2",
+   "escrow_finish": "5F3CAE8494D162F77139FFA28AAD3CF39015247B5525770810CA1B2384506D2C"
   },
   "urls": {
    "escrow_create": null,
@@ -26151,7 +26151,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -26267,7 +26267,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate E10EE59E4A5CE51F\u2026: 0.021899 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 66C458404B6D3F9C\u2026: 0.021899 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -26287,7 +26287,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish DDB79E2F7938970B\u2026: paid.",
+    "message": "EscrowFinish 3B9D2692B07977AF\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -26311,8 +26311,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "E10EE59E4A5CE51F7A620911B96BB8B46093DAFACD6BE1EC97CFFFD8B1089B0D",
-   "escrow_finish": "DDB79E2F7938970B84E1D9B67DE06787DC0D979844680B765A2E1D9CC2FC0C58"
+   "escrow_create": "66C458404B6D3F9C7FBD4D31ED783FBDFC83A918BBF34DA9BC665BA01B4B2C89",
+   "escrow_finish": "3B9D2692B07977AFCBCAB19BBFF9D579C33AEEC9B2579860117A279271DC119D"
   },
   "urls": {
    "escrow_create": null,
@@ -26362,7 +26362,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -26471,7 +26471,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 69CE55E1B35E0E33\u2026: 0.021899 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate F17A9D1CD0413CD8\u2026: 0.021899 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -26491,7 +26491,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish F701E92F2757A431\u2026: paid.",
+    "message": "EscrowFinish 018002B965E3972B\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -26515,8 +26515,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "69CE55E1B35E0E334EF2EB381494CA70B6C11C3BD61D3C6BC8BFC7C80E59443B",
-   "escrow_finish": "F701E92F2757A43134E8E4E2C9B8C4514E2FE896F40E036EA428992F1DD856F8"
+   "escrow_create": "F17A9D1CD0413CD882C7120470E27D5E3D0479F7EC30D4378D4F7B1563DA559B",
+   "escrow_finish": "018002B965E3972B6F11C3C3F69579945D8009702EBA163CA091CA60EC7B7CA9"
   },
   "urls": {
    "escrow_create": null,
@@ -26566,7 +26566,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -26675,7 +26675,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 90A92B23E60BE33C\u2026: 0.013686 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate AFD764E58ACA5E74\u2026: 0.013686 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -26695,7 +26695,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 2525BC47436C8A32\u2026: paid.",
+    "message": "EscrowFinish 02CF1F211466A45D\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -26731,8 +26731,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "90A92B23E60BE33C0A3DBAE9ECB4C8A4D486101580048109F808B7BFD069ADB7",
-   "escrow_finish": "2525BC47436C8A322EE0641AAE911DAFB968DF601EE6CE66C4C6FC9EEB942B78"
+   "escrow_create": "AFD764E58ACA5E745603DCA7BCDE7386F14812413A9D1E3F2F4E092C2C4C8D37",
+   "escrow_finish": "02CF1F211466A45D3B9621A7D9752938138E3C941AE0DFE722BEB82323648E42"
   },
   "urls": {
    "escrow_create": null,
@@ -26782,7 +26782,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -26891,7 +26891,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 476635B8CBF51F08\u2026: 0.010949 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 534CFE9BB702FF3C\u2026: 0.010949 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -26911,7 +26911,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish CCA1988D02437F54\u2026: paid.",
+    "message": "EscrowFinish 326F3DCC6B5AA55E\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -26935,8 +26935,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "476635B8CBF51F082B032166AE88A57A82494208B8E662F5B04F7E96AB53F81E",
-   "escrow_finish": "CCA1988D02437F54A483BAE6569494D18CE7CFBA216467F2D0E5B100D1CD405D"
+   "escrow_create": "534CFE9BB702FF3C2AAAE64B137CE3DE6A353FAF55BDD386DD88D0DB8DDCF45F",
+   "escrow_finish": "326F3DCC6B5AA55E3D11D51F926E8C21922CC39722B02815465B0173B885A37D"
   },
   "urls": {
    "escrow_create": null,
@@ -26986,7 +26986,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -27102,7 +27102,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 39B0FF96275066C6\u2026: 0.010949 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 32AA4A0C953C1514\u2026: 0.010949 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -27122,7 +27122,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish D32A42D9836C8D7D\u2026: paid.",
+    "message": "EscrowFinish 2AA25DF697EA70A8\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -27146,8 +27146,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "39B0FF96275066C68DA50D5C3405895790A0B58C17B992481931037953175333",
-   "escrow_finish": "D32A42D9836C8D7D73933241236E4520E84C7F6CCA8E2376BB9CC7414D889675"
+   "escrow_create": "32AA4A0C953C1514FCDBED31A1672390832DD48D66EB52E994A6B3C58C6FF7DE",
+   "escrow_finish": "2AA25DF697EA70A82FFD42E1C08688026BE3F4FDC3C059173C57E726C6B431B5"
   },
   "urls": {
    "escrow_create": null,
@@ -27197,7 +27197,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -27313,7 +27313,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 3F0A9B1723B43635\u2026: 0.027374 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate 7056C10E2507125E\u2026: 0.027374 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -27333,7 +27333,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 53B46A0D0BACF224\u2026: paid.",
+    "message": "EscrowFinish E0544C79A0E460AE\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -27357,8 +27357,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "3F0A9B1723B43635302C04C9F8A095C525418E8BE1B640B7FD6EDD0A5A5FF4EA",
-   "escrow_finish": "53B46A0D0BACF224738A9C4885F8EED98C862DF4ACCC15C34C1629FB5EA8AEAA"
+   "escrow_create": "7056C10E2507125E1907BD2F1B5BD0D133828D80E9440BA12085B814B995A09D",
+   "escrow_finish": "E0544C79A0E460AEA386217CF06587CF37BFFDB9B6429C79F8FFADAC142760A5"
   },
   "urls": {
    "escrow_create": null,
@@ -27408,7 +27408,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -27524,7 +27524,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate DB59CAD4DF2D4426\u2026: 0.027374 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate E38A8259F0ED2AD0\u2026: 0.027374 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -27544,7 +27544,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish 7DEAC1746923884A\u2026: paid.",
+    "message": "EscrowFinish 517A0EDDC884D71A\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -27568,8 +27568,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "DB59CAD4DF2D4426E46BE9574C3D091B79E58B50C7A8E7554D254CFFF317FD3C",
-   "escrow_finish": "7DEAC1746923884A377BF9A4192D72DFA70F1A4AE0A85D5B1A38BBEEF6CB4D58"
+   "escrow_create": "E38A8259F0ED2AD097DEBEA3B7637B1F0C7F4A7E383463851E352979EAA05CC6",
+   "escrow_finish": "517A0EDDC884D71A9E9E7B5264DB2F0D780CC04C9C1257D9C98F590BDCF75A34"
   },
   "urls": {
    "escrow_create": null,
@@ -27619,7 +27619,7 @@
      {
       "name": "listing proof to the ledger root",
       "ok": true,
-      "detail": "root 75ac44f27bbfb8b5\u2026, tx C5AC553E4B7965AB\u2026"
+      "detail": "root 882506e33e55d59a\u2026, tx A19A1193A06CBE02\u2026"
      },
      {
       "name": "hashed sample vs certificate",
@@ -27735,7 +27735,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowCreate 363784D3D9CA35FA\u2026: 0.021899 XRP locked to the hash of the data key.",
+    "message": "EscrowCreate BEBB7121FDE698D2\u2026: 0.021899 XRP locked to the hash of the data key.",
     "reasoning": "the buyer's agent pays; the seller can collect only by revealing the key",
     "checks": [
      {
@@ -27755,7 +27755,7 @@
    },
    {
     "speaker": "ledger",
-    "message": "EscrowFinish FBDEB90A02EAF1E2\u2026: paid.",
+    "message": "EscrowFinish A2BB22E41F22404A\u2026: paid.",
     "reasoning": "",
     "checks": [],
     "layer": "escrow"
@@ -27779,8 +27779,8 @@
    "seller": "agree"
   },
   "txs": {
-   "escrow_create": "363784D3D9CA35FA36BAD483C1BEB112B7265537D879B556BA0FDCB15E991861",
-   "escrow_finish": "FBDEB90A02EAF1E25A06CAE123037E6674FC9D6DE4D61603805B0DFA02ABCB77"
+   "escrow_create": "BEBB7121FDE698D2DEFA4F46472537F91E77D256CAAD9F9C1945FCD71F3E9589",
+   "escrow_finish": "A2BB22E41F22404A2E9B72C7FEAA8925C7A5766F9854277C02A505BD23C60DA4"
   },
   "urls": {
    "escrow_create": null,
