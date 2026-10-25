@@ -23,6 +23,25 @@ console sees the contribution -> `POST /api/run/boundaries` (or phone `revoke`) 
 Live sync: poll `GET /api/events?after=<last id>` every second; refetch the page's main GET when
 anything new arrives.
 
+## Sign-in (every call)
+
+Every `/api/*` call except the two login calls needs `Authorization: Bearer <token>`; without it
+the answer is 401, with the wrong role or another person's record 403. Who may call which route:
+`agentrail/security/rbac.py`; design: [SECURITY.md](SECURITY.md).
+
+1. `POST /api/auth/challenge {"sub": "P-017"}` -> `{"nonce", "expires_in": 120, "aud"}`
+2. The device signs `agentrail-login|agentrail-api|<sub>|<nonce>` (Ed25519, hex).
+3. `POST /api/auth/token {"sub", "nonce", "signature"}` -> `{"access_token", "expires_in": 900, "role", "scope"}`
+
+`GET /api/auth/me`, `POST /api/auth/logout`. Demo (dev mode, localhost): `POST /api/dev/login/{sub}`
+returns a token for a simulated device, e.g. `P-017`, `researcher@org_sleeplab`,
+`approver:owner@org_sleeplab`, `operator`.
+
+Treasury approval: `POST /api/study/approvals` (researcher) -> approval with the unsigned tx;
+each approver `POST /api/study/approvals/{aid}/signatures {"signer", "signed_tx"}` (XRPL multisign blob; mock ledger: `{"signer", "public_key", "signature"}`); executed when the
+quorum is met. New consent after withdrawal: `POST /api/p/{pid}/consent` with the device signature
+over the consent document hash. Audit: `GET /api/ops/audit/verify`, `POST /api/ops/audit/anchor`.
+
 ## Shared
 
 `POST /api/reset?ledger=mock|testnet` - new world (50 synthetic participants, study set up).
@@ -98,7 +117,7 @@ that request: study pseudonym, shifted days, requested items only.
 
 `POST /api/p/{pid}/requests/{id}/approve` body `{"items": ["fatigue.survey"]}` -> person ticks
 items; the agent contributes them, one escrow per week (created by the lab, key published,
-reward paid, licence issued on the first contribution). The last week is held in escrow until the
+payment made, licence issued on the first contribution). The last week is held in escrow until the
 round closes (`POST /api/study/close-round`), so a revoke in between shows the refund path.
 Returns the updated `GET /api/p/{pid}`.
 
@@ -150,6 +169,8 @@ participant's heatmap row shows `withdrawn`. Returns
 `POST /api/study/goal` body `{"goal": "..."}` -> LLM proposes gaps from the coverage table and
 analysis note; code recomputes and narrows. Sets `spec_status = draft`.
 
+The study must have an ethics committee (IRB) approval number registered (`STUDY_IRB_APPROVAL`; the demo uses a synthetic value). Without it, approve and send return `ok: false`, and the request card shows it as `ethics_approval`.
+
 `POST /api/study/approve` body `{"signers": ["owner", "compliance"]}` -> co-signed approval of
 the spec budget (multi-signed top-up from the treasury to the agent account). One signer is
 refused by the ledger; HTTP 200 with `{"ok": false, "engine_result": "tefBAD_QUORUM" (mock) or
@@ -158,15 +179,23 @@ refused by the ledger; HTTP 200 with `{"ok": false, "engine_result": "tefBAD_QUO
 `POST /api/study/send` -> participation requests to every participant in the spec. Their agents
 answer: auto, needs the person, or blocked. Auto ones contribute right away.
 
-`POST /api/study/close-round` -> participants' agents publish the keys of held rounds (rewards
+`POST /api/study/close-round` -> participants' agents publish the keys of held rounds (payments
 paid, bundles open). A revoked participant's held round is withheld instead.
 
 `POST /api/study/sweep` -> `{"refunded": [order ids]}`. On the mock ledger the clock jumps past the
 deadline; on Testnet call it again after the deadline (2 minutes). Refund escrows whose deadline passed (withheld rounds).
 
-`GET /api/study/bundle/{order_id}` -> the lab opens a delivered bundle with the key read from the
-ledger: `{"ok": true, "rows": [...], "bundle_hash": "...", "hash_matches": true, "key_from": {"tx", "url"}}`.
+`GET /api/study/bundle/{order_id}?use=sleep_research` -> the lab opens a delivered bundle with the key read from the
+ledger: `{"ok": true, "rows": [...], "bundle_hash": "...", "hash_matches": true, "key_from": {"tx", "url"},
+"fulfillment_on_ledger": "A0228020…", "licence": {"mpt_id", "held": true, "duo": [...], "use"}}`.
+`fulfillment_on_ledger` is the Fulfillment field of that EscrowFinish; the bundle key is inside it.
+Every call re-reads the participant's licence on the ledger: 403 `licence_revoked: …` if the study no longer
+holds it, 403 `outside_licence: …` if `use` drops a restriction written in the licence metadata (for example
+NCU for `commercial_product_dev`). 410 if the participant withdrew and the copy was destroyed.
 Before the key is on the ledger: `{"ok": false, "message": "..."}`.
+
+A refused budget release returns the server's answer as evidence: `{"ok": false, "engine_result":
+"tefBAD_QUORUM", "ledger_response": {"engine_result", "engine_result_message", "accepted", "applied", "tx_hash"}}`.
 
 ## Pay in two parts, review, penalties
 

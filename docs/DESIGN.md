@@ -108,7 +108,7 @@ stateDiagram-v2
   [*] --> reserved: place_order (bundle encrypted with key K, then sealed to the study)
   reserved --> escrowed: EscrowCreate validated (condition = sha256 K, CancelAfter)
   escrowed --> escrowed: locked bundle delivered (cannot be opened without K)
-  escrowed --> delivered: personal agent re-checks consent + licence, publishes K in EscrowFinish (reward paid)
+  escrowed --> delivered: personal agent re-checks consent + licence, publishes K in EscrowFinish (payment made)
   escrowed --> withheld: consent revoked or licence clawed back -> K never published
   withheld --> refunded: EscrowCancel after CancelAfter
 ```
@@ -199,7 +199,7 @@ priority or compensation."
 
 ## 8. Open items
 
-- **[done]** Key-reveal escrow (PREIMAGE-SHA-256) so the reward releases with the key.
+- **[done]** Key-reveal escrow (PREIMAGE-SHA-256) so the payment releases with the key.
 - **[open]** RLUSD instead of XRP (needs trust lines and test RLUSD).
 - **[done]** LLM (GPT by default) proposes gaps, schema mappings and licence readings; code
   verifies and can only narrow; answers recorded and replayed; rules when no key.
