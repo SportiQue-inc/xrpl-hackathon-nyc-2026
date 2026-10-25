@@ -50,7 +50,7 @@ class Api:
         data = json.dumps(body).encode() if body is not None else (b"" if method == "POST" else None)
         req = urllib.request.Request(self.base + path, data=data, method=method, headers=h)
         try:
-            with urllib.request.urlopen(req, timeout=3600) as r:
+            with urllib.request.urlopen(req, timeout=int(os.environ.get("RUN_ENGINE_TIMEOUT_S", "10800"))) as r:
                 return json.loads(r.read() or b"null")
         except urllib.error.HTTPError as e:
             if e.code == 401 and who and not _retried:   # a Testnet run outlives the 15-minute token
