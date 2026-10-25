@@ -81,6 +81,18 @@ function docs(r) {
   ];
 }
 
+// A document short enough to show whole has been read once it is on screen: no scroll event will ever fire.
+function fitsCheck(sc) {
+  requestAnimationFrame(() => {
+    if (!st.read && sc.isConnected && sc.scrollHeight <= sc.clientHeight + 8) {
+      st.read = true;
+      const b = sc.closest(".sheet")?.querySelector(".act .btn.primary");
+      if (b) b.disabled = false;
+    }
+  });
+  return sc;
+}
+
 function sheet() {
   const r = st.rel;
   const all = docs(r);
@@ -93,9 +105,9 @@ function sheet() {
     return [h("div", { class: "scrim", onclick: () => { st.doc = null; draw(); } }),
       h("div", { class: "sheet" }, h("div", { class: "grab" }),
         h("div", { class: "pin" }, h("div", { class: "spread" }, h("b", {}, d.title), tag(`${all.findIndex((x) => x.key === d.key) + 1} of ${all.length}`, "gray"))),
-        h("div", { class: "scroll", onscroll: onScroll },
+        fitsCheck(h("div", { class: "scroll", onscroll: onScroll },
           d.sections.map(([hd, v]) => h("div", { class: "sec" }, h("h3", {}, hd), String(v).split("\n").map((x) => h("p", {}, x)))),
-          h("p", { class: "tiny muted", style: "text-align:center" }, "— End —")),
+          h("p", { class: "tiny muted", style: "text-align:center" }, "— End —"))),
         h("div", { class: "act" },
           h("button", { class: "btn primary block", disabled: !st.read, onclick: () => { st.checked.add(d.key); st.doc = null; draw(); } }, "I agree to this document"),
           h("button", { class: "btn ghost", onclick: () => { st.doc = null; draw(); } }, "Back")))];
@@ -179,4 +191,15 @@ function draw() {
 }
 
 watchSelf(api, pid, () => load(), { interval: 2000 });
+// The participant view above does not change when the institution opens a sub-project, so
+// poll the relationship too: a new sub-project and what the agent did with it show up here.
+let relKey = "";
+setInterval(async () => {
+  if (st.sheet || st.busy) return;
+  try {
+    const r = await call("GET", `${P}/relationship`);
+    const k = JSON.stringify(r);
+    if (k !== relKey) { relKey = k; st.rel = r; setSettlementAsset(r.asset); draw(); }
+  } catch (_) { /* engine restarting; keep polling */ }
+}, 3000);
 load();
