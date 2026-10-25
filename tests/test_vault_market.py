@@ -676,3 +676,54 @@ def test_amounts_read_as_the_configured_unit_but_the_ledger_key_stays(market, mo
     common = (static / "common.js").read_text()
     assert '${assetLabel(asset)}' in common and 'relabel(c.text)' in common and 'asset-foot' in common
     assert 'test USD' not in (static / "demo.html").read_text()
+
+
+def _fake_rail(monkeypatch, fail=False):
+    from agentrail import ap4m_rail
+    calls = []
+
+    def post(path, body, timeout):
+        calls.append(body)
+        if fail:
+            return {"ok": False, "ref": body["ref"], "reason": "budget: pool vault has 0 RLUSD left"}
+        n = len(calls)
+        return {"ok": True, "ref": body["ref"], "amount_rlusd": str(body["amount_micro"] / 1e6), "claim_id": f"0x{n:064x}",
+                "channel_id": "0x" + "c" * 64, "voucher_redeemed_tx": f"0x{n + 100:064x}", "voucher_url": "https://x/tx", "verified": True,
+                "receipt_url": f"https://ap4m/receipt/{n}", "content": body.get("content")}
+    monkeypatch.setenv("AP4M_RAIL_URL", "http://rail.test")
+    monkeypatch.setattr(ap4m_rail, "_post", post)
+    monkeypatch.setattr(config, "AP4M", True)
+    return calls
+
+
+def _trade(market):
+    market.s.x("UPDATE files SET status='listed' WHERE id=?", (market.test_file,))
+    market.s.insert("interests", account="seller", posting=market.test_post)
+    cid = market.negotiate(market.s.one("SELECT * FROM postings WHERE id=?", (market.test_post,)))
+    return market.s.one("SELECT * FROM contracts WHERE id=?", (cid,)), cid
+
+
+def test_ap4m_deal_pays_in_vouchers_that_add_up_to_the_price_and_release_the_key(market, monkeypatch):
+    calls = _fake_rail(monkeypatch)
+    monkeypatch.setattr(config, "MICRO_PER_UNIT", 20000)   # 8 units = 0.16 RLUSD: above the cap, so two Vouchers
+    c, cid = _trade(market)
+    assert c["status"] == "settled", (c["reason"], c["trace"])
+    paid = market.s.q("SELECT * FROM txs WHERE contract=? AND type='AP4M VoucherRedeemed'", (cid,))
+    assert paid and not market.s.q("SELECT * FROM txs WHERE contract=? AND type LIKE 'Escrow%'", (cid,))
+    # every Voucher is within the 0.10 cap, they sum to the leg price exactly, and only the last one carries K
+    assert len(calls) == 2 and all(b["amount_micro"] <= 100_000 for b in calls)
+    leg_micro = round(c["total"] * config.MICRO_PER_UNIT)
+    assert sum(b["amount_micro"] for b in calls) == leg_micro == sum(t["drops"] for t in paid)
+    assert [bool(b["content"]) for b in calls] == [False] * (len(calls) - 1) + [True]
+    trace = json.loads(c["trace"])
+    assert any(p["protocol"].startswith("AP4M Voucher redeemed") and p.get("receipt_url") for p in trace["protocol"])
+    assert any(p["protocol"] == "Buyer opens the bundle" and p["ok"] for p in trace["protocol"])
+    # retrying the same contract reuses the same refs, so the rail never pays twice
+    assert len({b["ref"] for b in calls}) == len(calls)
+
+
+def test_ap4m_refusal_rejects_the_deal_with_the_reason_and_pays_nothing(market, monkeypatch):
+    _fake_rail(monkeypatch, fail=True)
+    c, cid = _trade(market)
+    assert c["status"] == "rejected" and "budget" in c["reason"]
+    assert not market.s.q("SELECT * FROM txs WHERE contract=?", (cid,))

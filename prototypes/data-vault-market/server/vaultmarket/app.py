@@ -22,6 +22,8 @@ M = Market()
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 
 
+EVM_EXPLORER = "https://explorer.testnet.xrplevm.org"   # AP4M transactions (XRPL EVM Testnet)
+
 @app.on_event("startup")
 def _start():
     M.seed()
@@ -202,7 +204,7 @@ def _chat_today(aid: str) -> int:
 @app.get("/api/meta")
 def meta():
     return {"ledger": M.rail.name, "model": llm.model_name(), "llm": llm.USAGE, "kinds": KINDS, "k_min": config.K_MIN,
-            "revision": os.environ.get("APP_REVISION"), "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": False, "asset_label": M.rail.label(), "asset_footnote": config.ASSET_FOOTNOTE if M.rail.asset == "USD" else "", "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
+            "revision": os.environ.get("APP_REVISION"), "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": False, "ap4m": {"on": config.AP4M, "rail": "Mastercard AP4M on XRPL EVM Testnet", "per_payment_cap_rlusd": 0.10, "explorer": EVM_EXPLORER} if config.AP4M else None, "asset_label": M.rail.label(), "asset_footnote": config.ASSET_FOOTNOTE if M.rail.asset == "USD" else "", "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
             "rpm_cap": config.LLM_RPM, "daily_cap": config.LLM_DAILY_CALLS, "engine_url": config.ENGINE_URL}
 
 
@@ -414,8 +416,9 @@ def contract(cid: int, request: Request):
     txs = M.s.q("SELECT * FROM txs WHERE contract = ? ORDER BY id", (cid,))
     for t in txs:
         t["reference"] = f"C{cid}-T{t['id']}"
+        evm = (t.get("type") or "").startswith(("AP4M", "RLUSD forward"))
         evidence = json.loads(t["receipt"]) if t.get("receipt") else None
-        if not evidence and t.get("hash"):
+        if not evidence and t.get("hash") and not evm:
             try:
                 evidence = M.rail.receipt(t["hash"])
                 if evidence.get("validated"):
@@ -423,9 +426,9 @@ def contract(cid: int, request: Request):
             except Exception:
                 evidence = None
         t["receipt"] = evidence
-        t["url"] = M.rail.explorer(t["hash"]) if t["hash"] else None; t["src_name"] = _name(t["src"]); t["dst_name"] = _name(t["dst"])
+        t["url"] = (f"{EVM_EXPLORER}/tx/{t['hash']}" if evm else M.rail.explorer(t["hash"])) if t["hash"] else None; t["src_name"] = _name(t["src"]); t["dst_name"] = _name(t["dst"])
     for st in c["trace"].get("protocol", []):
-        st["url"] = M.rail.explorer(st["tx"]) if st.get("tx") else None; st["who_name"] = _name(st["who"]) if st.get("who") else None
+        st["url"] = st.get("url") or (M.rail.explorer(st["tx"]) if st.get("tx") else None); st["who_name"] = _name(st["who"]) if st.get("who") else None
     c["overview"] = json.loads(c.get("overview") or "null")
     c.pop("terms",None)
     c["seller_name"] = _name(c.get("seller")) if c.get("seller") else None
@@ -518,7 +521,7 @@ def account(aid: str, request: Request):
     return {"balance_address":display_address,"trades":trades,"agent_queue": M.s.q("SELECT q.*,p.purpose,p.buyer,c.status contract_status,c.reason contract_reason FROM sale_queue q LEFT JOIN postings p ON p.id=q.posting LEFT JOIN contracts c ON c.id=q.contract WHERE q.account=? ORDER BY q.id DESC", (aid,)),
             "account": a, "balance": display_balance, "address": M.addr.get(aid), "stats": stats, "bundles": bundles, "demand": demand,
             "bought": [f for f in files if f["status"] in ("bought", "bundled")], "files": len(files), "growth": growth,
-            "uploads": [{**u, "fee_url": M.rail.explorer(u["fee_tx"]) if u.get("fee_tx") else None, "fee_label": f"{(u['fee'] or 0)*config.MICRO_PER_UNIT/1e6:.2f} {M.rail.label()}"}
+            "uploads": [{**u, "fee_url": (f"{EVM_EXPLORER}/tx/{u['fee_tx']}" if config.AP4M and str(u["fee_tx"]).startswith("0x") else M.rail.explorer(u["fee_tx"])) if u.get("fee_tx") else None, "fee_label": f"{(u['fee'] or 0)*config.MICRO_PER_UNIT/1e6:.2f} {M.rail.label()}"}
                         for u in M.s.q("SELECT * FROM uploads WHERE account = ? ORDER BY id DESC LIMIT 10", (aid,))],
             "recs": M.s.q("SELECT * FROM recs WHERE account = ? AND status = 'open' ORDER BY id DESC", (aid,)),
             "chat": [{**c, "actions": json.loads(c["actions"]) if c["actions"] else None} for c in M.s.q("SELECT * FROM chat WHERE account = ? ORDER BY id DESC", (aid,))][::-1]}

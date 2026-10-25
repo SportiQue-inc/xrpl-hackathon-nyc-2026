@@ -74,20 +74,20 @@ async function openContract(id, updating=false) {
   try {
   const opened=updating?[...$('dlgBody').querySelectorAll('details')].map(e=>e.open):[],scroll=$('dlgBody').scrollTop;
   const d=await api(`/api/contract/${id}`), c=d.contract, t=c.trace||{}, asset=c.asset||'XRP';
-  const finishes=d.txs.filter(x=>x.type.startsWith('EscrowFinish')&&x.result==='tesSUCCESS');
+  const ap4m=d.txs.filter(x=>x.type==='AP4M VoucherRedeemed'), finishes=[...d.txs.filter(x=>x.type.startsWith('EscrowFinish')&&x.result==='tesSUCCESS'),...ap4m];
   const total=finishes.reduce((sum,x)=>sum+(x.drops||0),0);
   const model=[...new Set(d.messages.map(m=>m.by).filter(x=>x&&x!=='rules'))];
   const price=(units)=>micro(units*(c.unit_micro||10000),asset);
   const overview=c.overview;
   $('dlgBody').innerHTML=`<header class="contract-head"><div><span class="eyebrow">${esc(c.reference||`C${c.id}`)} · ${esc(META.kinds[c.kind].label)}</span><h1>${esc(META.kinds[c.kind].label)}</h1><p class="muted small">${esc(d.posting?.purpose||'')}</p><code class="small muted">${esc(c.ledger_memo||`vaultmarket/contract/${c.id}`)}</code></div><button id="close" aria-label="Close contract">Close</button></header>
-  ${(()=>{const sold=c.status==='settled',links=d.txs.filter(x=>x.url&&/^Escrow(Create|Finish)/.test(x.type));
+  ${(()=>{const sold=c.status==='settled',links=d.txs.filter(x=>x.url&&/^(Escrow(Create|Finish)|AP4M|RLUSD forward)/.test(x.type)), receipts=[...new Set((t.protocol||[]).map(x=>x.receipt_url).filter(Boolean))];
     const steps=(t.protocol||[]), short=(n)=>n.replace(/\s*\(.*\)$/,'');
     const grouped=[];steps.forEach(x=>{const n=short(x.protocol),g=grouped.find(y=>y.name===n);if(g){g.n++;g.ok=g.ok&&x.ok;}else grouped.push({ok:x.ok,name:n,n:1,detail:relabel(x.detail||'')});});   // one line per kind of check
     const checks=[...grouped.map(g=>({...g,name:g.n>1?`${g.name} (${g.n} files)`:g.name})),
       ...(c.total!=null&&d.posting?.max!=null?[{ok:c.total<=d.posting.max,name:`Price ${price(c.total)} within budget ${price(d.posting.max)}`,detail:''}]:[])];
-    return `<p class="receipt-purpose"><b>Deal receipt.</b> ${esc(c.buyer_name||'A buyer')} ${sold?'bought':'asked for'} ${esc(META.kinds[c.kind].label.toLowerCase())} from ${esc(c.seller_name||'a seller')}${d.posting?.purpose?` for ${esc(d.posting.purpose)}`:''}${sold&&total?`, paid ${micro(total,asset)}, proven on XRPL`:''}.</p>
+    return `<p class="receipt-purpose"><b>Deal receipt.</b> ${esc(c.buyer_name||'A buyer')} ${sold?'bought':'asked for'} ${esc(META.kinds[c.kind].label.toLowerCase())} from ${esc(c.seller_name||'a seller')}${d.posting?.purpose?` for ${esc(d.posting.purpose)}`:''}${sold&&total?`, paid ${micro(total,asset)}, ${ap4m.length?'paid on Mastercard AP4M (XRPL EVM Testnet)':'proven on XRPL'}`:''}.</p>
   <div class="settlement-summary"><span class="tag ${sold?'green':''}">${esc(stateLabel(c.status))}</span><strong class="${sold?'success':''}">${total?micro(total,asset):'No payout'}</strong></div>
-  ${links.length?`<div class="receipt-tx">${links.map(x=>`<a href="${x.url}" target="_blank" rel="noopener"><b>${esc(x.type.startsWith('EscrowCreate')?'Payment locked':x.type.startsWith('EscrowFinish')?'Payment released':x.type)}</b><span class="small muted">${esc(x.type)} · ${esc((x.hash||'').slice(0,10))}… ↗</span></a>`).join('')}</div>`:''}
+  ${links.length?`<div class="receipt-tx">${links.map(x=>`<a href="${x.url}" target="_blank" rel="noopener"><b>${esc(x.type.startsWith('EscrowCreate')?'Payment locked':x.type.startsWith('EscrowFinish')?'Payment released':x.type==='AP4M VoucherRedeemed'?'Paid on AP4M, key released':x.type.startsWith('RLUSD forward')?'Forwarded to the seller':x.type)}</b><span class="small muted">${esc(x.type)} · ${esc((x.hash||'').slice(0,10))}… ↗</span></a>`).join('')}${receipts.map((u,i)=>`<a href="${esc(u)}" target="_blank" rel="noopener"><b>AP4M receipt${receipts.length>1?` ${i+1}`:''}</b><span class="small muted">verifiable claim receipt ↗</span></a>`).join('')}</div>`:''}
   ${!sold?`<p class="notice">${esc(relabel(c.reason||stateLabel(c.status)))}</p>`:''}
   ${checks.length?`<section class="receipt-checks"><h2>Checks</h2><ul>${checks.map(x=>`<li class="${x.ok?'ok':'no'}"><span>${x.ok?'✓':'✗'}</span><div>${esc(x.name)}${x.detail?`<details><summary class="small muted">details</summary><p class="small muted">${esc(x.detail)}</p></details>`:''}</div></li>`).join('')}</ul></section>`:''}
   <section class="data-overview"><h2>What was sold</h2><div class="overview-grid">${[

@@ -14,6 +14,7 @@ from .data import KINDS
 import hashlib
 
 from .rail import Rail, condition_hex, merkle_proof, merkle_verify
+from agentrail import ap4m_rail  # noqa: E402  (repo root is on sys.path via .rail)
 from .store import Store
 
 PEOPLE = ["Dana Park", "Minho Lee", "Sora Kim", "Jae Choi", "Lina Haddad", "Omar Farouk", "Priya Nair", "Ken Watanabe", "Ana Souza", "Tomas Novak",
@@ -238,6 +239,13 @@ class Market:
         return {"upload": uid, "file": fid, "verdict": "cleaned", "fee": sc["fee"], "tx": tx}
 
     def _fee(self, account: str, drops: int, memo: str) -> str | None:
+        if config.AP4M and 0 < drops <= ap4m_rail.PER_PAYMENT_CAP_MICRO:
+            r = ap4m_rail.pay(f"vm-fee-{account}-{int(time.time() * 1000)}", drops, pool="vault", memo={"account": account, "fee": memo})
+            if r.get("ok"):
+                self.s.insert("txs", contract=None, type="AP4M VoucherRedeemed (cleaning fee)", hash=r["voucher_redeemed_tx"], src=account, dst="platform",
+                              drops=drops, result="verified" if r.get("verified") else "redeemed", asset="RLUSD (AP4M)")
+                return r["voucher_redeemed_tx"]
+            return None
         src, dst = self.addr.get(account), getattr(self, "platform", None)
         if not (src and dst):
             return None
@@ -579,13 +587,15 @@ class Market:
             legs.append({"seller": a, "seller_addr": self.addr[a], "dst_addr": self.acct(a).get("payout") if self.rail.has_line(self.acct(a).get("payout") or "") else None, "drops": round(price * config.MICRO_PER_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
             plain[a] = clear
         self.s.x("UPDATE contracts SET trace=?,sellers=? WHERE id=?", (json.dumps(trace),json.dumps([l["seller"] for l in legs]),cid))
+        use_ap4m = self._use_ap4m(buyer_id, [l["seller"] for l in legs])
         eids = {}
         def record(i, seq, create_hash, cancel_after, create_blob):
             l = legs[i]
             eids[i] = self.s.insert("escrows", contract=cid, buyer=buyer_id, seller=l["seller"], owner=self.addr[buyer_id], seq=seq,
                                     create_hash=create_hash, k=l["K"].hex(), cancel_after=cancel_after, drops=l["drops"], price=l["price"],
                                     files=[f["id"] for f in l["fs"]], sealed=l["sealed"], create_blob=create_blob, state="open")
-        res = self.rail.escrow_lot(self.addr[buyer_id], legs, f"vaultmarket/contract/{cid}", record=record)
+        res = ([self._ap4m_leg(cid, buyer_id, l) for l in legs] if use_ap4m
+               else self.rail.escrow_lot(self.addr[buyer_id], legs, f"vaultmarket/contract/{cid}", record=record))
         for i, r in enumerate(res):
             if i in eids:
                 self.s.x("UPDATE escrows SET state = ?, finish_hash = ? WHERE id = ?",
@@ -593,6 +603,19 @@ class Market:
         with self.s.transaction():
             paid, items, fps, merged = [], 0, set(), []
             for leg, r in zip(legs, res):
+                if use_ap4m:
+                    if not self._record_ap4m(cid, buyer_id, leg, r, trace):
+                        continue
+                    K = r["K"]
+                    raw_open = self.rail.open(buyer_id, leg["sealed"], K)
+                    opened = json.loads(raw_open)
+                    same = hashlib.sha256(raw_open).digest() == hashlib.sha256(plain[leg["seller"]]).digest()
+                    trace["protocol"].append({"protocol": "Buyer opens the bundle", "who": leg["seller"], "ok": same, "tx": None,
+                                              "detail": f"buyer agent got K back from the AP4M merchant for its redeemed Voucher, unwrapped and decrypted {len(opened['records'])} records; bundle SHA-256 {hashlib.sha256(raw_open).hexdigest()[:16]}… {'matches' if same else 'DOES NOT match'} the sealed bundle"})
+                    merged.extend(opened["records"]); items += len(leg["fs"]); paid.append(leg)
+                    for f in leg["fs"]:
+                        self.s.x("UPDATE files SET sold = sold + 1 WHERE id = ?", (f["id"],)); fps.update(json.loads(f["fps"] or "[]"))
+                    continue
                 self.s.insert("txs", contract=cid, type="EscrowCreate", hash=r["create"]["hash"], src=buyer_id, dst=leg["seller"], drops=leg["drops"], result=r["create"]["result"], asset=self.rail.symbol())
                 if r["finish"]["hash"]:
                     self.s.insert("txs", contract=cid, type="EscrowFinish (key released)", hash=r["finish"]["hash"], src=leg["seller"], dst=buyer_id, drops=leg["drops"], result=r["finish"]["result"], asset=self.rail.symbol())
@@ -615,6 +638,11 @@ class Market:
                 merged.extend(opened["records"]); items += len(leg["fs"]); paid.append(leg)
                 for f in leg["fs"]:
                     self.s.x("UPDATE files SET sold = sold + 1 WHERE id = ?", (f["id"],)); fps.update(json.loads(f["fps"] or "[]"))
+            if not paid and use_ap4m:
+                why = "; ".join(sorted({r.get("reason") or "AP4M payment failed" for r in res}))
+                self.s.x("UPDATE contracts SET status='rejected',reason=?,trace=? WHERE id=?", (f"AP4M payment not made: {why}", json.dumps(trace), cid))
+                self.s.bump("rejected")
+                return
             if not paid:
                 pending = bool(self.s.one("SELECT id FROM escrows WHERE contract=? AND state='open'", (cid,)))
                 self.s.x("UPDATE contracts SET status=?,reason=?,trace=? WHERE id=?", ("settling" if pending else "rejected", "Waiting for validated ledger settlement; recovery will reconcile the saved escrow" if pending else "No escrow payment validated", json.dumps(trace),cid))
@@ -637,10 +665,68 @@ class Market:
                 self.s.bump(f"earned:{l['seller']}:{w['kind']}", l["price"])
                 self.s.insert("prices", kind=w["kind"], price=l["price"], contract=cid)
                 if self.acct(l["seller"])["type"] == "person" and self.acct(l["seller"])["sell_agent"].get("mode") == "ask":
-                    self.chat(l["seller"], "agent", f"Sale completed: {KINDS[w['kind']]['label']} to {self.acct(buyer_id)['name']}: +{l['drops'] / 1e6:.6f} {self.rail.label()} on the ledger. Contract #{cid}.")
+                    self.chat(l["seller"], "agent", f"Sale completed: {KINDS[w['kind']]['label']} to {self.acct(buyer_id)['name']}: +{l['drops'] / 1e6:.6f} {'RLUSD on AP4M' if use_ap4m else self.rail.label() + ' on the ledger'}. Contract #{cid}.")
             for a in {l["seller"] for l in paid}:
                 self._bal.pop(a, None)
             self._bal.pop(buyer_id, None)
+
+    # ---------------- AP4M (Mastercard) settlement ----------------
+    def _use_ap4m(self, buyer_id: str, sellers: list[str]) -> bool:
+        """Deals with a member or the demo vault on either side always pay on AP4M; deals between simulated
+        agents only up to VM_AP4M_BOT_PER_HOUR, so the background market does not spend the shared budget."""
+        if not config.AP4M:
+            return False
+        if any(a.startswith("u-") or a == "demo-vault" for a in [buyer_id, *sellers]):
+            return True
+        hour = f"ap4m_bot:{int(time.time() // 3600)}"
+        if self.s.stat(hour) >= config.AP4M_BOT_PER_HOUR:
+            return False
+        self.s.bump(hour)
+        return True
+
+    def _ap4m_leg(self, cid: int, buyer_id: str, leg: dict) -> dict:
+        """Pay one seller on AP4M. A leg above the 0.10 per-payment cap is paid as several Vouchers of at most
+        0.10 that add up to the price exactly; the last one's merchant releases K. Seller with an EVM wallet set
+        (sell_agent.evm) gets each amount forwarded on-chain from the merchant payout wallet."""
+        cap = ap4m_rail.PER_PAYMENT_CAP_MICRO
+        total, chunks = leg["drops"], []
+        while total > 0:
+            chunks.append(min(cap, total)); total -= chunks[-1]
+        evm = (self.acct(leg["seller"]).get("sell_agent") or {}).get("evm")
+        evm = evm if isinstance(evm, str) and len(evm) == 42 and evm.startswith("0x") else None
+        receipts = []
+        for i, micro in enumerate(chunks):
+            last = i == len(chunks) - 1
+            r = ap4m_rail.pay(f"vm-c{cid}-{leg['seller']}-{i + 1}of{len(chunks)}", micro, pool="vault",
+                              memo={"contract": cid, "buyer": buyer_id, "seller": leg["seller"], "part": f"{i + 1}/{len(chunks)}"},
+                              content={"k": leg["K"].hex()} if last else None, forward_to=evm)
+            receipts.append(r)
+            if not r.get("ok"):
+                return {"ok": False, "receipts": receipts, "reason": r.get("reason"), "K": None}
+        k_hex = ((receipts[-1].get("content") or {}).get("k")) if receipts else None
+        K = bytes.fromhex(k_hex) if k_hex else None
+        ok = K is not None and hashlib.sha256(K).digest() == hashlib.sha256(leg["K"]).digest()
+        return {"ok": ok, "receipts": receipts, "K": K, "reason": None if ok else "the merchant did not return the data key"}
+
+    def _record_ap4m(self, cid: int, buyer_id: str, leg: dict, r: dict, trace: dict) -> bool:
+        paid = [x for x in r["receipts"] if x.get("ok")]
+        for x in paid:
+            self.s.insert("txs", contract=cid, type="AP4M VoucherRedeemed", hash=x["voucher_redeemed_tx"], src=buyer_id, dst=leg["seller"],
+                          drops=round(float(x["amount_rlusd"]) * 1e6), result="verified" if x.get("verified") else "redeemed", asset="RLUSD (AP4M)")
+            if x.get("forward_tx"):
+                self.s.insert("txs", contract=cid, type="RLUSD forward to seller", hash=x["forward_tx"], src="platform", dst=leg["seller"],
+                              drops=round(float(x["amount_rlusd"]) * 1e6), result="ok" if x.get("forward_ok") else "failed", asset="RLUSD (AP4M)")
+        trace["tx"].append({"seller": leg["seller"], "ap4m": [{k: x.get(k) for k in ("claim_id", "voucher_redeemed_tx", "voucher_url", "receipt_url",
+                            "payout_tx", "payout_url", "forward_tx", "forward_url", "amount_rlusd", "verified")} for x in paid], "ok": r["ok"]})
+        for x in paid:
+            trace["protocol"].append({"protocol": "AP4M Voucher redeemed (Mastercard AP4M, XRPL EVM Testnet)", "who": leg["seller"], "ok": bool(x.get("verified")),
+                                      "tx": x["voucher_redeemed_tx"], "url": x.get("voucher_url"), "receipt_url": x.get("receipt_url"),
+                                      "detail": f"the market's AP4M agent paid {x['amount_rlusd']} RLUSD for {self.acct(buyer_id)['name']} with an EIP-712 Voucher on Channel {str(x.get('channel_id'))[:10]}…; "
+                                                f"claim {str(x.get('claim_id'))[:10]}…; the AP4M service settled it to the market's Merchant payout wallet"
+                                                + (f", then {x['amount_rlusd']} RLUSD was forwarded on-chain to the seller's wallet {x['forward_to'][:8]}…" if x.get("forward_tx") else ", where it is held for the seller")})
+        if not r["ok"]:
+            trace["protocol"].append({"protocol": "AP4M payment", "who": leg["seller"], "ok": False, "tx": None, "detail": r.get("reason") or "not paid"})
+        return r["ok"]
 
     # ---------------- restart recovery ----------------
     def recover(self):
