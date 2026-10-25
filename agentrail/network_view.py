@@ -75,8 +75,9 @@ def trace(t: dict, need: dict | None) -> list[dict]:
                        f"buyer trust grade {t.get('buyer_grade', '?')})", "tone": COLOR.get(t["status"], "bad")})
     if t.get("txs"):
         sig = ", ".join(s["code"] for s in t.get("signals", [])) or "none"
+        sim = "" if any((t.get("urls") or {}).values()) else "simulated on the mock ledger (not Testnet): "
         steps.append({"k": "7. Escrow and key reveal", "by": "ledger",
-                      "v": f"EscrowCreate {t['txs']['escrow_create'][:16]}…, EscrowFinish publishes the key "
+                      "v": f"{sim}EscrowCreate {t['txs']['escrow_create'][:16]}…, EscrowFinish publishes the key "
                            f"{(t['txs'].get('escrow_finish') or '')[:16]}…; delivery hashed to the certified root "
                            f"{t.get('root', '?')}…; checks: {sig}",
                       "urls": [u for u in (t.get("urls") or {}).values() if u]})
@@ -120,7 +121,7 @@ def build(ex) -> dict:
                      "top": [{"s": r["seller"], "score": r["score"]} for r in d.get("ranked", [])[:5]]})
     st = [e["st"] for e in events]
     book = next((e for e in ex.events if e.get("kind") == "offer_book"), None)
-    return {"nodes": nodes, "events": events, "spotlight": spot, "ledger": ex.ledger.name,
+    return {"nodes": nodes, "events": events, "spotlight": spot, "ledger": ex.ledger.name, "unit": units.LABEL,
             "contracts": getattr(ex, "contracts", []),
             "book": {"listings": book["listings"], "root": book["root"], "tx": book["tx"]} if book else None,
             "totals": {"trades": len(st), "settled": st.count("settled"), "unfit": st.count("settled_unfit"),
@@ -175,13 +176,13 @@ PAGE = r"""<!doctype html>
 <div id="hud"><div><b id="cT">0</b><span>trades</span></div><div><b id="cS" style="color:var(--ok)">0</b><span>settled</span></div>
 <div><b id="cR" style="color:var(--bad)">0</b><span>refused / unfit</span></div><div><b id="cE">0.0</b><span>seconds</span></div></div>
 <div id="ctl"><button id="list">Contracts</button> <button id="play">Replay</button></div>
-<div id="foot">Act 1 replayed from the run's trade log · ledger: <span id="led"></span> · synthetic data · Testnet · not legal advice</div>
+<div id="foot">Act 1 replayed from the run's trade log · ledger: <span id="led"></span> · prices in <span id="unit"></span> · synthetic data · not legal advice</div>
 </div><div id="modal"><div class="box"><div class="mh"><div><b id="mt"></b><div id="ms" class="who"></div></div><button id="mx">Close</button></div>
 <div id="mlist"></div><div id="chat"></div><div id="mv"></div></div></div><div id="panel"><div class="in"><h2 id="pt"></h2><div class="who" id="pw"></div><div id="steps"></div></div></div></div>
 <script>
 const D=/*DATA*/null;
 const NS="http://www.w3.org/2000/svg",svg=document.getElementById("svg"),E=document.getElementById("edges"),N=document.getElementById("nodes");
-const pos={},circ={},lbl={},db={};document.getElementById("led").textContent=D.ledger;
+const pos={},circ={},lbl={},db={};document.getElementById("led").textContent=D.ledger==="mock"?"mock (simulated; tx hashes are not on Testnet)":D.ledger;document.getElementById("unit").textContent=D.unit;
 function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e}
 let bookC,bookPos={x:500,y:500};
 function setup(){E.innerHTML="";N.innerHTML="";
@@ -228,7 +229,7 @@ function verdicts(c){return `buyer: ${c.verdicts.buyer} · seller: ${c.verdicts.
 async function chat(c,animate){const box=document.getElementById("chat");box.innerHTML="";document.getElementById("mlist").innerHTML="";
  document.getElementById("mt").textContent=`${c.buyer} ⇄ ${c.seller} · ${c.columns.join(", ")}`;
  document.getElementById("ms").textContent=`need ${c.need} · contract ${c.contract||"none"} · ${c.status}`;
- document.getElementById("mv").textContent=verdicts(c)+(c.txs&&c.txs.escrow_create?` · EscrowCreate ${c.txs.escrow_create.slice(0,16)}… · EscrowFinish ${(c.txs.escrow_finish||"").slice(0,16)}…`:"");
+ document.getElementById("mv").textContent=verdicts(c)+(c.txs&&c.txs.escrow_create?` · EscrowCreate ${c.txs.escrow_create.slice(0,16)}… · EscrowFinish ${(c.txs.escrow_finish||"").slice(0,16)}…${D.ledger==="mock"?" (simulated on the mock ledger, not Testnet)":""}`:"");
  M.classList.add("on");
  for(const t of c.turns){const d=document.createElement("div");d.className="turn "+t.speaker;
   d.innerHTML=`<div class="who"></div><div class="msg"></div><div class="why"></div><div class="cks"></div>`;

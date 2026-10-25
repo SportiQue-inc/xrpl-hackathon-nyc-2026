@@ -114,10 +114,11 @@ sub-projects under that scope. A sub-project is a record under the institution's
 wallet, not a sub-account. It has a purpose, data types, a budget and a period. For each person and
 item, the agent routes as follows:
 
-- **auto**: the item is inside the scope and the person's own rules. It is settled per sub-project,
-  one escrow per person per round, with no new contract.
-- **ask**: the item is outside the scope, or it is T3 (genomic, imaging, mental health,
-  reproductive). The person decides for this sub-project only.
+- **auto**: the item is inside the scope the person already approved and inside the person's own
+  rules. Only then is it settled per sub-project, one escrow per person per round, with no new contract.
+- **ask**: the item is outside the approved scope (the person approves again), or it is T3 (genomic,
+  CT, MRI, mental health, reproductive), which always needs a fresh yes. The person decides for this
+  sub-project only.
 - **blocked**: the person paused or withdrew, or never consented to this institution.
 
 Each order carries the sub-project id in its product id and in the escrow memo (`sub:<id>`), so

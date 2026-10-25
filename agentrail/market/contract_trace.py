@@ -116,12 +116,13 @@ def build(need, plan: dict, disc: dict, cand: dict, neg: dict, record: dict | No
     else:
         say("seller", "Deal. Lock the payment.", record["why"], sc, "consent")
     tx = record.get("txs") or {}
+    sim = "" if any((record.get("urls") or {}).values()) else " (simulated on the mock ledger, not Testnet)"
     say("ledger", f"EscrowCreate {(tx.get('escrow_create') or '')[:16]}…: {_x(record.get('paid_drops', 0))} locked "
-                  "to the hash of the data key.", "the buyer's agent pays; the seller can collect only by revealing the key",
+                  f"to the hash of the data key{sim}.", "the buyer's agent pays; the seller can collect only by revealing the key",
         [{"name": "owner-signed mandate", "ok": True, "detail": "checked before the escrow"}], "escrow")
     say("seller", "Key revealed.", "EscrowFinish publishes the key; the payment and the key are one transaction",
         [], "escrow")
-    say("ledger", f"EscrowFinish {(tx.get('escrow_finish') or '')[:16]}…: paid.", "", [], "escrow")
+    say("ledger", f"EscrowFinish {(tx.get('escrow_finish') or '')[:16]}…: paid{sim}.", "", [], "escrow")
     sig = record.get("signals") or []
     say("buyer", "Opened and checked: fits." if st == "settled" else "Opened and checked: not as promised.",
         "the delivery must hash to the certified root, with values in range and complete as certified",

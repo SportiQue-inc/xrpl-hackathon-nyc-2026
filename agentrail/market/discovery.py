@@ -84,7 +84,8 @@ def form_need(buyer: str, holds: list[str], wants: list[str], col: str, weeks: i
     else:
         source = "rules"
     return {**need, "holds": holds, "gap": g, "budget_drops": budget_drops, "budget_per_item_drops": per_item,
-            "asks_by_grade_drops": asks, "quantity": quantity, "source": source, "checks": notes}
+            "asks_by_grade_drops": asks, "quantity": quantity, "source": source, "checks": notes,
+            "rule_weeks": weeks}
 
 
 # ---------------- 2. shared offer book anchored on the ledger ----------------

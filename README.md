@@ -20,9 +20,12 @@ publishes the key that opens the data. What it buys accumulates in its own store
 A buyer never pays twice for data it already holds: an offer with a root it bought before is
 refused, and copied rows are priced at the new part only. In our simulated market of 50 synthetic
 accounts (mock ledger, seed 11), agents completed 109 paid trades, 80 of them without an owner
-decision, at prices the market set inside the owners' floors and budgets; 6 offers whose delivery did
+decision, at prices the market set inside the owners' floors and budgets
+([who sets the price](docs/AGENT_MARKET.md#who-sets-the-price-agentrailmarketpricingpy)); 6 offers whose delivery did
 not match the certified rows were refused before payment, and 4 deliveries failed the buyer's check
 after opening and were recorded as refund claims. `python scripts/export_network.py` replays it as a node network.
+A separate run with LLM agents on the UniQdata roster made 120 trades, 85 of them settled; its numbers
+are a different run and are not mixed with the rule-based figures above.
 
 ![One Act 1 trade: need and offer book, check before paying, owner's rules, EscrowCreate, sealed push, EscrowFinish reveals K, bundle opens](docs/img/agentrail-flow.png)
 
@@ -36,8 +39,9 @@ are hard to find, and genes cannot be taken back once they leak.
 
 **Act 2: the same rail with a sensitive-data layer (healthcare).** The person's agent reads every
 study posting and shows the person only the ones that fit; until the person says yes, no lab knows
-the person exists. Consent is per item and per institution, signed once with a passkey; genomic data
-needs the passkey every time. A tampered week fails before payment and gets nothing; a week that fits
+the person exists. Consent is per item and per institution, signed once with a passkey and reused only within the
+scope already approved; anything outside that scope asks again, and genomic data, CT and MRI need a
+fresh passkey yes every time. A tampered week fails before payment and gets nothing; a week that fits
 pays on XRPL and hands over the key; withdrawal pulls the licence back on the ledger. In the
 synthetic run, owner actions drop from 11,600 column approvals to 233 passkey approvals
 ([docs/CATALOG.md](docs/CATALOG.md)).
@@ -67,11 +71,9 @@ on health research (sections 2-4); layers 1 and 2 run unchanged in any industry 
 - **Layer 3, sensitive data:** for health records, consent is per use, payment happens only on
   delivery, and withdrawal claws the licence back.
 
-  Person-level health records are the hardest case: consent, re-identification and withdrawal all
-  apply at once. **We solved that boundary first.** An engine that passes it handles organization
-  data, AI training and evaluation data or robot sensor data by making the consent layer lighter.
-- **Why health first:** it is the hardest case. If layer 3 holds there, layers 1 and 2 hold in every
-  industry.
+  Layer 3 is proven on health research, the hardest case: consent, re-identification and withdrawal
+  all apply at once to person-level records. Organization data, AI training and evaluation data or
+  robot sensor data use the same engine with a lighter consent layer.
 
 The LLM proposes, code verifies, the ledger enforces.
 
@@ -96,6 +98,8 @@ Only what exists in this repository. Testnet links are from the runs listed in s
 | ③ | Per-round salt inside the sealed bundle: the hash on the ledger cannot be matched by guessing values | `engine.place_order` | off ledger by design (`test_ledger_hash_is_salted_per_round`) |
 | ③ | Ethics-review credential with expiry, withdrawn with `CredentialDelete` | `ledger/xrpl_extras.py`, `scenario.py` | [CredentialCreate](https://testnet.xrpl.org/transactions/58656AB4E6ABEC47BAA92F90C3F304B8959D1FDAE03AE6ED193FA2D98CBD1A37), [CredentialAccept](https://testnet.xrpl.org/transactions/FC7710C97C3783157778952291A28B2322E2FD65DBBDB5B52F4662DF9D514218) |
 | ③ | Pay on the continuity curve: 50% of a verified week at key reveal, rising with each consecutive week; the rest in its own escrow, released after review | `payout.py` | [holdback EscrowCreate](https://testnet.xrpl.org/transactions/E77702780035D4AB75770C11EAECE6A6273DF3EEE58E659A941F62C814CBA166) |
+| ③ | Sub-projects under one institution: one relationship with a lab covers many sub-projects, within the scope the person already approved; each sub-project's scope and the relationship's consents are read again on every access, so a narrower scope or a paused consent applies at once; in-scope requests run automatically, anything outside scope or T3 goes to the person; no new contract per sub-project inside that scope | `subprojects.py`, `web.py` (`/api/institution/subprojects`, `/api/p/{pid}/relationship`) | same escrow path, memo carries `sub:<id>` (`tests/test_subprojects.py`) |
+| ③ | T3 (genomic variants, CT, MRI) starts from UniQdata intake: each record goes in through UniQdata's DataQ write path; with UniQdata connected, a T3 dataset is offered only when the person's intake holds a matching record, and it carries that record hash and DataQ result as provenance; only a synthetic summary is stored, never an image or a genome | `scripts/uniqdata_intake_t3.py`, `uniqdata_live.feed_market`, `scripts/t3_testnet_check.py` | `LEDGER=testnet python scripts/t3_testnet_check.py` prints explorer links per type |
 
 ## 2. Proof: layer 3 on health research. How we solved the hard boundaries
 
@@ -163,7 +167,7 @@ agents fall back to rules, and recorded LLM answers are replayed when a live cal
 | XRPL feature | Why | How | Code | Testnet evidence |
 |---|---|---|---|---|
 | **Escrow (key reveal)** | payment is paid only when the data can be opened, and refunded if the person withdraws | bundle encrypted with key K and sealed to the study; `EscrowCreate` with a PREIMAGE-SHA-256 condition on K and `CancelAfter`; the personal agent publishes K in `EscrowFinish` to get paid; the study reads K from the ledger; withheld key -> `EscrowCancel` refund | `engine._escrow_*`, `ledger/conditions.py`; check it yourself: `python scripts/open_bundle.py <EscrowFinish hash> --db <run db>` takes K from the public ledger, checks SHA-256(K) against the EscrowCreate condition, opens the study's copy and matches the bundle hash in the memo (a withdrawn person's copy is reported destroyed) | [EscrowCreate](https://testnet.xrpl.org/transactions/04C820C4EC1CC1A586F26CEE455BBD1CEAF8DE72C6D0CB308574F6FF4A068AAC), [EscrowFinish with key](https://testnet.xrpl.org/transactions/6A96310816B9EC9F7B445C113FFBB719E794A588AC20BE06D71C086C435706C4), [EscrowCreate 15 s](https://testnet.xrpl.org/transactions/E8ED3C1F14BD44C9F895E88B862041E1BBA2E568254FC658DE8156352795D7FB), [EscrowCancel refund](https://testnet.xrpl.org/transactions/6BD9AF3ACF2EADEEF650BC06E2358894AFC6ED0F8606C953ADDB641A10C76587) |
-| **Token escrow (USD, XLS-85)** | prices and payouts in dollars, with the same key-reveal escrow | `SETTLE_ASSET=USD` (default): our own Testnet USD token, issuer with `AllowTrustLineLocking` and `DefaultRipple`, a `TrustSet` and funding per wallet; `EscrowCreate`/`EscrowFinish` carry the token amount and the same SHA-256(K) condition. It stands in for RLUSD, which only Ripple can issue on Testnet; in production only the issuer and currency code change. `SETTLE_ASSET=XRP` keeps the XRP path of the runs above | `units.py`, `ledger/token_settle.py`, `scripts/token_escrow_check.py` | pending: one token trade run on Testnet |
+| **Token escrow (USD, XLS-85)** | prices and payouts in dollars, with the same key-reveal escrow | `SETTLE_ASSET=USD` (default): our own Testnet USD token, issuer with `AllowTrustLineLocking` and `DefaultRipple`, a `TrustSet` and funding per wallet; `EscrowCreate`/`EscrowFinish` carry the token amount and the same SHA-256(K) condition. It stands in for RLUSD, which only Ripple can issue on Testnet; in production only the issuer and currency code change. `SETTLE_ASSET=XRP` keeps the XRP path of the runs above | `units.py`, `ledger/token_settle.py`, `scripts/token_escrow_check.py` | issuer [DefaultRipple](https://testnet.xrpl.org/transactions/DAD6C72E4976E546043A6C0B2891F8474C0FFFA3A5118B5B1B3F5D2C81D2B753), [AllowTrustLineLocking](https://testnet.xrpl.org/transactions/DBCCC11D12FC26F9ACF2A149213FAC2A791DD3FB09B9F9787BA8C51EE7C34231); [EscrowCreate 1.25 USD to SHA-256(K)](https://testnet.xrpl.org/transactions/54898B06A0951015A03B7E6DBDB55D1BCB5CA07C10F2DD33A2E93253CC2DEBF3), [EscrowFinish revealing K](https://testnet.xrpl.org/transactions/0E191B8BF4F5B320AAB4E11070C7BB9446CEDB5B271477CA5931DF297D81C68F); buyer 5000 → 4998.75 USD, seller 5000 → 5001.25 USD |
 | **MPT data licence** | the study holds a licence per (study, participant) that cannot be passed on and is taken back on revoke | issuer = participant's agent; `MPTokenIssuanceCreate` (supply 1, RequireAuth, CanClawback, no CanTransfer, metadata = study hash, DUO codes, consent hash); holder and issuer `MPTokenAuthorize`; MPT `Payment`; `Clawback` on revoke; the key is published only while the study holds it | `ledger/licence.py`, `study._after_contribution`, `study.participant_revoke` | health run: [MPTokenIssuanceCreate](https://testnet.xrpl.org/transactions/76C15EB2769A5F732BF0B33C0B419C54D580EAAA990CDC17F21F31D4EEB63BC9), [MPTokenAuthorize (study)](https://testnet.xrpl.org/transactions/AF466D9FB5A949D705484FF9FEF179F58E79D4CB5790FEC50BFD37D49ECF9F22), [MPTokenAuthorize (participant)](https://testnet.xrpl.org/transactions/2AB7D64D62E761247AA7118DC88B3127432D511CAD0036121A9D5DC9DD641C5B), [MPT Payment](https://testnet.xrpl.org/transactions/AF090722504F115A807D99FE788E4E9A5809F062007CD559B47884FCDD7EA483), [Clawback on revoke](https://testnet.xrpl.org/transactions/9E180A4E6F31A4E76CB3281D478ABA98AE79C4EFA56A73601C335AA6040079AF); onward transfer refused: [tecNO_AUTH](https://testnet.xrpl.org/transactions/6BE571AF3D33F761410CCDE9AE93FD9FAE44BB01D242757EA96D2B57E2DCFDF1) |
 | **Credentials** | sensitive items only for an ethics-approved study; verified organization badge | ethics board issues `ETHICS_REVIEW` (an attestation by the issuer; the ethics board, not the ledger, decides approval); the consent gate reads the accepted credential from the ledger | `ledger/xrpl_extras.py`, `ComplianceRules` | [CredentialCreate](https://testnet.xrpl.org/transactions/58656AB4E6ABEC47BAA92F90C3F304B8959D1FDAE03AE6ED193FA2D98CBD1A37), [CredentialAccept](https://testnet.xrpl.org/transactions/FC7710C97C3783157778952291A28B2322E2FD65DBBDB5B52F4662DF9D514218) |
 | **Multi-signing** | an agent cannot raise its own budget | study and buyer treasuries have a SignerList (owner + compliance, quorum 2), master key disabled; agent-only top-up refused by the ledger | `ledger/xrpl_extras.py`, `scenario.top_up`, `study.approve` | [SignerListSet](https://testnet.xrpl.org/transactions/6812EB098980EFEA7478517484AFDD082BD119CF32E9128D630B6D7AECFA029A), [master key off](https://testnet.xrpl.org/transactions/5FAAF7FE40D30E9558B120E27A49BAA55443F53BBF400C7596437864D620C8F8), [co-signed top-up](https://testnet.xrpl.org/transactions/E6F9FD3BB14245F7ED3ADF79FAA185C83155C1D40F70241FACDDA7178AB16D1C); agent alone: `tefBAD_SIGNATURE` |
