@@ -147,6 +147,11 @@ def main():
         api.call("POST", "/api/study/payout/release", who=R)
     chk = api.call("GET", "/api/engine/check", who=R)
     print(summary(chk["flows"]))
+    from agentrail import report
+    rp = os.path.join(os.path.dirname(os.environ["AGENTRAIL_DB"]) or ".", f"report-{kind}-{int(time.time())}.html")
+    with open(rp, "w") as f:
+        f.write(report.render(api.call("GET", "/api/contract/projection", who=R), None, chk, ledger=kind))
+    log(f"run report written to {rp}")
     ok = all(f["ok"] for f in chk["flows"])
     log(f"{'ALL FLOWS PASSED' if ok else 'SOME FLOWS FAILED'} in {time.time() - t0:.0f} s; "
         f"db kept at {os.environ['AGENTRAIL_DB']}")

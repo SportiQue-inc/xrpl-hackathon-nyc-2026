@@ -544,6 +544,19 @@ def _forecast_model():
     return _state["forecast"]
 
 
+@app.get("/api/report")
+def run_report():
+    """One self-contained HTML page for this run: contract, negotiation, checks, projection, payments,
+    holdbacks, tx links, and the market acts if they ran."""
+    from fastapi.responses import HTMLResponse
+    from . import engine_check as ec, report
+    from .contract import onledger
+    with _lock:
+        w = world()
+        markets = [_market_view(a) for a in (1, 2) if f"market{a}" in _state]
+        return HTMLResponse(report.render(onledger.view(w), markets, {"flows": ec.flows(w)}, ledger=w.ledger.name))
+
+
 @app.get("/api/engine/check")
 def engine_check():
     """One row per flow of the health trade, each with the ledger transaction that proves it."""

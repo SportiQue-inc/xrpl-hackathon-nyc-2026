@@ -72,6 +72,7 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("POST", "/api/contract/round"): Rule((R, O), "study"),
     ("GET", "/api/contract/projection"): Rule((R, O), "study"),
     ("GET", "/api/catalog"): Rule((R, O), "study"),
+    ("GET", "/api/report"): Rule((R, O), "study"),
     ("POST", "/api/market/run"): Rule((R, O), "study"),
     ("GET", "/api/market/activity"): Rule((R, O), "study"),
     ("GET", "/api/events"): Rule((R, O), "study"),
