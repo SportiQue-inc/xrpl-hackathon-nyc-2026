@@ -46,7 +46,7 @@ def projection_svg(ps: list[dict]) -> str:
 
 
 def render(contract: dict | None = None, markets: list[dict] | None = None, engine_check: dict | None = None,
-           title: str = "AgentRail run report", ledger: str = "") -> str:
+           title: str = "AgentRail run report", ledger: str = "", products: dict | None = None) -> str:
     out = [f"<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
            f"<title>{e(title)}</title><style>{CSS}</style></head><body><h1>{e(title)}</h1>"
            f"<p class=muted>Generated {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}"
@@ -98,5 +98,22 @@ def render(contract: dict | None = None, markets: list[dict] | None = None, engi
             out.append(f"<tr><td>{e(t['need'])}</td><td>{e(t['seller'])} → {e(t['buyer'])}</td><td>{e(', '.join(t.get('columns', [])))}</td>"
                        f"<td>{e(t['status'])}</td><td>{e(t.get('why', ''))}</td><td>{t.get('paid_drops', 0) / 1e6:g}</td><td>{txs}</td></tr>")
         out.append("</table>")
+    if products:
+        pr = products
+        out.append(f"<h2>Person's agent: products ({e(pr['person'])})</h2><p>collected from connected sources: "
+                   f"{e(', '.join(c['column'] for c in pr['collected'] if c['collected']) or 'nothing')} · "
+                   f"re-identification check: {e('; '.join(pr['k_anonymity']))}</p>"
+                   "<table><tr><th>direction</th><th>domain</th><th>columns</th><th>tier</th><th>grade</th><th>XRP</th>"
+                   "<th>review</th><th>de-identification</th><th>sale</th></tr>")
+        for c in pr["candidates"]:
+            sale = c.get("sale") or {}
+            sold = (f"sealed push to {sale.get('institution')}, paid" if sale.get("sold") else sale.get("why", "not listed"))
+            out.append(f"<tr><td>{e(c['direction'])}</td><td>{e(c['domain'])}</td><td>{e(', '.join(c['columns']))}</td>"
+                       f"<td>{e(c['tier'])}</td><td>{e(c['grade'])}</td><td>{c['price_drops'] / 1e6:g}</td>"
+                       f"<td>{e(c['review']['how'])}: {e(c['review']['why'])}</td><td>{e('; '.join(c.get('deid', [])))}</td>"
+                       f"<td class={'ok' if sale.get('sold') else 'muted'}>{e(sold)}</td></tr>")
+        out.append("</table><table><tr><th>study posting</th><th>institution</th><th>matched</th><th>why</th></tr>" + "".join(
+            f"<tr><td>{e(x['posting'])}</td><td>{e(x['institution'])}</td><td>{e(', '.join(x['matched']))}</td>"
+            f"<td>{e(x['why'])}</td></tr>" for x in pr["postings_searched"]) + "</table>")
     out.append("<p class=foot>Synthetic data, XRPL Testnet. Legal requirements are reflected in the design; this is not a compliance claim.</p></body></html>")
     return "".join(out)

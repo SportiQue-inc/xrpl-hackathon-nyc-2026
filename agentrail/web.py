@@ -515,6 +515,19 @@ def market_run(act: int = Query(default=1, ge=1, le=2)):
         return _market_view(act)
 
 
+@app.get("/api/market/products")
+def market_products(pid: str = Query(default="P-017"), tap: bool = Query(default=True)):
+    """One person's agent: everyday data supply-first (collect, bundle by domain, list), sensitive data
+    demand-first (search postings, match, review); then de-identify and sell as a sealed push."""
+    from .market import products
+    try:
+        r = products.scene(pid, tap=tap)
+    except KeyError:
+        raise HTTPException(404, "unknown participant")
+    _state["products"] = r
+    return json.loads(json.dumps(r, default=str))
+
+
 @app.get("/api/market/activity")
 def market_activity(act: int = Query(default=1, ge=1, le=2)):
     return _market_view(act)
@@ -554,7 +567,8 @@ def run_report():
     with _lock:
         w = world()
         markets = [_market_view(a) for a in (1, 2) if f"market{a}" in _state]
-        return HTMLResponse(report.render(onledger.view(w), markets, {"flows": ec.flows(w)}, ledger=w.ledger.name))
+        return HTMLResponse(report.render(onledger.view(w), markets, {"flows": ec.flows(w)}, ledger=w.ledger.name,
+                                          products=_state.get("products")))
 
 
 @app.get("/api/engine/check")

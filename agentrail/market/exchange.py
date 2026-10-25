@@ -197,15 +197,68 @@ class Exchange:
                 out.append({"seller": a.id, "dataset": ds, "cert": cert, "grade": cert["grade"]})
         return out
 
+    # ----- the person's agent also collects, within the person's rules -----
+    def collect(self, need: Need, missing: int) -> list[dict]:
+        """When a need went short, each person's agent checks whether it could fill the gap from a
+        source the person already connected (attrs["sources"]: {column: source}). T0 and T1 sync
+        automatically; T2 only if the person opted in (attrs["collect_t2"]); T3 (genomic, imaging) is
+        never collected automatically. Collecting only creates the person's own dataset: selling it
+        still goes through the person's policy and the pre-trade quality check like anything else."""
+        if need.output != "raw" or any(c in ROBOT for c in need.columns):
+            return []
+        out = []
+        for a in self.accounts.values():
+            src = a.attrs.get("sources") or {}
+            if a.id == need.buyer or a.kind != "person" or not src:
+                continue
+            if any(set(need.columns) <= set(d.columns) for d in a.datasets):
+                continue
+            tiers = {spec(c)["tier"] for c in need.columns}
+            if not set(need.columns) <= set(src) or "T3" in tiers or ("T2" in tiers and not a.attrs.get("collect_t2")):
+                continue
+            weeks = max([d.weeks for d in a.datasets if d.meta.get("rows") is None] + [need.weeks])
+            ds = Dataset(f"{a.id}:collected:{'+'.join(need.columns)}", a.id, list(need.columns), weeks, 0.95,
+                         {c: src[c] for c in need.columns}, meta={"collected_for": need.id,
+                                                                  "source": {c: src[c] for c in need.columns}})
+            ds.build(ds.id)
+            a.datasets.append(ds)
+            ev = {"kind": "collected", "person": a.id, "columns": need.columns, "weeks": weeks,
+                  "from": sorted(set(src[c] for c in need.columns)), "for_need": need.id, "dataset": ds.id}
+            self.events.append(ev)
+            out.append(ev)
+            if len(out) >= missing + 1:      # one spare: a person's own policy may still say no
+                break
+        return out
+
     # ----- one need, end to end -----
     def fill(self, need: Need, now_h: float | None = None) -> dict:
         t0 = time.time()
         now_h = need.posted_h if now_h is None else now_h
         buyer = self.accounts[need.buyer]
-        cands, rejected = [], []
+        cands, rejected, fills, collected = [], [], [], []
+        gated = self._fill_pass(need, now_h, None, cands, rejected, fills)
+        if not gated and len(fills) < need.quantity:
+            # short: the sellers' agents may collect the missing data from sources their people connected
+            collected = self.collect(need, need.quantity - len(fills))
+            if collected:
+                self._fill_pass(need, now_h, {e["dataset"] for e in collected}, cands, rejected, fills)
+        out = {"need": need.id, "buyer": need.buyer, "columns": need.columns, "purpose": need.purpose,
+               "wanted": need.quantity, "filled": sum(1 for f in fills if f["status"] == "settled"),
+               "unfit": sum(1 for f in fills if f["status"] == "settled_unfit"),
+               "offers_seen": len(cands) + len([r for r in rejected if r.get("stage") == "pre_trade"]),
+               "rejected": rejected, "fills": fills, "collected": collected, "wall_s": round(time.time() - t0, 3)}
+        self.events.append({"kind": "need", **{k: v for k, v in out.items() if k not in ("fills", "rejected")}})
+        return out
+
+    def _fill_pass(self, need, now_h, only, cands, rejected, fills) -> bool:
+        """Check the certified offers that cover the need and trade the best ones. Returns True when a
+        gate on the buyer itself refused (every other seller would say the same)."""
+        mine = []
         for o in self.offers():
             ds, seller = o["dataset"], self.accounts[o["seller"]]
-            if seller.id == buyer.id or not set(need.columns) <= set(ds.columns) or ds.weeks < need.weeks:
+            if only is not None and ds.id not in only:
+                continue
+            if seller.id == need.buyer or not set(need.columns) <= set(ds.columns) or ds.weeks < need.weeks:
                 continue
             if any(seller.attrs.get(k) != v for k, v in need.match.items()):
                 continue
@@ -219,25 +272,19 @@ class Exchange:
                 rejected.append({"seller": seller.id, "stage": "pre_trade", "why": why})
                 continue
             price = quote(need.columns, need.weeks, o["grade"])
-            cands.append((GRADE_RANK[o["grade"]] / price, o, price))
-        cands.sort(key=lambda x: -x[0])
-        fills, same = [], {}
-        for _, o, price in cands:
+            mine.append((GRADE_RANK[o["grade"]] / price, o, price))
+        mine.sort(key=lambda x: -x[0])
+        cands += mine
+        for _, o, price in mine:
             if len(fills) >= need.quantity:
                 break
             r = self._trade(need, o, price, now_h)
             if r["status"] == "refused" and r["why"].startswith("blocked: no valid") or \
                     r["status"] == "refused" and "credential has expired" in r["why"]:
                 rejected.append(r)
-                break           # a gate on the buyer itself: every other seller would say the same
+                return True
             (fills if r["status"] in ("settled", "settled_unfit") else rejected).append(r)
-        out = {"need": need.id, "buyer": need.buyer, "columns": need.columns, "purpose": need.purpose,
-               "wanted": need.quantity, "filled": sum(1 for f in fills if f["status"] == "settled"),
-               "unfit": sum(1 for f in fills if f["status"] == "settled_unfit"),
-               "offers_seen": len(cands) + len([r for r in rejected if r.get("stage") == "pre_trade"]),
-               "rejected": rejected, "fills": fills, "wall_s": round(time.time() - t0, 3)}
-        self.events.append({"kind": "need", **{k: v for k, v in out.items() if k not in ("fills", "rejected")}})
-        return out
+        return False
 
     def _trade(self, need: Need, o: dict, price: int, now_h: float) -> dict:
         seller = self.accounts[o["seller"]]
@@ -382,7 +429,9 @@ class Exchange:
                 "volume_xrp": round(sum(x.get("paid_drops", 0) for x in settled) / 1e6, 6),
                 "withheld_xrp": round(sum(x.get("withheld_drops", 0) for x in settled) / 1e6, 6),
                 "median_hours_to_fill": hrs[len(hrs) // 2] if hrs else None,
-                "awaiting_owner": len(self.pending), "recent": t[-30:]}
+                "awaiting_owner": len(self.pending),
+                "auto_collected": len([e for e in self.events if e["kind"] == "collected"]),
+                "collected_recent": [e for e in self.events if e["kind"] == "collected"][-10:], "recent": t[-30:]}
 
 
 class _EnginePolicy:
