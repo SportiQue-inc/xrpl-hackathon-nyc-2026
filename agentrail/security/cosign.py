@@ -181,9 +181,13 @@ def execute(w, aid: int, allow_short: bool = False) -> dict:
     except LedgerRefusal as e:
         result, h, response = e.result, None, e.response
     except Exception as e:
+        # The client library can raise with an empty message (e.g. a request the server refused before
+        # applying it); keep whatever the exception carries so the refusal is never blank.
         import re
-        m = re.search(r"\b(te[cfmlr][A-Z_]+)\b", str(e))
-        result, h = (m.group(1) if m else str(e)[:120]), None
+        detail = " ".join(str(x) for x in (str(e), *getattr(e, "args", ()), *vars(e).values()) if x)
+        m = re.search(r"\b(te[cfmlr][A-Z_]+)\b", detail)
+        result, h = (m.group(1) if m else (detail[:120] or type(e).__name__)), None
+        response = {"exception": type(e).__name__, "detail": detail[:500]}
     if h is None:
         # A tef refusal never enters a ledger, so the server's answer is kept as the evidence.
         st.log("org_sleeplab", "refused", f"treasury payment for approval {aid} with {len(sigs)} signature(s) "

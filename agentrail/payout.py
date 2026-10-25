@@ -49,14 +49,15 @@ def held(price_drops: int) -> int:
 
 def windows(ledger) -> dict:
     """Seconds of ledger time. Mock: the real policy (7 days, +14 days if fraud is suspected).
-    Testnet: the same steps shortened so the release and the refusal show up in one run. The grace
-    before CancelAfter stays long (10 min): past it the ledger refuses EscrowFinish, so a held part
-    that was due but not yet released would otherwise be lost to a slow run."""
+    Testnet: the same steps shortened so the release and the refusal show up in one run. The review
+    extension is long (10 min) so a named reviewer decides before the default payment of a suspected
+    part; the window from FinishAfter to CancelAfter (extension + grace, 11 min) is what a held part
+    that was due but not yet released has before the ledger refuses EscrowFinish."""
     if ledger.name == "mock":
         return {"review": 7 * DAY, "extend": 14 * DAY, "grace": 7 * DAY, "respond": 3 * DAY, "bonus": 60 * DAY}
     g = lambda k, d: int(os.environ.get(k, d))
-    return {"review": g("HOLDBACK_REVIEW_S", 20), "extend": g("HOLDBACK_EXTEND_S", 20),
-            "grace": g("HOLDBACK_GRACE_S", 600), "respond": g("HOLDBACK_RESPOND_S", 5),
+    return {"review": g("HOLDBACK_REVIEW_S", 20), "extend": g("HOLDBACK_EXTEND_S", 600),
+            "grace": g("HOLDBACK_GRACE_S", 60), "respond": g("HOLDBACK_RESPOND_S", 5),
             "bonus": g("BONUS_WINDOW_S", 90)}
 
 
@@ -305,18 +306,23 @@ def decide(w, study: str, case_id: int, reviewer_id: str, confirm: bool) -> dict
             x.execute("UPDATE integrity_cases SET status='cleared', reviewer_id=?, decided_at=? WHERE id=?",
                       (reviewer_id, now, case_id))
             x.execute("UPDATE holdbacks SET status='held', review='pass after review' WHERE study=? AND person=? "
-                      "AND request_id=? AND kind='round'", (study, pid, c["request_id"]))
+                      "AND request_id=? AND kind='round' AND status='suspected'", (study, pid, c["request_id"]))
         _audit(w, study, pid, "clear", "reviewed", signals, reviewer_id, c["notified_at"])
         talk(w.store, study, pid, "integrity_notice", {"case": case_id, "status": "cleared"},
              "Review finished: nothing wrong found. The held part will be paid.")
         return {"ok": True, "status": "cleared"}
     paid = sum(r["price_drops"] for r in w.store.q(
         "SELECT price_drops FROM orders WHERE buyer_id=? AND seller_id=? AND status='delivered'", study, pid))
+    # Only a part still frozen can be withheld. One already paid by default (no decision within the
+    # extension) stays paid on the ledger; it joins the repayment claim instead of a doomed EscrowCancel.
+    late = [h for h in w.store.q("SELECT * FROM holdbacks WHERE study=? AND person=? AND request_id=? "
+                                 "AND kind='round' AND status='released'", study, pid, c["request_id"])]
+    paid += sum(h["amount_drops"] for h in late)
     with w.store.tx() as x:
         x.execute("UPDATE integrity_cases SET status='confirmed', reviewer_id=?, decided_at=? WHERE id=?",
                   (reviewer_id, now, case_id))
         x.execute("UPDATE holdbacks SET status='withheld', review='fraud confirmed' WHERE study=? AND person=? "
-                  "AND request_id=? AND kind='round'", (study, pid, c["request_id"]))
+                  "AND request_id=? AND kind='round' AND status='suspected'", (study, pid, c["request_id"]))
         x.execute("UPDATE holdbacks SET status='returning' WHERE study=? AND person=? AND kind='bonus' "
                   "AND status IN ('held','earned')", (study, pid))
         x.execute("INSERT OR IGNORE INTO standing (study, person) VALUES (?,?)", (study, pid))

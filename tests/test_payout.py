@@ -75,6 +75,21 @@ def test_undecided_case_is_paid_when_the_extension_runs_out(w):
     assert any(x["person"] == case["person"] for x in r["released"])
 
 
+def test_confirming_after_a_default_payment_never_marks_the_paid_part_withheld(w):
+    case = payout.view(w, LAB)["cases"][0]
+    h = w.store.one("SELECT * FROM holdbacks WHERE person=? AND kind='round'", case["person"])
+    w.ledger.clock = max(h["review_until"], case["respond_by"])
+    assert any(x["person"] == case["person"] for x in payout.release_due(w)["released"])
+    r = payout.decide(w, LAB, case["id"], "reviewer-1", True)
+    assert r["ok"]
+    after = w.store.one("SELECT * FROM holdbacks WHERE id=?", h["id"])
+    assert after["status"] == "released" and after["cancel_tx"] is None
+    paid = sum(o["price_drops"] for o in w.store.q(
+        "SELECT price_drops FROM orders WHERE buyer_id=? AND seller_id=? AND status='delivered'", LAB, case["person"]))
+    assert r["repayment_claim_xrp"] * 1e6 == pytest.approx(paid + h["amount_drops"])
+    assert not any(x["person"] == case["person"] and x["kind"] == "round" for x in payout.release_due(w)["returned"])
+
+
 def test_withdrawal_history_is_never_an_input(w):
     req = honest(w)
     pid = req["person"]
