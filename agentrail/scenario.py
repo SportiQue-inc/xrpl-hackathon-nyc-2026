@@ -352,7 +352,13 @@ def build_cohort(w: World, n: int = 50):
         if w.ledger.name != "testnet":
             addr = w.ledger.new_account(pid)
         elif pid in own_wallets:
-            addr = own_wallets[pid]                            # the participant's own funded wallet
+            # The participant's own funded wallet. Its agent signs with that seed (keystore), so the
+            # same key finishes its escrows, swaps its payout and pays clinic export fees itself.
+            from .security.devices import ParticipantWalletDevice
+            wallet = ParticipantWalletDevice(pid).wallet()
+            addr = wallet.classic_address
+            if addr == own_wallets[pid] and hasattr(w.ledger, "wallets"):
+                w.ledger.wallets[addr] = wallet
         elif pid == HERO:
             addr = w.ledger.new_account(f"participant_{pid}")   # the followed participant's agent holds a key
         else:
