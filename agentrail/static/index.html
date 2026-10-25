@@ -139,8 +139,25 @@
 </main>
 <script>
 const xrp = d => (d / 1e6).toLocaleString(undefined, {maximumFractionDigits: 2});
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-async function act(url) { await fetch(url, {method: 'POST'}); await load(); }
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Operator token: from #token=... (kept in this tab only), or the local demo harness login.
+let TOKEN = null;
+try { TOKEN = sessionStorage.getItem('agentrail_token'); } catch (e) {}
+const fromHash = new URLSearchParams(location.hash.slice(1)).get('token');
+if (fromHash) { TOKEN = fromHash; history.replaceState(null, '', location.pathname); }
+async function login() {
+  const r = await fetch('/api/dev/login/operator', {method: 'POST'});
+  if (!r.ok) throw new Error('sign in: open this page with #token=<operator token>');
+  TOKEN = (await r.json()).access_token;
+  try { sessionStorage.setItem('agentrail_token', TOKEN); } catch (e) {}
+}
+async function api(url, opts = {}, retry = true) {
+  if (!TOKEN) await login();
+  const r = await fetch(url, {...opts, headers: {...(opts.headers || {}), Authorization: 'Bearer ' + TOKEN}});
+  if (r.status === 401 && retry) { TOKEN = null; return api(url, opts, false); }
+  return r;
+}
+async function act(url) { await api(url, {method: 'POST'}); await load(); }
 async function runAll() { for (const u of ['/api/reset', '/api/run/a-guarded', '/api/run/b', '/api/run/c', '/api/run/d']) await act(u); }
 function table(el, cols, rows) {
   document.getElementById(el).innerHTML = '<tr>' + cols.map(c => `<th>${c[0]}</th>`).join('') + '</tr>' +
@@ -164,8 +181,8 @@ function renderIssue() {
       <h3>Tests</h3><ul>${i.tests.map(t => `<li><code>${esc(t)}</code></li>`).join('')}</ul></div>`;
 }
 async function loadStudy() {
-  B = await (await fetch('/api/boundaries')).json(); renderIssue();
-  const st = await (await fetch('/api/study')).json();
+  B = await (await api('/api/boundaries')).json(); renderIssue();
+  const st = await (await api('/api/study')).json();
   const h = st.heatmap;
   document.getElementById('study-nums').innerHTML = [
     [h.power_before, 'power at start'], [h.power, 'power now (plan 0.80)'],
@@ -176,7 +193,7 @@ async function loadStudy() {
 }
 async function load() {
   loadStudy().catch(() => {});
-  const s = await (await fetch('/api/state')).json();
+  const s = await (await api('/api/state')).json();
   const L = document.getElementById('ledger');
   L.textContent = s.ledger === 'testnet' ? 'XRPL Testnet (real)' : 'Mock ledger';
   L.className = 'badge' + (s.ledger === 'testnet' ? ' live' : '');

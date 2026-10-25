@@ -156,6 +156,8 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
     engine.set_mandate(BuyerMandate("org_sleeplab", 40 * XRP, 6 * XRP, ["sleep_research"]))
     engine.set_mandate(BuyerMandate("org_adtech", 40 * XRP, 6 * XRP, ["marketing_profiling"]))
     w.lab = InstitutionAgent("org_sleeplab", engine, "sleep_research")
+    from .security.install import install
+    install(w)        # institution vaults hold the box keys; identities and approver devices enrolled
     return w
 
 
@@ -252,6 +254,7 @@ def scene_c(w: World) -> dict:
     w.store.log("engine", "restart", "server restart: new engine instance, recovering from outbox")
     e2 = Engine(w.store, w.ledger, e.inbox)
     e2.policies, e2.box_keys = e.policies, e.box_keys
+    e2.key_holders, e2.openers = e.key_holders, e.openers
     e2.recover()
     w.engine = e2
     # The gate stores only sealed bundles: the operator's own key cannot open them.
@@ -341,6 +344,8 @@ def build_cohort(w: World, n: int = 50):
         w.cohort_people[pid] = pa
     w.coverage = synthetic_coverage(list(w.cohort_people))
     e.set_mandate(BuyerMandate("org_sleeplab", 80 * XRP, 3 * XRP, ["sleep_research"]))
+    if getattr(w, "security", None):
+        w.security.enrol_participants(list(w.cohort_people))
 
 
 def scene_h(w: World, propose=None, workers: int = 8) -> dict:

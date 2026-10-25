@@ -69,8 +69,14 @@ def ensure(w) -> StudyState:
     s = StudyState()
     hm = heatmap(w, w.coverage, LAB)
     s.power_before, s.pairs_before = hm["power"], hm["complete_pairs"]
-    s.treasury = w.ledger.new_account("org_sleeplab_treasury")
-    s.signers = {"owner": w.ledger.new_keypair("sleeplab_pi"), "compliance": w.ledger.new_keypair("sleeplab_compliance")}
+    sec = getattr(w, "security", None)
+    if sec:   # approvers' keys live on their own devices; the ledger adapter never sees them
+        s.treasury = w.ledger.new_account("org_sleeplab_treasury_cosign")
+        s.signers = sec.signer_addresses()
+    else:
+        s.treasury = w.ledger.new_account("org_sleeplab_treasury")
+        s.signers = {"owner": w.ledger.new_keypair("sleeplab_pi"),
+                     "compliance": w.ledger.new_keypair("sleeplab_compliance")}
     hashes = w.ledger.setup_multisig(s.treasury, list(s.signers.values()), quorum=2)
     w.store.log(LAB, "multisig", "study treasury: SignerList (principal investigator + compliance officer, "
                 "quorum 2), master key disabled", {"tx": hashes, "url": _url(w, hashes[-1])})
@@ -175,6 +181,11 @@ def approve(w, signers: list[str]) -> dict:
     s = ensure(w)
     if s.status != "draft":
         return {"ok": False, "message": "no draft spec to approve"}
+    if getattr(w, "security", None):
+        # Each approver signs on their own device (security/cosign.py); this entry point is the
+        # scripts' and demo harness's way to drive those devices.
+        from .security.cosign import approve_with_devices
+        return approve_with_devices(w, signers)
     unknown = [x for x in signers if x not in s.signers]
     if unknown:
         return {"ok": False, "engine_result": "unknown_signer", "signers": signers,

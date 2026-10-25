@@ -1,20 +1,112 @@
-"""Dashboard: one page, JSON state, buttons that run the scenes."""
+"""API and dashboard. Every route goes through security.rbac.check (default deny); see
+docs/SECURITY.md for roles, login and the demo harness."""
 from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 from pathlib import Path
+from typing import Literal
 
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, ConfigDict, Field
 
 from . import payout, scenario, study
 from .llm import voice
+from .security import audit, consent as signed_consent, cosign, rbac
+from .security.auth import AuthError
+from .security.http import AccessAudit, RateLimit, SecurityHeaders, cors_origins
+from .security.masking import install_logging_filter
+from .security.secrets import is_dev
 
-app = FastAPI(title="AgentRail")
 _lock = threading.Lock()
 _state: dict = {}
+
+
+def _authority():
+    return world().security.authority
+
+
+def authorize(request: Request):
+    rbac.check(request, _authority())
+
+
+app = FastAPI(title="AgentRail", dependencies=[Depends(authorize)],
+              docs_url="/docs" if is_dev() else None, redoc_url=None,
+              openapi_url="/openapi.json" if is_dev() else None)
+app.add_middleware(AccessAudit, get_store=lambda: _state["w"].store if "w" in _state else None)
+app.add_middleware(RateLimit)
+app.add_middleware(SecurityHeaders)
+app.add_middleware(CORSMiddleware, allow_origins=cors_origins(), allow_credentials=False,
+                   allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
+install_logging_filter()
+
+ID = r"^[A-Za-z0-9_.:@-]{1,80}$"
+ITEM = r"^[a-z0-9_.]{1,40}$"
+
+
+class Strict(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ChallengeBody(Strict):
+    sub: str = Field(pattern=ID)
+
+
+class TokenBody(Strict):
+    sub: str = Field(pattern=ID)
+    nonce: str = Field(min_length=16, max_length=64)
+    signature: str = Field(pattern=r"^[0-9a-f]{128}$")
+
+
+class ItemsBody(Strict):
+    items: list[str] = Field(default_factory=list, max_length=20)
+
+    def clean(self):
+        bad = [i for i in self.items if not re.match(ITEM, i)]
+        if bad:
+            raise HTTPException(422, "unknown item names")
+        return list(self.items)
+
+
+class GoalBody(Strict):
+    goal: str = Field(default="", max_length=500)
+
+
+class SignersBody(Strict):
+    signers: list[Literal["owner", "compliance"]] = Field(default_factory=list, max_length=2)
+
+
+class SignatureBody(Strict):
+    signer: str = Field(pattern=r"^r[1-9A-HJ-NP-Za-km-z]{24,34}$|^r[0-9a-f]{24}$")
+    public_key: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    signature: str | None = Field(default=None, pattern=r"^[0-9a-f]{128}$")
+    signed_tx: dict | None = None
+
+
+class DecideBody(Strict):
+    reviewer_id: str = Field(pattern=ID)
+    confirm: bool = False
+
+
+class RespondBody(Strict):
+    text: str = Field(default="", max_length=2000)
+
+
+class ConsentBody(Strict):
+    buyer: str = Field(default=study.LAB, pattern=ID)
+    purpose: str = Field(default="sleep_research", pattern=r"^[a-z_]{1,40}$")
+    items: list[str] = Field(max_length=20)
+    weeks: tuple[int, int] = (1, 8)
+    automation: Literal["confirm_each", "auto_standard", "auto_all"] = "confirm_each"
+    signature: str | None = Field(default=None, pattern=r"^[0-9a-f]{128}$")
+
+
+def _claims(request: Request) -> dict:
+    return getattr(request.state, "claims", None) or {}
 
 
 def world() -> scenario.World:
@@ -24,16 +116,21 @@ def world() -> scenario.World:
 
 
 @app.post("/api/reset")
-def reset(ledger: str | None = None):
+def reset(ledger: Literal["mock", "testnet"] | None = None):
+    default = os.environ.get("LEDGER", "mock")
+    if ledger and ledger != default and os.environ.get("AGENTRAIL_ALLOW_LEDGER_SWITCH") != "1":
+        raise HTTPException(403, "switching ledgers over HTTP is off (AGENTRAIL_ALLOW_LEDGER_SWITCH=1)")
     with _lock:
-        kind = ledger or os.environ.get("LEDGER", "mock")
+        kind = ledger or default
         _state["w"] = scenario.build_world(kind, os.environ.get("AGENTRAIL_DB", ":memory:"))
+        study.ensure(_state["w"])        # the study's participants and approvers are enrolled up front
         _state["results"] = {}
     return {"ok": True, "ledger": kind}
 
 
 @app.post("/api/run/{scene}")
-def run(scene: str, budget: float | None = None):
+def run(scene: Literal["a", "a-guarded", "b", "c", "d", "h", "boundaries"],
+        budget: float | None = Query(default=None, ge=0, le=1000)):
     w = world()
     with _lock:
         if scene == "a":
@@ -108,6 +205,10 @@ def _call(fn, *a, **k):
             raise HTTPException(410, str(e))
         except ValueError as e:
             raise HTTPException(409, str(e))
+        except cosign.ApprovalError as e:
+            raise HTTPException(e.status, str(e))
+        except PermissionError as e:
+            raise HTTPException(403, str(e))
 
 
 @app.get("/api/events")
@@ -132,8 +233,8 @@ def participant_preview(pid: str, request: int):
 
 
 @app.post("/api/p/{pid}/requests/{rid}/approve")
-def participant_approve(pid: str, rid: int, body: dict = Body(default={})):
-    return _call(study.participant_approve, pid, rid, list(body.get("items") or []))
+def participant_approve(pid: str, rid: int, body: ItemsBody = ItemsBody()):
+    return _call(study.participant_approve, pid, rid, body.clean())
 
 
 @app.post("/api/p/{pid}/requests/{rid}/decline")
@@ -162,13 +263,33 @@ def study_state():
 
 
 @app.post("/api/study/goal")
-def study_goal(body: dict = Body(default={})):
-    return _call(study.set_goal, body.get("goal") or "")
+def study_goal(body: GoalBody = GoalBody()):
+    return _call(study.set_goal, body.goal)
 
 
 @app.post("/api/study/approve")
-def study_approve(body: dict = Body(default={})):
-    return _call(study.approve, list(body.get("signers") or []))
+def study_approve(body: SignersBody = SignersBody()):
+    """Demo harness only: drives the approvers' simulated devices (see /api/study/approvals)."""
+    return _call(study.approve, list(body.signers))
+
+
+@app.post("/api/study/approvals")
+def approval_open(request: Request):
+    """The researcher asks the treasury approvers to release the spec's budget."""
+    return _call(lambda w: cosign.open_approval(w, _claims(request)["sub"]))
+
+
+@app.get("/api/study/approvals/{aid}")
+def approval_view(aid: int):
+    return _call(lambda w: cosign.view(w.store, aid))
+
+
+@app.post("/api/study/approvals/{aid}/signatures")
+def approval_sign(aid: int, body: SignatureBody, request: Request):
+    """An approver posts the signature their device made. The signer name comes from the token."""
+    c = _claims(request)
+    return _call(lambda w: cosign.add_signature(w, aid, c["sub"], c["attrs"].get("signer", ""),
+                                                body.model_dump(exclude_none=True)))
 
 
 @app.post("/api/study/send")
@@ -193,15 +314,32 @@ def study_payout_release():
 
 
 @app.post("/api/study/cases/{case_id}/decide")
-def study_case_decide(case_id: int, body: dict = Body(default={})):
-    """body {"reviewer_id": "...", "confirm": true|false}; a named person decides, after the response period."""
-    return _call(lambda w: payout.decide(w, study.LAB, case_id, body.get("reviewer_id") or "",
-                                         bool(body.get("confirm"))))
+def study_case_decide(case_id: int, body: DecideBody, request: Request):
+    """A named reviewer decides, after the response period. The name must be the signed-in reviewer."""
+    if body.reviewer_id != _claims(request)["sub"]:
+        raise HTTPException(403, "reviewer_id must be the signed-in reviewer")
+    return _call(lambda w: payout.decide(w, study.LAB, case_id, body.reviewer_id, body.confirm))
 
 
 @app.post("/api/p/{pid}/cases/{case_id}/respond")
-def participant_case_respond(pid: str, case_id: int, body: dict = Body(default={})):
-    return _call(lambda w: payout.respond(w, study.LAB, pid, case_id, body.get("text") or ""))
+def participant_case_respond(pid: str, case_id: int, body: RespondBody = RespondBody()):
+    case = world().store.one("SELECT person FROM integrity_cases WHERE id=?", case_id)
+    if case is None or case["person"] != pid:
+        raise HTTPException(404, "not found")
+    return _call(lambda w: payout.respond(w, study.LAB, pid, case_id, body.text))
+
+
+@app.post("/api/p/{pid}/consent")
+def participant_consent(pid: str, body: ConsentBody):
+    """New consent (also the only way back after a revoke). Without a signature: the document to sign.
+    With the device's signature over its hash: applied and recorded."""
+    w = world()
+    items = ItemsBody(items=body.items).clean()
+    if body.signature is None:
+        return signed_consent.draft(w, pid, body.buyer, body.purpose, items, body.weeks, body.automation)
+    ident = w.security.authority.identities[pid]
+    return _call(lambda w: signed_consent.sign_and_apply(w, pid, body.buyer, body.purpose, items, body.weeks,
+                                                         body.automation, body.signature, ident.public_hex))
 
 
 @app.post("/api/p/{pid}/resume-requests")
@@ -213,6 +351,79 @@ def participant_resume_requests(pid: str):
 @app.get("/api/study/bundle/{oid}")
 def study_bundle(oid: int):
     return _call(study.open_bundle, oid)
+
+
+# ---------- login ----------
+
+@app.post("/api/auth/challenge")
+def auth_challenge(body: ChallengeBody):
+    return _authority().challenge(body.sub)
+
+
+@app.post("/api/auth/token")
+def auth_token(body: TokenBody):
+    try:
+        return _authority().token_for_signature(body.sub, body.nonce, body.signature)
+    except AuthError as e:
+        raise HTTPException(401, str(e))
+
+
+@app.post("/api/auth/logout")
+def auth_logout(request: Request):
+    _authority().revoke(_claims(request))
+    return {"ok": True}
+
+
+@app.get("/api/auth/me")
+def auth_me(request: Request):
+    c = _claims(request)
+    return {k: c[k] for k in ("sub", "role", "scope", "attrs", "exp")}
+
+
+# ---------- operations ----------
+
+@app.get("/api/ops/audit/verify")
+def audit_verify():
+    return _call(lambda w: audit.verify_chain(w.store))
+
+
+@app.post("/api/ops/audit/anchor")
+def audit_anchor():
+    return _call(audit.anchor)
+
+
+# ---------- demo harness (AGENTRAIL_ENV=dev only; rbac returns 404 in prod) ----------
+
+LOCAL = {"127.0.0.1", "::1", "localhost", "testclient"}
+
+
+def _local(request: Request):
+    if (request.client.host if request.client else "") not in LOCAL:
+        raise HTTPException(403, "the demo harness answers on localhost only")
+
+
+@app.post("/api/dev/login/{sub}")
+def dev_login(sub: str, request: Request):
+    """The simulated device of `sub` answers a challenge, exactly as a real device would."""
+    _local(request)
+    sec = world().security
+    d = sec.devices.get(sub)
+    if d is None:
+        raise HTTPException(404, "no such demo device")
+    ch = sec.authority.challenge(sub)
+    return sec.authority.token_for_signature(sub, ch["nonce"], d.sign_challenge(ch["nonce"]))
+
+
+@app.post("/api/dev/devices/{sub}/sign-approval/{aid}")
+def dev_sign_approval(sub: str, aid: int, request: Request):
+    """What the approver's phone would return after showing the approval; posting it still needs
+    that approver's own token at /api/study/approvals/{aid}/signatures."""
+    _local(request)
+    sec = world().security
+    d = next((x for x in sec.approvers.values() if x.sub == sub), None)
+    if d is None:
+        raise HTTPException(404, "no such approver device")
+    return _call(lambda w: d.cosign(cosign.view(w.store, aid)))
 
 
 def _page(*parts):

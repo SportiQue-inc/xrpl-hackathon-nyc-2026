@@ -95,6 +95,12 @@ class Engine:
         self.mandate_chains: dict[str, object] = {}   # buyer id -> mandate.MandateChain (owner-signed delegation)
         self.box_keys: dict[str, PrivateKey] = {}
         self.relay: str | None = None   # submits EscrowFinish for contributors whose keys we do not hold
+        # Key separation (security/devices.py). A key holder is the participant's keyring: it creates
+        # the escrow key K of each round and hands out only the fulfillment. An opener is the
+        # institution's vault: it holds the box key bundles are sealed to. When registered, the
+        # engine keeps neither K nor the private box key, only public keys and conditions.
+        self.key_holders: dict[str, object] = {}
+        self.openers: dict[str, object] = {}
 
     # ---------- setup ----------
 
@@ -104,6 +110,12 @@ class Engine:
         with self.store.tx() as c:
             c.execute("INSERT OR REPLACE INTO parties VALUES (?,?,?,?,?)",
                       (pid, name, kind, address, bytes(key.public_key).hex()))
+
+    def register_public_key(self, pid: str, public_hex: str):
+        """The party keeps its private box key; the engine stores only the public half."""
+        self.box_keys.pop(pid, None)
+        with self.store.tx() as c:
+            c.execute("UPDATE parties SET box_pubkey=? WHERE id=?", (public_hex, pid))
 
     def set_mandate(self, m: BuyerMandate):
         with self.store.tx() as c:
@@ -134,11 +146,16 @@ class Engine:
         buyer_pub = PublicKey(bytes.fromhex(self.party(req.buyer_id)["box_pubkey"]))
         sealed = SealedBox(buyer_pub).encrypt(rows_json.encode())
         payee_addr = self.party(req.payee_id)["address"]
-        data_key = None
-        if req.settle == "escrow":
+        data_key, condition = None, None
+        holder = self.key_holders.get(req.seller_id)
+        if req.settle == "escrow" and holder is not None:
+            # K is created and kept by the contributor's keyring; the engine gets the lock and condition.
+            sealed, condition = holder.lock(order_key, sealed)
+        elif req.settle == "escrow":
             # Second lock: the bundle opens only with K, and K is what the escrow needs to pay out.
             data_key = new_key()
             sealed = SecretBox(data_key).encrypt(sealed)
+            condition = condition_hex(data_key)
 
         conflict_with = None
         with self.store.tx() as c:
@@ -183,9 +200,10 @@ class Engine:
             c.execute("""INSERT INTO payments (order_id,payee_address,amount_drops,invoice_id,status,updated_at,
                          kind,condition) VALUES (?,?,?,?,?,?,?,?)""",
                       (oid, payee_addr, req.price_drops, order_key.upper(), "pending", time.time(), req.settle,
-                       condition_hex(data_key) if data_key else None))
+                       condition))
             if data_key:
                 c.execute("INSERT INTO escrow_keys VALUES (?,?)", (oid, data_key.hex()))
+            if condition:
                 c.execute("UPDATE payments SET cancel_after=? WHERE order_id=?",
                           (self.ledger.now() + req.escrow_window_s, oid))
             c.execute("INSERT INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "pay", "pending"))
@@ -475,12 +493,19 @@ class Engine:
                     self.store.log("engine", "withheld", f"order {oid}: key not published ({d.reason}); "
                                    f"escrow returns to {o['buyer_id']} after its deadline")
                 return False
-        key = bytes.fromhex(self.store.one("SELECT key_hex FROM escrow_keys WHERE order_id=?", oid)["key_hex"])
+        holder = self.key_holders.get(o["seller_id"])
+        if holder is not None:
+            fulfillment = holder.fulfillment(o["order_key"])
+            if fulfillment is None and p["finish_tx"] is None:   # keyring forgot K (withdrawal): never published
+                return False
+        else:
+            key = bytes.fromhex(self.store.one("SELECT key_hex FROM escrow_keys WHERE order_id=?", oid)["key_hex"])
+            fulfillment = fulfillment_hex(key)
         payee = p["payee_address"]
         submitter = payee if self.ledger.can_sign(payee) else self.relay
         buyer_addr = self.party(o["buyer_id"])["address"]
         h, st = self._send(oid, "finish", lambda: self.ledger.prepare_escrow_finish(
-            submitter, buyer_addr, p["offer_sequence"], p["condition"], fulfillment_hex(key), f"order:{oid}"))
+            submitter, buyer_addr, p["offer_sequence"], p["condition"], fulfillment, f"order:{oid}"))
         if not st.validated:
             return False
         with self.store.tx() as c:
@@ -528,6 +553,13 @@ class Engine:
     def open_bundle(self, buyer_id: str, order_id: int) -> list[dict]:
         bundle_hash, sealed = self.inbox.received[order_id]
         p = self.store.one("SELECT kind, finish_tx FROM payments WHERE order_id=?", order_id)
+        opener = self.openers.get(buyer_id)
+        if opener is not None:
+            # The institution's vault opens it; K comes from the validated ledger, not the contributor.
+            f = self.ledger.lookup(p["finish_tx"]).fulfillment if p["kind"] == "escrow" else None
+            rows = opener.open(sealed, f)
+            assert sha256_hex(canonical(rows)) == bundle_hash
+            return rows
         if p["kind"] == "escrow":
             # The key is read from the ledger, not from the contributor.
             st = self.ledger.lookup(p["finish_tx"])
