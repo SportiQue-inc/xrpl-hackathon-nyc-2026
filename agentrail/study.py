@@ -399,18 +399,25 @@ def request_card(w, req) -> dict:
             "summary_source": s.needs.source if s.needs else "rules",
             "duo": [{"code": c, "label": DUO[c]} for c in PURPOSE_DUO.get(req["purpose"], [])],
             "items": per_item, "reward_xrp": n_cells * CELL_PRICE / XRP,
-            "partial_data_plan": "Stated: weeks you contribute before stopping are analyzed as planned in the "
-                                 "protocol; the ethics board decides any other use.",
+            "partial_data_plan": "If you withdraw, person-level copies are destroyed and only aggregate "
+                                 "statistics already produced remain; the ethics board decides any other use.",
             "if_you_stop": [
                 {"kind": "decline_round", "label": "Skip this round", "effect": "Nothing is sent this time; "
                  "your consent stays as it is."},
                 {"kind": "pause", "label": "Stop future rounds", "effect": "No new requests run; rewards already "
                  "paid stay yours."},
                 {"kind": "revoke", "label": "Withdraw data access", "effect": "The study's licence is taken back on "
-                 "the ledger, rounds not yet released are never released and their escrow returns to the study; "
-                 "weeks already contributed stay pseudonymized for the stated analysis only; rewards already "
-                 "paid stay yours."}],
-            "settlement": "escrow: the reward is locked on XRPL and released when your agent publishes the key"}
+                 "the ledger, rounds not yet released are never released and their escrow returns to the study, "
+                 "and the study must destroy every person-level copy it holds about you and confirm it. Aggregate "
+                 "statistics already produced remain. Rewards already paid stay yours."}],
+            "settlement": "escrow: the reward is locked on XRPL and released when your agent publishes the key",
+            "international_transfer": {"planned": False, "countries": [], "recipients": [], "purpose": None,
+                                       "items": [], "retention": None,
+                                       "notice": "No access from outside the participant's country is planned. "
+                                                 "Any change needs your separate consent."},
+            "identity": "The study gets your participant number and the items you agree to. The link between "
+                        "you and that number stays with your agent, where the study cannot reach it.",
+            "records": "Access records are kept 2 years, permission changes 3 years."}
 
 
 def participant_view(w, pid: str) -> dict:
@@ -551,10 +558,36 @@ def participant_revoke(w, pid: str) -> dict:
                 out["withheld"].append(o["order_id"])
     out["refunds"] = [{"order_id": oid, **_tx(w, w.store.one("SELECT cancel_tx FROM payments WHERE order_id=?",
                                                                 oid)["cancel_tx"])} for oid in sweep(w)["refunded"]]
-    out["kept"] = ("consent history (every version hashed); rewards already paid stay with the participant; weeks "
-                   "already contributed stay pseudonymized with the study for the stated analysis only")
+    out["deletion"] = _destroy_person_level(w, pid)
+    out["kept"] = ("consent history (every version hashed); rewards already paid stay with the participant; "
+                   "aggregate statistics already produced")
     s.withdrawals.append({"person": pid, "kind": "revoke", "ts": time.time(), **out})
     return {**out, **participant_view(w, pid)}
+
+
+def _destroy_person_level(w, pid: str) -> dict:
+    """Revoke: the participant's agent asks the study to destroy every person-level copy it holds
+    (contributed bundles and its own records for this participant) and to confirm. Only aggregate
+    statistics already produced remain."""
+    s = w.study
+    s.withdrawn = getattr(s, "withdrawn", set()) | {pid}
+    talk(w.store, pid, LAB, "deletion_request", {"participant": pid},
+         f"{pid} withdrew data access: destroy every person-level copy you hold for this participant and confirm.")
+    oids = [r["id"] for r in w.store.q("SELECT id FROM orders WHERE buyer_id=? AND seller_id=?", LAB, pid)]
+    destroyed = []
+    for oid in oids:
+        got = w.engine.inbox.received.pop(oid, None)
+        if got:
+            destroyed.append(got[0])
+    cells = sum(len(v) for v in w.coverage.cells[pid].values())
+    w.coverage.cells[pid] = {wk: set() for wk in WEEKS}
+    receipt = {"participant_number": pid, "bundles_destroyed": sorted(destroyed), "own_cells_destroyed": cells,
+               "aggregates_kept": True, "ts": int(time.time())}
+    h = sha256_hex(canonical(receipt))
+    w.store.log(LAB, "deletion_confirmed", f"{LAB} destroyed {len(destroyed)} contributed bundles and {cells} "
+                f"person-level cells for {pid}; confirmation {h[:16]} sent to {pid}'s agent",
+                {"receipt": receipt, "hash": h})
+    return {"bundles_destroyed": len(destroyed), "cells_destroyed": cells, "confirmation_hash": h}
 
 
 # ---------------- research console view ----------------
@@ -564,6 +597,9 @@ def study_view(w) -> dict:
     m = w.store.one("SELECT * FROM mandates WHERE buyer_id=?", LAB)
     hm = heatmap(w, w.coverage, LAB)
     hm["power_before"], hm["pairs_before"] = s.power_before, s.pairs_before
+    for row in hm["rows"]:
+        if row["person"] in getattr(s, "withdrawn", set()):
+            row["cells"] = [{"s": "withdrawn"} for _ in row["cells"]]
     n = s.needs
     proposal = None
     if n:

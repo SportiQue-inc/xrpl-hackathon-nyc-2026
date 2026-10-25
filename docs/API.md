@@ -62,7 +62,11 @@ domains), each with problem, solution, where it is enforced, demo moment and evi
     "items": [{"item": "fatigue.survey", "label": "Fatigue survey", "weeks": [3, 4, 5],
                "source": "survey_app", "class": "auto|approval|blocked", "reason": "..."}],
     "reward_xrp": 0.6, "settlement": "escrow, released when your agent publishes the key",
-    "partial_data_plan": "Stated: weeks you contribute before stopping are analyzed as planned ...",
+    "partial_data_plan": "If you withdraw, person-level copies are destroyed ...",
+    "international_transfer": {"planned": false, "countries": [], "recipients": [], "purpose": null,
+                               "items": [], "retention": null, "notice": "..."},
+    "identity": "The study gets your participant number and the items you agree to ...",
+    "records": "Access records are kept 2 years, permission changes 3 years.",
     "if_you_stop": [{"kind": "decline_round|pause|revoke", "label": "Skip this round", "effect": "..."}]
   }],
   "timeline": {"weeks": [1,2,3,4,5,6,7,8],
@@ -106,8 +110,12 @@ Past contributions and payments stay. `POST /api/p/{pid}/resume` undoes it.
 
 `POST /api/p/{pid}/revoke` body `{"study": "org_sleeplab"}` -> withdrawal 3: data access consent
 revoked. Licence MPT clawed back (tx), undelivered escrowed rounds withheld and refunded to the lab
-after their deadline (tx), consent history kept. Returns
-`{"clawback": {"tx", "url"}, "withheld": [order ids], "refunds": [{"order_id", "tx", "url"}], "kept": "..."}`.
+after their deadline (tx), consent history kept. The agent sends the study a deletion request; the
+study destroys every person-level copy (contributed bundles, its own cells for that participant) and
+confirms (`deletion_request` and `deletion_confirmed` events). Only aggregate statistics remain; the
+participant's heatmap row shows `withdrawn`. Returns
+`{"clawback": {"tx", "url"}, "withheld": [order ids], "refunds": [{"order_id", "tx", "url"}],
+"deletion": {"bundles_destroyed", "cells_destroyed", "confirmation_hash"}, "kept": "..."}`.
 
 ## Researcher console
 
@@ -119,7 +127,7 @@ after their deadline (tx), consent history kept. Returns
             "treasury": {"address": "r...", "multisig": true, "quorum": 2, "signers": ["owner", "compliance"]},
             "budget_xrp": 80, "spent_xrp": 0, "reserved_xrp": 0},
   "goal": "free text the researcher typed",
-  "heatmap": {"weeks": [...], "rows": [{"person": "P-001", "cells": [{"s": "held|contributed|waiting|missing", "tx": null, "url": null}]}],
+  "heatmap": {"weeks": [...], "rows": [{"person": "P-001", "cells": [{"s": "held|contributed|waiting|missing|withdrawn", "tx": null, "url": null}]}],
               "complete_pairs": 280, "total": 400, "power": 0.65, "power_before": 0.65, "pairs_before": 280},
   "power_target": 0.8,
   "proposal": {"source": "llm|rules", "hash": "...", "raw": {}, "verdict": "accepted|narrowed|rejected",

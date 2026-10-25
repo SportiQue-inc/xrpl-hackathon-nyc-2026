@@ -422,24 +422,47 @@ class PersonalAgent:
         return self.engine.store.q("SELECT * FROM approval_requests WHERE person_id=? AND status='open'", self.id)
 
 
+SEPARATE_CONSENT_TEXT = {
+    "third_party_provision": "I agree that the items listed are provided to the recipient named here, for the "
+                             "purpose and period named here.",
+    "sensitive_data": "I agree, separately, that the health items marked sensitive may be provided.",
+    "international_transfer": "I agree, separately, that the recipient may access the items from the countries "
+                              "named in the study description.",
+}
+
+
 def consent_document(person_id, buyer_id, purpose, items, weeks, automation, min_price, status, version) -> dict:
     """The consent contract. Its hash is put in each payment memo, so a payment on
-    XRPL can be matched to the exact consent version it relied on."""
+    XRPL can be matched to the exact consent version it relied on. Third-party provision,
+    sensitive data and international transfer are separate consents, each hashed on its own."""
+    sens = [i for i in sorted(items) if SENSITIVITY.get(i) == "sensitive"]
+
+    def part(kind, granted, scope):
+        body = {"kind": kind, "text": SEPARATE_CONSENT_TEXT[kind], "granted": granted, "scope": scope}
+        return {**body, "hash": sha256_hex(canonical(body))}
+
     return {
-        "type": "agentrail.consent/v1", "version": version, "status": status,
+        "type": "agentrail.consent/v2", "version": version, "status": status,
         "data_holder": person_id, "recipient": buyer_id, "purpose": purpose,
         "data_use": PURPOSE_DUO.get(purpose, []),
         "items": sorted(items),
         "sensitivity": {i: SENSITIVITY.get(i, "standard") for i in sorted(items)},
+        "separate_consents": [
+            part("third_party_provision", True, {"recipient": buyer_id, "items": sorted(items)}),
+            part("sensitive_data", bool(sens), {"items": sens}),
+            part("international_transfer", False, {"countries": []}),
+        ],
         "period_weeks": list(weeks), "delivery": "sealed weekly bundle, recipient key only",
-        "retention": "recipient deletes on study end or on request; delivered copies cannot be recalled",
+        "identity": "the recipient gets a study participant number and the consented items only; the link "
+                    "between the person and the number stays with the person's agent, out of the recipient's reach",
         "automation": automation, "min_price_drops": min_price,
-        "payment": "direct to data holder on XRPL, per delivered round",
-        "withdrawal": "pause stops new orders; revoke also withholds undelivered bundles; "
-                      "completed payments are kept",
-        "onward_transfer": "not allowed",
-        "cross_border_transfer": "not allowed without a separate consent (viewing from abroad counts)",
-        "already_used_data": "handled as this consent form and the approved study protocol state",
+        "payment": "direct to data holder on XRPL, per contributed round",
+        "withdrawal": "decline a round: nothing is sent; pause: no new rounds; revoke: no key is released for "
+                      "pending rounds, the licence is clawed back, and the recipient must destroy person-level "
+                      "copies and confirm; aggregate statistics already produced remain; rewards paid stay",
+        "provision_terms": ["no re-identification", "no onward transfer",
+                            "destroy person-level copies on withdrawal and confirm"],
+        "records": {"access_log_retention_years": 2, "permission_change_log_retention_years": 3},
         "synthetic_demo": True,
     }
 

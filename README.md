@@ -12,8 +12,8 @@ on one time axis and contributes only what they agreed to. **The LLM proposes, c
 ledger enforces**: consent, a per-study data licence and the reward are bound to every
 contribution on XRPL.
 
-Health research increasingly needs the same person followed over weeks, not a large anonymous
-table. Today a study that loses three weeks of fatigue surveys for half its cohort has no way to
+Health research increasingly needs the same person followed over weeks, not a large
+pooled table. Today a study that loses three weeks of fatigue surveys for half its cohort has no way to
 fill those gaps: getting data takes a median of 80 days of agreements, a $20 weekly reward costs
 $0.88 in card fees, and nobody can check what each person agreed to round by round. So the study
 recruits more people instead, at $2,000+ each.
@@ -208,17 +208,16 @@ and are kept only in `wallets.local.json` (git-ignored).
 
 ## 11. Legal basis (summary)
 
-> Not legal advice. The demo uses synthetic data and XRPL Testnet only. Article numbers are being
-> checked against the original texts.
+> Not legal advice. The demo uses synthetic data and XRPL Testnet only. A live service needs review by regulators and counsel.
 
-- **Consent**: per-round, per-purpose, itemized consent by default (Korea PIPA Arts. 15, 17, 22; separate consent for health data under Art. 23; Bioethics Act Art. 16; US 45 CFR 46.116).
-- **Scope check**: deterministic code, not the LLM, compares each request to the consented recipient, purpose, fields and period. Any change requires new consent.
-- **Pseudonymous IDs and minimum fields**: per-study IDs and blocking of risky quasi-identifier combinations reduce re-identification risk (designed with reference to PIPA Arts. 28-2 to 28-5 and HIPAA 164.514).
-- **Three withdrawal options**: decline this round / stop future supply / withdraw data-access consent (PIPA Art. 37). Data already used in research is handled as the consent form and the IRB protocol state (PIPA Art. 28-7; OHRP 2010 guidance).
-- **Cross-border transfer**: the consent document does not allow it; viewing from abroad counts as transfer and needs a separate consent (PIPA Art. 28-8).
+- **Consent**: separate consent for health (sensitive) data, third-party provision and international transfer, scoped per round and purpose (Korea PIPA Arts. 15, 17, 22, 23, 28-8; Bioethics Act Art. 16; US 45 CFR 46.116). Each consent is hashed and tied to the participant's signature.
+- **Scope check**: deterministic code, not the LLM, compares each request with the consented recipient, purpose, fields and period, and checks current consent on every access. Any change needs new consent.
+- **Pseudonymization**: researchers receive only a participant number and the consented fields. The link between a person and their number is stored separately, where researchers cannot reach it. This is pseudonymized data, and the data agreement prohibits re-identification.
+- **Three withdrawal options**: decline this round / stop future contributions / withdraw data-use consent (PIPA Art. 37). Withdrawal immediately blocks sessions and key release, and asks the institution to destroy individual-level data and confirm; the demo records the request and the confirmation as events. Aggregate statistics already produced remain.
+- **International transfer**: access from abroad counts as transfer, so we disclose countries, recipients, purpose, fields and retention, and ask for separate consent. Each person's records stay in their own country.
 - **IRB**: approval and exemption are decided by the IRB (Bioethics Act Art. 15; 45 CFR 46.112). An XRPL Credential only shows the issuer's attestation.
-- **Participation compensation**: accrues per round via Escrow and is never clawed back after withdrawal; Clawback applies only to the licence token (FDA 2018 payment guidance). The platform holds no keys or funds (cf. Korea AML Act VASP rules; FinCEN FIN-2019-G001).
-- **On-chain minimization**: no personal data, study names or conditions on the ledger; the licence refers to the study by hash (PIPC Blockchain Guideline 2026).
+- **Participation compensation**: paid per round by the institution through Escrow and never taken back after withdrawal; Clawback applies only to the licence token. The platform holds no keys or funds.
+- **Records**: access logs are kept 2 years and permission-change logs 3 years; no personal data, study names or conditions go on the ledger.
 
 ## 12. Where this goes (production targets)
 

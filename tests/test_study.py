@@ -83,6 +83,12 @@ def test_approve_contributes_and_issues_a_licence_then_revoke_claws_back_and_ref
     assert r["clawback"]["tx"] and r["withheld"] and r["refunds"][0]["tx"]
     assert r["licence"]["held_by_study"] is False and r["consent"]["status"] == "revoked"
     assert {c["weeks"][0]: c["status"] for c in r["contributions"] if "fatigue.survey" in c["items"]}[5] == "refunded"
+    d = r["deletion"]
+    assert d["bundles_destroyed"] >= 3 and len(d["confirmation_hash"]) == 64
+    kinds = [e["kind"] for e in w.store.q("SELECT kind FROM events")]
+    assert "deletion_confirmed" in kinds
+    row = [x for x in study.study_view(w)["heatmap"]["rows"] if x["person"] == HERO][0]
+    assert {c["s"] for c in row["cells"]} == {"withdrawn"}
 
 
 def test_clawed_back_licence_alone_stops_the_key(w):
