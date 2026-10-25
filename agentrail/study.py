@@ -166,6 +166,7 @@ def set_goal(w, goal: str, propose=None) -> dict:
                 wk.append(c["item"])
     _plant_integrity_case(w, s)
     s.status = "draft"
+    s.approval = {}                      # a new spec is a new round: its budget needs its own co-sign
     n = s.needs
     w.store.log(LAB, "spec", f"gap reading ({'LLM' if n.source == 'llm' else 'rule baseline'}, checked by code): "
                 + ("; ".join(f"{i} weeks {ws}" for i, ws in n.gaps.items()) or "no gaps")
