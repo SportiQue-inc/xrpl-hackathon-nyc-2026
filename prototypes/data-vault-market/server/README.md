@@ -28,3 +28,10 @@ rules and every message says "rules" instead of the model name.
 
 Tests: `VM_LEDGER=mock` runs everything against AgentRail's in-memory ledger; the site then shows
 "TEST LEDGER (not real)" on every page.
+
+## Deploy (Render)
+
+`render.yaml` at the repository root deploys this server from this branch: Docker build from the repo
+root, an always-on Starter instance, and a 1 GB disk at `/data` for the DB, wallet seeds and keys.
+In Render: New > Blueprint > this repository, then paste `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`
+when asked. The site runs with `VM_PUBLIC=1`, so demo accounts are read-only and visitors sign up.
