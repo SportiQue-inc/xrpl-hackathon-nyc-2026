@@ -58,6 +58,13 @@ npm install               # live only: ethers 6.17.0 and the vendored AP4M SDK (
 ./run-live.sh             # live run on XRPL EVM Testnet
 ```
 
+If Node reports `fetch failed` with connection timeouts while curl can reach the AP4M service, this Mac's
+IPv4 transport was verified with the following per-run setting (also applies to the child Agent/Merchant):
+
+```bash
+NODE_OPTIONS='--no-network-family-autoselection --dns-result-order=ipv4first' ./run-live.sh
+```
+
 `npm test` covers: pays within cap, refuses over cap, refuses unknown payee, refuses after budget exhausted,
 rejects a tampered package hash, refuses an off-consent purpose or item.
 
