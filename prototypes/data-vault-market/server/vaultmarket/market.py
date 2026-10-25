@@ -78,6 +78,8 @@ class Market:
                     for j in range(8):
                         body = data.make_record("air", rng, o["name"], j, (0, 0))
                         self.add_file(o["id"], "air", data.file_name("air", body, j), body, listed=True, source="kite-sensor-net")
+        # contracts a previous run left mid-flight never settle; close them honestly
+        self.s.x("UPDATE contracts SET status = 'rejected', reason = 'interrupted by a server restart' WHERE status IN ('negotiating', 'settling')")
         threading.Thread(target=self._connect_all, daemon=True).start()
 
     def _connect_all(self):
@@ -98,6 +100,18 @@ class Market:
         # orgs first (they post the demand), then people; a few faucet calls at a time
         with ThreadPoolExecutor(max_workers=6) as ex:
             list(ex.map(one, [a["id"] for a in self.s.q("SELECT id FROM accounts ORDER BY type DESC, id")]))
+        self.setup_asset()
+
+    def setup_asset(self):
+        """Trust lines and starting test USD: companies get budgets for many lots, people a small float
+        for buying and cleaning fees. Trading waits for this, so no lot settles in the wrong asset."""
+        holders = {self.platform: 10}
+        for a in self.s.q("SELECT id, type FROM accounts"):
+            if a["id"] in self.addr:
+                holders[self.addr[a["id"]]] = 20000 if a["type"] == "org" else 300
+        self.rail.setup_token(holders)
+        self.asset_ready = True
+        self._bal.clear(); self.events += 1
 
     def add_user_account(self, aid: str, name: str):
         """A signed-up member: an empty vault, an agent that asks before every sale, and its own XRPL wallet."""
@@ -148,7 +162,7 @@ class Market:
         if not held:
             return {"error": "nothing to clean"}
         account, name, body, sc = held
-        fee_drops = int(sc["fee"] * config.DROPS_PER_XRP_UNIT)
+        fee_drops = int(sc["fee"] * config.MICRO_PER_UNIT)
         tx = self._fee(account, fee_drops, f"cleaning {name}")
         fid = self.add_file(account, sc["kind"], name, intake.clean(sc["kind"], body), listed=listed, source=body.get("device_serial", "upload"),
                             cleaned=True, checks=["schema", "value ranges", "duplicates", "identifiers removed"] + sc["issues"])
@@ -161,8 +175,7 @@ class Market:
         if not (src and dst):
             return None
         try:
-            p = self.rail.led.prepare_payment(src, dst, drops, "0" * 64, memo)
-            r = self.rail._submit(p)
+            r = self.rail.pay(src, dst, drops, memo)
             self.s.insert("txs", contract=None, type="Payment (cleaning fee)", hash=r["hash"], src=account, dst="platform", drops=drops, result=r["result"])
             return r["hash"]
         except Exception:
@@ -184,7 +197,7 @@ class Market:
             return None
         v, t = self._bal.get(aid, (None, 0))
         if time.time() - t > 20:
-            v = self.rail.balance_xrp(addr)
+            v = self.rail.balance(addr)
             self._bal[aid] = (v, time.time())
         return v
 
@@ -322,8 +335,8 @@ class Market:
         reason = ""
         if people_eff < need:
             reason = f"only {people_eff} people agreed; a lot of personal data needs at least {config.K_MIN}" if personal else "no seller agreed"
-        elif total * config.DROPS_PER_XRP_UNIT / 1e6 + 0.2 * len(verified) > bal:
-            reason = f"not enough XRP for {len(verified)} escrows"
+        elif total * config.MICRO_PER_UNIT / 1e6 + (0 if self.rail.token else 0.2 * len(verified)) > bal:
+            reason = f"not enough {self.rail.symbol()} for {len(verified)} escrows"
         if personal:
             step(f"k-anonymity (k >= {config.K_MIN})", f"{people_eff} people in the lot", people_eff >= config.K_MIN)
         outcome = {"agreed": len(agreed), "declined": declined, "overlap": overlap, "people": people_eff, "total": total, "ok": not reason, "reason": reason}
@@ -363,7 +376,7 @@ class Market:
             sealed, K = self.rail.seal(buyer_id, clear)
             trace["protocol"].append({"protocol": "Sealed delivery (AES-256-GCM, key wrapped with X25519 + HKDF-SHA256)", "who": a, "ok": True, "tx": None,
                                       "detail": f"{len(clear)} bytes sealed to the buyer's X25519 key; bundle SHA-256 {hashlib.sha256(clear).hexdigest()[:16]}…; content key K stays with the seller's agent"})
-            legs.append({"seller": a, "seller_addr": self.addr[a], "dst_addr": self.acct(a).get("payout"), "drops": int(price * config.DROPS_PER_XRP_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
+            legs.append({"seller": a, "seller_addr": self.addr[a], "dst_addr": self.acct(a).get("payout") if self.rail.has_line(self.acct(a).get("payout") or "") else None, "drops": int(price * config.MICRO_PER_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
             plain[a] = clear
         res = self.rail.escrow_lot(self.addr[buyer_id], legs, f"vaultmarket/contract/{cid}")
         paid, items, fps, merged = [], 0, set(), []
@@ -373,8 +386,8 @@ class Market:
                 self.s.insert("txs", contract=cid, type="EscrowFinish (key released)", hash=r["finish"]["hash"], src=leg["seller"], dst=buyer_id, drops=leg["drops"], result=r["finish"]["result"])
             trace["tx"].append({"seller": leg["seller"], "create": r["create"]["hash"], "finish": r["finish"]["hash"], "ok": r["finish"]["ok"]})
             cond = condition_hex(leg["K"])
-            trace["protocol"].append({"protocol": "XRPL EscrowCreate (PREIMAGE-SHA-256 crypto-condition)", "who": leg["seller"], "ok": r["create"]["ok"], "tx": r["create"]["hash"],
-                                      "detail": f"buyer locks {leg['drops'] / 1e6:.3f} XRP to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
+            trace["protocol"].append({"protocol": f"XRPL EscrowCreate ({'token escrow, ' if self.rail.token else ''}PREIMAGE-SHA-256 crypto-condition)", "who": leg["seller"], "ok": r["create"]["ok"], "tx": r["create"]["hash"],
+                                      "detail": f"buyer locks {leg['drops'] / 1e6:.3f} {self.rail.symbol()}{(' (issuer ' + self.rail.issuer[:8] + '…)') if self.rail.token else ''} to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
             trace["protocol"].append({"protocol": "XRPL EscrowFinish (fulfillment reveals K)", "who": leg["seller"], "ok": r["finish"]["ok"], "tx": r["finish"]["hash"],
                                       "detail": f"seller's agent submits the fulfillment (the preimage K); the ledger checks SHA-256(K) against the condition and pays; {r['finish']['result']}"})
             if not r["finish"]["ok"]:
@@ -408,7 +421,7 @@ class Market:
             self.s.bump(f"earned:{l['seller']}:{w['kind']}", l["price"])
             self.s.insert("prices", kind=w["kind"], price=l["price"], contract=cid)
             if self.acct(l["seller"])["type"] == "person" and self.acct(l["seller"])["sell_agent"].get("mode") == "ask":
-                self.chat(l["seller"], "agent", f"Sold to {self.acct(buyer_id)['name']} in a lot of {people} people: +{l['price']} ({l['drops'] / 1e6} XRP on Testnet). Contract #{cid}.")
+                self.chat(l["seller"], "agent", f"Sold to {self.acct(buyer_id)['name']} in a lot of {people} people: +{l['drops'] / 1e6:.2f} {self.rail.symbol()} on the ledger. Contract #{cid}.")
         for a in {l["seller"] for l in paid}:
             self._bal.pop(a, None)
         self._bal.pop(buyer_id, None)
@@ -501,6 +514,8 @@ class Market:
         # trade as soon as a handful of wallets are funded; the rest join as their faucet calls finish
         while sum(1 for a in self.addr if not a.startswith("u-")) < min(8, len(self.s.q("SELECT id FROM accounts"))):
             time.sleep(1)
+        while self.rail.asset == "USD" and self.rail.name != "mock" and not getattr(self, "asset_ready", False):
+            time.sleep(1)      # test USD trust lines are being set up
         while True:
             t = time.time()
             try:

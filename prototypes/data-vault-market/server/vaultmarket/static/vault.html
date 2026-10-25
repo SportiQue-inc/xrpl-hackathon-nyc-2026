@@ -56,7 +56,7 @@ async function refresh() {
   $("addr").textContent = ACC.address || ""; $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribute("aria-pressed", VIEW === "demand"); $("vAll").setAttribute("aria-pressed", VIEW === "all");
   $("dbSub").textContent = `${ACC.files} files · the agent sorts them into bundles by domain and by who is asking`;
   $("uploads").innerHTML = ACC.uploads.map((u) => `<div class="card"><div class="row"><span class="mono">${esc(u.name)}</span><span class="tag ${VERDICT[u.verdict]?.[0] || ""}">${VERDICT[u.verdict]?.[1] || esc(u.verdict)}</span></div>
-    <span class="small muted">${esc(u.why)}</span>${u.verdict === "clean" && u.file === -1 ? `<div class="acts"><button class="primary" type="button" data-u="${u.id}">Clean it for ${u.fee}</button></div>` : ""}</div>`).join("") || '<p class="muted small">Nothing uploaded yet.</p>';
+    <span class="small muted">${esc(u.why)}</span>${u.verdict === "clean" && u.file === -1 ? `<div class="acts"><button class="primary" type="button" data-u="${u.id}">Clean it for ${xrp(u.fee)}</button></div>` : ""}</div>`).join("") || '<p class="muted small">Nothing uploaded yet.</p>';
   $("uploads").querySelectorAll("[data-u]").forEach((b) => b.onclick = async () => { b.disabled = true; await post(`/api/account/${ME}/upload/${b.dataset.u}/clean`); refresh(); });
   $("recs").innerHTML = ACC.recs.map((r) => `<div class="card hot"><h2>Agent recommendation · ${esc(k[r.kind].domain)}</h2><p>${esc(r.text)}</p>
     <div class="acts"><button class="primary" type="button" data-r="${r.id}" data-a="1">Pseudonymize and list</button><button type="button" data-r="${r.id}" data-a="0">Keep private</button></div></div>`).join("");
@@ -86,8 +86,8 @@ async function refresh() {
   $("bundles").querySelectorAll("[data-f]").forEach((el) => el.onchange = async () => { await post(`/api/account/${ME}/file/${el.dataset.f}`, { listed: el.checked }); refresh(); });
   const earned = ACC.bundles.reduce((t, b) => t + b.earned, 0);
   const st = ACC.stats;
-  $("wallet").innerHTML = [[ACC.balance != null ? ACC.balance.toFixed(2) : "…", "XRP balance"], [st.earned_xrp.toFixed(2), "XRP earned"], [st.agreed, "sales agreed"], [st.declined, "declined or passed"],
-    [st.fees_xrp.toFixed(2), "XRP cleaning fees"], [ACC.files, "files in my DB"], [ACC.bought.length, "lots bought"]].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
+  $("wallet").innerHTML = [[ACC.balance != null ? ACC.balance.toFixed(2) : "…", `${sym()} balance`], [st.earned_xrp.toFixed(2), `${sym()} earned`], [st.agreed, "sales agreed"], [st.declined, "declined or passed"],
+    [st.fees_xrp.toFixed(2), `${sym()} cleaning fees`], [ACC.files, "files in my DB"], [ACC.bought.length, "lots bought"]].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
   let cum = 0; const pts = ACC.growth.map((g) => [g.m, (cum += g.n)]); const mx = Math.max(1, ...pts.map((p) => p[0])), my = Math.max(1, cum);
   $("growth").innerHTML = pts.length ? `<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${pts.map(([x, y]) => `${(x / mx) * 310 + 5},${65 - (y / my) * 58}`).join(" ")}"/><text x="5" y="10" fill="var(--muted)" font-size="10">${cum} files</text>` : "";
   $("bought").innerHTML = ACC.bought.map((f) => `<div class="card"><span class="mono">${esc(f.name)}</span><span class="small muted">${esc(f.source)}${f.status === "bundled" ? " · combined into a resale bundle" : ""}</span><details class="small"><summary>Sample</summary><pre>${esc(f.preview)}</pre></details></div>`).join("") || '<p class="muted small">Nothing bought yet.</p>';

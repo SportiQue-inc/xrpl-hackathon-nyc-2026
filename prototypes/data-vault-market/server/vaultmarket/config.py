@@ -25,7 +25,13 @@ LEDGER = os.environ.get("VM_LEDGER", "testnet")            # testnet | devnet | 
 WALLETS = os.environ.get("VM_WALLETS", os.path.join(DATA_DIR, "wallets.local.json"))
 AGENTS = int(os.environ.get("VM_AGENTS", "50"))
 TICK_SECONDS = float(os.environ.get("VM_TICK_SECONDS", "15"))   # one negotiation round per tick
-DROPS_PER_XRP_UNIT = int(os.environ.get("VM_DROPS_PER_UNIT", "10000"))  # 1 price unit = 0.01 XRP on the ledger
+# Settlement asset. USD: a test USD token (IOU) on the ledger, standing in for RLUSD, settled by token
+# escrow; XRP: the fallback. Amounts are kept in millionths of the asset (drops for XRP).
+ASSET = os.environ.get("VM_ASSET", "USD").upper()
+USD_PER_UNIT = float(os.environ.get("VM_USD_PER_UNIT", "1"))         # 1 price unit = 1 test USD, so every number reads as RLUSD
+XRP_DROPS_PER_UNIT = int(os.environ.get("VM_DROPS_PER_UNIT", "10000"))  # fallback: 1 price unit = 0.01 XRP
+MICRO_PER_UNIT = int(USD_PER_UNIT * 1_000_000) if ASSET == "USD" else XRP_DROPS_PER_UNIT
+DROPS_PER_XRP_UNIT = MICRO_PER_UNIT    # older name, same meaning: millionths of the asset per price unit
 K_MIN = 5
 
 LLM_PROVIDER = os.environ.get("VM_LLM_PROVIDER") or os.environ.get("LLM_PROVIDER") or (

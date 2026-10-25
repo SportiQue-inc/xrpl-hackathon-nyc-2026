@@ -9,7 +9,9 @@ const post = (path, body) => api(path, { method: "POST", headers: { "content-typ
 const params = new URLSearchParams(location.search);
 let ME = params.get("as") || (() => { try { return localStorage.getItem("vm-as"); } catch { return null; } })() || "dana";
 let META = null, USER = null;
-const xrp = (units) => `${(+(units || 0) * (META?.unit_xrp || 0.01)).toFixed(2)} XRP`;   // price units -> what moves on the ledger
+const sym = () => (META?.asset === "test USD" ? "RLUSD" : META?.asset || "XRP");   // test USD token stands in for RLUSD on Testnet
+const xrp = (units) => `${(+(units || 0) * (META?.unit_xrp || 0.01)).toFixed(2)} ${sym()}`;   // price units -> what moves on the ledger
+const micro = (m) => `${(+(m || 0) / 1e6).toFixed(2)} ${sym()}`;
 const hhmm = (t) => new Date(t * 1000).toTimeString().slice(0, 8);
 async function topbar(page) {
   META = await api("/api/meta");
@@ -24,6 +26,8 @@ async function topbar(page) {
   $("acct").onchange = (e) => { ME = e.target.value; try { localStorage.setItem("vm-as", ME); } catch {} refresh(); };
   $("ledgerTag").textContent = ({ testnet: "XRPL Testnet", devnet: "XRPL Devnet" })[META.ledger] || "TEST LEDGER (not real)";
   $("ledgerTag").className = "tag " + (META.ledger === "mock" ? "red" : "blue");
+  $("ledgerTag").title = META.asset_note || "";
+  if (META.asset === "test USD") $("ledgerTag").textContent += " · RLUSD (test USD token)";
   $("modelTag").textContent = META.model === "rules" ? "agents: written rules (no LLM key)" : `agents: ${META.model}`;
   if (META.connected < META.accounts) $("banner").hidden = false, $("banner").textContent = `Funding wallets on the ledger: ${META.connected} of ${META.accounts}. Funded accounts are already trading.`;
   else $("banner").hidden = true;

@@ -173,7 +173,7 @@ def _chat_today(aid: str) -> int:
 @app.get("/api/meta")
 def meta():
     return {"ledger": M.rail.name, "model": llm.model_name(), "llm": llm.USAGE, "kinds": KINDS, "k_min": config.K_MIN,
-            "unit_xrp": config.DROPS_PER_XRP_UNIT / 1e6, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
+            "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": M.rail.asset == "USD", "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
             "rpm_cap": config.LLM_RPM, "daily_cap": config.LLM_DAILY_CALLS}
 
 
@@ -203,7 +203,7 @@ def market(account: str = "dana", domain: str | None = None):
     for c in contracts:
         c["buyer_name"] = _name(c["buyer"]); c["sellers"] = json.loads(c["sellers"] or "[]")
         c["mine"] = c["buyer"] == account or account in c["sellers"]
-        c["drops"] = int((c["total"] or 0) * config.DROPS_PER_XRP_UNIT)
+        c["drops"] = int((c["total"] or 0) * config.MICRO_PER_UNIT)
         t = s.one("SELECT hash FROM txs WHERE contract = ? AND hash IS NOT NULL ORDER BY id DESC LIMIT 1", (c["id"],))
         c["tx_url"] = M.rail.explorer(t["hash"]) if t else None
     people = s.q("SELECT COUNT(*) n, SUM(online) o FROM accounts")[0]
@@ -341,7 +341,7 @@ def account(aid: str, request: Request):
     growth = M.s.q("SELECT CAST((created - (SELECT MIN(created) FROM files)) / 60 AS INT) m, COUNT(*) n FROM files WHERE account = ? GROUP BY m ORDER BY m", (aid,))
     fees = M.s.one("SELECT COALESCE(SUM(drops), 0) d FROM txs WHERE src = ? AND contract IS NULL", (aid,))["d"]
     stats = {"agreed": sum(b["agreed"] for b in bundles), "declined": sum(b["declined"] for b in bundles),
-             "earned_xrp": round(sum(b["earned"] for b in bundles) * config.DROPS_PER_XRP_UNIT / 1e6, 3), "fees_xrp": round(fees / 1e6, 3)}
+             "earned_xrp": round(sum(b["earned"] for b in bundles) * config.MICRO_PER_UNIT / 1e6, 3), "fees_xrp": round(fees / 1e6, 3)}
     return {"account": a, "balance": M.balance(aid), "address": M.addr.get(aid), "stats": stats, "bundles": bundles, "demand": demand,
             "bought": [f for f in files if f["status"] in ("bought", "bundled")], "files": len(files), "growth": growth,
             "uploads": M.s.q("SELECT * FROM uploads WHERE account = ? ORDER BY id DESC LIMIT 10", (aid,)),
