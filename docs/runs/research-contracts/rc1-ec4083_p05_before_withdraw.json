@@ -1,0 +1,80 @@
+{
+  "person": "RC1-4db4d4f8",
+  "unit": "USD",
+  "display_unit": "RLUSD",
+  "ledger": "mock",
+  "active_institutions": 1,
+  "settled_drops": 20000,
+  "held_drops": 0,
+  "contracts": [
+    {
+      "contract": "RC1-ec4083",
+      "title": "Sleep and fatigue, 3 weeks (AP4M live)",
+      "institution": "SportiQue Research Pilot",
+      "institution_verified": "ethics credential on ledger (IRB number declared by the researcher)",
+      "items": [
+        "sleep.daily",
+        "fatigue.survey"
+      ],
+      "automation": "auto_all",
+      "status": "active",
+      "consent_hash": "218b6961fb63eb914e2ff63d877ec17c595c0777343110f7c07e1244599e305a",
+      "pending_approvals": [],
+      "payment_rail": "ap4m",
+      "settled_drops": 20000,
+      "held_drops": 0,
+      "latest_tx": {
+        "tx": "0x5149b31038809eaa8fbe94f0a6fcf6ce8dca2eaccd30968a93ce8cc604d5b516",
+        "url": "https://explorer.testnet.xrplevm.org/tx/0x5149b31038809eaa8fbe94f0a6fcf6ce8dca2eaccd30968a93ce8cc604d5b516",
+        "receipt_url": null,
+        "rail": "ap4m"
+      }
+    }
+  ],
+  "history": [
+    {
+      "contract": "RC1-ec4083",
+      "institution": "SportiQue Research Pilot",
+      "study": "Sleep and fatigue, 3 weeks (AP4M live)",
+      "order_id": 4,
+      "status": "delivered",
+      "amount_drops": 20000,
+      "slot": "RC1-4db4d4f8|week1",
+      "granted": [
+        "fatigue.survey",
+        "sleep.daily"
+      ],
+      "payment": {
+        "rail": "ap4m",
+        "status": "paid",
+        "amount_drops": 20000,
+        "payee": "the team's AP4M merchant wallet (AP4M has one merchant per team), credited to this member here",
+        "forward": {
+          "tx": null,
+          "url": null
+        },
+        "reason": null,
+        "claim_id": "0x97d88ed992a1644d5b8896a28c05680b4c4f2b5f82a7ee0f6764e1ab76d8884b",
+        "receipt_url": null,
+        "voucher_redeemed": {
+          "tx": "0x5149b31038809eaa8fbe94f0a6fcf6ce8dca2eaccd30968a93ce8cc604d5b516",
+          "url": "https://explorer.testnet.xrplevm.org/tx/0x5149b31038809eaa8fbe94f0a6fcf6ce8dca2eaccd30968a93ce8cc604d5b516"
+        },
+        "settlement_tx": null,
+        "verified": true
+      },
+      "escrow_create": {
+        "tx": "986BD854B8E093B7FF7811DAD4885441CE1751EDC6504844742EB91D46DED341",
+        "url": null
+      },
+      "escrow_finish": {
+        "tx": "935C1D79CB4E63729F0F60462D6B8514AF98A8DF4BE1048E665EB75E3D7607A1",
+        "url": null
+      },
+      "escrow_cancel": {
+        "tx": null,
+        "url": null
+      }
+    }
+  ]
+}
