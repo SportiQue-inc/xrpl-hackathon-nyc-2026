@@ -25,6 +25,9 @@ async function topbar(page) {
   [META, USER] = await Promise.all([api("/api/meta"), api("/api/me")]);
   if (!USER.user) {await post('/api/demo-session');USER=await api('/api/me');}
   ME = USER.user?.account || null;
+  const nav=document.querySelector('.top nav');
+  if(nav)nav.innerHTML=[['/','Market'],['/vault','My DB'],['/assets','Assets'],['/demo','Demo'],['/report','Report']].map(([h,t])=>`<a href="${h}">${t}</a>`).join('');
+  if(nav)nav.insertAdjacentHTML('beforeend',`<a class="home-link" href="${esc(META.engine_url||'https://agentrail-try-production.up.railway.app/apps/try/index.html')}" target="_blank" rel="noopener" title="The AgentRail engine this market runs on">About AgentRail ↗</a>`);
   document.querySelectorAll('nav a').forEach(a=>{if(a.getAttribute('href')===location.pathname)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   $("accountName").textContent = USER.user?.username || "";
   const brand=document.querySelector(".brand");if(brand)brand.after($("accountName"));

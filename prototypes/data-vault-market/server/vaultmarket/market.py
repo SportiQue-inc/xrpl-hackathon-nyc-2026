@@ -87,12 +87,24 @@ class Market:
                         self.add_file(o["id"], "air", data.file_name("air", body, j), body, listed=True, source="kite-sensor-net")
         if not self.s.one("SELECT id FROM accounts WHERE id='demo-vault'"):
             self.s.insert("accounts",id="demo-vault",name="Demo vault",type="person",trust=.9,verified=0,
-                          sell_agent={"mode":"ask","min":{k:v["price"] for k,v in KINDS.items()},"blocks":["insurance pricing"]},
+                          sell_agent={"mode":"auto","min":{k:v["price"] for k,v in KINDS.items()},"blocks":["insurance pricing"]},
                           buy_agent={"auto_limit":10,"min_trust":.7,"max_overlap":0})
             demo_rng=random.Random(101)
             for k in ("gps_track","sleep_log","purchase_receipts"):
                 body=data.make_record(k,demo_rng,"Synthetic demo",0,(40.7,-74))
                 self.add_file("demo-vault",k,data.file_name(k,body,0),body,listed=False,source="synthetic demo")
+        if not self.s.stat("demo_vault_auto_v1") and self.s.one("SELECT id FROM accounts WHERE id='demo-vault'"):
+            # The demo vault's agent sells on its own within its minimums, like the market personas, with enough records to trade.
+            rules=self.acct("demo-vault")["sell_agent"];rules["mode"]="auto"
+            self.s.x("UPDATE accounts SET sell_agent=? WHERE id='demo-vault'",(json.dumps(rules),))
+            self.s.x("UPDATE files SET status='listed' WHERE account='demo-vault' AND status='private'")
+            demo_rng=random.Random(202)
+            for k in ("gps_track","sleep_log","purchase_receipts"):
+                for j in range(1,6):
+                    body=data.make_record(k,demo_rng,"Synthetic demo",j,(40.7,-74))
+                    self.add_file("demo-vault",k,data.file_name(k,body,j),body,listed=True,source="synthetic demo")
+            self.chat("demo-vault","agent","I now sell automatically within your minimum prices and allowed purposes. Change this under Settings.")
+            self.s.bump("demo_vault_auto_v1")
         legacy=self.s.q("SELECT DISTINCT account FROM chat WHERE done=0 AND actions IS NOT NULL AND text LIKE '%lot of at least % people%'")
         self.s.x("UPDATE chat SET done=1 WHERE done=0 AND actions IS NOT NULL AND text LIKE '%lot of at least % people%'")
         for a in legacy:
@@ -381,6 +393,8 @@ class Market:
         cands = [a for a in by_acct if a not in low_trust and w["purpose"] not in self.acct(a)["sell_agent"].get("blocks", [])]
         self.rng.shuffle(cands)
         cands.sort(key=lambda a: a not in interested)
+        if "demo-vault" in cands and self.rng.random() < 0.5:
+            cands.remove("demo-vault");cands.insert(0,"demo-vault")  # the demo vault trades often so its history fills in
         cands = [seller_id] if seller_id in cands else [] if seller_id else cands[:1]
         trace["buyer_trace"].append(f"{len(by_acct)} vaults list this kind; {len(low_trust)} below trust {w['min_trust']} skipped; asking {len(cands)}"
                                     + (f", {len(interested & set(cands))} marked interest so they go first." if interested & set(cands) else "."))

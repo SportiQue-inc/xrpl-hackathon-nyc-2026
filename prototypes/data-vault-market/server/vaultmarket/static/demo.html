@@ -34,8 +34,14 @@ function renderNetwork(){
  if(key===networkKey)return;networkKey=key;
  const focus=document.activeElement?.dataset.networkAgent;
  $('network').innerHTML=DemoViz.network({...D,default_asset:$('asset').value},selected);
+ const seen=new Set([...$('network').querySelectorAll('path[data-flow]')].map(p=>p.dataset.flow)),fresh=window._flows?[...seen].filter(k=>!window._flows.has(k)):[];window._flows=new Set([...(window._flows||[]),...seen]);
+ const head=$('network').querySelector('.dv-network-head>div');if(head&&!head.querySelector('.dv-ticker'))head.insertAdjacentHTML('beforeend','<p class="dv-ticker" aria-live="polite"></p>');
+ fresh.forEach(k=>{const p=$('network').querySelector(`path[data-flow="${CSS.escape(k)}"]`);if(!p)return;[p,$('network').querySelector(`li[data-flow="${CSS.escape(k)}"]`),$('network').querySelector(`[data-counterparty="${CSS.escape(p.dataset.other)}"]`)].forEach(n=>n&&n.classList.add('dv-flash'));p.dataset.flashParty=p.dataset.party;});
+ if(fresh.length){const [id,st]=fresh[0].split(':'),c=(D.activity||[]).find(e=>String(e.id)===id),who=x=>D.agents.find(a=>a.id===x)?.name||x;if(c)window._ticker=`<b>C${esc(id)}</b> · ${esc(who(c.seller))} → ${esc(who(c.buyer))} · ${esc(META.kinds[c.kind]?.label||c.kind)} · <b class="${st==='settled'?'success':st==='rejected'?'failure':'pending'}">${st==='settled'?'Settled':st==='rejected'?'Rejected':'Negotiating'}</b>${st==='settled'&&c.total!=null?` <b class="success">+${money(c.total)}</b>`:''}${c.reason&&st==='rejected'?` · ${esc(c.reason)}`:''}`;}
+ const tk=$('network').querySelector('.dv-ticker');if(tk)tk.innerHTML=window._ticker||'Waiting for the next deal…';
  const agents=D.agents.slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
  $('network').querySelectorAll('.dv-agent-node').forEach((node,i)=>{node.dataset.networkAgent=agents[i].id;node.setAttribute('role','button');node.onclick=()=>selectAgent(agents[i].id);node.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectAgent(agents[i].id);}};if(focus===agents[i].id)node.focus({preventScroll:true});});
+ $('network').querySelectorAll('path[data-flash-party]').forEach(p=>$('network').querySelector(`[data-network-agent="${CSS.escape(p.dataset.flashParty)}"]`)?.classList.add('dv-flash'));
 }
 function render(){
  const ordered=D.agents.slice().sort((a,b)=>income(b)-income(a)||sales(b)-sales(a)||String(a.id).localeCompare(String(b.id)));
@@ -58,7 +64,7 @@ function render(){
 }
 async function refresh(){
  if(busy||document.hidden||(IS_REPORT&&D))return;
- const wait=4000-(Date.now()-lastFetch);if(wait>0){if(!refreshTimer)refreshTimer=setTimeout(()=>{refreshTimer=null;refresh();},wait);return;}
+ const wait=(IS_REPORT?4000:1500)-(Date.now()-lastFetch);if(wait>0){if(!refreshTimer)refreshTimer=setTimeout(()=>{refreshTimer=null;refresh();},wait);return;}
  busy=true;lastFetch=Date.now();
  try{
   const next=await api(IS_REPORT?'/api/research-report':'/api/demo?minutes='+$('period').value);D=next;
@@ -69,6 +75,6 @@ async function refresh(){
  }catch(e){showError(e);}finally{busy=false;}
 }
 $('period').onchange=refresh;$('asset').onchange=render;$('view').onclick=()=>{asList=!asList;$('view').textContent=asList?'Grid view':'List view';render();};
-topbar(IS_REPORT?'report':'demo').then(()=>{refresh();if(!IS_REPORT){live();setInterval(refresh,30000);}}).catch(showError);
+topbar(IS_REPORT?'report':'demo').then(()=>{refresh();if(!IS_REPORT){try{new EventSource('/api/stream').onmessage=()=>refresh();}catch{}setInterval(refresh,5000);}}).catch(showError);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
 </script></body></html>

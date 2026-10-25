@@ -40,3 +40,13 @@
 @keyframes dv-signal{to{stroke-dashoffset:-60}}
 @media(prefers-reduced-motion:reduce){.dv-flow-pending{animation:none}}
 @media(max-width:680px){.dv-network{padding:14px}.dv-events{grid-template-columns:1fr}.dv-chart-key{gap:10px}.dv-chart-caption{display:grid}.dv-network-svg{min-width:670px}}
+
+@keyframes dvFlash{0%{stroke-width:7;filter:drop-shadow(0 0 8px currentColor);stroke-opacity:1}100%{stroke-width:2;filter:none}}
+@keyframes dvPulse{0%{transform:scale(1.9);filter:drop-shadow(0 0 10px #fff)}100%{transform:scale(1);filter:none}}
+@keyframes dvRow{0%{background:#ffffff26}100%{background:transparent}}
+.dv-flow.dv-flash{animation:dvFlash 2.4s ease-out}.dv-flow-settled.dv-flash{color:#4dbb94}.dv-flow-pending.dv-flash{color:#ddb665}.dv-flow-rejected.dv-flash{color:#ff7a7a}
+.dv-agent-node.dv-flash circle,.dv-counterparty.dv-flash rect{transform-box:fill-box;transform-origin:center;animation:dvPulse 2.4s ease-out}
+.dv-events li.dv-flash{animation:dvRow 2.4s ease-out}
+.dv-live{position:absolute;right:16px;top:12px;display:flex;align-items:center;gap:6px;font-size:11px;color:#adbcb5}.dv-live i{width:8px;height:8px;border-radius:50%;background:#4dbb94;animation:dvLive 1.6s infinite}@keyframes dvLive{50%{opacity:.25}}
+.dv-ticker{min-height:22px;font-size:12.5px;color:#e8efec;margin:4px 0 0}.dv-ticker b{font-weight:650}
+@media (prefers-reduced-motion:reduce){.dv-flash,.dv-flash circle,.dv-flash rect,.dv-live i{animation:none!important}}

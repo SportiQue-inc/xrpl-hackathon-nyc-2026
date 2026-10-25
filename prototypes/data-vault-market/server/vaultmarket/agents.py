@@ -4,6 +4,7 @@ Each function returns {"thinking", "message", ...} plus "by": the model name, or
 answer came from the agent's written rules (no key, rate cap reached, or a bad answer).
 """
 from __future__ import annotations
+import json
 
 from . import llm
 from .data import KINDS
@@ -109,10 +110,16 @@ def parse_chat(text: str) -> dict:
     pattern=r"(?:\$|(?:for|at|price|minimum|budget|최저가?|가격|예산)\s*:?\s*)(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:XRP|test\s*USD|USD|달러|에)"
     m=next((m for m in re.finditer(pattern,text,re.I) if not re.match(r"\s*(?:days|nights|records|files|일|개|건)",text[m.end():],re.I)),None)
     rule = {"intent": intent, "kind": kind, "price": float(m.group(1) or m.group(2)) if m else None}
-    if kind and intent != "other":
-        return rule          # clear enough; save the LLM budget for the negotiations
-    out = llm.ask_json("You turn a marketplace user's message into an intent.",
-                       f'Message: "{text}". Kinds: {list(KINDS)}. Return {{"intent": "sell"|"buy"|"other", "kind": one of the kinds or null, "price": number or null}}.')
-    if out and out.get("intent") in ("sell", "buy", "other") and (out.get("kind") in KINDS or out.get("kind") is None):
-        return {"intent": out["intent"], "kind": out.get("kind") or kind, "price": rule["price"]}
-    return rule
+    return rule          # anything unclear goes to the conversational reply, which runs off the request path
+
+
+def chat_reply(text: str, context: dict) -> dict | None:
+    """A conversational answer from the owner's agent. -> {reply, action: sell|buy|null, kind}"""
+    return llm.ask_json(
+        "You are the owner's personal data agent in a data marketplace on the XRP Ledger Testnet. You sell the owner's records "
+        "(GPS tracks, sleep logs, purchase receipts, voice clips, air-quality data) one-to-one to buyers, never below the owner's minimums "
+        "and never for blocked purposes, and you can post requests to buy data. Answer briefly and plainly in the user's language, "
+        "using only the facts given. Never invent sales, prices or balances.",
+        f"Facts: {json.dumps(context, ensure_ascii=False)}\nOwner says: \"{text}\"\n"
+        f'Return {{"reply": "1-3 short sentences", "action": "sell"|"buy"|null, "kind": one of {list(KINDS)} or null}}. '
+        "Set action only when the owner clearly asks you to sell or buy now.", max_tokens=300)

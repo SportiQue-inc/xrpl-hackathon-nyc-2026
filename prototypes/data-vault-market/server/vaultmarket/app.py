@@ -263,7 +263,7 @@ def demo(minutes: int = 60):
     for a in styles:
         a['receipts']=[{'asset':r['asset'],'amount':r['drops']/1e6,'at':r['created'],'contract':r['contract'],'kind':r['kind'],'buyer':r['buyer_name']} for r in rows if r['src']==a['id']]
     activity=[]
-    for c in M.s.q("SELECT id,buyer,seller,kind,status,reason,created FROM contracts ORDER BY id DESC LIMIT 100"):
+    for c in M.s.q("SELECT id,buyer,seller,kind,status,reason,total,created FROM contracts ORDER BY id DESC LIMIT 100"):
         if c['buyer'] not in ids or c['seller'] not in ids:
             continue
         sources=set()
@@ -599,11 +599,14 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
         M.enqueue_sale(aid, w["kind"], w["id"])
         return {"ok": True}
     p = agents.parse_chat(text)
-    if not p["kind"]:
+    if p["intent"] == "other":
+        threading.Thread(target=_converse, args=(aid, text), daemon=True).start()
+    elif not p["kind"]:
         offers=_sell_now(aid)[:3]
         if offers:
-            lines=[f"{KINDS[w['kind']]['label']}: {w['listed']+w['private']} available file(s), wanted for {w['purpose']}; expected {w['expected']*config.MICRO_PER_UNIT/1000000:g} {M.rail.symbol()}." for w in offers]
-            M.chat(aid,"agent","From your own DB, these requests fit your data and terms. "+" ".join(lines)+" Choose one to authorize a one-to-one negotiation. A quote is not a completed payout.",[{"t":"Sell "+KINDS[w["kind"]]["label"],"do":"interest","posting":w["id"]} for w in offers])
+            amt=lambda w: f"{w['expected']*config.MICRO_PER_UNIT/1000000:.2f} {M.rail.symbol()}"
+            M.chat(aid,"agent",f"{len(offers)} buyer request{'s' if len(offers)>1 else ''} fit your data and your minimums: "+"; ".join(f"{KINDS[w['kind']]['label']} for {w['purpose']} (~{amt(w)})" for w in offers)+". Pick one and I'll negotiate it for you. The price is an estimate until the deal settles.",
+                   [{"t":f"{KINDS[w['kind']]['label']} · {w['purpose']} · ~{amt(w)}","do":"interest","posting":w["id"]} for w in offers])
         else:
             M.chat(aid,"agent","I found no matching sale yet. Add records in My DB; I will classify them and compare them with buyers' requests. Your files stay private until you choose to sell.")
     elif p["intent"] == "sell":
@@ -627,8 +630,30 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
                 M.negotiate(M.s.one("SELECT * FROM postings WHERE id = ?", (pid,)))
         threading.Thread(target=run, daemon=True).start()
     else:
-        M.chat(aid, "agent", "Tell me what to sell or what you need, for example 'sell my sleep logs' or 'I need air-quality data'.")
+        threading.Thread(target=_converse, args=(aid, text), daemon=True).start()
     return {"ok": True}
+
+
+def _converse(aid: str, text: str):
+    """Free-form questions go to the model off the request path, so a slow provider never times the request out."""
+    fallback = "Tell me what to sell or what you need, for example 'sell my sleep logs' or 'I need air-quality data'."
+    try:
+        a = M.acct(aid)
+        files = M.s.q("SELECT kind, status, COUNT(*) n FROM files WHERE account = ? GROUP BY kind, status", (aid,))
+        sold = M.s.one("SELECT COUNT(*) n, COALESCE(SUM(total),0) t FROM contracts WHERE seller = ? AND status = 'settled'", (aid,))
+        ctx = {"asset": M.rail.symbol(), "balance": M.balance(aid), "files": [dict(f) for f in files], "deals_sold": sold["n"], "sold_total": sold["t"],
+               "mode": a["sell_agent"].get("mode"), "minimums": a["sell_agent"].get("min"), "blocked_purposes": a["sell_agent"].get("blocks", []),
+               "open_offers": [{"kind": w["kind"], "purpose": w["purpose"], "expected": w["expected"]} for w in _sell_now(aid)[:3]]}
+        out = agents.chat_reply(text, ctx)
+        if not out or not str(out.get("reply") or "").strip():
+            M.chat(aid, "agent", fallback)
+        else:
+            M.chat(aid, "agent", str(out["reply"]).strip()[:600])
+            if out.get("action") == "sell" and out.get("kind") in KINDS:
+                M.enqueue_sale(aid, out["kind"])
+    except Exception:
+        M.chat(aid, "agent", fallback)
+    M.events += 1
 
 
 @app.post("/api/account/{aid}/chat/{cid}/act")

@@ -121,7 +121,7 @@
       const center=480, bend=80, state=statusClass(e.status), highlight=[e.buyer,e.seller].includes(selected);
       const path='M'+a.x+','+a.y+'C'+(a.x<center?a.x+bend:a.x-bend)+','+a.y+' '+center+','+(mid-45)+' '+center+','+mid+
         'C'+center+','+(mid+45)+' '+(b.x<center?b.x+bend:b.x-bend)+','+b.y+' '+b.x+','+b.y;
-      return '<path class="dv-flow dv-flow-'+state+(highlight?' dv-flow-selected':'')+'" style="--dv-order:'+i+'" d="'+path+'"><title>'+esc('C'+e.id+' · '+e.kind+' · '+e.status+' · '+sourceLabel(e.source))+'</title></path>';
+      return '<path class="dv-flow dv-flow-'+state+(highlight?' dv-flow-selected':'')+'" data-flow="'+esc(e.id+':'+state)+'" data-party="'+esc(participant(e))+'" data-other="'+esc(other(e))+'" style="--dv-order:'+i+'" d="'+path+'"><title>'+esc('C'+e.id+' · '+e.kind+' · '+e.status+' · '+sourceLabel(e.source))+'</title></path>';
     }).join('');
     const asset=D.default_asset||D.assets?.[0], totals=cohort.map(a=>total(receipts(a,D,asset))), top=Math.max(0,...totals);
     const nodes=cohort.map((a,i)=>{
@@ -129,9 +129,9 @@
       return '<g class="dv-agent-node'+(a.id===selected?' dv-agent-selected':'')+'" tabindex="0" role="img" aria-label="'+esc(a.name+' · '+a.style)+'"><title>'+esc(a.name+' · '+a.style+' · '+fmt(totals[i])+' '+(asset||'recorded asset'))+'</title>'+
         '<circle cx="'+p.x+'" cy="'+p.y+'" r="8.5" fill="'+heatColor(totals[i],top)+'"/><text x="'+p.x+'" y="'+(p.y+21)+'" text-anchor="middle">'+esc(short)+'</text></g>';
     }).join('');
-    const counterparties=external.map(id=>{const p=counterpartPositions.get(id),title=label(id);return '<g class="dv-counterparty"><rect x="696" y="'+(p.y-15)+'" width="230" height="32" rx="9"/><text x="708" y="'+(p.y+5)+'">'+esc(title.length>30?title.slice(0,29)+'…':title)+'</text><title>'+esc(title)+'</title></g>';}).join('');
+    const counterparties=external.map(id=>{const p=counterpartPositions.get(id),title=label(id);return '<g class="dv-counterparty" data-counterparty="'+esc(id)+'"><rect x="696" y="'+(p.y-15)+'" width="230" height="32" rx="9"/><text x="708" y="'+(p.y+5)+'">'+esc(title.length>30?title.slice(0,29)+'…':title)+'</text><title>'+esc(title)+'</title></g>';}).join('');
     const kindName=k=>({gps_track:'Running GPS tracks',sleep_log:'Sleep logs',purchase_receipts:'Purchase receipts',audio:'Voice clips',air:'Air quality'}[k]||k||'Data');
-    const events=activity.map(e=>'<li><span class="dv-event-dot dv-event-'+statusClass(e.status)+'"></span><div><b>'+esc(kindName(e.kind))+'</b><span>'+esc(e.status||'State not recorded')+' · C'+esc(e.id)+'</span></div><small>'+esc(sourceLabel(e.source))+'</small></li>').join('');
+    const events=activity.map(e=>'<li data-flow="'+esc(e.id+':'+statusClass(e.status))+'"><span class="dv-event-dot dv-event-'+statusClass(e.status)+'"></span><div><b>'+esc(kindName(e.kind))+'</b><span>'+esc(e.status||'State not recorded')+' · C'+esc(e.id)+'</span></div><small>'+esc(sourceLabel(e.source))+'</small></li>').join('');
     return '<section class="dv-network"><div class="dv-network-head"><div><h3>Recorded agent activity</h3><p>'+cohort.length+' participants · signals → matching → counterparty</p></div><div class="dv-chart-key"><span><i class="dv-dot-amber"></i>Negotiating</span><span><i class="dv-dot-green"></i>Settled</span><span><i class="dv-dot-red"></i>Rejected / refunded</span></div></div>'+
       '<div class="dv-network-scroll"><svg class="dv-network-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Recorded buyer and seller activity through market matching">'+connections+nodes+counterparties+
       '<g class="dv-market-node"><rect x="409" y="'+(mid-38)+'" width="142" height="76" rx="18"/><text x="480" y="'+(mid-8)+'" text-anchor="middle">Market</text><text class="dv-market-note" x="480" y="'+(mid+14)+'" text-anchor="middle">Matching only</text></g>'+

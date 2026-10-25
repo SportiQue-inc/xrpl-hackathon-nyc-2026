@@ -7,15 +7,16 @@
 <main class="app market-app">
 <section class="col side left"><header><div><h1>Sell your data</h1><p class="muted small">Offers that fit your records and terms</p></div></header><div class="scroll" id="sellnow"></div></section>
 <section class="col activity"><header><div><h1>Market activity</h1><p class="muted small">Individual negotiations and verified settlements</p></div><span class="tag">Live</span></header><div class="scroll"><div id="ledger"></div><section id="agentQueue" class="mine-panel" aria-live="polite"></section><details class="history mine-panel"><summary>Your trade history</summary><div id="mine"></div></details></div></section>
-<section class="col side right"><header><h1>Your agent</h1><button id="agentBtn" type="button" aria-expanded="false">Settings</button></header><div class="scroll"><div id="agents" class="pop" hidden></div><div class="chatbox" id="chat" data-open="1"></div></div></section>
-</main><dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<section class="col side right"><header><h1>Your agent</h1><button id="agentBtn" type="button" aria-expanded="false">Settings</button></header><div class="scroll"><div class="chatbox" id="chat" data-open="1"></div></div></section>
+</main><dialog id="agentDlg" class="agent-dlg"><div class="dlg"><div class="row"><h2>Agent settings</h2><button type="button" id="agentClose">Close</button></div><div id="agents"></div></div></dialog><dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
 <script src="/static/common.js"></script><script>
 let DOMAIN=null, DATA=null, ACC=null, refreshing=false, firstFeed=true, currentContract=null, detailBusy=false;
 const seenTrades=new Map(), recentTrades=new Map();
 const stateLabel = (s) => ({refunded:'Escrow returned to buyer',queued:'Queued',waiting:'Waiting for a buyer',negotiating:'Negotiating',settling:'Settling on ledger',settled:'Settled',rejected:'Not sold',blocked:'Blocked by your terms',interrupted:'Recovery pending','recovery review':'Needs review','awaiting buyer':'Waiting for buyer approval'}[s] || s);
 function tradeRow(c, own=false) {
   const sold=c.status==='settled', overview=typeof c.overview==='string'?JSON.parse(c.overview||'null'):c.overview;
-  return `<article class="tx ${sold?'settled':''} ${(recentTrades.get(c.id)||0)>Date.now()?'trade-new':''}"><button type="button" data-c="${c.id}"><div class="trade-data"><b>${esc(META.kinds[c.kind].label)}</b><div class="what">C${c.id} · ${hhmm(c.created)}${c.items?` · ${c.items} file${c.items===1?'':'s'}`:''}${overview?.records?` · ${overview.records} records`:''}${!sold?` · ${esc(c.reason||stateLabel(c.status))}`:''}</div></div><span class="amt ${sold?'success':['rejected','blocked'].includes(c.status)?'failure':'pending'}">${sold?micro(c.drops,c.asset):esc(stateLabel(c.status))}</span></button></article>`;
+  const mine=ME&&(c.seller===ME||c.buyer===ME);
+  return `<article class="tx ${sold?'settled':''} ${mine?'mine':''} ${(recentTrades.get(c.id)||0)>Date.now()?'trade-new':''}"><button type="button" data-c="${c.id}"><div class="trade-data"><b>${esc(META.kinds[c.kind].label)}${mine?` <span class="you-tag">${c.seller===ME?'You sold':'You bought'}</span>`:''}</b><div class="what">C${c.id} · ${hhmm(c.created)}${c.items?` · ${c.items} file${c.items===1?'':'s'}`:''}${overview?.records?` · ${overview.records} records`:''}${!sold?` · ${esc(c.reason||stateLabel(c.status))}`:''}</div></div><span class="amt ${sold?'success':['rejected','blocked'].includes(c.status)?'failure':'pending'}">${sold?micro(c.drops,c.asset):esc(stateLabel(c.status))}</span></button></article>`;
 }
 async function refresh() {
   if (refreshing || !META) return;
@@ -39,27 +40,31 @@ async function refresh() {
     chatBox($('chat'),ACC||{chat:[]});renderAgents();$('banner').hidden=true;
   } catch(err) {showError(err);} finally {refreshing=false;}
 }
-$('agentBtn').onclick=()=>{if(!canAct())return;$('agents').hidden=!$('agents').hidden;$('agentBtn').setAttribute('aria-expanded',String(!$('agents').hidden));};
-function renderAgents() {
+$('agentBtn').onclick=()=>{if(!canAct())return;renderAgents(true);$('agentDlg').showModal();};$('agentClose').onclick=()=>$('agentDlg').close();
+function renderAgents(force=false) {
   if (!ACC) return;
-  if (document.activeElement && $("agents").contains(document.activeElement)) return;   // don't redraw under the cursor
-  const a = ACC.account, s = a.sell_agent, b = a.buy_agent;
-  $("agents").innerHTML = `<p class="small muted">Negotiation model: ${esc(META.model)} · ${esc(META.asset)} on ${esc(META.ledger)}. Provider configuration is managed by the service.</p><div class="card"><h3>Sell agent</h3>
-    <label class="small" for="mode">Before selling</label><select id="mode"><option value="ask" ${s.mode === "ask" ? "selected" : ""}>Ask me first (or when I mark interest)</option><option value="auto" ${s.mode === "auto" ? "selected" : ""}>Sell on its own within my rules</option></select>
-    <span class="small muted">Minimum per purchase (${esc(sym())})</span>
-    ${Object.entries(META.kinds).map(([k, v]) => `<div class="row small"><label for="min-${k}">${esc(v.label)}</label><input type="number" step="any" min="0" id="min-${k}" value="${Number(((s.min?.[k] ?? v.price)*(META.unit_xrp||.01)).toFixed(6))}"></div>`).join("")}
-    <label class="small" for="blocks">Never sell for (comma separated)</label><input type="text" id="blocks" value="${esc((s.blocks || []).join(", "))}"></div>
-    <div class="card"><h3>Buy agent</h3>
-    <div class="row small"><label for="limit">Buys on its own up to (${esc(sym())})</label><input type="number" min="0" step="any" id="limit" value="${Number((b.auto_limit*(META.unit_xrp||.01)).toFixed(6))}"></div>
-    <div class="row small"><label for="trust">Minimum seller trust</label><input type="number" step="0.05" id="trust" value="${b.min_trust}"></div>
-    <p class="small muted">Already-owned records are always blocked before payment, including inside resale bundles.</p></div>
-    <button class="primary" type="button" id="save">Save agent settings</button><span class="small muted" id="saved"></span>`;
+  if (!force && $("agentDlg").open) return;   // don't redraw while the owner is editing
+  const a = ACC.account, s = a.sell_agent, b = a.buy_agent, u = META.unit_xrp||.01, fmt = v => Number(v).toFixed(2);
+  const slider = (id, label, value, max, hint='') => `<div class="slide"><div class="row"><label for="${id}">${esc(label)}</label><b id="${id}-v">${fmt(value)} ${esc(sym())}</b></div><input type="range" id="${id}" min="0" max="${max}" step="0.5" value="${value}">${hint?`<span class="small muted">${hint}</span>`:''}</div>`;
+  $("agents").innerHTML = `<section class="set"><h3>When a buyer asks</h3><div class="seg" role="radiogroup"><button type="button" data-mode="auto" class="${s.mode!=='ask'?'on':''}">Sell on its own</button><button type="button" data-mode="ask" class="${s.mode==='ask'?'on':''}">Ask me first</button></div>
+    <p class="small muted">Either way, your agent never goes below the minimums and never sells for the blocked purposes.</p></section>
+    <section class="set"><h3>How firm on price</h3><div class="slide"><div class="row"><label for="firm">Lowest price vs the usual market price</label><b id="firm-v"></b></div><input type="range" id="firm" min="50" max="200" step="5" value="${Math.round(100*Object.entries(META.kinds).reduce((t,[k,v])=>t+(s.min?.[k]??v.price)/v.price,0)/Object.keys(META.kinds).length/5)*5}"><span class="small muted">Lower sells more often, higher holds out for better deals.</span></div>
+    <details class="per-kind"><summary class="small">Set each data type separately</summary>${Object.entries(META.kinds).map(([k, v]) => { const val=+((s.min?.[k] ?? v.price)*u).toFixed(2); return slider('min-'+k, v.label, val, Math.max(5, Math.ceil(v.price*u*3))); }).join("")}</details></section>
+    <section class="set"><h3>Never sell for</h3><div class="chips">${[...new Set(['insurance pricing','advertising','aggregation and resale',...(s.blocks||[])])].map(x=>`<button type="button" class="chip ${(s.blocks||[]).includes(x)?'on':''}" data-block="${esc(x)}">${esc(x)}</button>`).join('')}</div></section>
+    <section class="set"><h3>Buying</h3>${slider('limit','Buys on its own up to',+(b.auto_limit*u).toFixed(2),50,'Above this, your agent asks you first. Records you already own are never bought again.')}</section>
+    <div class="row"><span class="small muted" id="saved">Model: ${esc(META.model)} · ${esc(META.asset)} on ${esc(META.ledger)}</span><button class="primary" type="button" id="save">Save</button></div>`;
+  $("agents").querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { $(r.id+'-v').textContent = `${fmt(r.value)} ${sym()}`; });
+  $("agents").querySelectorAll('.chip').forEach(x => x.onclick = () => x.classList.toggle('on'));
+  const firm=()=>{$('firm-v').textContent=$('firm').value+'%';};firm();
+  $('firm').oninput=()=>{firm();Object.entries(META.kinds).forEach(([k,v])=>{const r=$('min-'+k);r.value=(v.price*u*$('firm').value/100).toFixed(1);$(r.id+'-v').textContent=`${fmt(r.value)} ${sym()}`;});};
+  $("agents").querySelectorAll('[data-mode]').forEach(x => x.onclick = () => $("agents").querySelectorAll('[data-mode]').forEach(y => y.classList.toggle('on', y===x)));
   $("save").onclick = async () => { try {
     if (!canAct()) return;
-    const min = {}; Object.keys(META.kinds).forEach((k) => (min[k] = +$("min-" + k).value/(META.unit_xrp||.01)));
-    await post(`/api/account/${ME}/settings`, { sell_agent: { mode: $("mode").value, min, blocks: $("blocks").value.split(",").map((x) => x.trim()).filter(Boolean) },
-      buy_agent: { auto_limit: +$("limit").value/(META.unit_xrp||.01), min_trust: +$("trust").value } });
-    $("saved").textContent = "Saved. Your agents use these from the next negotiation.";
+    const min = {}; Object.keys(META.kinds).forEach((k) => (min[k] = +$("min-" + k).value/u));
+    await post(`/api/account/${ME}/settings`, { sell_agent: { mode: $("agents").querySelector('[data-mode].on').dataset.mode, min, blocks: [...$("agents").querySelectorAll('.chip.on')].map(x => x.dataset.block) },
+      buy_agent: { auto_limit: +$("limit").value/u } });
+    $("saved").textContent = "Saved. Your agent uses this from the next negotiation.";
+    ACC = await api('/api/account/'+ME);
   } catch(err) {showError(err);} };
 }
 
