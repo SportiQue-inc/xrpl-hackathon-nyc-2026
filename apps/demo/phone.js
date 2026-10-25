@@ -336,7 +336,7 @@ function afterActivity() {
     title: "Activity",
     body: [
       h("div", { class: "pcard" }, h("div", { class: "muted small" }, "Paid to you so far"), h("div", { class: "amount" }, rl(st.earned)),
-        h("div", { class: "tiny muted" }, "RLUSD on XRPL Testnet · each week paid when your agent delivers it")),
+        h("div", { class: "tiny muted" }, "RLUSD · demo amounts · each week paid when your agent delivers it")),
       st.timeline.length ? h("div", { class: "pcard timeline" }, st.timeline.map(tl))
         : h("div", { class: "note gray" }, "Nothing yet. Join a matched study and your agent sends each week for you."),
     ],
