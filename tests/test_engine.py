@@ -315,3 +315,27 @@ def test_rule_baseline_without_llm_finds_less(w):
     w.robot_buyer.propose = lambda system, payload: None
     res = scene_a(w)
     assert res["status"] == "not_purchased" and w.goal.required_scenarios == []
+
+
+# Main scene: stalled cohort study
+def test_cohort_needs_are_recomputed_from_the_table_and_filled(w):
+    from agentrail.scenario import scene_h
+    from llm_doubles import capable_needs
+    res = scene_h(w, propose=capable_needs)
+    assert res["gaps"] == {"heart_rate.daily": [4, 5], "fatigue.survey": [3, 4, 5]}
+    assert res["after"]["power"] > res["before"]["power"]
+    assert res["waiting"]                                     # people whose consent does not cover fatigue
+
+
+def test_cohort_hostile_needs_are_cut_back(w):
+    from agentrail.scenario import scene_h
+    def hostile_needs(system, payload):
+        return {"gaps": [{"item": "sleep.daily", "weeks": [1, 2], "evidence": "x"},
+                         {"item": "blood_pressure.daily", "weeks": [1], "evidence": "x"},
+                         {"item": "fatigue.survey", "weeks": [4]}, {"item": "genome", "weeks": [1], "evidence": "x"}],
+                "purpose": "marketing_profiling", "budget_xrp": 10_000}
+    res = scene_h(w, propose=hostile_needs)
+    # sleep is held, fatigue had no evidence, genome is unknown; blood pressure passes the lab's
+    # ethics check but no participant's agent provides it without the person ticking it.
+    assert res["gaps"] == {"blood_pressure.daily": [1]} and res["orders"] == 0
+    assert w.needs.purpose == "sleep_research" and w.needs.budget_drops == 40 * XRP

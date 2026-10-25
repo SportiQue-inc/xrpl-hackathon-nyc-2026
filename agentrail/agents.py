@@ -296,7 +296,7 @@ class PersonalAgent:
         return h
 
     def set_consent(self, buyer_id: str, purpose: str, items: list[str], weeks=(1, 8),
-                    automation: str = "auto_standard", min_price_drops: int = 0):
+                    automation: str = "auto_standard", min_price_drops: int = 0, quiet: bool = False):
         assert automation in AUTOMATION_LEVELS
         st = self.engine.store
         with st.tx() as c:
@@ -304,9 +304,10 @@ class PersonalAgent:
                             (self.id, buyer_id)).fetchone()
             v = (cur["version"] + 1) if cur else 1
             h = self._write_consent(c, buyer_id, purpose, items, weeks, automation, min_price_drops, "active", v)
-            st.log(self.id, "consent", f"{self.person.label} signs consent v{v} with {buyer_id}: "
-                   f"{', '.join(sorted(items))} for '{purpose}', weeks {weeks[0]}-{weeks[1]}, "
-                   f"automation={automation} (doc {h[:12]}…)", {"doc_hash": h})
+            if not quiet:
+                st.log(self.id, "consent", f"{self.person.label} signs consent v{v} with {buyer_id}: "
+                       f"{', '.join(sorted(items))} for '{purpose}', weeks {weeks[0]}-{weeks[1]}, "
+                       f"automation={automation} (doc {h[:12]}…)", {"doc_hash": h})
 
     def _update(self, buyer_id: str, **changes):
         st = self.engine.store

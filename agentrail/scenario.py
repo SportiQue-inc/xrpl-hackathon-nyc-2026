@@ -21,6 +21,7 @@ from .reasoning import OwnerLimits, Spec
 from .policy import BuyerMandate, ComplianceRules, SellerPolicy
 
 XRP = 1_000_000
+CELL_PRICE = XRP // 5          # 0.2 XRP per participant-week item
 ETHICS_CREDENTIAL = "ETHICS_REVIEW_SLEEP"
 
 # What the buyer's owner types, and what the company already holds and has measured.
@@ -299,6 +300,66 @@ def scene_d(w: World, n: int = 50, workers: int = 10) -> dict:
     w.store.log("org_cohort", "report", f"{done}/{len(oids)} people paid on a validated ledger and data "
                 f"delivered in {dt:.1f}s")
     return {"orders": len(oids), "delivered": done, "seconds": round(dt, 1)}
+
+
+COHORT_PROFILES = (["auto_all"] * 7) + ["auto_standard", "auto_standard", "confirm_each"]
+
+
+def build_cohort(w: World, n: int = 50):
+    """50 participants with their own agents. Payees on Testnet are the public fixture addresses."""
+    from .cohort import synthetic_coverage
+    e = w.engine
+    accounts = [a for a in json.load(open(FIXTURE))["accounts"] if a["role"] == "participant"][:n]
+    compliance = ComplianceRules(credential_check=lambda buyer: w.ledger.has_credential(
+        e.party(buyer)["address"], e.party("org_ethics")["address"], ETHICS_CREDENTIAL))
+    w.cohort_people = {}
+    for i, a in enumerate(accounts):
+        pid = a["account_id"]
+        addr = a["classic_address"] if w.ledger.name == "testnet" else w.ledger.new_account(pid)
+        e.add_party(pid, f"Participant {pid}", "person", addr)
+        pa = PersonalAgent(Person(pid, pid), e, compliance)
+        auto = COHORT_PROFILES[i % len(COHORT_PROFILES)]
+        items = STANDARD_ITEMS + (["fatigue.survey"] if auto != "auto_standard" else [])
+        pa.set_consent("org_sleeplab", "sleep_research", items, automation=auto, quiet=True)
+        w.cohort_people[pid] = pa
+    w.coverage = synthetic_coverage(list(w.cohort_people))
+    e.set_mandate(BuyerMandate("org_sleeplab", 80 * XRP, 3 * XRP, ["sleep_research"]))
+
+
+def scene_h(w: World, propose=None, workers: int = 8) -> dict:
+    """Stalled study: infer the missing cells, ask each participant's agent, pay, fill the table."""
+    from concurrent.futures import ThreadPoolExecutor
+    from .cohort import apply_deliveries, fill, heatmap, infer_needs
+    w.store.scene = "H"
+    if not getattr(w, "cohort_people", None):
+        build_cohort(w)
+    before = heatmap(w, w.coverage, "org_sleeplab")
+    w.store.log("org_sleeplab", "goal", f"study stalled: {before['complete_pairs']}/{before['total']} complete "
+                f"sleep+fatigue participant-weeks, power {before['power']} (plan 0.80)")
+    ethics = w.ledger.has_credential(w.engine.party("org_sleeplab")["address"],
+                                     w.engine.party("org_ethics")["address"], ETHICS_CREDENTIAL)
+    needs = infer_needs(w.store, "org_sleeplab", w.coverage, ["sleep_research"], 40 * XRP, ethics, propose)
+    w.needs = needs
+    gap_txt = "; ".join(f"{i} weeks {ws}" for i, ws in needs.gaps.items()) or "none"
+    w.store.log("org_sleeplab", "spec", f"needs ({'LLM' if needs.source == 'llm' else 'rule baseline'}): {gap_txt}; "
+                f"{len(needs.cells)} participants, "
+                f"{sum(len(v) for wk in needs.cells.values() for v in wk.values())} cells",
+                {"evidence": needs.evidence, "notes": needs.notes, "hash": needs.proposal_hash})
+    if needs.notes:
+        w.store.log("org_sleeplab", "verify", "code narrowed the proposal: " + "; ".join(needs.notes))
+    res = fill(w, "org_sleeplab", needs, w.coverage, w.cohort_people, CELL_PRICE)
+    oids = [r["order_id"] for r in res if r.get("order_id")]
+    with ThreadPoolExecutor(workers) as ex:
+        list(ex.map(w.engine.process, oids))
+    apply_deliveries(w, w.coverage, res)
+    after = heatmap(w, w.coverage, "org_sleeplab")
+    waiting = [r["person"] for r in res if r.get("pending") or r.get("status") == "needs_approval"]
+    w.store.log("org_sleeplab", "report", f"filled {after['complete_pairs'] - before['complete_pairs']} "
+                f"participant-weeks from {len(oids)} people; power {before['power']} -> {after['power']}; "
+                f"{len(waiting)} people asked to decide")
+    return {"before": {k: before[k] for k in ("complete_pairs", "power")},
+            "after": {k: after[k] for k in ("complete_pairs", "power")},
+            "orders": len(oids), "waiting": waiting, "gaps": needs.gaps, "source": needs.source}
 
 
 def summary(w: World) -> dict:
