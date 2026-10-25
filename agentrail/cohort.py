@@ -109,7 +109,7 @@ def person_gaps(store, agent: str, cov: Coverage, pid: str, propose=None, availa
     inp = {"protocol": PROTOCOL, "participant": pid, "held": held}
     if available is not None:
         inp["sources_hold"] = {f"w{w}": sorted(v) for w, v in available.items()}
-    raw, source = _ask(propose, PERSON_SYSTEM, inp)
+    raw, source = _ask(propose, PERSON_SYSTEM, inp, side="participant")
     if raw is None:
         raw = {"missing": [{"week": w, "item": i, "reason": "empty in the coverage table"}
                            for w in WEEKS for i in PRIMARY + ("heart_rate.daily",) if not cov.has(pid, w, i)]

@@ -27,10 +27,16 @@ KNOWN_SCENARIOS = {"night", "narrow_aisle", "dynamic_obstacle", "loading_dock", 
 LICENCE_KEYS = ("commercial_training", "evaluation", "redistribution")
 
 
-def _ask(propose, system: str, inp: dict) -> tuple[dict | None, str]:
-    """An injected proposer (tests) returns a dict or None; otherwise ask the configured LLM."""
+def _ask(propose, system: str, inp: dict, side: str = "research") -> tuple[dict | None, str]:
+    """An injected proposer (tests) returns a dict or None; otherwise ask the configured LLM.
+    `side` (research or participant) only labels the call for the running-cost count."""
     if propose is None:
-        return voice().propose(system, inp)
+        v = voice()
+        v._tl.side = side
+        try:
+            return v.propose(system, inp)
+        finally:
+            v._tl.side = None
     out = propose(system, inp)
     return (out, "llm") if isinstance(out, dict) else (None, "rules")
 

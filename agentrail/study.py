@@ -19,6 +19,7 @@ from .security import passkey
 from .agents import talk
 from .cohort import (HERO, PRIMARY, WEEKS, apply_deliveries, heatmap, infer_needs, person_gaps, power)
 from .connectors import HospitalExportSource
+from . import uniqdata_live
 from .engine import BudgetExceeded, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
 from .ledger.licence import licence_metadata
 from .ledger.amm_terms import SLIPPAGE, STABLE_CODE, STABLE_ISSUER, STABLE_LABEL
@@ -253,6 +254,8 @@ def send(w, workers: int = 8) -> dict:
         if len(got) > 1 and not any(o.get("hold") for o in req["orders"]):
             w.engine.escrow_create_batch(got)      # all of this person's weeks, or none
         oids += got
+        if len(s.requests) % 10 == 0:
+            w.store.log(LAB, "progress", f"requests answered: {len(s.requests)} of {len(s.needs.cells)}")
     with ThreadPoolExecutor(workers) as ex:
         list(ex.map(w.engine.process, oids))
     for req in s.requests.values():
@@ -294,16 +297,21 @@ def _answer(w, req, hold_last=False) -> list[int]:
         if any(x in HospitalExportSource.items for x in its):
             _export_fee(w, pa, its)
         rows = pa.vault.extract(its, wk, study=LAB)
+        prov = uniqdata_live.provenance(pa, its, [wk])
+        if prov:
+            w.store.log(pa.id, "uniqdata_read", f"{pa.id}'s agent read {prov['records']} records for week {wk} "
+                        f"from the person's UniQdata account", {"records": prov["records"],
+                        "record_hashes_sha256": sha256_hex(canonical(prov["record_hashes"]))})
         last = hold_last and i == len(granted) - 1
         r = OrderRequest(LAB, pa.id, pa.id, "cohort.fill", f"{pa.id}|w{wk}:{'+'.join(its)}", req["purpose"],
-                         sorted(its), payout.immediate(len(its) * CELL_PRICE), rows, decisions[wk], settle="escrow",
+                         sorted(its), payout.immediate(len(its) * CELL_PRICE, i), rows, decisions[wk], settle="escrow",
                          escrow_window_s=HOLD_WINDOW_S if last else 600)
         try:
             oid = w.engine.place_order(r)
         except (BudgetExceeded, NeedsHumanApproval) as e:
             w.store.log(LAB, "stop", f"{pa.id}: {e}")
             continue
-        req["orders"].append({"order_id": oid, "week": wk, "items": its, "hold": last})
+        req["orders"].append({"order_id": oid, "week": wk, "items": its, "hold": last, "full": len(its) * CELL_PRICE})
         oids.append(oid)
     req["status"] = "partly_open" if pending else "contributed"
     return oids
@@ -752,7 +760,33 @@ def preview(w, pid: str, rid: int) -> dict:
             "rows": rows[:14], "row_count": len(rows),
             "withheld_items": [i["item"] for i in card["items"] if i["class"] == "blocked"],
             "not_included": [i for i in pa.vault.ITEMS if i not in ok],
-            "sealed_for": LAB}
+            "sealed_for": LAB,
+            "from": uniqdata_live.provenance(pa, ok, sorted(req["weeks"]))}
+
+
+def _uniqdata_person(w, pid: str):
+    ensure(w)
+    pa = w.cohort_people[pid]
+    if getattr(pa.vault, "uniqdata", None) is None:
+        raise KeyError(f"{pid} has no UniQdata account connected")
+    return pa
+
+
+def my_data(w, pid: str) -> dict:
+    """'My data': what the person's UniQdata account holds, per source and item (no values)."""
+    return {"person": pid, **uniqdata_live.my_data(_uniqdata_person(w, pid), LABELS, WEEKS)}
+
+
+def upload_data(w, pid: str, weeks: list[int], items: list[str]) -> dict:
+    """The person uploads synthetic records to their UniQdata account."""
+    pa = _uniqdata_person(w, pid)
+    bad = [i for i in items if i not in pa.vault.ITEMS] + [str(x) for x in weeks if x not in WEEKS]
+    if bad:
+        raise ValueError(f"unknown items or weeks: {bad}")
+    out = uniqdata_live.upload_synthetic(pa, weeks, items)
+    w.store.log(pid, "uniqdata_upload", f"{pid} stored {out['written']} records in their UniQdata account",
+                {"written": out["written"]})
+    return {**out, **my_data(w, pid)}
 
 
 def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool = True,

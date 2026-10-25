@@ -342,7 +342,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
             h("div", { class: "col", style: { gap: "2px" } }, h("span", { class: "small muted" }, "참여 지급액"),
               h("b", { class: "amt" }, won(e.price))),
             h("span", { class: "small muted", style: { textAlign: "right" } },
-              `전달 시 ${e.r.payment.immediate_pct}% · 검토 후 ${e.r.payment.held_pct}%`)),
+              `전달 시 ${e.r.payment.first_week_pct}%부터 최대 ${e.r.payment.max_pct}% · 나머지는 검토 후`)),
           h("dl", { class: "ar-kv left small" },
             h("dt", {}, "기간"), h("dd", {}, weeks(e.send.flatMap((i) => i.weeks))),
             h("dt", {}, "항목"), h("dd", {}, e.send.map((i) => itemName(i.item)).join(", ")),

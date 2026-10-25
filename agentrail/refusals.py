@@ -80,7 +80,8 @@ def run(w, ev, propose=None) -> list[dict]:
     # 1. Expired ethics approval.
     if hasattr(L, "delete_credential") and L.has_credential(lab, board, ETHICS_CREDENTIAL):
         L.delete_credential(board, lab, ETHICS_CREDENTIAL)
-        short = 12 if L.name != "mock" else 1
+        # Testnet: Create and Accept each take a few ledgers; 12 s expired before the Accept (tecEXPIRED).
+        short = 40 if L.name != "mock" else 1
         hs = L.issue_credential(board, lab, ETHICS_CREDENTIAL, expiration=L.now() + short)
         if L.name == "mock":
             L.clock += short + 1

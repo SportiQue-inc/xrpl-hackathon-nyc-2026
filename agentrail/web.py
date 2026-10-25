@@ -262,6 +262,22 @@ def participant_preview(pid: str, request: int):
     return _call(study.preview, pid, request)
 
 
+class UploadBody(Strict):
+    weeks: list[int] = Field(default_factory=lambda: list(range(1, 9)), max_length=8)
+    items: list[str] = Field(default_factory=lambda: ["sleep.daily", "activity.daily", "heart_rate.daily",
+                                                      "fatigue.survey", "blood_pressure.daily"], max_length=20)
+
+
+@app.get("/api/p/{pid}/data")
+def participant_data(pid: str):
+    return _call(study.my_data, pid)
+
+
+@app.post("/api/p/{pid}/data/upload")
+def participant_upload(pid: str, body: UploadBody = UploadBody()):
+    return _call(study.upload_data, pid, body.weeks, ItemsBody(items=body.items).clean())
+
+
 class ApproveBody(ItemsBody):
     assertion: PasskeyAssertion | None = None
 
@@ -359,6 +375,81 @@ def participant_revoke_challenge(pid: str):
 def participant_revoke(pid: str, body: RevokeBody = RevokeBody()):
     """With a registered passkey, the body must carry the assertion over the withdrawal statement."""
     return _call(study.participant_revoke, pid, assertion=body.assertion.model_dump() if body.assertion else None)
+
+
+class PushPrepareBody(Strict):
+    institution: str = Field(pattern=ID)
+    columns: list[str] = Field(min_length=1, max_length=20)
+    purpose: str = Field(pattern=ITEM)
+    contract: str = Field(pattern=r"^[0-9a-f]{16,64}$")
+    price_drops: int = Field(ge=1, le=10**9)
+    days: int = Field(default=7, ge=1, le=56)
+
+
+class PushSealedBody(Strict):
+    record: dict
+    condition: str = Field(pattern=r"^[0-9A-Fa-f]{78}$")
+
+
+class PushRevealBody(Strict):
+    order_id: str = Field(pattern=ID)
+    key_b64u: str = Field(pattern=r"^[A-Za-z0-9_-]{43}$")
+
+
+class PushRevokeBody(Strict):
+    institution: str = Field(pattern=ID)
+
+
+def _push():
+    """Push delivery on the study's engine. The receiving institutions' keys live with them; this demo
+    process stands in for their stores."""
+    if _state.get("push_world") is not world():
+        from .market.acts import load
+        from .vault import delivery, keys
+        pd = delivery.PushDelivery(world().engine)
+        for inst in load()["institutions"]:
+            pd.register_institution(inst["id"], inst["country"], keys.InstitutionKey())
+        _state["push"], _state["push_world"] = pd, world()
+    return _state["push"]
+
+
+@app.post("/api/p/{pid}/push/prepare")
+def push_prepare(pid: str, body: PushPrepareBody):
+    """The agreed rows as canonical bytes for the person's page to seal, and the institution's public key."""
+    from .catalog import columns as cat
+    pd = _push()
+    cols = [cat.canon(c) for c in body.columns]
+    if any(c not in cat.CATALOG for c in cols) or body.institution not in pd.institutions:
+        raise HTTPException(400, "unknown column or institution")
+    with _lock:
+        if (pid, body.institution) not in pd.consents:
+            pd.consent(pid, body.institution, cols, body.purpose)
+        rows = [{"day": d, **{c: cat.synth(c, pid, d) for c in cols}} for d in range(body.days)]
+        try:
+            return pd.prepare(pid, body.institution, rows, cols, body.contract, body.price_drops)
+        except PermissionError as e:
+            raise HTTPException(403, str(e))
+
+
+@app.post("/api/p/{pid}/push/sealed")
+def push_sealed(pid: str, body: PushSealedBody):
+    """The page's sealed bundle and escrow condition: the engine creates the escrow and pushes the bundle."""
+    with _lock:
+        return _push().accept_sealed(pid, body.record, body.condition)
+
+
+@app.post("/api/p/{pid}/push/reveal")
+def push_reveal(pid: str, body: PushRevealBody):
+    """K published in EscrowFinish: the person is paid; the institution opens what it already holds."""
+    from .vault.keys import unb64u
+    with _lock:
+        return _push().reveal(pid, body.order_id, unb64u(body.key_b64u))
+
+
+@app.post("/api/p/{pid}/push/revoke")
+def push_revoke(pid: str, body: PushRevokeBody):
+    with _lock:
+        return _push().revoke(pid, body.institution)
 
 
 @app.get("/api/study")
@@ -484,6 +575,139 @@ def participant_uniqdata(pid: str, project: str = "project-sleeplab", privacy_ep
 def study_dispute(tx_hash: str):
     """From one ledger tx back to the signed chain that authorized it (Verifiable Intent)."""
     return _call(study.dispute, tx_hash)
+
+
+@app.post("/api/contract/round")
+def contract_round(providers: int = Query(default=14, ge=2, le=40), target: int = Query(default=8, ge=1, le=100)):
+    """The study's agent buys per-column data under negotiated contracts, checked as it arrives."""
+    from .contract import onledger
+    with _lock:
+        return onledger.run(world(), providers, target, model=_forecast_model())
+
+
+def _market_view(act: int) -> dict:
+    r = _state.get(f"market{act}")
+    if r is None:
+        return {"act": act, "status": "not run"}
+    ex = r["exchange"]
+    out = {k: v for k, v in r.items() if k not in ("exchange", "needs")}
+    out["activity"] = ex.activity()
+    out["needs"] = [{k: v for k, v in n.items() if k != "fills"} for n in r["needs"]]
+    out["pending_for_manual"] = [{k: v for k, v in p.items() if k not in ("trade", "offer")} for p in ex.pending]
+    return json.loads(json.dumps(out, default=str))
+
+
+@app.post("/api/market/run")
+def market_run(act: int = Query(default=1, ge=1, le=2)):
+    """Act 1: the 50 accounts' agents trade among themselves. Act 2: the same pipeline with the
+    healthcare sensitivity policy plugged into each participant's agent."""
+    from .market import acts
+    with _lock:
+        _state[f"market{act}"] = (acts.act1 if act == 1 else acts.act2)()
+        return _market_view(act)
+
+
+@app.get("/api/market/products")
+def market_products(pid: str = Query(default="P-017"), tap: bool = Query(default=True)):
+    """One person's agent: everyday data supply-first (collect, bundle by domain, list), sensitive data
+    demand-first (search postings, match, review); then de-identify and sell as a sealed push."""
+    from .market import products
+    try:
+        r = products.scene(pid, tap=tap)
+    except KeyError:
+        raise HTTPException(404, "unknown participant")
+    _state["products"] = r
+    return json.loads(json.dumps(r, default=str))
+
+
+@app.get("/api/market/cohorts")
+def market_cohorts():
+    """Lots of at least k people assembled by the sellers' agents per need; nothing leaves below k."""
+    from .market import cohort
+    r = cohort.run()
+    _state["cohorts"] = r
+    return r
+
+
+@app.get("/api/market/activity")
+def market_activity(act: int = Query(default=1, ge=1, le=2)):
+    return _market_view(act)
+
+
+@app.get("/api/catalog")
+def catalog():
+    """Every column with its tier, data use codes, retention and deletion rule; plus the approval bottleneck."""
+    from .catalog import columns, simulate
+    if "bottleneck" not in _state:
+        _state["bottleneck"] = simulate.run()
+    return {"columns": [c.card() for c in columns.CATALOG.values()], "duo": columns.DUO,
+            "bottleneck": _state["bottleneck"]}
+
+
+@app.get("/api/contract/projection")
+def contract_projection():
+    """Live projection of the round (usable so far, expected final with a 90% band, power, risks)."""
+    from .contract import onledger
+    return onledger.view(world())
+
+
+def _forecast_model():
+    if "forecast" not in _state:
+        from .contract import measure
+        _state["forecast"] = measure.train()[0]
+    return _state["forecast"]
+
+
+@app.get("/api/report")
+def run_report():
+    """One self-contained HTML page for this run: contract, negotiation, checks, projection, payments,
+    holdbacks, tx links, and the market acts if they ran."""
+    from fastapi.responses import HTMLResponse
+    from . import engine_check as ec, report
+    from .contract import onledger
+    with _lock:
+        w = world()
+        markets = [_market_view(a) for a in (1, 2) if f"market{a}" in _state]
+        return HTMLResponse(report.render(onledger.view(w), markets, {"flows": ec.flows(w)}, ledger=w.ledger.name,
+                                          products=_state.get("products"), cohorts=_state.get("cohorts")))
+
+
+@app.get("/api/market/network")
+def market_network():
+    """Act 1 as a node network replayed from the trade log, with one settled and one refused trade
+    zoomed in and the agent's decision stepped through (self-contained HTML)."""
+    from fastapi.responses import HTMLResponse
+    from . import network_view
+    from .market import acts
+    with _lock:
+        if "market1" not in _state:
+            _state["market1"] = acts.act1()
+        return HTMLResponse(network_view.render(network_view.build(_state["market1"]["exchange"])))
+
+
+@app.get("/api/market/contracts")
+def market_contracts(act: int = Query(default=1, ge=1, le=2), i: int | None = Query(default=None, ge=0)):
+    """One record per contract attempt: both agents' conversation (turns with reasoning and checks),
+    verdicts and tx hashes (schema agentrail.contract_trace/1)."""
+    r = _state.get(f"market{act}")
+    if r is None:
+        raise HTTPException(404, "market act not run")
+    cs = r["exchange"].contracts
+    if i is not None:
+        if i >= len(cs):
+            raise HTTPException(404, "no such contract")
+        return json.loads(json.dumps(cs[i], default=str))
+    return [{"i": k, **{x: c[x] for x in ("need", "buyer", "seller", "columns", "status", "price_drops", "verdicts")}}
+            for k, c in enumerate(cs)]
+
+
+@app.get("/api/costs")
+def running_costs():
+    """What keeping the agents up cost in this run: LLM calls and tokens per side, ledger transactions and
+    fees, reserve tied up, per participant-week."""
+    from . import costs
+    with _lock:
+        return costs.summarize(world())
 
 
 @app.get("/api/engine/check")

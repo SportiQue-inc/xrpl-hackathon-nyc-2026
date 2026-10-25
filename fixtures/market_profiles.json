@@ -1,0 +1,1912 @@
+{
+ "note": "synthetic demo profiles; no person behind any of them",
+ "institutions": [
+  {
+   "id": "org_sleeplab",
+   "name": "Sleep & Fatigue Lab (synthetic)",
+   "country": "KR",
+   "max_tier": "T1",
+   "study": "sleep debt vs fatigue, 8 weeks"
+  },
+  {
+   "id": "org_cardio",
+   "name": "Cardiometabolic Cohort (synthetic)",
+   "country": "KR",
+   "max_tier": "T2",
+   "study": "resting HR, BP and HbA1c trajectories"
+  },
+  {
+   "id": "org_neuroimg",
+   "name": "Neuroimaging Center (synthetic)",
+   "country": "US",
+   "max_tier": "T3",
+   "study": "MRI and PHQ-9 in shift workers"
+  },
+  {
+   "id": "org_genomics",
+   "name": "Population Genomics Unit (synthetic)",
+   "country": "SG",
+   "max_tier": "T3",
+   "study": "variant risk vs sleep phenotype"
+  }
+ ],
+ "researchers": {
+  "R-sleeplab-1": {
+   "institution": "org_sleeplab",
+   "act1_role": "buyer",
+   "wants": [
+    "body_temp.daily",
+    "body_weight.daily",
+    "medication.taken"
+   ],
+   "budget_xrp": 60,
+   "agent_trust": 0.69
+  },
+  "R-sleeplab-2": {
+   "institution": "org_sleeplab",
+   "act1_role": "buyer",
+   "wants": [
+    "sleep.daily",
+    "body_temp.daily",
+    "fatigue.survey"
+   ],
+   "budget_xrp": 60,
+   "agent_trust": 0.65
+  },
+  "R-sleeplab-3": {
+   "institution": "org_sleeplab",
+   "act1_role": "buyer",
+   "wants": [
+    "sleep.daily",
+    "mood.daily",
+    "energy.survey"
+   ],
+   "budget_xrp": 60,
+   "agent_trust": 0.93
+  },
+  "R-sleeplab-4": {
+   "institution": "org_sleeplab",
+   "act1_role": "buyer",
+   "wants": [
+    "body_weight.daily",
+    "heart_rate.daily",
+    "fatigue.survey"
+   ],
+   "budget_xrp": 20,
+   "agent_trust": 0.86
+  },
+  "R-cardio-1": {
+   "institution": "org_cardio",
+   "act1_role": "buyer",
+   "wants": [
+    "body_weight.daily",
+    "sleep.daily",
+    "blood_pressure.daily"
+   ],
+   "budget_xrp": 60,
+   "agent_trust": 0.74
+  },
+  "R-cardio-2": {
+   "institution": "org_cardio",
+   "act1_role": "buyer",
+   "wants": [
+    "blood_pressure.daily",
+    "fatigue.survey",
+    "heart_rate.daily"
+   ],
+   "budget_xrp": 40,
+   "agent_trust": 0.72
+  },
+  "R-cardio-3": {
+   "institution": "org_cardio",
+   "act1_role": "buyer",
+   "wants": [
+    "energy.survey",
+    "medication.taken",
+    "body_temp.daily"
+   ],
+   "budget_xrp": 40,
+   "agent_trust": 0.9
+  },
+  "R-cardio-4": {
+   "institution": "org_cardio",
+   "act1_role": "buyer",
+   "wants": [
+    "fatigue.survey",
+    "sleep.daily",
+    "spo2.daily"
+   ],
+   "budget_xrp": 40,
+   "agent_trust": 0.91
+  },
+  "R-neuroimg-1": {
+   "institution": "org_neuroimg",
+   "act1_role": "buyer",
+   "wants": [
+    "imaging.mri",
+    "heart_rate.daily",
+    "meal.log"
+   ],
+   "budget_xrp": 40,
+   "agent_trust": 0.76
+  },
+  "R-neuroimg-2": {
+   "institution": "org_neuroimg",
+   "act1_role": "buyer",
+   "wants": [
+    "imaging.ct",
+    "diagnosis.code",
+    "energy.survey"
+   ],
+   "budget_xrp": 60,
+   "agent_trust": 0.93
+  },
+  "R-neuroimg-3": {
+   "institution": "org_neuroimg",
+   "act1_role": "buyer",
+   "wants": [
+    "energy.survey",
+    "blood_pressure.daily",
+    "sleep.daily"
+   ],
+   "budget_xrp": 20,
+   "agent_trust": 0.64
+  },
+  "R-genomics-1": {
+   "institution": "org_genomics",
+   "act1_role": "buyer",
+   "wants": [
+    "lab.glucose",
+    "body_temp.daily",
+    "activity.daily"
+   ],
+   "budget_xrp": 20,
+   "agent_trust": 0.77
+  },
+  "R-genomics-2": {
+   "institution": "org_genomics",
+   "act1_role": "buyer",
+   "wants": [
+    "mood.daily",
+    "imaging.mri",
+    "lab.hba1c"
+   ],
+   "budget_xrp": 40,
+   "agent_trust": 0.67
+  },
+  "R-genomics-3": {
+   "institution": "org_genomics",
+   "act1_role": "buyer",
+   "wants": [
+    "heart_rate.daily",
+    "lab.hba1c",
+    "activity.daily"
+   ],
+   "budget_xrp": 60,
+   "agent_trust": 0.63
+  }
+ },
+ "participants": {
+  "P-001": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "heart_rate.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "genome.variant"
+    ],
+    "other": []
+   },
+   "wants": [
+    "energy.survey"
+   ],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T3",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [],
+   "agent_trust": 0.86
+  },
+  "P-002": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "diagnosis.code"
+    ],
+    "other": [
+     "smarthome.energy_kwh"
+    ]
+   },
+   "wants": [],
+   "budget_xrp": 2,
+   "pre_consent": "T0",
+   "auto_tiers": [
+    "T0"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.95
+  },
+  "P-003": {
+   "act1_role": "both",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "prescription.active",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 2,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.64
+  },
+  "P-004": {
+   "act1_role": "buyer",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "medication.taken",
+     "mood.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "genome.variant"
+    ],
+    "other": []
+   },
+   "wants": [
+    "imaging.ct"
+   ],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T3",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [],
+   "agent_trust": 0.9
+  },
+  "P-005": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "genome.variant"
+    ],
+    "other": []
+   },
+   "wants": [
+    "fatigue.survey",
+    "imaging.ct"
+   ],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.95
+  },
+  "P-006": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "prescription.active"
+    ],
+    "other": []
+   },
+   "wants": [
+    "diagnosis.code",
+    "robot.lidar_scan"
+   ],
+   "budget_xrp": 10,
+   "pre_consent": "T0",
+   "auto_tiers": [
+    "T0"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.66
+  },
+  "P-007": {
+   "act1_role": "both",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "body_weight.daily",
+     "fatigue.survey",
+     "meal.log",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.ct"
+    ],
+    "other": []
+   },
+   "wants": [
+    "robot.gripper_events",
+    "medication.taken"
+   ],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T1",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.48
+  },
+  "P-008": {
+   "act1_role": "both",
+   "holds": {
+    "health": [
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "prescription.active"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.84
+  },
+  "P-009": {
+   "act1_role": "both",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "genome.variant",
+     "mental.phq9"
+    ],
+    "other": [
+     "robot.joint_torque"
+    ]
+   },
+   "wants": [
+    "imaging.mri"
+   ],
+   "budget_xrp": 2,
+   "pre_consent": "T0",
+   "auto_tiers": [
+    "T0"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.42
+  },
+  "P-010": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "lab.hba1c",
+     "diagnosis.code"
+    ],
+    "other": []
+   },
+   "wants": [
+    "imaging.ct"
+   ],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.56
+  },
+  "P-011": {
+   "act1_role": "both",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "genome.variant",
+     "imaging.ct"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 2,
+   "pre_consent": "T0-T1",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.75
+  },
+  "P-012": {
+   "act1_role": "both",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "body_weight.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.mri"
+    ],
+    "other": []
+   },
+   "wants": [
+    "imaging.ct"
+   ],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T3",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [],
+   "agent_trust": 0.96
+  },
+  "P-013": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "spo2.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.mri",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [
+    "activity.daily"
+   ],
+   "budget_xrp": 2,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.51
+  },
+  "P-014": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "lab.hba1c",
+     "prescription.active",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T3",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [],
+   "agent_trust": 0.86
+  },
+  "P-015": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.ct",
+     "mental.phq9"
+    ],
+    "other": [
+     "robot.gripper_events",
+     "robot.lidar_scan"
+    ]
+   },
+   "wants": [],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T1",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.52
+  },
+  "P-016": {
+   "act1_role": "buyer",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "genome.variant",
+     "imaging.mri"
+    ],
+    "other": [
+     "robot.gripper_events",
+     "fleet.battery_log"
+    ]
+   },
+   "wants": [],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T1",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.74
+  },
+  "P-017": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "mood.daily",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "prescription.active",
+     "genome.variant",
+     "imaging.ct",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [
+    "lab.hba1c",
+    "imaging.mri"
+   ],
+   "budget_xrp": 0,
+   "pre_consent": "T0",
+   "auto_tiers": [
+    "T0"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.55
+  },
+  "P-018": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "heart_rate.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "diagnosis.code",
+     "imaging.ct"
+    ],
+    "other": [
+     "smarthome.energy_kwh",
+     "robot.joint_torque"
+    ]
+   },
+   "wants": [],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.44
+  },
+  "P-019": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "activity.daily",
+     "heart_rate.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "genome.variant"
+    ],
+    "other": [
+     "smarthome.energy_kwh",
+     "fleet.battery_log"
+    ]
+   },
+   "wants": [
+    "fatigue.survey"
+   ],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T1",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.96
+  },
+  "P-020": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.mri",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [
+    "imaging.ct"
+   ],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T1",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.41
+  },
+  "P-021": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "prescription.active",
+     "imaging.mri",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [
+    "diagnosis.code"
+   ],
+   "budget_xrp": 2,
+   "pre_consent": "T0",
+   "auto_tiers": [
+    "T0"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.58
+  },
+  "P-022": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "heart_rate.daily",
+     "fatigue.survey",
+     "medication.taken",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.ct",
+     "imaging.mri"
+    ],
+    "other": []
+   },
+   "wants": [
+    "body_weight.daily"
+   ],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.64
+  },
+  "P-023": {
+   "act1_role": "buyer",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "genome.variant",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [
+    "robot.joint_torque"
+   ],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T3",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [],
+   "agent_trust": 0.64
+  },
+  "P-024": {
+   "act1_role": "buyer",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "body_weight.daily",
+     "fatigue.survey",
+     "meal.log",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [
+    "spo2.daily"
+   ],
+   "budget_xrp": 2,
+   "pre_consent": "T0",
+   "auto_tiers": [
+    "T0"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.8
+  },
+  "P-025": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "diagnosis.code",
+     "prescription.active",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [
+    "robot.gripper_events",
+    "sleep.daily"
+   ],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T1",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.81
+  },
+  "P-026": {
+   "act1_role": "both",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "medication.taken",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "prescription.active",
+     "imaging.mri"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.72
+  },
+  "P-027": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T1",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.62
+  },
+  "P-028": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.hba1c",
+     "prescription.active"
+    ],
+    "other": []
+   },
+   "wants": [
+    "lab.glucose"
+   ],
+   "budget_xrp": 2,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.5
+  },
+  "P-029": {
+   "act1_role": "both",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.ct",
+     "imaging.mri"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.87
+  },
+  "P-030": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.97
+  },
+  "P-031": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "fatigue.survey",
+     "meal.log",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.ct"
+    ],
+    "other": []
+   },
+   "wants": [
+    "heart_rate.daily"
+   ],
+   "budget_xrp": 2,
+   "pre_consent": "T0-T3",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [],
+   "agent_trust": 0.88
+  },
+  "P-032": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "activity.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "lab.glucose",
+     "lab.hba1c",
+     "prescription.active",
+     "genome.variant"
+    ],
+    "other": []
+   },
+   "wants": [
+    "imaging.ct"
+   ],
+   "budget_xrp": 2,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.73
+  },
+  "P-033": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "fatigue.survey",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.ct"
+    ],
+    "other": []
+   },
+   "wants": [
+    "lab.glucose"
+   ],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.92
+  },
+  "P-034": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "mental.phq9"
+    ],
+    "other": [
+     "robot.lidar_scan",
+     "robot.joint_torque"
+    ]
+   },
+   "wants": [
+    "imaging.ct"
+   ],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.48
+  },
+  "P-035": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.ct",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T1",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.46
+  },
+  "P-036": {
+   "act1_role": "both",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "body_weight.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "prescription.active",
+     "genome.variant",
+     "imaging.ct"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.41
+  },
+  "P-037": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "body_weight.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [
+    "robot.lidar_scan",
+    "robot.gripper_events"
+   ],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.51
+  },
+  "P-038": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "mood.daily",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "genome.variant",
+     "mental.phq9"
+    ],
+    "other": [
+     "robot.gripper_events"
+    ]
+   },
+   "wants": [
+    "spo2.daily"
+   ],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.46
+  },
+  "P-039": {
+   "act1_role": "buyer",
+   "holds": {
+    "health": [
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "blood_pressure.daily",
+     "diagnosis.code",
+     "prescription.active",
+     "mental.phq9"
+    ],
+    "other": [
+     "robot.lidar_scan",
+     "robot.gripper_events"
+    ]
+   },
+   "wants": [
+    "imaging.mri"
+   ],
+   "budget_xrp": 10,
+   "pre_consent": "T0",
+   "auto_tiers": [
+    "T0"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.93
+  },
+  "P-040": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.hba1c",
+     "diagnosis.code",
+     "genome.variant",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [
+    "lab.glucose"
+   ],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.83
+  },
+  "P-041": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "activity.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "energy.survey",
+     "lab.glucose",
+     "diagnosis.code",
+     "imaging.ct"
+    ],
+    "other": []
+   },
+   "wants": [
+    "robot.lidar_scan",
+    "robot.gripper_events",
+    "prescription.active"
+   ],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.76
+  },
+  "P-042": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "mood.daily",
+     "energy.survey",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "genome.variant",
+     "imaging.ct",
+     "imaging.mri",
+     "mental.phq9"
+    ],
+    "other": [
+     "robot.lidar_scan",
+     "smarthome.energy_kwh"
+    ]
+   },
+   "wants": [
+    "fleet.battery_log"
+   ],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T3",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [],
+   "agent_trust": 0.8
+  },
+  "P-043": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "prescription.active",
+     "genome.variant",
+     "imaging.ct"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 10,
+   "pre_consent": "T0-T3",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [],
+   "agent_trust": 0.63
+  },
+  "P-044": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active"
+    ],
+    "other": []
+   },
+   "wants": [
+    "imaging.ct"
+   ],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T3",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [],
+   "agent_trust": 0.73
+  },
+  "P-045": {
+   "act1_role": "both",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.mri"
+    ],
+    "other": []
+   },
+   "wants": [
+    "robot.joint_torque"
+   ],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.71
+  },
+  "P-046": {
+   "act1_role": "buyer",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.mri",
+     "mental.phq9"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T1",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.83
+  },
+  "P-047": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "diagnosis.code",
+     "prescription.active",
+     "genome.variant",
+     "mental.phq9"
+    ],
+    "other": [
+     "robot.lidar_scan"
+    ]
+   },
+   "wants": [],
+   "budget_xrp": 0,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.52
+  },
+  "P-048": {
+   "act1_role": "buyer",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "prescription.active"
+    ],
+    "other": []
+   },
+   "wants": [
+    "imaging.mri"
+   ],
+   "budget_xrp": 0,
+   "pre_consent": "T0",
+   "auto_tiers": [
+    "T0"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.42
+  },
+  "P-049": {
+   "act1_role": "seller",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "activity.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "meal.log",
+     "medication.taken",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code",
+     "prescription.active",
+     "imaging.mri"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T3",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [],
+   "agent_trust": 0.44
+  },
+  "P-050": {
+   "act1_role": "buyer",
+   "holds": {
+    "health": [
+     "sleep.daily",
+     "heart_rate.daily",
+     "spo2.daily",
+     "body_weight.daily",
+     "body_temp.daily",
+     "fatigue.survey",
+     "medication.taken",
+     "mood.daily",
+     "energy.survey",
+     "blood_pressure.daily",
+     "lab.glucose",
+     "lab.hba1c",
+     "diagnosis.code"
+    ],
+    "other": []
+   },
+   "wants": [],
+   "budget_xrp": 5,
+   "pre_consent": "T0-T2",
+   "auto_tiers": [
+    "T0",
+    "T1"
+   ],
+   "never": [
+    "T3"
+   ],
+   "agent_trust": 0.95
+  }
+ }
+}

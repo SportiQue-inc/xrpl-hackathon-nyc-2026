@@ -77,6 +77,11 @@ class ParticipantKeyring:
         k = self.ks.get_or_create(f"escrow.{order_key}", new_key)
         return SecretBox(k).encrypt(inner), condition_hex(k)
 
+    def key(self, order_key: str) -> bytes:
+        """K for an order before it is placed: the agent hands it to the source issuer, which seals its
+        export with it (provenance seal); the escrow is then created with the same K's condition."""
+        return self.ks.get_or_create(f"escrow.{order_key}", new_key)
+
     def fulfillment(self, order_key: str) -> str | None:
         k = self.ks.get(f"escrow.{order_key}")
         return fulfillment_hex(k) if k else None
@@ -133,6 +138,40 @@ class ApproverDevice(Device):
             return {"signer": self.address, "signed_tx": signed.to_xrpl()}
         return {"signer": self.address, "public_key": self.public_hex,
                 "signature": self.sign(approval_message(approval))}
+
+
+class ParticipantWalletDevice(Device):
+    """A participant's agent device whose key is the participant's own XRPL wallet (Ed25519). The
+    same seed signs consent documents and logins and receives the rewards on XRPL, so a consent
+    signature verifies against the wallet the money goes to. The seed stays in the keystore."""
+
+    def _seed(self) -> str:
+        from xrpl.constants import CryptoAlgorithm
+        from xrpl.wallet import Wallet
+        return self.ks.get_or_create("xrpl.seed", lambda: Wallet.create(CryptoAlgorithm.ED25519).seed.encode()).decode()
+
+    def wallet(self):
+        from xrpl.wallet import Wallet
+        return Wallet.from_seed(self._seed())
+
+    @property
+    def address(self) -> str:
+        return self.wallet().classic_address
+
+    def _signing(self):
+        if getattr(self, "_sk", None) is None:
+            from nacl.signing import SigningKey
+            from xrpl.core.keypairs import derive_keypair
+            _, private = derive_keypair(self._seed())
+            self._sk = SigningKey(bytes.fromhex(private[2:]))   # "ED" + 32-byte Ed25519 private key
+        return self._sk
+
+    @property
+    def public_hex(self) -> str:
+        return bytes(self._signing().verify_key).hex()
+
+    def sign(self, message: bytes) -> str:
+        return self._signing().sign(message).signature.hex()
 
 
 def mock_address(public_hex: str) -> str:

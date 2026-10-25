@@ -175,3 +175,49 @@ simulated device and returns a token; the dashboard uses it, or a token passed a
   Testnet run with the new `*_cosign` treasuries is still to be repeated.
 - Re-identification risk is reduced (minimization, HMAC pseudonym per study, private date offset,
   quasi-identifier rule), not eliminated.
+
+## 10. Push, not access: why transfer abroad needs it
+
+A subscription or "view right" means an outside party keeps reading the person's store. Many data-localization and cross-border rules restrict exactly that inbound access from abroad, so that model breaks first for an overseas institution. AgentRail never opens the person's store to anyone:
+- For each trade, the person's page assembles exactly the agreed columns and days.
+- It seals them with a per-trade key K, derived from the passkey's PRF root, and encrypts the result to the institution's registered P-256 key.
+- The engine pushes that sealed record into the institution's own store.
+- The escrow condition is SHA-256(K). Publishing K pays the person and opens the copy the institution already holds.
+
+What each party holds:
+
+| party | holds | never holds |
+|---|---|---|
+| person's page | PRF root (only while the passkey is used), K until the reveal | anything of other people |
+| engine | sealed records, conditions, tx hashes | K before the reveal, the clear bundle, the root |
+| institution | its P-256 private key, the sealed copy, then K from the ledger | the person's store, other trades' keys |
+
+Withdrawal stops future pushes, and a key not yet revealed is never published. For copies already delivered, the engine sends a deletion request that must come back as a signed deletion confirmation, and a missing one is an audit flag. A decrypted copy cannot be force-deleted; expiry for copies is contractual plus audit. Tests: `tests/test_vault.py`.
+
+## 11. Delegation while the phone is off, and T3 view keys
+
+**Delegation** (`vault/delegation.py`):
+- One Touch ID signs a grant listing its scopes (tier × purpose × institution class), an end time and a budget. The page wraps one scope key per scope to the person's hosted agent.
+- Inside the grant, the hosted agent executes on its own. Outside it, it queues "needs you" for the next time the phone is on.
+- T0–T1 can be delegated. T2 can be delegated only with the person's opt-in. T3 is never delegated.
+- Revoking signs a new, empty grant version. The agent drops every key at once, and a replayed older grant is refused.
+- **Stealing the hosted agent** yields only the delegated scopes, within budget and time, and never T3.
+
+**T3 view keys** (`vault/viewkey.py`):
+- There is one keyring per (owner, institution, study): a versioned manifest the owner signed. Adding scope appends wrapped keys and bumps the version. It never mints separate view keys.
+- The wrap comes from what the owner signed at consent time. The key service never holds the owner's root.
+- A session is bound to the researcher's credential, the IRB credential, the institution and the contract. It makes one keyring fetch; chunk opens are then local lookups, and later scope arrives as a delta.
+- Raw export from the workspace is refused; aggregate export is allowed.
+- Expired or removed entries are dropped from the next delta, wiped from the cache, and logged. A stale manifest version is refused.
+
+Benchmark (`benchmark()`, opening N chunks after M scope expansions):
+
+| chunks | expansions | keyring: fetches, time | key per request: fetches, time |
+|---|---|---|---|
+| 60 | 2 | 3, 0.9 ms | 60, 6.6 ms |
+| 240 | 5 | 6, 3.2 ms | 240, 57 ms |
+| 594 | 10 | 11, 10.5 ms | 594, 296 ms |
+
+These times are in-process. Over a network each fetch is a round trip, so the gap grows with latency.
+
+**The honest limit.** Expiry is technically enforced only where the plaintext stays in the controlled workspace. A T0–T2 copy is decrypted in the buyer's own store and cannot be force-deleted. For copies, expiry is enforced by the contract plus audit: at the end of retention the engine sends a deletion request, and a missing signed confirmation raises an audit flag and opens a penalty case (`CopyLedger`).

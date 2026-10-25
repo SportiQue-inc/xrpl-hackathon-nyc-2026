@@ -342,11 +342,17 @@ def build_cohort(w: World, n: int = 50):
     compliance = ComplianceRules(credential_check=lambda buyer: w.ledger.has_credential(
         e.party(buyer)["address"], e.party("org_ethics")["address"], ETHICS_CREDENTIAL))
     w.cohort_people = {}
+    # Own wallets (scripts/fund_participant_wallets.py): seeds in the participants' keystores.
+    own_wallets = (json.load(open(".participant_wallets.json"))
+                   if w.ledger.name == "testnet" and os.environ.get("AGENTRAIL_KEYSTORE")
+                   and os.path.exists(".participant_wallets.json") else {})
     for i, a in enumerate(accounts):
         pid = a["account_id"]
         from .cohort import HERO
         if w.ledger.name != "testnet":
             addr = w.ledger.new_account(pid)
+        elif pid in own_wallets:
+            addr = own_wallets[pid]                            # the participant's own funded wallet
         elif pid == HERO:
             addr = w.ledger.new_account(f"participant_{pid}")   # the followed participant's agent holds a key
         else:
@@ -358,6 +364,18 @@ def build_cohort(w: World, n: int = 50):
         pa.set_consent("org_sleeplab", "sleep_research", items, automation=auto, quiet=True)
         w.cohort_people[pid] = pa
     w.coverage = synthetic_coverage(list(w.cohort_people))
+    from . import uniqdata_live
+    w.uniqdata_clients = {}                        # pid -> UniQdataClient, used by the passkey approval
+    if os.environ.get("UNIQDATA_ROSTER"):          # every participant has their own UniQdata account
+        for pid, client in uniqdata_live.load_roster(os.environ["UNIQDATA_ROSTER"]).items():
+            if pid in w.cohort_people and not (pid == HERO and uniqdata_live.CLIENT):
+                uniqdata_live.attach(w.cohort_people[pid], client)
+                w.uniqdata_clients[pid] = client
+    if HERO in w.cohort_people and (uniqdata_live.CLIENT or os.environ.get("UNIQDATA_PERSON")):
+        # the followed person's own UniQdata account (a server's dev lane, or a local sandbox)
+        hero = uniqdata_live.CLIENT or uniqdata_live.load_person(os.environ["UNIQDATA_PERSON"])
+        uniqdata_live.attach(w.cohort_people[HERO], hero)
+        w.uniqdata_clients[HERO] = hero
     e.set_mandate(BuyerMandate("org_sleeplab", 80 * XRP, 3 * XRP, ["sleep_research"]))
     if getattr(w, "security", None):
         w.security.enrol_participants(list(w.cohort_people))

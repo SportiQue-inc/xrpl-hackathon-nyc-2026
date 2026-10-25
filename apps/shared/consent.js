@@ -16,7 +16,7 @@ export function consentPages(r, send, price, names) {
   const { org, purpose, item, weeks } = names;
   const allWeeks = weeks(send.flatMap((i) => i.weeks));
   const itemLines = send.map((i) => `· ${item(i.item)}: ${weeks(i.weeks)}`);
-  const pay = r.payment || { immediate_pct: 80, held_pct: 20, review: "7 days" };
+  const pay = r.payment || { first_week_pct: 50, step_pct: 10, max_pct: 90, review: "7 days" };
   const reviewDays = String(pay.review || "7 days").replace(/\D+/g, "") || "7";
   const bonus = r.completion_bonus_xrp ? `모든 회차를 마치면 완료 보너스 ${won(r.completion_bonus_xrp)}를 추가로 드립니다. 철회하면 완료 보너스는 지급되지 않습니다.` : null;
   const abroad = r.international_transfer && r.international_transfer.planned ? r.international_transfer : null;
@@ -31,7 +31,7 @@ export function consentPages(r, send, price, names) {
         ["3. 예상 위험과 이익", "신체적 위험은 없습니다. 기록이 전달되는 과정에서 정보가 노출될 위험이 있어, 이름 대신 참여 번호를 쓰고 암호화해 전달합니다. 참여에 따른 직접적인 의학적 이익은 없습니다."],
         ["4. 참여 지급", [
           `이번 요청의 참여 지급액은 ${won(price)}입니다.`,
-          `회차마다 기록이 전달되면 ${pay.immediate_pct}%가 지급되고, ${pay.held_pct}%는 ${reviewDays}일 검토 후 지급됩니다.`,
+          `첫 회차 기록이 확인되면 그 회차 지급액의 ${pay.first_week_pct}%가 바로 지급되고, 연속으로 보낼 때마다 ${pay.step_pct || 10}%p씩 올라 최대 ${pay.max_pct}%까지 바로 지급됩니다. 나머지는 ${reviewDays}일 검토 후 지급됩니다.`,
           "지급액은 전달 전에 원장에 예치되며, 기록이 전달되어야 풀립니다.",
           "검토 후 지급분은 위조 데이터, 다른 사람의 기기·데이터 사용, 여러 계정 사용이 확인된 경우에만 지급되지 않습니다. 이 경우 미리 이유를 알리고 소명할 기회를 드립니다.",
           bonus,
