@@ -1124,6 +1124,14 @@ def public_live(after: int = 0):
     return _call(view)
 
 
+@app.get("/api/public/ap4m")
+def public_ap4m(verify: bool = False):
+    """The agent's RLUSD payments on the AP4M rail (synthetic exports). With verify=1 each VoucherRedeemed
+    transaction is checked on an XRPL EVM Testnet RPC node against the run record."""
+    from . import ap4m_receipts
+    return ap4m_receipts.view(check=verify)
+
+
 @app.get("/try")
 def try_it(request: Request):
     """Entry for visitors: pick researcher (UniQLab live view), participant (UniQdata) or the before/after story."""

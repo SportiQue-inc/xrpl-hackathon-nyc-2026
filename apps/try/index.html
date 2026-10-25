@@ -107,6 +107,14 @@
     </div>
   </section>
 
+  <section id="ap4m" class="walkthrough" aria-labelledby="ap4m-title">
+    <p class="eyebrow">AP4M · Mastercard agent payments</p>
+    <h2 id="ap4m-title">The agent pays per export in RLUSD, and anyone can check it on chain</h2>
+    <p>Next to the XRPL escrow and key reveal, the participant's agent can pay on the AP4M rail: it opens a Channel with <code>requestChannel()</code>, pays each export call with a signed Voucher inside its cap, and refuses anything over the cap. Each redeemed Voucher is a transaction on XRPL EVM Testnet.</p>
+    <div id="ap4mBox" class="ap4m" aria-live="polite"><p class="caption">Loading AP4M receipts…</p></div>
+    <div class="actions"><button class="btn" id="ap4mCheck" type="button" hidden>Check each payment on chain</button><a class="btn" href="/console#/evidence" target="_blank" rel="noopener">In the evidence view ↗</a></div>
+  </section>
+
   <section class="cta" aria-labelledby="cta-title">
     <h2 id="cta-title">Try it now</h2>
     <p>Start as the researcher, then switch to the participant. Both screens share one engine and one ledger.</p>
@@ -177,6 +185,28 @@
     new IntersectionObserver(([e]) => (e.isIntersecting ? play() : stop()), { threshold: 0.4 }).observe(f);
     show(0);
   });
+  // AP4M receipts: read-only, no access code needed. "Check" asks the engine to verify each VoucherRedeemed on chain.
+  const apBox = document.getElementById("ap4mBox"), apBtn = document.getElementById("ap4mCheck");
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const cut = (x) => (x && x.length > 18 ? `${x.slice(0, 10)}…${x.slice(-6)}` : x || "");
+  const apMark = { verified: "✓ on chain", mismatch: "✗ does not match", failed: "✗ failed", not_found: "✗ not found", unreachable: "RPC unreachable" };
+  async function loadAp(check) {
+    apBtn.disabled = true;
+    try {
+      const v = await (await fetch(`/api/public/ap4m${check ? "?verify=1" : ""}`)).json();
+      const r = (v.runs || [])[0];
+      if (!r) { apBox.innerHTML = '<p class="caption">No live AP4M run recorded yet.</p>'; return; }
+      apBtn.hidden = false;
+      const rows = r.paid.map((p) => `<li><b>Week ${esc(p.week)} · ${esc(p.price_rlusd)} RLUSD</b> <a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(cut(p.tx))} ↗</a> <span class="${p.onchain?.status === "verified" ? "ok" : "warn"}">${esc(p.onchain ? apMark[p.onchain.status] || p.onchain.status : "paid")}</span></li>`)
+        .concat(r.refused.map((x) => `<li><b>Refused · ${esc(x.price_rlusd)} RLUSD</b> ${esc(x.reason)}. Nothing paid.</li>`)).join("");
+      const st = r.settlement, pb = r.payout_balance;
+      apBox.innerHTML = `<p class="caption">Channel ${esc(cut(r.channel.channel_id))} · cap ${esc(r.channel.cap_rlusd)} RLUSD · total paid ${esc(r.total_paid_rlusd)} RLUSD</p><ul>${rows}</ul>`
+        + (st ? `<p class="caption">Settled to the merchant payout wallet${pb ? ` (${esc(pb.before_rlusd)} → ${esc(pb.after_rlusd)} RLUSD)` : ""}: ${st.payout ? `<a href="${esc(st.payout.url)}" target="_blank" rel="noopener">payout tx ↗</a>` : ""} ${st.receipt_url ? `<a href="${esc(st.receipt_url)}" target="_blank" rel="noopener">AP4M receipt ↗</a>` : ""}</p>` : "");
+    } catch { apBox.innerHTML = '<p class="caption">Could not read the AP4M receipts.</p>'; }
+    finally { apBtn.disabled = false; }
+  }
+  apBtn.onclick = () => loadAp(true);
+  loadAp(false);
 </script>
 </body>
 </html>
