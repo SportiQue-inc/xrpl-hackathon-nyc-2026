@@ -45,6 +45,17 @@ def test_pages_and_shared_modules_are_served():
         assert c.get(f"/apps/shared/{f}").status_code == 200
 
 
+def test_before_after_demo_is_served_and_frames_only_itself():
+    c = TestClient(web.app)
+    r = c.get("/demo?mode=after", follow_redirects=False)
+    assert r.status_code == 307 and r.headers["location"] == "/apps/demo/index.html?mode=after"
+    for f in ("index.html", "lab.html", "phone.html", "lab.js", "phone.js", "common.js", "demo.css"):
+        r = c.get(f"/apps/demo/{f}")
+        assert r.status_code == 200
+        assert r.headers["x-frame-options"] == "SAMEORIGIN" and "frame-ancestors 'self'" in r.headers["content-security-policy"]
+    assert c.get("/console").headers["x-frame-options"] == "DENY"
+
+
 @pytest.fixture
 def c():
     reset_rate_limits()

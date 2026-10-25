@@ -11,7 +11,7 @@ from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -755,6 +755,12 @@ def participant_page():
 @app.get("/console")
 def console_page():
     return _page("apps", "researcher", "index.html")
+
+
+@app.get("/demo")
+def before_after_demo(request: Request):
+    """Before/after stage: UniQLab and UniQdata side by side, today's flow and the flow with agents."""
+    return RedirectResponse(f"/apps/demo/index.html{'?' + request.url.query if request.url.query else ''}")
 
 
 if (Path(__file__).parent.parent / "apps").is_dir():

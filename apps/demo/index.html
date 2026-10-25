@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Before and after</title>
+<link rel="stylesheet" href="demo.css">
+<style>
+  body { background: #e9ebef; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  .stage-top { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: #fff; border-bottom: 1px solid var(--border); }
+  .stage-top .label { font-size: 22px; font-weight: 700; margin-right: auto; }
+  .stage-top .label b { color: var(--brand); }
+  .seg { display: inline-flex; background: var(--gray-bg); border-radius: 10px; padding: 3px; }
+  .seg a { padding: 6px 14px; border-radius: 8px; color: var(--gray); text-decoration: none; font-weight: 500; font-size: 13px; }
+  .seg a.on { background: #fff; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .stage { flex: 1; display: flex; gap: 28px; align-items: center; justify-content: center; padding: 18px 24px; min-height: 0; }
+  .win { background: #fff; border-radius: 12px; box-shadow: 0 12px 40px rgba(17,24,39,.14); overflow: hidden; display: flex; flex-direction: column; }
+  .win .chrome { height: 30px; background: #f3f4f6; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; padding: 0 12px; flex: none; }
+  .win .chrome i { width: 10px; height: 10px; border-radius: 50%; background: #d1d5db; }
+  .win .chrome span { margin-left: 10px; font-size: 11px; color: var(--text-3); }
+  .scaler { position: relative; overflow: hidden; }
+  .scaler iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+  .device { background: #111827; border-radius: 46px; padding: 12px; box-shadow: 0 16px 50px rgba(17,24,39,.3); flex: none; }
+  .device .scaler { border-radius: 36px; }
+  .hide-lab #labWin, .hide-phone #phoneDev { display: none; }
+</style>
+</head>
+<body>
+<div class="stage-top">
+  <div class="label" id="label"></div>
+  <div class="seg" id="mode"></div>
+  <div class="seg" id="show"></div>
+  <button class="btn sm" id="reset">Start over</button>
+</div>
+<div class="stage" id="stage">
+  <div class="win" id="labWin"><div class="chrome"><i></i><i></i><i></i><span>lab.uniqdata.io</span></div><div class="scaler" id="labBox"><iframe id="lab" title="UniQLab"></iframe></div></div>
+  <div class="device" id="phoneDev"><div class="scaler" id="phoneBox"><iframe id="phone" title="UniQdata"></iframe></div></div>
+</div>
+<script type="module">
+  const q = new URLSearchParams(location.search);
+  const mode = q.get("mode") === "after" ? "after" : "before";
+  const show = ["lab", "phone"].includes(q.get("show")) ? q.get("show") : "both";
+  const link = (k, v) => { const n = new URLSearchParams(q); n.set(k, v); return `?${n}`; };
+  document.getElementById("label").innerHTML = mode === "before" ? "Today <span class='muted' style='font-weight:500;font-size:15px'>UniQLab · UniQdata</span>"
+    : "With agents <span class='muted' style='font-weight:500;font-size:15px'><b>UniQLab · UniQdata</b> + AgentRail</span>";
+  document.getElementById("mode").innerHTML = `<a class="${mode === "before" ? "on" : ""}" href="${link("mode", "before")}">Today</a><a class="${mode === "after" ? "on" : ""}" href="${link("mode", "after")}">With agents</a>`;
+  document.getElementById("show").innerHTML = ["both", "lab", "phone"].map((s) => `<a class="${show === s ? "on" : ""}" href="${link("show", s)}">${{ both: "Both", lab: "UniQLab", phone: "UniQdata" }[s]}</a>`).join("");
+  document.body.classList.toggle("hide-lab", show === "phone");
+  document.body.classList.toggle("hide-phone", show === "lab");
+
+  const LAB = { w: 1280, h: 800 }, PHONE = { w: 390, h: 844 };
+  const lab = document.getElementById("lab"), phone = document.getElementById("phone");
+  lab.src = `lab.html?mode=${mode}`; phone.src = `phone.html?mode=${mode}`;
+  lab.style.width = `${LAB.w}px`; lab.style.height = `${LAB.h}px`;
+  phone.style.width = `${PHONE.w}px`; phone.style.height = `${PHONE.h}px`;
+
+  function fit() {
+    const stage = document.getElementById("stage").getBoundingClientRect();
+    const H = stage.height - 36, W = stage.width - 48;
+    const ph = show === "lab" ? 0 : Math.min(1, (H - 24) / PHONE.h);
+    const phoneW = show === "lab" ? 0 : PHONE.w * ph + 24 + 28;
+    const ls = show === "phone" ? 0 : Math.min((W - phoneW) / LAB.w, (H - 30) / LAB.h);
+    const set = (box, f, s, size) => { box.style.width = `${size.w * s}px`; box.style.height = `${size.h * s}px`; f.style.transform = `scale(${s})`; };
+    if (ls) set(document.getElementById("labBox"), lab, ls, LAB);
+    if (ph) set(document.getElementById("phoneBox"), phone, ph, PHONE);
+  }
+  addEventListener("resize", fit); fit();
+
+  document.getElementById("reset").onclick = () => {
+    const c = new BroadcastChannel(`agentrail-demo-${mode}`); c.postMessage({ type: "reset" }); c.close();
+  };
+</script>
+</body>
+</html>
