@@ -5,7 +5,7 @@ between them, intake screening, and settlement on XRPL Testnet with escrow where
 key. It imports AgentRail's ledger code (`agentrail/ledger`) from this repository and changes nothing in it.
 
 ```
-pip install -r ../../../requirements.txt anthropic
+pip install -r requirements.txt
 cp .env.example .env      # add an LLM key; VM_LEDGER=testnet
 python run.py             # http://localhost:8800 (market) and /vault (my DB)
 ```
