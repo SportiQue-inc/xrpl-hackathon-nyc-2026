@@ -45,7 +45,7 @@ function chatBox(el, data) {
   const draft = $("say")?.value || "", focused = document.activeElement?.id === "say";
   const prior = $("msgs"), scrollTop = prior?.scrollTop || 0;
   const follow = !prior || prior.scrollHeight-prior.scrollTop-prior.clientHeight < 32;
-  const open = el.dataset.open === "1";
+  const open = true;   // the chat never collapses: an empty, closed box read as broken
   if (!ME) {
     el.innerHTML = '<div class="empty"><h3>Your agent, your data</h3><p>Sign in to upload data, set your minimum price and track each sale.</p><button class="primary" id="agentSignIn">Sign in to start</button></div>';
     $("agentSignIn").onclick = authDlg;
@@ -54,10 +54,9 @@ function chatBox(el, data) {
   const approvals=data.chat.filter(c=>c.actions&&!c.done&&!c.text.startsWith('From your own DB'));
   const conversation=data.chat.filter(c=>!approvals.includes(c));
   const message=(c)=>`<div class="msg ${c.role==='me'?'me':'agent'}"><div>${c.done&&/lot of at least \d+ people/.test(c.text)?'<span class="small muted">Earlier group request · inactive</span><br>':''}${esc(c.text)}</div>${c.actions?`<div class="acts">${c.actions.map((a,i)=>`<button type="button" data-c="${c.id}" data-i="${i}" ${c.done?'disabled':''}>${esc(a.t)}</button>`).join('')}</div>`:''}</div>`;
-  el.innerHTML = `<button class="head" type="button" id="chatHead"><span>Ask my agent</span><span>${open ? "▾" : "▸"} ${data.chat.filter((c) => c.actions && !c.done).length ? '<span class="tag red">needs you</span>' : ""}</span></button>
+  el.innerHTML = `<div class="head"><span>Ask my agent</span>${approvals.length ? `<span class="tag red">${approvals.length} to approve</span>` : ""}</div>
     ${open ? `${approvals.length?`<details class="pending-approvals"><summary>${approvals.length} requests waiting for your approval</summary>${approvals.map(message).join('')}</details>`:''}<div class="msgs" id="msgs">${conversation.map(message).join('') || '<p class="muted small">Tell me what you want to do, or ask what you can sell.</p>'}</div>
     <form id="chatForm"><input type="text" id="say" placeholder="e.g. sell my sleep logs, or I need air-quality data" aria-label="Message to my agent"><button class="primary">Send</button></form>` : ""}`;
-  $("chatHead").onclick = () => { el.dataset.open = open ? "0" : "1"; chatBox(el, data); };
   if (open) {
     $("msgs").scrollTop = follow ? 1e9 : scrollTop; $("say").value = draft; if (focused) $("say").focus();
     el.querySelectorAll("[data-c]").forEach((b) => b.onclick = async () => { if (!canAct()) return; try { await post(`/api/account/${ME}/chat/${b.dataset.c}/act`, { i: +b.dataset.i }); await refresh(); } catch (err) { showError(err); } });
