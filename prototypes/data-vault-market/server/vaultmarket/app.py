@@ -231,7 +231,7 @@ def _trade_summaries(contracts, account):
 
 
 def _agent_styles(since=0):
-    receipts=M.s.q("SELECT src,COALESCE(asset,'XRP') asset,COUNT(DISTINCT contract) sales,SUM(drops) micro FROM txs WHERE type LIKE 'EscrowFinish%' AND result='tesSUCCESS' AND created>=? GROUP BY src,asset", (since,))
+    receipts=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,COUNT(DISTINCT t.contract) sales,SUM(t.drops) micro FROM txs t JOIN contracts c ON c.id=t.contract WHERE t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' GROUP BY t.src,t.asset", (since,))
     styles=[]
     for row in M.s.q("SELECT id FROM accounts WHERE id NOT LIKE 'u-%' AND id!='demo-vault'"):
         a=M.acct(row['id']);rules=a['sell_agent'];mins=rules.get('min',{})
@@ -263,7 +263,7 @@ def demo(minutes: int = 60):
         raise HTTPException(400,"Choose 15, 60, 180 minutes or all history")
     now=time.time();start=now-minutes*60 if minutes else M.s.one("SELECT COALESCE(MIN(created),?) t FROM txs",(now,))["t"]
     styles=_agent_styles(start);ids={a['id'] for a in styles}
-    rows=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,t.drops,t.created,t.contract,c.kind,b.name buyer_name FROM txs t LEFT JOIN contracts c ON c.id=t.contract LEFT JOIN accounts b ON b.id=c.buyer WHERE t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' AND t.created>=? ORDER BY t.created",(start,))
+    rows=M.s.q("SELECT t.src,COALESCE(t.asset,'XRP') asset,t.drops,t.created,t.contract,c.kind,b.name buyer_name FROM txs t LEFT JOIN contracts c ON c.id=t.contract LEFT JOIN accounts b ON b.id=c.buyer WHERE t.type LIKE 'EscrowFinish%' AND t.result='tesSUCCESS' AND t.created>=? AND c.buyer NOT LIKE 'u-%' AND c.buyer!='demo-vault' AND COALESCE(c.seller,'') NOT LIKE 'u-%' AND COALESCE(c.seller,'')!='demo-vault' ORDER BY t.created",(start,))
     for a in styles:
         a['receipts']=[{'asset':r['asset'],'amount':r['drops']/1e6,'at':r['created'],'contract':r['contract'],'kind':r['kind'],'buyer':r['buyer_name']} for r in rows if r['src']==a['id']]
     activity=[]
