@@ -6,7 +6,7 @@ const api = async (path, opts) => {
   return r.json();
 };
 const post = (path, body) => api(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body || {}) });
-let ME = null, META = null, USER = {user: null, public: true};
+let ME = null, META = null, USER = {user: null, public: true}, AUTH_READY = false;
 const sym = () => META?.asset || "XRP";
 const assetLabel = (a = sym()) => a === "test USD" ? (META?.asset_label || a) : a;   // ledger key -> the name people read
 const relabel = (t) => META?.asset_label ? String(t ?? "").replace(/\btest USD\b/g, META.asset_label) : t;   // older stored messages
@@ -24,6 +24,7 @@ function canAct() {
   return false;
 }
 async function topbar(page) {
+  AUTH_READY = false;
   [META, USER] = await Promise.all([api("/api/meta"), api("/api/me")]);
   if (!USER.user) {await post('/api/demo-session');USER=await api('/api/me');}
   ME = USER.user?.account || null;
@@ -39,10 +40,11 @@ async function topbar(page) {
   $("ledgerTag").title = META.asset_note || "";
   $("ledgerTag").hidden = true;
   $("modelTag").hidden = true;
+  AUTH_READY = true;
 }
 function memberBalance(account) {
   const el=$("accountName");
-  if (USER.user) el.textContent=`${USER.user.demo?'Demo vault (synthetic)':USER.user.username} · ${account.balance==null?'Wallet connecting':amount(account.balance)}`;
+  if (USER.user) el.innerHTML=`<span class="account-label">${esc(USER.user.demo?'Demo (synthetic)':USER.user.username)}</span><strong class="account-balance">${esc(account.balance==null?'Wallet connecting':amount(account.balance))}</strong>`;
 }
 function chatBox(el, data) {
   const draft = $("say")?.value || "", focused = document.activeElement?.id === "say";
@@ -68,8 +70,8 @@ function chatBox(el, data) {
 }
 // trades land every second; redraw at most every 4 s so open tabs don't flood the server
 let _liveTimer = null;
-function live() { const soon = () => { if (_liveTimer || document.hidden) return; _liveTimer = setTimeout(() => { _liveTimer = null; refresh(); }, 4000); };
-  try { const es = new EventSource("/api/stream"); es.onmessage = soon; } catch { setInterval(refresh, 5000); } }
+function live() { const soon = () => { if (!AUTH_READY || _liveTimer || document.hidden) return; _liveTimer = setTimeout(() => { _liveTimer = null; refresh(); }, 4000); };
+  try { const es = new EventSource("/api/stream"); es.onmessage = soon; } catch { setInterval(() => {if(AUTH_READY&&!document.hidden)refresh();}, 5000); } }
 
 // ---------------- members: sign up, sign in, link a personal wallet ----------------
 function memberBar() {

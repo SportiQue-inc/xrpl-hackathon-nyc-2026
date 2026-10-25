@@ -11,7 +11,8 @@
   
 </div>
 <div class="banner" id="banner" hidden></div>
-<div class="app vault-app">
+<section id="vaultStartup" class="vault-startup" aria-live="polite"><h1>Opening your vault</h1><p id="vaultStartupText">Your records, purchases and collections are loading.</p><button type="button" id="retryVault" hidden>Try again</button></section>
+<div class="app vault-app" hidden>
   <section class="col side left" aria-labelledby="h-me">
     <header><h1 id="h-me">For your data</h1></header>
     <div class="scroll">
@@ -50,13 +51,8 @@ $("file").onchange = async () => { const f = $("file").files[0]; if (!f) return;
 $("vDom").onclick = () => { VIEW = "domain"; refresh(); }; $("vDem").onclick = () => { VIEW = "demand"; refresh(); }; $("vAll").onclick = () => { VIEW = "all"; refresh(); };
 const VERDICT = { ok: ["blue", "passed"], clean: ["", "needs cleaning"], cleaned: ["blue", "cleaned"], block: ["red", "refused"] };
 async function refresh() {
-  if (!META) return;
-  if (!ME) {
-    document.querySelector('.app').innerHTML='<div class="empty" style="max-width:480px;margin:60px auto"><h1>Your personal data vault</h1><p>Sign in to view your records, upload data and instruct your own agent.</p><button class="primary" id="vaultSignIn">Sign in</button></div>';
-    $('vaultSignIn').onclick=authDlg;
-    return;
-  }
-  try { ACC = await api(`/api/account/${ME}`); META = await api("/api/meta"); } catch { return; }
+  if (!META || !ME) return false;
+  try { ACC = await api(`/api/account/${ME}`); META = await api("/api/meta"); } catch (err) { showError(err); return false; }
   const a = ACC.account, k = META.kinds;
   $('file').disabled=!!USER.user?.demo;
   if(USER.user?.demo){document.querySelector('.onboarding').innerHTML='<h2>Your demo vault</h2><p class="small">Synthetic files are ready below. Ask your agent what to sell, then approve a request. Use your own vault to import personal files or link a wallet.</p>';$('file').closest('.intake-work')?.querySelector('.drop span').replaceChildren(document.createTextNode('Demo uses synthetic samples. Use your own vault to import personal files.'));}
@@ -104,7 +100,7 @@ $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribut
   if(!$('buyKind').options.length){$('buyKind').innerHTML=Object.entries(k).map(([id,v])=>`<option value="${id}">${esc(v.label)}</option>`).join('');$('buyPrice').value=(k[$('buyKind').value].price*(META.unit_xrp||.01)).toFixed(2);}
   $('buyForm').onsubmit=async(e)=>{e.preventDefault();try{await post(`/api/account/${ME}/chat`,{text:'buy '+k[$('buyKind').value].label,price:Number($('buyPrice').value)/(META.unit_xrp||.01),resale:$('buyResale').checked});await refresh();}catch(err){showError(err);}};
   await refreshCollections();
-  chatBox($("chat"), ACC);$("banner").hidden=true;
+  chatBox($("chat"), ACC);$("banner").hidden=true;return true;
 }
 
 function collectionSelection(){
@@ -138,5 +134,11 @@ $('collectionTarget').onchange=()=>collectionTargetChanged();
 $('clearDbSelection').onclick=()=>{COLLECTION_FILES.clear();collectionSelection();};
 $('collectionForm').onsubmit=async e=>{e.preventDefault();const button=$('saveCollection');button.disabled=true;try{const target=$('collectionTarget').value,path=`/api/account/${ME}/collections${target?'/'+target+'/versions':''}`;const result=await post(path,{name:$('collectionName').value,files:[...COLLECTION_FILES]});await refreshCollections();$('collectionTarget').value=String(result.id);collectionTargetChanged(false);}catch(err){showError(err);}finally{button.disabled=false;}};
 
-topbar("vault").then(refresh).catch(showError); live();
+async function startVault(){
+  $('vaultStartup').hidden=false;$('retryVault').hidden=true;
+  $('vaultStartupText').textContent='Your records, purchases and collections are loading.';
+  try{await topbar('vault');if(!await refresh())throw new Error('The vault could not finish loading. Try again.');document.querySelector('.vault-app').hidden=false;$('vaultStartup').hidden=true;}
+  catch(err){$('vaultStartupText').textContent='We could not open your vault. Your records are preserved; try the connection again.';$('retryVault').hidden=false;showError(err);}
+}
+$('retryVault').onclick=startVault;startVault();live();
 </script></body></html>
