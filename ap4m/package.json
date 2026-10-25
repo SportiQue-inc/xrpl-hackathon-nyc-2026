@@ -1,0 +1,18 @@
+{
+  "name": "agentrail-ap4m",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentRail participant agent paying a synthetic clinic export endpoint with AP4M x402 payments on XRPL EVM Testnet",
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "merchant": "node merchant.mjs",
+    "agent": "node agent.mjs",
+    "dry-run": "DRY_RUN=1 ./run-live.sh"
+  },
+  "dependencies": {
+    "@ap4m/sdk": "file:vendor/ap4m-sdk.tgz",
+    "ethers": "6.17.0"
+  }
+}
