@@ -84,6 +84,7 @@ class Market:
         self.s.x("UPDATE contracts SET status = 'rejected', reason = 'interrupted by a server restart before any escrow' "
                  "WHERE status = 'settling' AND id NOT IN (SELECT contract FROM escrows) "
                  "AND id NOT IN (SELECT contract FROM txs WHERE type = 'EscrowCreate')")
+        self.s.x("UPDATE sale_queue SET status=(SELECT status FROM contracts WHERE id=sale_queue.contract) WHERE contract IN (SELECT id FROM contracts WHERE status IN ('settled','rejected','recovery review'))")
         threading.Thread(target=self._connect_all, daemon=True).start()
 
     def _connect_all(self):
@@ -180,7 +181,7 @@ class Market:
             return None
         try:
             r = self.rail.pay(src, dst, drops, memo)
-            self.s.insert("txs", contract=None, type="Payment (cleaning fee)", hash=r["hash"], src=account, dst="platform", drops=drops, result=r["result"])
+            self.s.insert("txs", contract=None, type="Payment (cleaning fee)", hash=r["hash"], src=account, dst="platform", drops=drops, result=r["result"], asset=self.rail.symbol())
             return r["hash"]
         except Exception:
             return None
@@ -215,12 +216,63 @@ class Market:
         self.s.insert("chat", account=aid, role=role, text=text, actions=actions or None)
 
     # ---------------- negotiation ----------------
-    def negotiate(self, w: dict) -> int | None:
+    def enqueue_sale(self, aid: str, kind: str, posting: int | None = None) -> dict:
+        with self.s.transaction():
+            old = self.s.one("SELECT * FROM sale_queue WHERE account=? AND kind=? AND posting IS ? AND status IN ('queued','waiting','negotiating','settling')", (aid, kind, posting))
+            if old:
+                return old
+            qid = self.s.insert("sale_queue", account=aid, kind=kind, posting=posting, status="queued", reason="Waiting for your agent", updated=0)
+            a = self.acct(aid)
+            w = self.s.one("SELECT * FROM postings WHERE id=? AND status='open'", (posting,)) if posting else None
+            count = self.s.one("SELECT count(*) n FROM files WHERE account=? AND kind=? AND status IN ('private','listed')", (aid, kind))["n"]
+            reason = ""
+            if not count:
+                reason = "Upload this data in My DB before selling."
+            elif w and w["purpose"] in a["sell_agent"].get("blocks", []):
+                reason = "Your rules block this purpose."
+            elif w and w["max"] < a["sell_agent"].get("min", {}).get(kind, 0):
+                reason = "The buyer's budget is below your minimum."
+            if reason:
+                self.s.x("UPDATE sale_queue SET status='blocked',reason=? WHERE id=?", (reason, qid))
+            else:
+                self.s.x("UPDATE files SET status='listed' WHERE account=? AND kind=? AND status='private'", (aid, kind))
+                if posting:
+                    self.s.x("INSERT OR IGNORE INTO interests(account,posting,created) VALUES(?,?,?)", (aid, posting, time.time()))
+            self.chat(aid, "agent", reason or f"Sale request #{qid} queued. I will negotiate one-to-one, within your minimum and allowed purposes.")
+        self.events += 1
+        return self.s.one("SELECT * FROM sale_queue WHERE id=?", (qid,))
+
+    def process_sale_queue(self) -> bool:
+        q = self.s.one("SELECT * FROM sale_queue WHERE status IN ('queued','waiting') AND updated<? ORDER BY id LIMIT 1", (time.time()-15,))
+        if not q:
+            return False
+        a = self.acct(q["account"])
+        if q["account"] not in self.addr:
+            reason = "Your wallet is connecting; the request is saved."
+        else:
+            requests = self.s.q("SELECT * FROM postings WHERE status='open' AND kind=? AND buyer!=? ORDER BY max DESC", (q["kind"], q["account"]))
+            w = next((w for w in requests if (q["posting"] is None or w["id"]==q["posting"]) and w["purpose"] not in a["sell_agent"].get("blocks", []) and w["max"]>=a["sell_agent"]["min"].get(q["kind"],0)), None)
+            if w:
+                self.s.x("INSERT OR IGNORE INTO interests(account,posting,created) VALUES(?,?,?)", (q["account"],w["id"],time.time()))
+                cid = self.negotiate(w, seller_id=q["account"], queue_id=q["id"])
+                c = self.s.one("SELECT status,reason,sellers FROM contracts WHERE id=?", (cid,)) if cid else None
+                status = c["status"] if c else "waiting"
+                reason = c["reason"] if c else "The buyer or wallet is not ready yet."
+                self.s.x("UPDATE sale_queue SET status=?,reason=?,updated=? WHERE id=?", (status,reason,time.time(),q["id"]))
+                self.events += 1
+                return True
+            reason = "Waiting for a buyer whose budget and purpose match your terms."
+        self.s.x("UPDATE sale_queue SET status='waiting',reason=?,updated=? WHERE id=?", (reason,time.time(),q["id"]))
+        return False
+
+    def negotiate(self, w: dict, seller_id: str | None = None, queue_id: int | None = None) -> int | None:
+        w = {**w, "lot": 1}  # Each contract is one buyer and one seller.
+
         # the LLM writes the buyer's opening, the first seller's answer and the buyer's decision when
         # three slots are free under the cap; otherwise the whole round runs on written rules
         llm.budget(3 if llm.free_slots() >= 3 else 0)
         try:
-            return self._negotiate(w)
+            return self._negotiate(w, seller_id, queue_id)
         finally:
             llm.budget(None)
 
@@ -236,7 +288,7 @@ class Market:
         return {"price": round(price, 1), "median": round(base, 1), "n": len(rows), "lo": round(min(rows), 1) if rows else None,
                 "hi": round(max(rows), 1) if rows else None, "supply": supply, "demand": demand, "pressure": round(pressure, 2)}
 
-    def _negotiate(self, w: dict) -> int | None:
+    def _negotiate(self, w: dict, seller_id=None, queue_id=None) -> int | None:
         buyer = self.acct(w["buyer"])
         if not buyer or w["buyer"] not in self.addr:
             return None
@@ -246,11 +298,13 @@ class Market:
         q = self.quote(w["kind"])
         opening = round(min(w["max"], max(0.5, q["price"] * 0.92)), 1)
         w = {**w, "offer": opening, "quote": q}
-        cid = self.s.insert("contracts", posting=w["id"], buyer=w["buyer"], kind=w["kind"], status="negotiating")
+        cid = self.s.insert("contracts", posting=w["id"], buyer=w["buyer"], kind=w["kind"], status="negotiating", asset=self.rail.symbol(), unit_micro=config.MICRO_PER_UNIT)
+        if queue_id:
+            self.s.x("UPDATE sale_queue SET status='negotiating',contract=?,updated=? WHERE id=?", (cid,time.time(),queue_id))
         say = lambda who, side, text, thinking="", by="": self.s.insert("messages", contract=cid, speaker=who, side=side, text=text, thinking=json.dumps({"t": thinking, "by": by}))
         op = agents.buyer_open(buyer["name"], w, len(owned))
         say(w["buyer"], "buyer", op["message"], op["thinking"], op["by"])
-        trace = {"buyer_trace": [op["thinking"]], "seller_trace": [], "verdicts": {"sellers": {}}, "tx": [], "protocol": [], "model": llm.model_name()}
+        trace = {"asset": self.rail.symbol(), "unit_micro": config.MICRO_PER_UNIT, "buyer_trace": [op["thinking"]], "seller_trace": [], "verdicts": {"sellers": {}}, "tx": [], "protocol": [], "model": llm.model_name()}
         def step(protocol, detail, ok=True, who=None, tx=None):
             trace["protocol"].append({"protocol": protocol, "detail": detail, "ok": ok, "who": who, "tx": tx})
         step("Price discovery (shared ledger)", f"market price {q['price']}: median {q['median']} of the last {q['n']} clearing prices"
@@ -268,7 +322,7 @@ class Market:
         cands = [a for a in by_acct if a not in low_trust]
         self.rng.shuffle(cands)
         cands.sort(key=lambda a: a not in interested)
-        cands = cands[: w["lot"] + 3]
+        cands = [seller_id] if seller_id in cands else [] if seller_id else cands[:1]
         trace["buyer_trace"].append(f"{len(by_acct)} vaults list this kind; {len(low_trust)} below trust {w['min_trust']} skipped; asking {len(cands)}"
                                     + (f", {len(interested & set(cands))} marked interest so they go first." if interested & set(cands) else "."))
         agreed, declined, overlap = [], 0, 0
@@ -335,14 +389,14 @@ class Market:
         people_eff = sum(json.loads(fs[0]["raw"]).get("_people", 1) for _, fs, _ in verified) if personal else people
         total = round(sum(p for _, _, p in verified), 2)
         bal = self.balance(w["buyer"]) or 0
-        need = config.K_MIN if personal else 1
+        need = 1
         reason = ""
         if people_eff < need:
-            reason = f"only {people_eff} people agreed; a lot of personal data needs at least {config.K_MIN}" if personal else "no seller agreed"
+            reason = "The seller did not accept within the buyer budget and owner terms."
         elif total * config.MICRO_PER_UNIT / 1e6 + (0 if self.rail.token else 0.2 * len(verified)) > bal:
             reason = f"not enough {self.rail.symbol()} for {len(verified)} escrows"
         if personal:
-            step(f"k-anonymity (k >= {config.K_MIN})", f"{people_eff} people in the lot", people_eff >= config.K_MIN)
+            step("One-to-one agreement", "One buyer negotiates with one seller for this record bundle.", people_eff == 1)
         outcome = {"agreed": len(agreed), "declined": declined, "overlap": overlap, "people": people_eff, "total": total, "ok": not reason, "reason": reason}
         cl = agents.buyer_close(buyer["name"], w, outcome)
         say(w["buyer"], "buyer", cl["message"], cl["thinking"], cl["by"])
@@ -382,101 +436,95 @@ class Market:
                                       "detail": f"{len(clear)} bytes sealed to the buyer's X25519 key; bundle SHA-256 {hashlib.sha256(clear).hexdigest()[:16]}…; content key K stays with the seller's agent"})
             legs.append({"seller": a, "seller_addr": self.addr[a], "dst_addr": self.acct(a).get("payout") if self.rail.has_line(self.acct(a).get("payout") or "") else None, "drops": int(price * config.MICRO_PER_UNIT), "K": K, "sealed": sealed, "fs": fs, "price": price})
             plain[a] = clear
+        self.s.x("UPDATE contracts SET trace=?,sellers=? WHERE id=?", (json.dumps(trace),json.dumps([l["seller"] for l in legs]),cid))
         eids = {}
-        def record(i, seq, create_hash, cancel_after):
+        def record(i, seq, create_hash, cancel_after, create_blob):
             l = legs[i]
             eids[i] = self.s.insert("escrows", contract=cid, buyer=buyer_id, seller=l["seller"], owner=self.addr[buyer_id], seq=seq,
                                     create_hash=create_hash, k=l["K"].hex(), cancel_after=cancel_after, drops=l["drops"], price=l["price"],
-                                    files=[f["id"] for f in l["fs"]], state="open")
+                                    files=[f["id"] for f in l["fs"]], sealed=l["sealed"], create_blob=create_blob, state="open")
         res = self.rail.escrow_lot(self.addr[buyer_id], legs, f"vaultmarket/contract/{cid}", record=record)
         for i, r in enumerate(res):
             if i in eids:
                 self.s.x("UPDATE escrows SET state = ?, finish_hash = ? WHERE id = ?",
                          ("finished" if r["finish"]["ok"] else "void" if not r["create"]["ok"] else "open", r["finish"]["hash"], eids[i]))
-        paid, items, fps, merged = [], 0, set(), []
-        for leg, r in zip(legs, res):
-            self.s.insert("txs", contract=cid, type="EscrowCreate", hash=r["create"]["hash"], src=buyer_id, dst=leg["seller"], drops=leg["drops"], result=r["create"]["result"])
-            if r["finish"]["hash"]:
-                self.s.insert("txs", contract=cid, type="EscrowFinish (key released)", hash=r["finish"]["hash"], src=leg["seller"], dst=buyer_id, drops=leg["drops"], result=r["finish"]["result"])
-            trace["tx"].append({"seller": leg["seller"], "create": r["create"]["hash"], "finish": r["finish"]["hash"], "ok": r["finish"]["ok"]})
-            cond = condition_hex(leg["K"])
-            trace["protocol"].append({"protocol": f"XRPL EscrowCreate ({'token escrow, ' if self.rail.token else ''}PREIMAGE-SHA-256 crypto-condition)", "who": leg["seller"], "ok": r["create"]["ok"], "tx": r["create"]["hash"],
-                                      "detail": f"buyer locks {leg['drops'] / 1e6:.3f} {self.rail.symbol()}{(' (issuer ' + self.rail.issuer[:8] + '…)') if self.rail.token else ''} to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
-            trace["protocol"].append({"protocol": "XRPL EscrowFinish (fulfillment reveals K)", "who": leg["seller"], "ok": r["finish"]["ok"], "tx": r["finish"]["hash"],
-                                      "detail": f"seller's agent submits the fulfillment (the preimage K); the ledger checks SHA-256(K) against the condition and pays; {r['finish']['result']}"})
-            if not r["finish"]["ok"]:
-                continue
-            # the buyer reads K from the ledger's EscrowFinish and opens what it already holds
-            st = self.rail.led.lookup(r["finish"]["hash"])
-            K = bytes.fromhex(st.fulfillment[8:]) if st.fulfillment else leg["K"]
-            raw_open = self.rail.open(buyer_id, leg["sealed"], K)
-            opened = json.loads(raw_open)
-            same = hashlib.sha256(raw_open).digest() == hashlib.sha256(plain[leg["seller"]]).digest()
-            trace["protocol"].append({"protocol": "Buyer opens the bundle", "who": leg["seller"], "ok": same, "tx": None,
-                                      "detail": f"buyer agent read K from the validated EscrowFinish on the ledger, unwrapped and decrypted {len(opened['records'])} records; bundle SHA-256 {hashlib.sha256(raw_open).hexdigest()[:16]}… {'matches' if same else 'DOES NOT match'} the sealed bundle"})
-            merged.extend(opened["records"]); items += len(leg["fs"]); paid.append(leg)
-            for f in leg["fs"]:
-                self.s.x("UPDATE files SET sold = sold + 1 WHERE id = ?", (f["id"],)); fps.update(json.loads(f["fps"] or "[]"))
-        if not paid:
-            self.s.x("UPDATE contracts SET status='rejected', reason='ledger did not settle', trace=? WHERE id=?", (json.dumps(trace), cid))
-            self.s.bump("rejected"); return
-        paid_total = round(sum(l["price"] for l in paid), 2)
-        people = sum(json.loads(l["fs"][0]["raw"]).get("_people", 1) for l in paid)
-        raw = {"_people": people, "from_contract": cid, "records": merged}
-        self.s.insert("files", account=buyer_id, kind=w["kind"], name=f"{w['kind']}_lot_{cid}.json", raw=data.dumps(raw), clean=data.dumps({"records": merged[:3], "_people": people}),
-                      status="bought", fps=sorted(fps), source=f"contract {cid}", resale=w.get("resale", 0), bytes=sum(len(c) for c in plain.values()))
-        self.s.x("UPDATE contracts SET status='settled', total=?, items=?, sellers=?, trace=? WHERE id=?", (paid_total, items, json.dumps([l["seller"] for l in paid]), json.dumps(trace), cid))
-        self.s.x("UPDATE postings SET settled = settled + 1 WHERE id = ?", (w["id"],))
-        if w.get("once"):
-            self.s.x("UPDATE postings SET status = 'filled' WHERE id = ?", (w["id"],))
-        self.s.bump("settled"); self.s.bump("volume", paid_total); self.s.bump("volume:" + w["kind"], paid_total); self.s.bump("settled:" + w["kind"])
-        self.s.bump("drops", sum(l["drops"] for l in paid))
-        for l in paid:
-            self.s.bump(f"earned:{l['seller']}:{w['kind']}", l["price"])
-            self.s.insert("prices", kind=w["kind"], price=l["price"], contract=cid)
-            if self.acct(l["seller"])["type"] == "person" and self.acct(l["seller"])["sell_agent"].get("mode") == "ask":
-                self.chat(l["seller"], "agent", f"Sold to {self.acct(buyer_id)['name']} in a lot of {people} people: +{l['drops'] / 1e6:.2f} {self.rail.symbol()} on the ledger. Contract #{cid}.")
-        for a in {l["seller"] for l in paid}:
-            self._bal.pop(a, None)
-        self._bal.pop(buyer_id, None)
+        with self.s.transaction():
+            paid, items, fps, merged = [], 0, set(), []
+            for leg, r in zip(legs, res):
+                self.s.insert("txs", contract=cid, type="EscrowCreate", hash=r["create"]["hash"], src=buyer_id, dst=leg["seller"], drops=leg["drops"], result=r["create"]["result"], asset=self.rail.symbol())
+                if r["finish"]["hash"]:
+                    self.s.insert("txs", contract=cid, type="EscrowFinish (key released)", hash=r["finish"]["hash"], src=leg["seller"], dst=buyer_id, drops=leg["drops"], result=r["finish"]["result"], asset=self.rail.symbol())
+                trace["tx"].append({"seller": leg["seller"], "create": r["create"]["hash"], "finish": r["finish"]["hash"], "ok": r["finish"]["ok"]})
+                cond = condition_hex(leg["K"])
+                trace["protocol"].append({"protocol": f"XRPL EscrowCreate ({'token escrow, ' if self.rail.token else ''}PREIMAGE-SHA-256 crypto-condition)", "who": leg["seller"], "ok": r["create"]["ok"], "tx": r["create"]["hash"],
+                                          "detail": f"buyer locks {leg['drops'] / 1e6:.3f} {self.rail.symbol()}{(' (issuer ' + self.rail.issuer[:8] + '…)') if self.rail.token else ''} to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
+                trace["protocol"].append({"protocol": "XRPL EscrowFinish (fulfillment reveals K)", "who": leg["seller"], "ok": r["finish"]["ok"], "tx": r["finish"]["hash"],
+                                          "detail": f"seller's agent submits the fulfillment (the preimage K); the ledger checks SHA-256(K) against the condition and pays; {r['finish']['result']}"})
+                if not r["finish"]["ok"]:
+                    continue
+                # the buyer reads K from the ledger's EscrowFinish and opens what it already holds
+                st = self.rail.led.lookup(r["finish"]["hash"])
+                K = bytes.fromhex(st.fulfillment[8:]) if st.fulfillment else leg["K"]
+                raw_open = self.rail.open(buyer_id, leg["sealed"], K)
+                opened = json.loads(raw_open)
+                same = hashlib.sha256(raw_open).digest() == hashlib.sha256(plain[leg["seller"]]).digest()
+                trace["protocol"].append({"protocol": "Buyer opens the bundle", "who": leg["seller"], "ok": same, "tx": None,
+                                          "detail": f"buyer agent read K from the validated EscrowFinish on the ledger, unwrapped and decrypted {len(opened['records'])} records; bundle SHA-256 {hashlib.sha256(raw_open).hexdigest()[:16]}… {'matches' if same else 'DOES NOT match'} the sealed bundle"})
+                merged.extend(opened["records"]); items += len(leg["fs"]); paid.append(leg)
+                for f in leg["fs"]:
+                    self.s.x("UPDATE files SET sold = sold + 1 WHERE id = ?", (f["id"],)); fps.update(json.loads(f["fps"] or "[]"))
+            if not paid:
+                self.s.x("UPDATE contracts SET status='rejected', reason='ledger did not settle', trace=? WHERE id=?", (json.dumps(trace), cid))
+                self.s.bump("rejected"); return
+            paid_total = round(sum(l["price"] for l in paid), 2)
+            people = sum(json.loads(l["fs"][0]["raw"]).get("_people", 1) for l in paid)
+            raw = {"_people": people, "from_contract": cid, "records": merged}
+            self.s.insert("files", account=buyer_id, kind=w["kind"], name=f"{w['kind']}_lot_{cid}.json", raw=data.dumps(raw), clean=data.dumps({"records": merged[:3], "_people": people}),
+                          status="bought", fps=sorted(fps), source=f"contract {cid}", resale=w.get("resale", 0), bytes=sum(len(c) for c in plain.values()))
+            self.s.x("UPDATE contracts SET status='settled', total=?, items=?, sellers=?, trace=? WHERE id=?", (paid_total, items, json.dumps([l["seller"] for l in paid]), json.dumps(trace), cid))
+            self.s.x("UPDATE postings SET settled = settled + 1 WHERE id = ?", (w["id"],))
+            if w.get("once"):
+                self.s.x("UPDATE postings SET status = 'filled' WHERE id = ?", (w["id"],))
+            self.s.bump("settled"); self.s.bump("volume", paid_total); self.s.bump("volume:" + w["kind"], paid_total); self.s.bump("settled:" + w["kind"])
+            self.s.bump("drops", sum(l["drops"] for l in paid))
+            for l in paid:
+                self.s.bump(f"earned:{l['seller']}:{w['kind']}", l["price"])
+                self.s.insert("prices", kind=w["kind"], price=l["price"], contract=cid)
+                if self.acct(l["seller"])["type"] == "person" and self.acct(l["seller"])["sell_agent"].get("mode") == "ask":
+                    self.chat(l["seller"], "agent", f"Sold to {self.acct(buyer_id)['name']} in a lot of {people} people: +{l['drops'] / 1e6:.2f} {self.rail.symbol()} on the ledger. Contract #{cid}.")
+            for a in {l["seller"] for l in paid}:
+                self._bal.pop(a, None)
+            self._bal.pop(buyer_id, None)
 
     # ---------------- restart recovery ----------------
     def recover(self):
-        """Contracts a previous run left 'settling'. Each escrow leg was written down (with its key K) before
-        it was submitted, so: a create that never validated is void; an open escrow is finished now by the
-        seller's agent with K (the sale goes through); if it cannot be finished, the buyer cancels it after
-        CancelAfter and gets the money back. The buyer receives the finished legs' records from the vault."""
         self._adopt_legacy()
-        for c in self.s.q("SELECT * FROM contracts WHERE status IN ('settling', 'interrupted') AND id IN (SELECT contract FROM escrows WHERE state = 'open')"):
-            for e in self.s.q("SELECT * FROM escrows WHERE contract = ? AND state = 'open'", (c["id"],)):
-                ok = self.rail.created_ok(e["create_hash"])
+        for c in self.s.q("SELECT * FROM contracts WHERE status IN ('settling','interrupted') AND id IN (SELECT contract FROM escrows)"):
+            for e in self.s.q("SELECT * FROM escrows WHERE contract=? AND state='open'", (c["id"],)):
+                ok = self.rail.created_ok(e["create_hash"], e.get("create_blob"))
                 if ok is None:
                     continue
                 if not ok:
-                    self.s.x("UPDATE escrows SET state = 'void' WHERE id = ?", (e["id"],)); continue
-                if not e["k"]:                   # created before keys were saved: it can only be refunded
-                    x = self.rail.cancel_escrow(e["owner"], e["seq"])
-                    if x["ok"]:
-                        self.s.x("UPDATE escrows SET state = 'refunded', finish_hash = ? WHERE id = ?", (x["hash"], e["id"]))
-                        self.s.insert("txs", contract=c["id"], type="EscrowCancel (refund)", hash=x["hash"], src=e["buyer"], dst=e["buyer"], drops=e["drops"], result=x["result"])
-                    elif x["result"] == "tecNO_TARGET":
-                        self.s.x("UPDATE escrows SET state = 'void' WHERE id = ?", (e["id"],))   # already finished or cancelled on the ledger
-                    continue                     # tecNO_PERMISSION: CancelAfter has not passed yet
-                if e["seller"] not in self.addr:
-                    continue                     # the seller's wallet has not reconnected yet
-                f = self.rail.finish_escrow(self.addr[e["seller"]], e["owner"], e["seq"], bytes.fromhex(e["k"]), f"vaultmarket/contract/{c['id']}")
-                if f["ok"]:
-                    self.s.x("UPDATE escrows SET state = 'finished', finish_hash = ? WHERE id = ?", (f["hash"], e["id"]))
-                    self.s.insert("txs", contract=c["id"], type="EscrowFinish (key released)", hash=f["hash"], src=e["seller"], dst=e["buyer"], drops=e["drops"], result=f["result"])
-                elif self.rail.led.now() > e["cancel_after"]:
-                    x = self.rail.cancel_escrow(e["owner"], e["seq"])
-                    if x["ok"] or x["result"] == "tecNO_TARGET":
-                        self.s.x("UPDATE escrows SET state = 'refunded', finish_hash = ? WHERE id = ?", (x["hash"], e["id"]))
-                        if x["ok"]:
-                            self.s.insert("txs", contract=c["id"], type="EscrowCancel (refund)", hash=x["hash"], src=e["buyer"], dst=e["buyer"], drops=e["drops"], result=x["result"])
-            if self.s.one("SELECT id FROM escrows WHERE contract = ? AND state = 'open'", (c["id"],)):
-                continue                          # try again on a later tick
-            self._close_recovered(c)
+                    self.s.x("UPDATE escrows SET state='void' WHERE id=?", (e["id"],))
+                    continue
+                outcome, h = self.rail.escrow_outcome(e["owner"], e["seq"])
+                if outcome == "open":
+                    if e["k"] and e["seller"] in self.addr:
+                        f = self.rail.finish_escrow(self.addr[e["seller"]], e["owner"], e["seq"], bytes.fromhex(e["k"]), f"vaultmarket/contract/{c['id']}")
+                        if f["ok"]:
+                            outcome, h = "finished", f["hash"]
+                    elif self.rail.led.now() > e["cancel_after"]:
+                        f = self.rail.cancel_escrow(e["owner"], e["seq"])
+                        if f["ok"]:
+                            outcome, h = "refunded", f["hash"]
+                if outcome in ("finished","refunded") and h:
+                    self.s.x("UPDATE escrows SET state=?,finish_hash=? WHERE id=?", (outcome,h,e["id"]))
+                    for typ, txh, src, dst in [("EscrowCreate",e["create_hash"],e["buyer"],e["seller"]),
+                                               ("EscrowFinish (key released)" if outcome=="finished" else "EscrowCancel (refund)",h,e["seller"] if outcome=="finished" else e["buyer"],e["buyer"])]:
+                        if not self.s.one("SELECT id FROM txs WHERE hash=?", (txh,)):
+                            self.s.insert("txs",contract=c["id"],type=typ,hash=txh,src=src,dst=dst,drops=e["drops"],result="tesSUCCESS",asset=c.get("asset") or "XRP")
+            if not self.s.one("SELECT id FROM escrows WHERE contract=? AND state='open'", (c["id"],)):
+                self._close_recovered(c)
 
     def _adopt_legacy(self):
         """Contracts stranded before escrow legs were written down (status 'settling' or 'interrupted', with
@@ -493,13 +541,20 @@ class Market:
                     return                       # wallets still connecting or ledger unsure: try on a later pass
                 if st.found and st.success:
                     rows.append(dict(contract=c["id"], buyer=t["src"], seller=t["dst"], owner=owner, seq=st.sequence, create_hash=t["hash"], k=None,
-                                     cancel_after=0, drops=t["drops"], price=(t["drops"] or 0) / config.MICRO_PER_UNIT, files=[], state="open"))
+                                     cancel_after=self.rail.escrow_create_info(t["hash"]).get("CancelAfter", 2**63-1), drops=t["drops"], price=(t["drops"] or 0) / (c.get("unit_micro") or 10000), files=[], state="open"))
             for r in rows:
                 self.s.insert("escrows", **r)
             if not rows:
                 self.s.x("UPDATE contracts SET status = 'rejected', reason = 'interrupted by a server restart; no escrow validated' WHERE id = ?", (c["id"],))
 
     def _close_recovered(self, c: dict):
+        with self.s.transaction():
+            current = self.s.one("SELECT * FROM contracts WHERE id=?", (c["id"],))
+            if current["status"] not in ("settling","interrupted"):
+                return
+            self._write_recovered(current)
+
+    def _write_recovered(self, c: dict):
         cid, buyer_id = c["id"], c["buyer"]
         done = self.s.q("SELECT * FROM escrows WHERE contract = ? AND state = 'finished'", (cid,))
         trace = json.loads(c["trace"] or "null") or {"protocol": [], "tx": []}
@@ -510,15 +565,30 @@ class Market:
             why = f"interrupted by a server restart; {n} escrow(s) refunded to the buyer by EscrowCancel" if n else "interrupted by a server restart; no escrow was left on the ledger"
             self.s.x("UPDATE contracts SET status = 'rejected', reason = ?, trace = ? WHERE id = ?", (why, json.dumps(trace), cid))
             return
+        if any(not json.loads(e["files"]) for e in done):
+            self.s.x("UPDATE contracts SET status='recovery review',reason='Ledger payment confirmed; original delivery manifest is missing' WHERE id=?", (cid,))
+            return
         merged, fps, people, items = [], set(), 0, 0
         for e in done:
+            for typ, txh, src, dst in [("EscrowCreate",e["create_hash"],buyer_id,e["seller"]),("EscrowFinish (key released)",e["finish_hash"],e["seller"],buyer_id)]:
+                if not self.s.one("SELECT id FROM txs WHERE hash=?", (txh,)):
+                    self.s.insert("txs",contract=cid,type=typ,hash=txh,src=src,dst=dst,drops=e["drops"],result="tesSUCCESS",asset=c.get("asset") or "XRP")
+            sealed_records = None
+            if e.get("sealed"):
+                st = self.rail.led.lookup(e["finish_hash"])
+                if not (st.validated and st.success and st.fulfillment):
+                    raise RuntimeError("Recovery requires the validated key release")
+                released = bytes.fromhex(st.fulfillment[8:])
+                sealed_records = json.loads(self.rail.open(buyer_id, bytes(e["sealed"]), released))["records"]
             for fid in json.loads(e["files"]):
                 f = self.s.one("SELECT * FROM files WHERE id = ?", (fid,))
                 if not f:
                     continue
-                merged.extend(json.loads(f["clean"]).get("records", [])); fps.update(json.loads(f["fps"] or "[]"))
+                merged.append(json.loads(f["clean"])); fps.update(json.loads(f["fps"] or "[]"))
                 people += json.loads(f["raw"]).get("_people", 1); items += 1
                 self.s.x("UPDATE files SET sold = sold + 1 WHERE id = ?", (fid,))
+            if sealed_records is not None:
+                merged[-len(json.loads(e["files"])):] = sealed_records
             self.s.insert("prices", kind=c["kind"], price=e["price"], contract=cid)
             self.s.bump(f"earned:{e['seller']}:{c['kind']}", e["price"])
             trace.setdefault("tx", []).append({"seller": e["seller"], "create": e["create_hash"], "finish": e["finish_hash"], "ok": True})
@@ -530,6 +600,8 @@ class Market:
         self.s.x("UPDATE postings SET settled = settled + 1 WHERE id = ?", (c["posting"],))
         self.s.bump("settled"); self.s.bump("volume", total); self.s.bump("volume:" + c["kind"], total); self.s.bump("settled:" + c["kind"])
         self.s.bump("drops", sum(e["drops"] for e in done))
+        self.s.x("UPDATE postings SET status='filled' WHERE id=? AND once=1", (c["posting"],))
+        self.s.x("UPDATE sale_queue SET status='settled',reason='Recovered after restart',updated=? WHERE contract=?", (time.time(),cid))
         self._bal.clear(); self.events += 1
 
     # ---------------- resale ----------------
@@ -587,7 +659,7 @@ class Market:
         self.s.x("UPDATE postings SET status = 'expired' WHERE status = 'open' AND once = 1 AND created < ?", (time.time() - 1800,))
         # one negotiation: postings someone marked interest in first, then the rest
         open_ = self.s.q("SELECT p.*, (SELECT COUNT(*) FROM interests i WHERE i.posting = p.id) AS hot FROM postings p WHERE status = 'open' ORDER BY hot DESC, RANDOM()")
-        if open_:
+        if not self.process_sale_queue() and open_:
             w = open_[0] if open_[0]["hot"] and rng.random() < 0.6 else rng.choice(open_)
             self.negotiate(w)
         if rng.random() < 0.2:

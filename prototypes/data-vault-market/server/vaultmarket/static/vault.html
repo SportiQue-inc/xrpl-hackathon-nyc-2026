@@ -8,7 +8,7 @@
   <span class="brand">Data Vault Market</span>
   <nav><a href="/">Market</a><a href="/vault" aria-current="page">My DB</a></nav>
   <span class="tag" id="ledgerTag"></span><span class="tag" id="modelTag"></span>
-  <label class="small muted" for="acct">Signed in as (demo)</label><select id="acct"></select>
+  <span class="small" id="accountName"></span>
 </div>
 <div class="banner" id="banner" hidden></div>
 <div class="app">
@@ -33,7 +33,7 @@
       <input type="file" id="file" accept=".json,application/json" hidden>
       <h2>From my phone (demo files)</h2>
       <div class="acts" id="samples"></div>
-      <h2>Intake results</h2><div id="uploads"></div>
+      <h2>Intake results</h2><div id="uploads"></div><details class="audit"><summary>Network & model diagnostics</summary><div id="diagnostics" class="small muted"></div></details>
     </div>
   </section>
 </div>
@@ -50,9 +50,16 @@ $("file").onchange = async () => { const f = $("file").files[0]; if (!f) return;
 $("vDom").onclick = () => { VIEW = "domain"; refresh(); }; $("vDem").onclick = () => { VIEW = "demand"; refresh(); }; $("vAll").onclick = () => { VIEW = "all"; refresh(); };
 const VERDICT = { ok: ["blue", "passed"], clean: ["", "needs cleaning"], cleaned: ["blue", "cleaned"], block: ["red", "refused"] };
 async function refresh() {
+  if (!META) return;
+  if (!ME) {
+    document.querySelector('.app').innerHTML='<div class="empty" style="max-width:480px;margin:60px auto"><h1>Your personal data vault</h1><p>Sign in to view your records, upload data and instruct your own agent.</p><button class="primary" id="vaultSignIn">Sign in</button></div>';
+    $('vaultSignIn').onclick=authDlg;
+    return;
+  }
   try { ACC = await api(`/api/account/${ME}`); META = await api("/api/meta"); } catch { return; }
   const a = ACC.account, k = META.kinds;
-  $("banner").hidden = META.connected >= META.accounts; $("banner").textContent = `Funding wallets on the ledger: ${META.connected} of ${META.accounts}. Funded accounts are already trading.`;
+  $('diagnostics').textContent=`${META.connected}/${META.accounts} wallets connected · provider ${META.llm.provider} · ${META.llm.calls} calls · ${META.llm.out_tokens} generated tokens · ${META.llm.fallbacks} rule fallbacks. ${META.asset_note||''}`;
+
   $("addr").textContent = ACC.address || ""; $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribute("aria-pressed", VIEW === "demand"); $("vAll").setAttribute("aria-pressed", VIEW === "all");
   $("dbSub").textContent = `${ACC.files} files · the agent sorts them into bundles by domain and by who is asking`;
   $("uploads").innerHTML = ACC.uploads.map((u) => `<div class="card"><div class="row"><span class="mono">${esc(u.name)}</span><span class="tag ${VERDICT[u.verdict]?.[0] || ""}">${VERDICT[u.verdict]?.[1] || esc(u.verdict)}</span></div>
@@ -67,13 +74,13 @@ async function refresh() {
       <details class="small"><summary>What a buyer would get</summary><pre>${esc(f.preview)}</pre></details></div>`;
   if (VIEW === "domain") {
     $("bundles").innerHTML = ACC.bundles.map((b) => `<div class="card"><div class="row"><h3>${esc(b.domain)}</h3><span class="price">${b.best_offer ? `best offer ${xrp(b.best_offer)}` : "no buyer yet"}</span></div>
-      <span class="small muted">${esc(b.label)} · ${b.files.length} files · ${b.listed} listed · expected next sale ${b.listed && b.best_offer ? xrp(b.best_offer) : "—"} · earned ${xrp(b.earned)}</span>
-      <div class="row small"><span>${b.offers} offers</span><span class="y">${b.agreed} agreed</span><span class="n">${b.declined} declined</span><span><b>${b.earned}</b> earned</span></div>
+      <span class="small muted">${esc(b.label)} · ${b.files.length} files · ${b.listed} listed · expected next sale ${b.listed && b.best_offer ? xrp(b.best_offer) : "—"}</span>
+      <div class="row small"><span>${b.offers} offers</span><span class="y">${b.agreed} agreed</span><span class="n">${b.declined} declined</span></div>
       <details><summary class="small">Files</summary>${b.files.map(fileRow).join("")}</details></div>`).join("") || '<p class="muted small">Your DB is empty. Upload something on the right.</p>';
   } else if (VIEW === "all") {
     const all = (await api(`/api/market?account=${ME}`)).postings;
-    $("bundles").innerHTML = `<p class="muted small">Every open buy request on the market. Mark interest and your agent negotiates it first; otherwise it acts on its own rules.</p>` + all.map((p) => `<div class="card ${p.mine ? "hot" : ""}"><div class="row"><b>${esc(k[p.kind].label)}</b><span class="price">${p.offer}</span></div>
-      <span class="muted small">${esc(p.buyer_name)} ${p.verified ? '<span class="tag blue">verified</span>' : ""} · ${esc(p.purpose)} · up to ${p.max} · lots of ${p.lot} · ${p.settled} settled · ${p.rejected} rejected${p.interest ? ` · ${p.interest} interested` : ""}</span>
+    $("bundles").innerHTML = `<p class="muted small">Every open buy request on the market. Mark interest and your agent negotiates it first; otherwise it acts on its own rules.</p>` + all.map((p) => `<div class="card ${p.mine ? "hot" : ""}"><div class="row"><b>${esc(k[p.kind].label)}</b><span class="price">${xrp(p.offer)}</span></div>
+      <span class="muted small">${esc(p.buyer_name)} ${p.verified ? '<span class="tag blue">verified</span>' : ""} · ${esc(p.purpose)} · up to ${xrp(p.max)} · one-to-one · ${p.settled} settled · ${p.rejected} rejected${p.interest ? ` · ${p.interest} interested` : ""}</span>
       ${p.buyer === ME ? '<span class="tag blue">your request</span>' : p.mine ? '<span class="tag blue">Your agent is on it ✓</span>' : `<div class="acts"><button type="button" data-msg="${esc(`Sell my ${k[p.kind].label.toLowerCase()} to ${p.buyer_name} (request #${p.id}) if it fits my terms.`)}">Tell my agent</button></div>`}</div>`).join("");
     $("bundles").querySelectorAll("[data-msg]").forEach((b) => b.onclick = () => tellAgent(b.dataset.msg));
   } else {
@@ -86,12 +93,12 @@ async function refresh() {
   $("bundles").querySelectorAll("[data-f]").forEach((el) => el.onchange = async () => { await post(`/api/account/${ME}/file/${el.dataset.f}`, { listed: el.checked }); refresh(); });
   const earned = ACC.bundles.reduce((t, b) => t + b.earned, 0);
   const st = ACC.stats;
-  $("wallet").innerHTML = [[ACC.balance != null ? ACC.balance.toFixed(2) : "…", `${sym()} balance`], [st.earned_xrp.toFixed(2), `${sym()} earned`], [st.agreed, "sales agreed"], [st.declined, "declined or passed"],
+  $("wallet").innerHTML = [[ACC.balance != null ? ACC.balance.toFixed(2) : "…", `${sym()} balance`], [(st.earned_by_asset||[]).map(e=>amount(e.amount,e.asset)).join(" · ")||"0", "Verified sale proceeds"], [st.agreed, "sales agreed"], [st.declined, "declined or passed"],
     [st.fees_xrp.toFixed(2), `${sym()} cleaning fees`], [ACC.files, "files in my DB"], [ACC.bought.length, "lots bought"]].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
   let cum = 0; const pts = ACC.growth.map((g) => [g.m, (cum += g.n)]); const mx = Math.max(1, ...pts.map((p) => p[0])), my = Math.max(1, cum);
   $("growth").innerHTML = pts.length ? `<polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${pts.map(([x, y]) => `${(x / mx) * 310 + 5},${65 - (y / my) * 58}`).join(" ")}"/><text x="5" y="10" fill="var(--muted)" font-size="10">${cum} files</text>` : "";
   $("bought").innerHTML = ACC.bought.map((f) => `<div class="card"><span class="mono">${esc(f.name)}</span><span class="small muted">${esc(f.source)}${f.status === "bundled" ? " · combined into a resale bundle" : ""}</span><details class="small"><summary>Sample</summary><pre>${esc(f.preview)}</pre></details></div>`).join("") || '<p class="muted small">Nothing bought yet.</p>';
   chatBox($("chat"), ACC);
 }
-topbar("vault").then(refresh); live();
+topbar("vault").then(refresh).catch(showError); live();
 </script></body></html>

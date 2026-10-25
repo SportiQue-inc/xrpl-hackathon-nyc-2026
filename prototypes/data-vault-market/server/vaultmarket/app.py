@@ -33,6 +33,11 @@ def market_page():
     return FileResponse(os.path.join(STATIC, "market.html"))
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#5b8cff"/><path d="M8 9h7a7 7 0 0 1 0 14H8z" fill="none" stroke="white" stroke-width="3"/></svg>', media_type="image/svg+xml")
+
+
 @app.get("/vault")
 def vault_page():
     return FileResponse(os.path.join(STATIC, "vault.html"))
@@ -173,7 +178,7 @@ def _chat_today(aid: str) -> int:
 @app.get("/api/meta")
 def meta():
     return {"ledger": M.rail.name, "model": llm.model_name(), "llm": llm.USAGE, "kinds": KINDS, "k_min": config.K_MIN,
-            "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": M.rail.asset == "USD", "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
+            "revision": os.environ.get("APP_REVISION"), "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": False, "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
             "rpm_cap": config.LLM_RPM, "daily_cap": config.LLM_DAILY_CALLS}
 
 
@@ -184,7 +189,10 @@ def accounts(request: Request):
 
 
 @app.get("/api/market")
-def market(account: str = "dana", domain: str | None = None):
+def market(request: Request, account: str = "", domain: str | None = None):
+    if config.PUBLIC:
+        u = _me(request)
+        account = u["account"] if u else ""
     s = M.s
     kinds = [domain] if domain in KINDS else list(KINDS)
     doms = []
@@ -199,11 +207,13 @@ def market(account: str = "dana", domain: str | None = None):
     postings = s.q(f"SELECT p.*, a.name AS buyer_name, a.verified, (SELECT COUNT(*) FROM interests i WHERE i.posting = p.id) AS interest, "
                    f"(SELECT COUNT(*) FROM interests i WHERE i.posting = p.id AND i.account = ?) AS mine "
                    f"FROM postings p JOIN accounts a ON a.id = p.buyer WHERE p.status = 'open' AND p.kind IN ({ph}) ORDER BY interest DESC, p.offer DESC", (account, *kinds))
-    contracts = s.q(f"SELECT id, posting, buyer, kind, status, reason, total, items, sellers, created FROM contracts WHERE status != 'negotiating' AND kind IN ({ph}) ORDER BY id DESC LIMIT 60", tuple(kinds))
+    contracts = s.q(f"SELECT id, posting, buyer, kind, status, reason, total, items, sellers, created, asset, unit_micro FROM contracts WHERE status != 'negotiating' AND kind IN ({ph}) ORDER BY id DESC LIMIT 60", tuple(kinds))
     for c in contracts:
         c["buyer_name"] = _name(c["buyer"]); c["sellers"] = json.loads(c["sellers"] or "[]")
         c["mine"] = c["buyer"] == account or account in c["sellers"]
-        c["drops"] = int((c["total"] or 0) * config.MICRO_PER_UNIT)
+        c["seller_name"] = _name(c["sellers"][0]) if len(c["sellers"])==1 else None
+        c["drops"] = M.s.one("SELECT COALESCE(SUM(drops),0) n FROM txs WHERE contract=? AND type LIKE 'EscrowFinish%' AND result='tesSUCCESS'", (c["id"],))["n"]
+        c["asset"] = c.get("asset") or "XRP"
         t = s.one("SELECT hash FROM txs WHERE contract = ? AND hash IS NOT NULL ORDER BY id DESC LIMIT 1", (c["id"],))
         c["tx_url"] = M.rail.explorer(t["hash"]) if t else None
     people = s.q("SELECT COUNT(*) n, SUM(online) o FROM accounts")[0]
@@ -245,25 +255,6 @@ def _sell_now(aid: str) -> list[dict]:
     return sorted(out, key=lambda w: -w["expected"])
 
 
-def _consider(aid: str, a: dict, w: dict) -> str:
-    """The owner pointed the agent at one request. Check it against the owner's rules, then act or say why not."""
-    k = KINDS[w["kind"]]; floor = a["sell_agent"]["min"].get(w["kind"], 0)
-    mine = M.s.q("SELECT status FROM files WHERE account = ? AND kind = ? AND status IN ('listed', 'private')", (aid, w["kind"]))
-    buyer = _name(w["buyer"])
-    if not mine:
-        return f"You have no {k['label'].lower()} in your DB, so I can't sell to {buyer}. Upload some in My DB and I'll check again."
-    if w["purpose"] in a["sell_agent"].get("blocks", []):
-        return f"{buyer} wants it for {w['purpose']}, which your rules refuse. I'm leaving request #{w['id']} alone. Remove it from 'Never sell for' in Agent settings if you changed your mind."
-    if w["max"] < floor:
-        return f"{buyer} pays at most {w['max']} and your minimum is {floor}. I won't sell below it. Lower your minimum in Agent settings if you want this sale."
-    M.s.x("UPDATE files SET status = 'listed' WHERE account = ? AND kind = ? AND status = 'private'", (aid, w["kind"]))
-    M.s.x("INSERT OR IGNORE INTO interests (account, posting, created) VALUES (?, ?, ?)", (aid, w["id"], time.time()))
-    price = max(floor, w["offer"])
-    return (f"Fits your terms: {buyer} offers {w['offer']} (up to {w['max']}) for {w['purpose']}, and your minimum is {floor}. "
-            f"I listed your {len(mine)} {k['label'].lower()} file(s) as pseudonymized copies and put you first in line for request #{w['id']}. "
-            f"I'll ask for {price}" + (f" and it settles once a lot of at least {config.K_MIN} people is ready." if k["personal"] else "."))
-
-
 @app.post("/api/account/{aid}/sell-now/{pid}")
 def sell_now(aid: str, pid: int, request: Request):
     """One tap: list my files of that kind as pseudonymized copies and put me first in line for this request."""
@@ -271,11 +262,7 @@ def sell_now(aid: str, pid: int, request: Request):
     w = M.s.one("SELECT * FROM postings WHERE id = ? AND status = 'open'", (pid,))
     if not w:
         raise HTTPException(404)
-    M.s.x("UPDATE files SET status = 'listed' WHERE account = ? AND kind = ? AND status = 'private'", (aid, w["kind"]))
-    M.s.x("INSERT OR IGNORE INTO interests (account, posting, created) VALUES (?, ?, ?)", (aid, pid, time.time()))
-    M.chat(aid, "agent", f"Listed your {KINDS[w['kind']]['label'].lower()} and put you first in line for request #{pid} from {_name(w['buyer'])}. "
-                         f"The sale goes through once a lot of at least {config.K_MIN if KINDS[w['kind']]['personal'] else 1} is ready.")
-    return {"ok": True}
+    return {"ok": True, "request": M.enqueue_sale(aid, w["kind"], pid)}
 
 
 @app.get("/api/contract/{cid}")
@@ -292,9 +279,21 @@ def contract(cid: int):
         m["name"] = _name(m["speaker"])
     txs = M.s.q("SELECT * FROM txs WHERE contract = ? ORDER BY id", (cid,))
     for t in txs:
+        t["reference"] = f"C{cid}-T{t['id']}"
+        evidence = json.loads(t["receipt"]) if t.get("receipt") else None
+        if not evidence and t.get("hash"):
+            try:
+                evidence = M.rail.receipt(t["hash"])
+                if evidence.get("validated"):
+                    M.s.x("UPDATE txs SET receipt=? WHERE id=?", (json.dumps(evidence), t["id"]))
+            except Exception:
+                evidence = None
+        t["receipt"] = evidence
         t["url"] = M.rail.explorer(t["hash"]) if t["hash"] else None; t["src_name"] = _name(t["src"]); t["dst_name"] = _name(t["dst"])
     for st in c["trace"].get("protocol", []):
         st["url"] = M.rail.explorer(st["tx"]) if st.get("tx") else None; st["who_name"] = _name(st["who"]) if st.get("who") else None
+    c["reference"] = f"C{cid}"
+    c["ledger_memo"] = f"vaultmarket/contract/{cid}"
     return {"contract": c, "posting": p, "messages": msgs, "txs": txs, "ledger": M.rail.name}
 
 
@@ -340,13 +339,15 @@ def account(aid: str, request: Request):
     files, bundles, demand = _bundles(aid)
     growth = M.s.q("SELECT CAST((created - (SELECT MIN(created) FROM files)) / 60 AS INT) m, COUNT(*) n FROM files WHERE account = ? GROUP BY m ORDER BY m", (aid,))
     fees = M.s.one("SELECT COALESCE(SUM(drops), 0) d FROM txs WHERE src = ? AND contract IS NULL", (aid,))["d"]
-    stats = {"agreed": sum(b["agreed"] for b in bundles), "declined": sum(b["declined"] for b in bundles),
+    balances = M.s.q("SELECT asset,SUM(drops)/1000000.0 amount FROM txs WHERE src=? AND type LIKE 'EscrowFinish%' AND result='tesSUCCESS' GROUP BY asset", (aid,))
+    stats = {"earned_by_asset": balances, "agreed": sum(b["agreed"] for b in bundles), "declined": sum(b["declined"] for b in bundles),
              "earned_xrp": round(sum(b["earned"] for b in bundles) * config.MICRO_PER_UNIT / 1e6, 3), "fees_xrp": round(fees / 1e6, 3)}
-    return {"account": a, "balance": M.balance(aid), "address": M.addr.get(aid), "stats": stats, "bundles": bundles, "demand": demand,
+    return {"agent_queue": M.s.q("SELECT q.*,p.purpose,p.buyer,c.status contract_status,c.reason contract_reason FROM sale_queue q LEFT JOIN postings p ON p.id=q.posting LEFT JOIN contracts c ON c.id=q.contract WHERE q.account=? ORDER BY q.id DESC LIMIT 100", (aid,)),
+            "account": a, "balance": M.balance(aid), "address": M.addr.get(aid), "stats": stats, "bundles": bundles, "demand": demand,
             "bought": [f for f in files if f["status"] in ("bought", "bundled")], "files": len(files), "growth": growth,
             "uploads": M.s.q("SELECT * FROM uploads WHERE account = ? ORDER BY id DESC LIMIT 10", (aid,)),
             "recs": M.s.q("SELECT * FROM recs WHERE account = ? AND status = 'open' ORDER BY id DESC", (aid,)),
-            "chat": [{**c, "actions": json.loads(c["actions"]) if c["actions"] else None} for c in M.s.q("SELECT * FROM chat WHERE account = ? ORDER BY id DESC LIMIT 40", (aid,))][::-1]}
+            "chat": [{**c, "actions": json.loads(c["actions"]) if c["actions"] else None} for c in M.s.q("SELECT * FROM chat WHERE account = ? ORDER BY id DESC LIMIT 100", (aid,))][::-1]}
 
 
 @app.post("/api/account/{aid}/settings")
@@ -441,19 +442,18 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
     ref = re.search(r"#(\d+)", text)
     w = M.s.one("SELECT * FROM postings WHERE id = ? AND status = 'open'", (int(ref.group(1)),)) if ref else None
     if w and w["buyer"] != aid:
-        M.chat(aid, "agent", _consider(aid, a, w))
+        M.enqueue_sale(aid, w["kind"], w["id"])
         return {"ok": True}
     p = agents.parse_chat(text)
     if not p["kind"]:
         M.chat(aid, "agent", "Which data do you mean? Running tracks, sleep logs, receipts, voice clips or air-quality sensors.")
     elif p["intent"] == "sell":
-        n = M.s.x("UPDATE files SET status = 'listed' WHERE account = ? AND kind = ? AND status = 'private'", (aid, p["kind"]))
-        cnt = M.s.one("SELECT COUNT(*) n FROM files WHERE account = ? AND kind = ? AND status = 'listed'", (aid, p["kind"]))["n"]
-        ws = M.s.q("SELECT id FROM postings WHERE kind = ? AND status = 'open' AND buyer != ?", (p["kind"], aid))
-        for w in ws:
-            M.s.x("INSERT OR IGNORE INTO interests (account, posting, created) VALUES (?, ?, ?)", (aid, w["id"], time.time()))
-        M.chat(aid, "agent", f"{cnt} {KINDS[p['kind']]['label'].lower()} file(s) are listed as pseudonymized copies. I marked interest in {len(ws)} open request(s), "
-                             f"so I negotiate those first, within your minimum of {a['sell_agent']['min'].get(p['kind'])}.")
+        ws = M.s.q("SELECT id FROM postings WHERE kind=? AND status='open' AND buyer!=?", (p["kind"],aid))
+        if ws:
+            for w in ws:
+                M.enqueue_sale(aid, p["kind"], w["id"])
+        else:
+            M.enqueue_sale(aid, p["kind"])
     elif p["intent"] == "buy":
         offer = p["price"] or KINDS[p["kind"]]["price"]
         pid = M.s.insert("postings", buyer=aid, kind=p["kind"], offer=offer, max=round(offer * 1.25, 1), purpose=f"{a['name']}'s own use", lot=6 if KINDS[p["kind"]]["personal"] else 2,

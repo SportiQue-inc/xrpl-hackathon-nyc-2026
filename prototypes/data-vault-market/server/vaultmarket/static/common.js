@@ -6,43 +6,48 @@ const api = async (path, opts) => {
   return r.json();
 };
 const post = (path, body) => api(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body || {}) });
-const params = new URLSearchParams(location.search);
-let ME = params.get("as") || (() => { try { return localStorage.getItem("vm-as"); } catch { return null; } })() || "dana";
-let META = null, USER = null;
-const sym = () => (META?.asset === "test USD" ? "RLUSD" : META?.asset || "XRP");   // test USD token stands in for RLUSD on Testnet
-const xrp = (units) => `${(+(units || 0) * (META?.unit_xrp || 0.01)).toFixed(2)} ${sym()}`;   // price units -> what moves on the ledger
-const micro = (m) => `${(+(m || 0) / 1e6).toFixed(2)} ${sym()}`;
-const hhmm = (t) => new Date(t * 1000).toTimeString().slice(0, 8);
+let ME = null, META = null, USER = {user: null, public: true};
+const sym = () => META?.asset || "XRP";
+const amount = (v, asset = sym()) => `${Number(v || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})} ${asset}`;
+const xrp = (units) => amount(+(units || 0) * (META?.unit_xrp || 0.01));
+const micro = (m, asset = sym()) => amount(+(m || 0) / 1e6, asset);
+const hhmm = (t) => new Date(t * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit"});
+function showError(err) {
+  const b = $("banner"); if (!b) return;
+  b.hidden = false; b.className = "banner error"; b.setAttribute("role", "alert"); b.textContent = err.message || String(err);
+}
+function canAct() {
+  if (USER.user && ME === USER.user.account) return true;
+  authDlg();
+  return false;
+}
 async function topbar(page) {
-  META = await api("/api/meta");
-  USER = await api("/api/me");
-  if (USER.user && !params.get("as")) ME = USER.user.account;
-  const accts = await api("/api/accounts");
-  $("acct").innerHTML = accts.map((a) => `<option value="${a.id}">${a.id.startsWith("u-") ? "You · " : ""}${esc(a.name)}${a.type === "org" ? " (company)" : ""}</option>`).join("");
-  if (!accts.some((a) => a.id === ME)) ME = "dana";
-  $("acct").value = ME;
-  $("acct").previousElementSibling.textContent = USER.user ? "Viewing" : USER.public ? "Viewing demo account" : "Signed in as (demo)";
+  [META, USER] = await Promise.all([api("/api/meta"), api("/api/me")]);
+  ME = USER.user?.account || null;
+  $("accountName").textContent = USER.user?.username || "";
   memberBar();
-  $("acct").onchange = (e) => { ME = e.target.value; try { localStorage.setItem("vm-as", ME); } catch {} refresh(); };
-  $("ledgerTag").textContent = ({ testnet: "XRPL Testnet", devnet: "XRPL Devnet" })[META.ledger] || "TEST LEDGER (not real)";
-  $("ledgerTag").className = "tag " + (META.ledger === "mock" ? "red" : "blue");
+  $("ledgerTag").textContent = META.asset === "test USD" ? "Testnet · test USD" : `Testnet · ${sym()}`;
   $("ledgerTag").title = META.asset_note || "";
-  if (META.asset === "test USD") $("ledgerTag").textContent += " · RLUSD (test USD token)";
-  $("modelTag").textContent = META.model === "rules" ? "agents: written rules (no LLM key)" : `agents: ${META.model}`;
-  if (META.connected < META.accounts) $("banner").hidden = false, $("banner").textContent = `Funding wallets on the ledger: ${META.connected} of ${META.accounts}. Funded accounts are already trading.`;
-  else $("banner").hidden = true;
+  $("modelTag").hidden = true;
 }
 function chatBox(el, data) {
   const draft = $("say")?.value || "", focused = document.activeElement?.id === "say";
+  const prior = $("msgs"), scrollTop = prior?.scrollTop || 0;
+  const follow = !prior || prior.scrollHeight-prior.scrollTop-prior.clientHeight < 32;
   const open = el.dataset.open === "1";
+  if (!ME) {
+    el.innerHTML = '<div class="empty"><h3>Your agent, your data</h3><p>Sign in to upload data, set your minimum price and track each sale.</p><button class="primary" id="agentSignIn">Sign in to start</button></div>';
+    $("agentSignIn").onclick = authDlg;
+    return;
+  }
   el.innerHTML = `<button class="head" type="button" id="chatHead"><span>Ask my agent</span><span>${open ? "▾" : "▸"} ${data.chat.filter((c) => c.actions && !c.done).length ? '<span class="tag red">needs you</span>' : ""}</span></button>
     ${open ? `<div class="msgs" id="msgs">${data.chat.map((c) => `<div class="msg ${c.role === "me" ? "me" : "agent"}"><div>${esc(c.text)}</div>${c.actions ? `<div class="acts">${c.actions.map((a, i) => `<button type="button" data-c="${c.id}" data-i="${i}" ${c.done ? "disabled" : ""} class="${i === 0 ? "primary" : ""}">${esc(a.t)}</button>`).join("")}</div>` : ""}</div>`).join("") || '<p class="muted small">Say what to sell or what you need.</p>'}</div>
     <form id="chatForm"><input type="text" id="say" placeholder="e.g. sell my sleep logs, or I need air-quality data" aria-label="Message to my agent"><button class="primary">Send</button></form>` : ""}`;
   $("chatHead").onclick = () => { el.dataset.open = open ? "0" : "1"; chatBox(el, data); };
   if (open) {
-    $("msgs").scrollTop = 1e9; $("say").value = draft; if (focused) $("say").focus();
-    el.querySelectorAll("[data-c]").forEach((b) => b.onclick = async () => { await post(`/api/account/${ME}/chat/${b.dataset.c}/act`, { i: +b.dataset.i }); refresh(); });
-    $("chatForm").onsubmit = async (e) => { e.preventDefault(); const t = $("say").value.trim(); if (!t) return; $("say").value = ""; await post(`/api/account/${ME}/chat`, { text: t }); refresh(); };
+    $("msgs").scrollTop = follow ? 1e9 : scrollTop; $("say").value = draft; if (focused) $("say").focus();
+    el.querySelectorAll("[data-c]").forEach((b) => b.onclick = async () => { if (!canAct()) return; try { await post(`/api/account/${ME}/chat/${b.dataset.c}/act`, { i: +b.dataset.i }); await refresh(); } catch (err) { showError(err); } });
+    $("chatForm").onsubmit = async (e) => { e.preventDefault(); const t = $("say").value.trim(); if (!t) return; if (await tellAgent(t)) $("say").value = ""; };
   }
 }
 function live() { try { const es = new EventSource("/api/stream"); es.onmessage = () => refresh(); } catch { setInterval(refresh, 5000); } }
@@ -50,7 +55,7 @@ function live() { try { const es = new EventSource("/api/stream"); es.onmessage 
 // ---------------- members: sign up, sign in, link a personal wallet ----------------
 function memberBar() {
   let el = $("member");
-  if (!el) { el = document.createElement("span"); el.id = "member"; el.className = "acts"; $("acct").after(el); }
+  if (!el) { el = document.createElement("span"); el.id = "member"; el.className = "acts"; $("accountName").after(el); }
   el.innerHTML = USER.user
     ? `<button type="button" id="mWallet">${USER.user.wallet_tx ? "Wallet linked ✓" : "Link my wallet"}</button><button type="button" id="mOut">Sign out</button>`
     : `<button type="button" class="primary" id="mIn">Sign up / Sign in</button>`;
@@ -75,7 +80,7 @@ function authDlg() {
   $("mForm").querySelectorAll("button").forEach((b) => b.onclick = () => { action = b.dataset.a; });
   $("mForm").onsubmit = async (e) => {
     e.preventDefault();
-    try { await post("/api/" + action, { username: $("mU").value, password: $("mP").value }); location.href = "/vault"; }
+    try { await post("/api/" + action, { username: $("mU").value, password: $("mP").value }); location.href = location.pathname; }
     catch (err) { $("mErr").textContent = err.message; }
   };
 }
@@ -102,16 +107,24 @@ function walletDlg() {
     try { step(await post("/api/me/wallet", { address: $("wA").value.trim() })); } catch (err) { $("mErr").textContent = err.message; }
   };
 }
-window.addEventListener("unhandledrejection", (e) => {
-  const b = $("banner"); if (!b) return;
-  b.hidden = false; b.textContent = e.reason?.message || String(e.reason);
-  setTimeout(() => { b.hidden = true; }, 6000);
-});
+window.addEventListener("unhandledrejection", (e) => { e.preventDefault(); showError(e.reason); });
 
 // "Tell my agent": the request goes to the agent as a chat message, and its answer comes back in the chat
 async function tellAgent(text) {
+  if (!canAct()) return false;
   const el = $("chat"); el.dataset.open = "1";
-  await post(`/api/account/${ME}/chat`, { text });
-  await refresh();
-  $("msgs")?.scrollIntoView({ block: "nearest" });
+  try {
+    await post(`/api/account/${ME}/chat`, {text});
+    await refresh();
+    $("agentQueue")?.scrollIntoView({block: "nearest"});
+    return true;
+  } catch (err) { showError(err); return false; }
+}
+async function queueSale(id) {
+  if (!canAct()) return;
+  try {
+    await post(`/api/account/${ME}/sell-now/${id}`);
+    await refresh();
+    $("agentQueue")?.scrollIntoView({block: "nearest"});
+  } catch (err) { showError(err); }
 }
