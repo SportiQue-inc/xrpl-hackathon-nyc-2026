@@ -653,9 +653,22 @@ def _has_passkeys(w) -> bool:
 
 def audit_trail(w, pid: str, limit: int = 200) -> list[dict]:
     """The participant's own rows of the hash-chained event log, with each row's hash and its link."""
-    rows = w.store.q("SELECT id, ts, actor, kind, message, prev_hash, hash FROM events WHERE kind != 'access' AND "
-                     "(actor=? OR actor=?) ORDER BY id DESC LIMIT ?", pid, f"person {pid}", limit)
-    return [dict(r) for r in reversed(rows)]
+    rows = w.store.q("SELECT id, ts, actor, kind, data, prev_hash, hash FROM events WHERE kind != 'access' AND "
+                     "(actor=? OR actor=? OR message LIKE ?) ORDER BY id DESC LIMIT ?",
+                     pid, f"person {pid}", f"%{pid}%", limit)
+    out = []
+    for r in reversed(rows):
+        d = json.loads(r["data"] or "{}")
+        d = d if isinstance(d, dict) else {}
+        tx = d.get("tx") or d.get("tx_hash")
+        if isinstance(tx, str) and "," in tx:
+            tx = tx.split(",")
+        if isinstance(tx, list):
+            tx = tx[-1] if tx else None
+        out.append({"id": r["id"], "ts": r["ts"], "kind": r["kind"], "prev_hash": r["prev_hash"], "hash": r["hash"],
+                    "tx": _tx(w, tx) if isinstance(tx, str) and tx else None,
+                    "statement_hash": d.get("statement_hash")})
+    return out
 
 
 def approval_challenge(w, pid: str, rid: int, items: list[str]) -> dict:
@@ -712,7 +725,7 @@ def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool
     if signed:
         passkey.bind(w.store, pid, signed["statement_hash"],
                      [{"order_id": c["order_id"], "weeks": c["weeks"], "items": c["items"],
-                       "escrow_tx": (c["escrow"] or {}).get("tx")} for c in out["contributions"]
+                       "escrow_tx": (c["escrow"] or {}).get("tx"), "escrow": c["escrow"]} for c in out["contributions"]
                       if c["order_id"] in {o["order_id"] for o in req.get("orders", [])} - before])
         out = {**participant_view(w, pid), "signed": signed}
     return out

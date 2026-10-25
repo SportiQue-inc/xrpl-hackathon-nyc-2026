@@ -155,19 +155,28 @@ class UniQdataBackend:
         self.store, self.client = store, client
 
     def registered(self, pid: str) -> list[str]:
-        return list(self.client.passkey_registered())
+        """Only passkeys the person registered on this page count. The same UniQdata account also
+        holds the agent's key, and a signature by that key must not pass for the person's own."""
+        return [r["credential_id"] for r in self.store.q(
+            "SELECT credential_id FROM passkeys WHERE person_id=? AND source=?", pid, self.name)]
 
     def register_options(self, pid: str, pseudonym: str) -> dict:
         return self.client.passkey_register_options()
 
     def register_complete(self, pid: str, body: dict) -> str:
-        return self.client.passkey_register_complete(body)["credential_id"]
+        cred = self.client.passkey_register_complete(body)["credential_id"]
+        with self.store.tx() as c:
+            c.execute("INSERT OR REPLACE INTO passkeys VALUES (?,?,?,?,?,?,?)",
+                      (pid, cred, "", rp_id(), 0, self.name, time.time()))
+        return cred
 
     def approval_options(self, pid: str, stmt: dict, sh: str):
         c = self.client.consent_create_pending(stmt, sh)
         return self.client.consent_attestation_options(c["id"]), c["id"], c["consent_hash"]
 
     def approve(self, pid: str, row, assertion: dict) -> str:
+        if assertion["credentialId"] not in self.registered(pid):
+            raise PermissionError("this is not the passkey the participant registered for approvals")
         r = self.client.consent_approve(row["uniqdata_consent_id"], assertion)
         if r.get("status") != "APPROVED":
             raise PermissionError(f"UniQdata did not approve the consent ({r.get('status')})")

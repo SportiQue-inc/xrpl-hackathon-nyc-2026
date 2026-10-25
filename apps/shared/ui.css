@@ -15,7 +15,7 @@
   --ar-red: #dc2626; --ar-red-bg: #fef2f2;
   --ar-gray: #4b5563; --ar-gray-bg: #f3f4f6;
   --ar-radius: 12px;
-  --ar-font: Inter, Pretendard, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ar-font: Inter, Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-family: var(--ar-font);
   color: var(--ar-text);
   background: var(--ar-bg);
@@ -270,3 +270,27 @@
 /* embedded in another app's shell (UniQLab): no sidebar or top bar of our own */
 .ar.embedded .ar-shell { display: block; min-height: 0; }
 .ar.embedded { background: transparent; }
+
+/* participant app (Korean product screens) */
+.ar-tabs.four { grid-template-columns: repeat(4, 1fr); }
+.ar-req { text-align: left; font: inherit; color: inherit; cursor: pointer; gap: 6px; }
+.ar-req:hover { border-color: #c7d2fe; }
+.ar-kv.left dd { text-align: left; }
+.ar-kv.left { grid-template-columns: 84px 1fr; gap: 8px 12px; font-size: 14px; }
+.ar-statement { border-color: #c7d2fe; }
+.ar-hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--ar-text-2);
+  display: inline-flex; align-items: center; gap: 2px; }
+a.ar-hash { color: var(--ar-brand); }
+.ar-seg { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--ar-gray-bg); border-radius: 10px; padding: 3px; gap: 2px; }
+.ar-seg button { border: 0; background: none; padding: 8px 0; border-radius: 8px; font: inherit; font-size: 13px; color: var(--ar-text-2); cursor: pointer; }
+.ar-seg button.on { background: var(--ar-surface); color: var(--ar-text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.ar-audit > .row { padding: 8px 0; border-top: 1px solid var(--ar-border); align-items: flex-start; }
+.ar-audit > .row:first-child { border-top: 0; }
+.ar-audit > .row > .grow { min-width: 0; }
+.ar-audit > .row > .col:last-child { flex-shrink: 0; }
+.ar-okmark { width: 56px; height: 56px; border-radius: 50%; background: var(--ar-green-bg); color: var(--ar-green); display: grid; place-items: center; }
+.ar-row-link { display: flex; justify-content: space-between; align-items: center; background: none; border: 0; padding: 12px 4px;
+  font: inherit; color: var(--ar-text-2); cursor: pointer; }
+.ar-grid.k3 { grid-template-columns: repeat(3, 1fr); }
+.ar-vline .e .d.amber { background: #fbbf24; }
+.ar .ar-btn .ar-svg, .ar .ar-btn svg { vertical-align: -3px; }

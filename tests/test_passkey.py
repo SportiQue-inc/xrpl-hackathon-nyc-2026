@@ -177,3 +177,49 @@ def test_another_participant_cannot_ask_for_my_challenge(c):
     r = c.post(f"/api/p/{HERO}/requests/{rid}/challenge", json={"items": ["fatigue.survey"]},
                headers=login(c, "P-001"))
     assert r.status_code == 403
+
+
+class FakeUniQdata:
+    """The six calls the engine makes to the person's UniQdata (uniqdata_live.UniQdataClient)."""
+
+    def __init__(self):
+        self.approved = []
+
+    def passkey_registered(self):
+        return ["agent-key"]
+
+    def passkey_register_options(self):
+        return {"challenge": "x", "rp": {"id": "localhost"}}
+
+    def passkey_register_complete(self, body):
+        return {"credential_id": body["credentialId"]}
+
+    def consent_create_pending(self, statement, statement_hash):
+        return {"id": "c-1", "consent_hash": "ab" * 32}
+
+    def consent_attestation_options(self, cid):
+        return {"challenge": "uq-challenge", "rpId": "localhost", "challengeId": "ch-1"}
+
+    def consent_approve(self, cid, assertion):
+        self.approved.append((cid, assertion["credentialId"]))
+        return {"status": "APPROVED"}
+
+
+def test_with_uniqdata_only_the_passkey_registered_on_the_page_approves(c):
+    me = login(c, HERO)
+    uq = FakeUniQdata()
+    web._state["w"].uniqdata_clients = {HERO: uq}
+    assert not c.get(f"/api/p/{HERO}/passkey", headers=me).json()["registered"]    # the agent key does not count
+    key = Authenticator()
+    c.post(f"/api/p/{HERO}/passkey/register/complete", json={**key.create({"challenge": "x"})}, headers=me)
+    rid = open_request(c, me)
+    ch = c.post(f"/api/p/{HERO}/requests/{rid}/challenge", json={"items": ["fatigue.survey"]}, headers=me).json()
+    assert ch["uniqdata_consent_id"] == "c-1" and ch["held_by"] == "uniqdata"
+    agent = {**key.get(ch["publicKey"]), "credentialId": "agent-key", "rawId": "agent-key"}
+    assert c.post(f"/api/p/{HERO}/requests/{rid}/approve", json={"items": ["fatigue.survey"], "assertion": agent},
+                  headers=me).status_code == 403
+    ch = c.post(f"/api/p/{HERO}/requests/{rid}/challenge", json={"items": ["fatigue.survey"]}, headers=me).json()
+    r = c.post(f"/api/p/{HERO}/requests/{rid}/approve",
+               json={"items": ["fatigue.survey"], "assertion": key.get(ch["publicKey"])}, headers=me)
+    assert r.status_code == 200, r.text
+    assert r.json()["signed"]["consent_hash"] == "ab" * 32 and uq.approved == [("c-1", b64u(key.cred))]
