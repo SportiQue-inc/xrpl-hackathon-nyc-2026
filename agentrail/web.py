@@ -593,6 +593,22 @@ def market_network():
         return HTMLResponse(network_view.render(network_view.build(_state["market1"]["exchange"])))
 
 
+@app.get("/api/market/contracts")
+def market_contracts(act: int = Query(default=1, ge=1, le=2), i: int | None = Query(default=None, ge=0)):
+    """One record per contract attempt: both agents' conversation (turns with reasoning and checks),
+    verdicts and tx hashes (schema agentrail.contract_trace/1)."""
+    r = _state.get(f"market{act}")
+    if r is None:
+        raise HTTPException(404, "market act not run")
+    cs = r["exchange"].contracts
+    if i is not None:
+        if i >= len(cs):
+            raise HTTPException(404, "no such contract")
+        return json.loads(json.dumps(cs[i], default=str))
+    return [{"i": k, **{x: c[x] for x in ("need", "buyer", "seller", "columns", "status", "price_drops", "verdicts")}}
+            for k, c in enumerate(cs)]
+
+
 @app.get("/api/costs")
 def running_costs():
     """What keeping the agents up cost in this run: LLM calls and tokens per side, ledger transactions and

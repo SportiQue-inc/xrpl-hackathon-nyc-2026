@@ -87,3 +87,41 @@ def test_llm_explains_but_cannot_invent_candidates():
     assert ok["source"] == "llm" and ok["why"] == "best grade"
     bad = discovery.explain("n", need, ranked, ["S1"], lambda s, p: {"why": "x", "others": {"S9": "made up"}})
     assert bad["source"] == "rules"
+
+
+def test_buyer_never_pays_twice_for_data_it_already_holds():
+    r = acts.act1()
+    ex = r["exchange"]
+    bought = {}
+    for t in ex.trades:
+        if t["status"] in ("settled", "settled_unfit"):
+            key = (t["buyer"], t["seller"], tuple(t["columns"]))
+            bought[key] = bought.get(key, 0) + 1
+    assert bought and max(bought.values()) == 1            # same buyer, same seller dataset: bought once
+    dups = [x for n in r["needs"] for x in n["rejected"] if x.get("stage") == "overlap"]
+    assert dups and all(x["why"].startswith("duplicate:") for x in dups)
+
+
+def test_copied_rows_are_repriced_to_the_new_part_and_logged_in_the_conversation():
+    r = acts.act1()
+    ex = r["exchange"]
+    part = [x for n in r["needs"] for x in n["discovery"]["ranked"] if x.get("overlap")]
+    assert part, "a copied dataset should overlap with rows a buyer already holds"
+    for x in part:
+        assert 0 < x["overlap"] < 0.9 and abs(x["ask_drops"] - x["full_ask_drops"] * (1 - x["overlap"])) <= 10
+    said = [t for c in ex.contracts for t in c["turns"] if t["message"].startswith("I already hold")]
+    assert all("new part" in t["message"] for t in said)
+
+
+def test_overlap_rule_ignores_chance_matches_and_catches_a_held_root():
+    from agentrail.market.exchange import Exchange
+    ex = Exchange([])
+    rows = [{"day": d, "x": 50.0 + d / 7} for d in range(10)]
+    o = {"cert": {"root": "R1"}, "dataset": type("D", (), {"rows": rows})()}
+    ex._hold("B", o, ["x"], 2)
+    assert ex.overlap("B", "R1", [], ["x"])[0] == 1.0
+    assert ex.overlap("B", "R2", rows[:2], ["x"])[0] == 0.0          # two equal rows: chance
+    assert ex.overlap("B", "R2", rows[:6], ["x"])[0] == 1.0          # a copy with another root
+    yes_no = [{"day": d, "x": True} for d in range(10)]
+    ex._hold("C", {"cert": {"root": "R3"}, "dataset": type("D", (), {"rows": yes_no})()}, ["x"], 2)
+    assert ex.overlap("C", "R4", yes_no[:6], ["x"])[0] == 0.0       # yes/no answers never count

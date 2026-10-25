@@ -17,8 +17,9 @@ store and its owner's budget. It queries one shared offer book whose Merkle root
 ledger, fans out to every candidate, opens a hashed sample of each against its certificate, scores
 them, negotiates with the best, and pays on XRPL with a key-reveal escrow: the payment itself
 publishes the key that opens the data. What it buys accumulates in its own store and can be sold on.
-In the synthetic run, 74 needs became 176 trades and 130 fit deliveries settled (mock ledger, seed
-11). `python scripts/export_network.py` replays it as a node network.
+A buyer never pays twice for data it already holds: an offer with a root it bought before is
+refused, and copied rows are priced at the new part only. In the simulated market (mock ledger, seed
+11), agents settled 87 of 109 settled transactions without another owner decision. `python scripts/export_network.py` replays it as a node network.
 
 **SportiQue.** We run both sides of health data: UniQdata for people's own health data and UniQLab
 for researchers. In health the same headache is far bigger: consent for every item, studies that fit

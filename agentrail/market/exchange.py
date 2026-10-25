@@ -58,6 +58,8 @@ def spec(col: str) -> dict:
 RATE = {"T0": 10_000, "T1": 15_000, "T2": 40_000, "T3": 120_000, "R": 20_000}      # drops per column-week, grade A
 GRADE_MULT = {"A": 1.0, "B": 0.8, "C": 0.6}
 GRADE_RANK = {"A": 3, "B": 2, "C": 1}
+MIN_MATCHED_ROWS = 3
+DUPLICATE_SHARE = 0.9       # an offer the buyer already holds this much of is refused; below it, only the new part is paid
 DAYS = 7
 SAMPLE_K = 12
 
@@ -186,6 +188,8 @@ class Exchange:
         self._grants: dict[tuple, Decision] = {}
         self.book = None                        # shared offer book, anchored on the ledger (publish_book)
         self.anchors: list[dict] = []
+        self.contracts: list[dict] = []          # one conversation per contract attempt (contract_trace)
+        self.holdings: dict[str, dict] = {}      # buyer -> {"roots", "rows"}: what each buyer's store already holds
         self._explained = 0
         for a in accounts:
             a.seller = a.seller or quality.Seller(a.id)
@@ -282,6 +286,38 @@ class Exchange:
         self.events.append({"kind": "need", **{k: v for k, v in out.items() if k not in ("fills", "rejected")}})
         return out
 
+    @staticmethod
+    def _row_key(row: dict, cols: list) -> str:
+        """Content of one row for the overlap check: day and values, without the seller, so a copy listed
+        by someone else still matches."""
+        return hashlib.sha256(json.dumps([row.get("day")] + [row.get(c) for c in sorted(cols)],
+                                         default=str).encode()).hexdigest()
+
+    @staticmethod
+    def _telling(row: dict, cols: list) -> bool:
+        """Only rows with a measured, non-round value say who they came from; yes/no answers and
+        whole-number scores repeat across people by chance, so they never count as overlap."""
+        return any(isinstance(row.get(c), float) and not float(row[c]).is_integer() for c in cols)
+
+    def overlap(self, buyer: str, cert_root: str, sample_rows: list[dict], cols: list) -> tuple[float, str]:
+        """How much of an offer the buyer already holds: 1.0 for a dataset with a certified root it
+        bought before, else the share of the opened sample rows whose content it already holds."""
+        h = self.holdings.get(buyer)
+        if not h:
+            return 0.0, ""
+        if cert_root in h["roots"]:
+            return 1.0, "same certified root as data I already bought"
+        keys = [self._row_key(r, cols) for r in sample_rows if self._telling(r, cols)]
+        same = sum(1 for k in keys if k in h["rows"])
+        if same < MIN_MATCHED_ROWS:          # a few equal readings on the same day happen by chance
+            return 0.0, ""
+        return same / max(1, len(keys)), f"{same} of {len(keys)} sampled rows match rows I already hold"
+
+    def _hold(self, buyer: str, o: dict, cols: list, weeks: int) -> None:
+        h = self.holdings.setdefault(buyer, {"roots": set(), "rows": set()})
+        h["roots"].add(o["cert"]["root"])
+        h["rows"].update(self._row_key(r, cols) for r in o["dataset"].rows[: weeks * DAYS] if self._telling(r, cols))
+
     def _ceiling(self, need: Need) -> dict:
         """The need as the buyer's agent formed it; without a plan, the grade A asking price is the ceiling."""
         return {"columns": need.columns, "weeks": need.weeks,
@@ -328,22 +364,42 @@ class Exchange:
                 rejected.append({"seller": seller.id, "stage": "pre_trade", "why": why})
                 continue
             ask = quote(need.columns, need.weeks, o["grade"])
-            mine.append((score(o, ask, ceiling, (seller.passed, seller.failed)), o, ask))
+            ov, ov_why = self.overlap(need.buyer, o["cert"]["root"], [x["row"] for x in opened], need.columns)
+            if ov >= DUPLICATE_SHARE:
+                # already in the buyer's store: never pay again for the same data
+                drop("already held")
+                disc["sampled"][-1].update(ok=False, why=f"duplicate: {ov_why}")
+                rejected.append({"seller": seller.id, "stage": "overlap", "why": f"duplicate: {ov_why}"})
+                continue
+            sc = score(o, int(ask * (1 - ov)), ceiling, (seller.passed, seller.failed))
+            if ov:
+                sc.update(overlap=round(ov, 3), overlap_why=ov_why, full_ask_drops=ask)
+            mine.append((sc, o, int(ask * (1 - ov))))
         mine.sort(key=lambda x: (-x[0]["score"], x[0]["seller"]))
         cands += mine
         first = len(disc["ranked"])
         disc["ranked"] += [m[0] for m in mine]
+        from . import contract_trace
         for i, (sc, o, ask) in enumerate(mine):
             if len(fills) >= need.quantity:
                 break
             seller = self.accounts[o["seller"]]
-            neg = negotiate(ask, ceiling["max_price_drops"], (seller.passed, seller.failed))
+            track = (seller.passed, seller.failed)          # before this trade, as the agents saw it
+            neg = negotiate(ask, ceiling["max_price_drops"], track)
             disc["ranked"][first + i]["negotiation"] = neg
+            cand = {**sc, "rank": first + i + 1}
             if not neg["deal"]:
                 rejected.append({"seller": seller.id, "stage": "negotiation", "why": neg["why"]})
+                self.contracts.append(contract_trace.build(need, need.plan, disc, cand, {**neg, "ceiling": ceiling["max_price_drops"]},
+                                                           None, seller, self.accounts[need.buyer], track))
                 continue
             r = self._trade(need, o, neg["price_drops"], now_h)
             disc["ranked"][first + i]["outcome"] = r["status"]
+            r["trace"] = len(self.contracts)
+            if r["status"] in ("settled", "settled_unfit"):
+                self._hold(need.buyer, o, need.columns, need.weeks)
+            self.contracts.append(contract_trace.build(need, need.plan, disc, cand, {**neg, "ceiling": ceiling["max_price_drops"]},
+                                                       r, seller, self.accounts[need.buyer], track))
             if r["status"] == "refused" and r["why"].startswith("blocked: no valid") or \
                     r["status"] == "refused" and "credential has expired" in r["why"]:
                 rejected.append(r)
