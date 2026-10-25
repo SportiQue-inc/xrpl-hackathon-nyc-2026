@@ -145,7 +145,7 @@ on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 |---|---|---|
 | Agentic Finance: escrow, multi-signing, on-chain credentials | all three are in the main flow, not side demos | section 4 tx links |
 | Idea | research on one person's whole record, contributed by that person's agent; the counterpart is a person, not a dataset | sections 1-2 |
-| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, 80% now and 20% held for review, idempotent payments and recovery, device-signed sign-in with role tokens and per-route policy, hash-chained audit log, 117 tests incl. 25 attack tests | `tests/`, sections 4 and 6 |
+| Implementation | key-reveal escrow, MPT licence with clawback, Credentials and DepositPreauth, multi-signed treasury, owner-signed delegation checked before every payment, 80% now and 20% held for review, idempotent payments and recovery, device-signed sign-in with role tokens and per-route policy, hash-chained audit log, 119 tests incl. 25 attack tests | `tests/`, sections 4 and 6 |
 | Demo | phone request -> contribution -> researcher heatmap fills -> revoke -> clawback and refund, all with explorer links | section 9 |
 | Potential | small, frequent contributions that cards and 80-day agreements cannot carry | section 8 |
 | Bonus: QuickNode, x402 | QuickNode: every standalone check submitted and confirmed through a QuickNode Testnet endpoint (table in section 4). x402: clinic export fee: on Testnet the participant's agent tries x402 first and falls back to a direct payment, and each fee records which rail it used (`export_fees[].rail`) | section 4 |
