@@ -209,9 +209,15 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     st.sign = null;
     const res = await busy(e.target, "패스키 만드는 중", async () => {
       const { publicKey } = await api.passkeyOptions(pid);
-      return api.passkeyComplete(pid, await createPasskey(publicKey));
+      const { prf, ...body } = await createPasskey(publicKey);
+      st.prf = prf;
+      return api.passkeyComplete(pid, body);
     }, (err) => { st.sign = { error: err.name === "NotAllowedError" ? "패스키 만들기를 취소했어요." : "패스키를 만들지 못했어요." }; });
-    if (res) { st.p = await api.participant(pid); toast("패스키를 만들었어요. 이제 승인할 수 있어요."); }
+    if (res) {
+      st.p = await api.participant(pid);
+      toast(st.prf === false ? "패스키를 만들었어요. 이 기기에서는 보낼 데이터를 이 브라우저의 키로 잠가요."
+        : "패스키를 만들었어요. 이제 승인할 수 있어요.");
+    }
     draw();
   }
 
@@ -219,7 +225,7 @@ export function mountParticipant(root, { base = "", pid = "P-017", embedded = fa
     st.sign = { pending: true };
     const res = await busy(e.target, "본인 확인 중", async () => {
       const ch = await api.challenge(pid, r.id, items);
-      const assertion = await signWithPasskey(ch.publicKey);
+      const assertion = await signWithPasskey(ch.publicKey, pid);
       return api.approve(pid, r.id, items, assertion);
     }, (err) => {
       st.sign = { error: err.name === "NotAllowedError" ? "승인을 취소했어요. 아무것도 보내지 않았어요."
