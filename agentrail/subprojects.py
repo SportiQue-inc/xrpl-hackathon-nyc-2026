@@ -25,11 +25,6 @@ from .study import CELL_PRICE, LAB, ensure
 T3_TIERS = {"T3"}
 
 
-def _shown(micro) -> str:
-    """Amounts in the log as the pages show them: the test token stands in for RLUSD (units.LABEL)."""
-    return f"{(micro or 0) / 1e6:g} {'RLUSD' if units.TOKEN else 'XRP'}"
-
-
 def _tier(item: str) -> str:
     c = catalog.canon(item)
     return catalog.CATALOG[c].tier if c in catalog.CATALOG else "T3"      # unknown counts as sensitive
@@ -132,7 +127,7 @@ class Relationships:
         sp = SubProject(sid, name, purpose, list(data_types), int(budget_drops), int(weeks))
         self.subprojects[sid] = sp
         self.w.store.log(LAB, "subproject", f"{LAB} opened sub-project {sid} '{name}' under its scope: {purpose}; "
-                         f"{', '.join(data_types)}; budget {_shown(budget_drops)}, {weeks} weeks")
+                         f"{', '.join(data_types)}; budget {units.fmt(budget_drops)}, {weeks} weeks")
         return {**self.view(sp), "routing": [{k: v for k, v in r.items() if k != "person"} for r in self.routing(sp)]}
 
     def decide(self, pid: str, sid: str, item: str, allow: bool) -> dict:
@@ -162,7 +157,7 @@ class Relationships:
                 continue
             price = CELL_PRICE * len(items)
             if self._paid(sid) + price > sp.budget_drops:
-                stopped = f"sub-project budget {_shown(sp.budget_drops)} reached"
+                stopped = f"sub-project budget {units.fmt(sp.budget_drops)} reached"
                 break
             pa = self.w.cohort_people[pid]
             req = OrderRequest(LAB, pid, pid, f"subproject:{sid}", f"{pid}|{sid}|r{sp.rounds}", sp.purpose,

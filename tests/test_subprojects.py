@@ -38,6 +38,16 @@ def test_t3_and_outside_scope_wait_for_the_person(w):
     assert rel.route(rel.subprojects[sid], pid, "steps.daily") == ("auto", "rule")
 
 
+def test_subproject_budget_logs_keep_the_actual_settlement_asset(w):
+    from agentrail import units
+    rel = subprojects.of(w)
+    budget = study.CELL_PRICE - 1
+    sp = rel.create("Small budget", rel.scope["purposes"][0], [rel.scope["data_types"][0]], budget, 1)
+    message = w.store.one("SELECT message FROM events WHERE kind='subproject' ORDER BY id DESC LIMIT 1")["message"]
+    assert f"budget {units.fmt(budget)}," in message
+    assert rel.run(sp["id"])["stopped"] == f"sub-project budget {units.fmt(budget)} reached"
+
+
 def test_sensitive_approval_covers_only_one_delivery_round(w, monkeypatch):
     rel = subprojects.of(w)
     pid = next(iter(rel.consents))
