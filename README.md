@@ -118,7 +118,7 @@ on the console at the next poll. Contract: [docs/API.md](docs/API.md).
 
 ## 7. Potential and market
 
-**Data sells for a lot, but rarely.** The AI training dataset market grows from $3.2B (2025) to
+**Data is licensed for a lot, but rarely.** The AI training dataset market grows from $3.2B (2025) to
 $16.3B (2033, 22.6% CAGR) ([Grand View Research](https://www.giikorea.co.kr/report/grvi2018158-ai-training-dataset-market-size-share-trends.html)),
 and real-world evidence solutions are a $2-2.6B market ([IMARC](https://www.imarcgroup.com/real-world-evidence-solutions-market)).
 Yet supply moves through a few large contracts: Reddit -> Google (~$60M/yr), News Corp -> OpenAI

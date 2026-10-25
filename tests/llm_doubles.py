@@ -49,6 +49,6 @@ def capable_needs(system, payload):
         low = [int(w[1:]) for w, v in weeks.items() if int(v.split("/")[0]) < 0.9 * int(v.split("/")[1])]
         if low and item != "blood_pressure.daily":
             gaps.append({"item": item, "weeks": low, "evidence": ", ".join(f"{w} {weeks[f'w{w}']}" for w in low)})
-    return {"gaps": gaps, "do_not_buy": [{"item": "sleep.daily", "reason": "already complete"}],
+    return {"gaps": gaps, "do_not_request": [{"item": "sleep.daily", "reason": "already complete"}],
             "purpose": "sleep_research", "budget_xrp": 30,
             "summary_for_participants": "The study lost fatigue answers for weeks 3-5 and asks to fill them."}

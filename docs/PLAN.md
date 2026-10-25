@@ -1,55 +1,58 @@
 # Plan to submission
 
 Submission target: **Sat Oct 25, 12:30 EDT** (form closes 13:00). Times are EDT.
-Owner: **T** = build thread (Claude), **D** = daniel's hands needed. Status: done · doing · todo.
+Owner: **E** = engine thread (Claude), **X** = XRPL checks thread, **D** = daniel (UI, Mac, recording).
 
 ## Pitch
 
-Procurement agents that work out what data their organization is missing, read other
-companies' catalogs and contracts like a human buyer, and close the deal on XRPL.
-**The LLM proposes, code verifies, the ledger enforces.** The same engine runs a research
-cohort where each person's agent answers research requests from their phone.
+Not big data, but one person's whole record. A study's research agent asks people to take part;
+each person's agent gathers their own records on one time axis and contributes only what they
+agreed to. **The LLM proposes, code verifies, the ledger enforces.** We solved the hardest
+boundary first (consent, re-identification, withdrawal on person-level health records); the robot
+scene shows the same engine with a lighter consent layer.
 
-Track fit (Agentic Finance asks for escrow, multi-signing, on-chain credentials): all three
-are in the main flow with Testnet evidence, plus x402 (T54) and QuickNode as bonuses.
+Order of the story (README section 2, demo, video): **consent -> re-identification -> withdrawal
+-> other domains (robot, Testnet)**. Each issue: problem, answer, where code or ledger enforces it,
+demo moment, tests and tx.
 
 ## Time blocks
 
-| Block | Time | Build | Done when | Owner |
+| Block | Time | Work | Done when | Owner |
 |---|---|---|---|---|
-| 1 | 22:40 - 00:30 | LLM layer for B2B: gap inference from coverage table + evaluation report (code recomputes each gap from the table), schema matching verified on samples, licence text -> structured terms confirmed by the seller, `proposals` audit table, adversarial-LLM tests, LLM-off comparison, second input with a different report | `pytest` green; two inputs give different specs and sellers; LLM on/off numbers printed | T |
-| 2 | 00:30 - 02:30 | Escrow that ties payment to delivery: bundle locked with key K, `EscrowCreate` with `sha256(K)` condition and `CancelAfter`; seller gets paid only by publishing K in `EscrowFinish`; buyer reads K from the ledger and opens the bundle; deadline passed -> `EscrowCancel` refund | Mock tests for finish and cancel paths; Testnet run on the Mac | T |
-| 3 | 02:30 - 03:30 | Organization KYB: `VERIFIED_ORG` Credential + seller `DepositAuth` + `DepositPreauth` by credential; unverified buyer's payment refused by the ledger | Mock test + Testnet tx | T |
-| 4 | 03:30 - 05:30 | Research cohort, person side: new "research request" app page in this repo (verified-institution badge, LLM summary of purpose, auto-provide / needs approval / blocked items, real XRP amount) calling the engine API; 8-week cohort with missing person-weeks filled by the lab agent; 50 Testnet participant addresses | Page drives scene B end to end | T |
-| 5 | 05:30 - 07:00 | Dashboard: "LLM proposal -> code verdict -> ledger" three columns, coverage heatmap before/after, explorer links | One screen tells scene A | T |
-| 6 | 07:00 - 08:00 | **Integrated Testnet run on the Mac**: all scenes, escrow finish + cancel, KYB refusal, multisig, credential, one x402 run; `scripts/verify_ledger.py`; README tx table | Every README claim has a tx link | T + D (Mac awake) |
-| 7 | 08:00 - 10:00 | Code freeze, video script, rehearsal | Script final | T |
-| 8 | 10:00 - 12:30 | Record video, form text, submit | Submitted | D |
+| 1 | 22:40 - 23:10 | Boundary solutions in the engine: DUO consent, quasi-identifier rule, per-study pseudonym and date shift, three withdrawals with MPT clawback and escrow refund, KYB credential | `tests/test_study.py` green; `POST /api/run/boundaries` returns evidence | E (done) |
+| 2 | 23:10 - 00:30 | Both service surfaces as API: participant app (request card, preview, approve, decline, pause, revoke) and researcher console (goal, LLM gap reading with code verdict, co-signed approval, send, close round, sweep, bundle open), live events | docs/API.md matches code; one test drives both pages | E (done) |
+| 3 | 23:10 - 02:00 | Full health study on Testnet from the Mac: MPT licence + clawback, KYB refusal, escrow finish + cancel, multisig approval; feature checks | every row in README section 4 has a tx link | D's Mac, X |
+| 4 | 23:30 - 05:00 | UI for both surfaces on the API (participant phone page, researcher console), dashboard boundary tab | pages served at `/participant`, `/console`; one tap on the phone shows on the console | D |
+| 5 | 00:30 - 03:00 | Engine polish from Testnet findings; x402 clinic export fee evidence; LLM answers recorded for replay (quota 50/day) | `fixtures/llm_cache.json` committed; Testnet rerun clean | E |
+| 6 | 03:00 - 05:30 | README tx table, DEMO_SCOPE, DESIGN to the person-centric frame; REUSE_LOG for any reused UI | docs consistent, forbidden phrases checked | E |
+| 7 | 05:30 - 08:00 | Integrated rehearsal on Testnet with both pages; fix only blockers | two clean runs | E + D |
+| 8 | 08:00 - 10:00 | Code freeze, video script (2-3 min: phone request -> contribution -> heatmap -> revoke -> robot), form text | script final | E |
+| 9 | 10:00 - 12:30 | Record, submit | submitted | D |
 
-If time runs short, dashboard polish shrinks first; escrow, KYB and the cohort page stay.
+If time runs short: dashboard polish first, then x402 evidence. Consent, re-identification,
+withdrawal, escrow, MPT, Credentials, multi-signing and both surfaces stay.
 
 ## Items
 
 | Item | Status | Owner |
 |---|---|---|
-| Engine: orders, reservation, outbox, idempotent payment, recovery | done | T |
-| Policies: seller policy, consent, sensitivity, automation levels, compliance | done | T |
-| Multi-signing treasury (Testnet evidence) | done | T |
-| Ethics Credential gating sensitive items (Testnet evidence) | done | T |
-| LLM wrapper (GPT via `OPENAI_API_KEY`, rule fallback), `.env` on the Mac | done | T, D |
-| Gap inference, schema matching, licence reading, audit, adversarial tests | doing | T |
-| LLM on/off comparison, second input | todo | T |
-| Escrow with key reveal + cancel path | todo | T |
-| KYB Credential + DepositPreauth | todo | T |
-| Research request app page + 8-week cohort + 50 participants | todo | T |
-| Dashboard three-column view + heatmap | todo | T |
-| x402 Testnet run (existing path, evidence only) | todo | T + D |
-| Integrated Testnet run, verify_ledger.py, README tx table | todo | T + D |
-| Video script / form text | todo | T |
-| Video recording, submission | todo | D |
+| Engine: orders, reservation, outbox, idempotent payment, recovery | done | E |
+| LLM layer: gap reading (cohort and per person), schema matching, licence reading, proposals audit, adversarial tests, record/replay | done | E |
+| Key-reveal escrow (finish + cancel), Testnet evidence | done | E, D |
+| Consent with DUO codes; new purpose waits; prohibited purpose refused | done | E |
+| Re-identification: minimization, pseudonym and date shift per study, quasi-identifier rule, sealed bundles | done | E |
+| Withdrawal: decline round, pause, revoke (MPT clawback, withheld key, escrow refund) | done (mock), Testnet running | E, D |
+| MPT data licence per (study, participant) | done (mock), Testnet running | E, X |
+| KYB: VERIFIED_ORG Credential, DepositAuth + DepositPreauth, CredentialIDs | done (mock), Testnet running | E, X |
+| Multi-signed study budget approval | done | E |
+| Participant app API + researcher console API + events | done | E |
+| Participant app UI, researcher console UI | doing | D |
+| Clinic export fee (x402 path) evidence | todo | E, X |
+| README / docs to the new frame | README done, rest todo | E |
+| Video script, form text | todo | E |
+| Recording, submission | todo | D |
 
 ## Dropped
 
 - Price negotiation between agents (fixed published prices).
-- Payment-channel style settlement.
-- Ledger hardware wallet bounty (one docs line only).
+- Bulk dataset wording for health data: studies request participation; they do not acquire records.

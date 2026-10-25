@@ -1,8 +1,8 @@
 """Main scene: a stalled 8-week sleep and fatigue study (all synthetic).
 
-The lab holds a coverage table (participant x week x item). Its buyer agent reads the
+The lab holds a coverage table (participant x week x item). Its research agent reads the
 protocol, the table and the latest analysis note, and the LLM proposes which cells are
-missing and worth buying. Code recomputes every gap from the table, drops anything without
+missing and worth requesting. Code recomputes every gap from the table, drops anything without
 support (or already held), and caps budget and purpose. Then each participant's agent
 answers for its person: provide automatically, ask the person, or block.
 """
@@ -130,9 +130,9 @@ def person_gaps(store, agent: str, cov: Coverage, pid: str, propose=None) -> lis
 NEEDS_SYSTEM = (
     "You are the data manager of a research study. Read the protocol, the coverage table "
     "(participants with data / total, per item and week) and the analysis note. Decide which data "
-    "to obtain so the study can run, and which data NOT to buy because the lab already holds it. "
+    "to obtain so the study can run, and which data NOT to request because the study already holds it. "
     "Return JSON {\"gaps\": [{\"item\", \"weeks\": [int], \"evidence\": quote the table cells or note "
-    "line}], \"do_not_buy\": [{\"item\", \"reason\"}], \"purpose\": string, \"budget_xrp\": number, "
+    "line}], \"do_not_request\": [{\"item\", \"reason\"}], \"purpose\": string, \"budget_xrp\": number, "
     "\"summary_for_participants\": one or two plain sentences explaining why the lab asks}.")
 
 GAP_MIN_MISSING = 0.10   # a cell column is a gap only if at least 10% of participants lack it
@@ -157,7 +157,7 @@ class Needs:
 def rule_needs(protocol: str, table: dict) -> dict:
     """Baseline without an LLM: only the primary items named in the protocol, every week."""
     return {"gaps": [{"item": "fatigue.survey", "weeks": WEEKS, "evidence": "protocol primary item"}],
-            "do_not_buy": [], "purpose": "sleep_research", "budget_xrp": None,
+            "do_not_request": [], "purpose": "sleep_research", "budget_xrp": None,
             "summary_for_participants": "The lab asks for data its study is missing."}
 
 
@@ -205,9 +205,9 @@ def infer_needs(store, agent: str, cov: Coverage, allowed_purposes: list[str], b
             gaps[item] = sorted(set(gaps[item]) | set(kept))
             evidence[item] = ev[:200] + " [code: " + ", ".join(
                 f"w{w} {n - len(cov.missing(item, w))}/{n}" for w in kept) + "]"
-    for d in raw.get("do_not_buy") or []:
+    for d in raw.get("do_not_request") or []:
         if isinstance(d, dict) and d.get("item") in gaps:
-            notes.append(f"{d['item']} listed as both gap and do-not-buy; kept as gap only where table shows it")
+            notes.append(f"{d['item']} listed as both gap and do-not-request; kept as gap only where table shows it")
     purpose = raw.get("purpose")
     if purpose not in allowed_purposes:
         notes.append(f"purpose {purpose!r} not in mandate; using {allowed_purposes[0]}")
