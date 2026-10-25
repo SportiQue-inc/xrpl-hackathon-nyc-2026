@@ -72,6 +72,7 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
     ledger = make_ledger(ledger_kind)
     engine = Engine(store, ledger)
     w = World(store, engine, ledger)
+    engine.relay = ledger.new_account("vault_relay")   # publishes keys for contributors without a funded key
 
     def party(pid, name, kind):
         engine.add_party(pid, name, kind, ledger.new_account(pid))

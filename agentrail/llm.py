@@ -7,6 +7,8 @@ a decision, so it cannot widen a permission or raise a limit.
   LLM_PROVIDER   openai (default when OPENAI_API_KEY is set) | anthropic | none
   OPENAI_API_KEY, OPENAI_MODEL       (default gpt-4o-mini)
   ANTHROPIC_API_KEY, ANTHROPIC_MODEL (default claude-opus-5-5)
+  LLM_RECORD=1   save every JSON proposal to fixtures/llm_cache.json
+  LLM_PROVIDER=replay   answer proposals from that file only (recorded runs, for a stable video)
 
 No key, a timeout or any API error -> the rule-based sentence is used and the LLM is
 switched off for the rest of the run, so the demo never stalls.
@@ -39,6 +41,13 @@ class Voice:
     def __init__(self):
         _load_dotenv()
         p = os.environ.get("LLM_PROVIDER", "").lower()
+        self.cache_path = os.environ.get("LLM_CACHE", os.path.join(os.path.dirname(__file__), "..", "fixtures",
+                                                                    "llm_cache.json"))
+        self.record = os.environ.get("LLM_RECORD") == "1"
+        self.cache = {}
+        if os.path.exists(self.cache_path):
+            with open(self.cache_path) as f:
+                self.cache = json.load(f)
         if not p:
             p = "openai" if os.environ.get("OPENAI_API_KEY") else (
                 "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "none")
@@ -66,7 +75,14 @@ class Voice:
         return self._client is not None
 
     def label(self) -> str:
+        if self.provider == "replay":
+            return f"replay of recorded LLM answers ({len(self.cache)})"
         return f"{self.provider}:{self.model}" if self.active else "rules"
+
+    @staticmethod
+    def _key(system: str, payload: dict) -> str:
+        import hashlib
+        return hashlib.sha256((system + json.dumps(payload, sort_keys=True)).encode()).hexdigest()
 
     def _off(self, e: Exception):
         self.error = f"{type(e).__name__}: {e}"[:200]
@@ -103,12 +119,21 @@ class Voice:
     def propose(self, system: str, payload: dict) -> tuple[dict | None, str]:
         """Ask for a JSON proposal. Returns (proposal, 'llm') or (None, 'rules').
         The caller validates every field; nothing here is trusted."""
+        key = self._key(system, payload)
+        if self.provider == "replay":
+            hit = self.cache.get(key)
+            return (hit["answer"], "llm") if hit else (None, "rules")
         with self._lock:
             if not self.active or self.calls >= self.max_calls:
                 return None, "rules"
             self.calls += 1
         try:
             out = self._ask_json(system, json.dumps(payload, ensure_ascii=False))
+            if self.record and isinstance(out, dict):
+                with self._lock:
+                    self.cache[key] = {"model": self.model, "answer": out}
+                    with open(self.cache_path, "w") as f:
+                        json.dump(self.cache, f, indent=1, sort_keys=True)
         except Exception as e:
             with self._lock:
                 self._off(e)

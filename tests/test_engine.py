@@ -339,3 +339,54 @@ def test_cohort_hostile_needs_are_cut_back(w):
     # ethics check but no participant's agent provides it without the person ticking it.
     assert res["gaps"] == {"blood_pressure.daily": [1]} and res["orders"] == 0
     assert w.needs.purpose == "sleep_research" and w.needs.budget_drops == 40 * XRP
+
+
+# Escrow: payment and data key in one ledger transaction
+def escrow_request(w, pid="P017", week=1):
+    r = request(w, pid, week)
+    r.settle = "escrow"
+    return r
+
+
+def test_escrow_pays_only_when_the_key_is_published_and_buyer_reads_key_from_ledger(w):
+    oid = w.engine.place_order(escrow_request(w))
+    assert w.engine.process(oid) == "delivered"
+    p = w.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+    assert p["kind"] == "escrow" and p["finish_tx"] and w.ledger.txs[p["finish_tx"]]["Fulfillment"]
+    rows = w.engine.open_bundle(LAB, oid)
+    assert rows and rows[0]["person"] == "P017"
+    assert mandate(w)["spent_drops"] == 3 * XRP and mandate(w)["reserved_drops"] == 0
+
+
+def test_locked_bundle_cannot_be_opened_before_finish(w):
+    from nacl.public import SealedBox
+    oid = w.engine.place_order(escrow_request(w))
+    w.engine._escrow_create(oid)
+    w.engine._deliver(oid)
+    _, locked = w.engine.inbox.received[oid]
+    with pytest.raises(Exception):
+        SealedBox(w.engine.box_keys[LAB]).decrypt(locked)
+
+
+def test_revoke_before_finish_withholds_key_and_refunds_after_deadline(w):
+    oid = w.engine.place_order(escrow_request(w))
+    w.engine._escrow_create(oid)
+    w.engine._deliver(oid)
+    w.people["P017"].revoke(LAB)
+    assert w.engine.process(oid) == "withheld"
+    assert w.engine.sweep() == []                      # deadline not reached: nothing yet
+    w.ledger.clock += 10_000
+    assert w.engine.sweep() == [oid]
+    o = w.store.one("SELECT status FROM orders WHERE id=?", oid)
+    assert o["status"] == "refunded" and mandate(w)["reserved_drops"] == 0 and mandate(w)["spent_drops"] == 0
+
+
+def test_wrong_key_cannot_finish_the_escrow(w):
+    from agentrail.ledger.conditions import fulfillment_hex, new_key
+    oid = w.engine.place_order(escrow_request(w))
+    w.engine._escrow_create(oid)
+    p = w.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+    prep = w.ledger.prepare_escrow_finish("rX", w.engine.party(LAB)["address"], p["offer_sequence"],
+                                          p["condition"], fulfillment_hex(new_key()), "")
+    w.ledger.submit(prep)
+    assert w.ledger.lookup(prep.tx_hash).result == "tecCRYPTOCONDITION_ERROR"

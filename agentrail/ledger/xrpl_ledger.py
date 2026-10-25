@@ -12,8 +12,8 @@ import time
 from xrpl.clients import JsonRpcClient
 from xrpl.core.binarycodec import decode, encode
 from xrpl.ledger import get_latest_validated_ledger_sequence
-from xrpl.models.requests import AccountInfo, SubmitOnly, Tx
-from xrpl.models.transactions import Memo, Payment
+from xrpl.models.requests import AccountInfo, Ledger as LedgerReq, SubmitOnly, Tx
+from xrpl.models.transactions import EscrowCancel, EscrowCreate, EscrowFinish, Memo, Payment
 from xrpl.transaction import autofill_and_sign
 from xrpl.wallet import Wallet, generate_faucet_wallet
 
@@ -74,6 +74,34 @@ class XrplLedger(Ledger):
         signed = autofill_and_sign(tx, self.client, self.wallets[source])
         return Prepared(tx_hash=signed.get_hash(), blob=encode(signed.to_xrpl()))
 
+    def can_sign(self, address: str) -> bool:
+        return address in self.wallets
+
+    def now(self) -> int:
+        r = self.client.request(LedgerReq(ledger_index="validated")).result
+        return int(r["ledger"]["close_time"])
+
+    def _sign(self, tx, account: str) -> Prepared:
+        signed = autofill_and_sign(tx, self.client, self.wallets[account])
+        return Prepared(tx_hash=signed.get_hash(), blob=encode(signed.to_xrpl()), sequence=signed.sequence)
+
+    def prepare_escrow_create(self, source, destination, amount_drops, condition, cancel_after, memo):
+        return self._sign(EscrowCreate(account=source, destination=destination, amount=str(amount_drops),
+                                       condition=condition, cancel_after=cancel_after,
+                                       sequence=self._next_sequence(source),
+                                       memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))]), source)
+
+    def prepare_escrow_finish(self, submitter, owner, offer_sequence, condition, fulfillment, memo):
+        return self._sign(EscrowFinish(account=submitter, owner=owner, offer_sequence=offer_sequence,
+                                       condition=condition, fulfillment=fulfillment,
+                                       sequence=self._next_sequence(submitter),
+                                       memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))]),
+                          submitter)
+
+    def prepare_escrow_cancel(self, submitter, owner, offer_sequence):
+        return self._sign(EscrowCancel(account=submitter, owner=owner, offer_sequence=offer_sequence,
+                                       sequence=self._next_sequence(submitter)), submitter)
+
     def submit(self, prepared: Prepared) -> None:
         try:
             resp = self.client.request(SubmitOnly(tx_blob=prepared.blob))
@@ -97,7 +125,9 @@ class XrplLedger(Ledger):
             success=meta.get("TransactionResult") == "tesSUCCESS",
             ledger_index=r.get("ledger_index"), destination=txj.get("Destination"),
             amount_drops=int(delivered) if isinstance(delivered, str) else None,
-            invoice_id=txj.get("InvoiceID"))
+            invoice_id=txj.get("InvoiceID"), tx_type=txj.get("TransactionType"),
+            result=meta.get("TransactionResult"), condition=txj.get("Condition"),
+            fulfillment=txj.get("Fulfillment"), sequence=txj.get("Sequence"))
 
     def invoice_field_of(self, blob: str) -> str | None:
         return decode(blob).get("InvoiceID")

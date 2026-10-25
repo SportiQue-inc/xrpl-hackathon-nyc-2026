@@ -85,7 +85,7 @@ def rule_spec(goal_text: str, inventory: dict) -> dict:
     budget = re.search(r"(\d+(?:\.\d+)?)\s*xrp", t)
     return {"required_fields": list(inventory.get("robot_sensors", [])), "optional_fields": [],
             "gaps": [{"scenario": s, "evidence": "named in the goal text"} for s in scen],
-            "purpose": "evaluation" if "evaluat" in t and "train" not in t else "commercial_training",
+            "purpose": "commercial_training" if "commercial" in t or "train" in t else "evaluation",
             "max_missing_rate": 0.05, "budget_xrp": float(budget.group(1)) if budget else None,
             "allow_sensitive_fields": False}
 

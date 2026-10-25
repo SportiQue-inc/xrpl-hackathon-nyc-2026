@@ -256,7 +256,7 @@ class BuyerAgent:
         for c in combo:
             rows = c.seller.connector.extract(c.product["id"], c.decision.granted)
             req = OrderRequest(self.id, c.seller.id, c.seller.id, c.product["id"], "once", goal.purpose,
-                               c.decision.granted, c.price_drops, rows, c.decision)
+                               c.decision.granted, c.price_drops, rows, c.decision, settle="escrow")
             oid = self.engine.place_order(req)
             status = self.engine.process(oid)
             orders.append({"order_id": oid, "product": c.product["id"], "status": status})

@@ -17,9 +17,11 @@ import time
 from dataclasses import dataclass
 
 from nacl.public import PrivateKey, PublicKey, SealedBox
+from nacl.secret import SecretBox
 
 from .db import Store
 from .ledger import Ledger, LostResponse, Prepared
+from .ledger.conditions import condition_hex, fulfillment_hex, key_from_fulfillment, new_key
 from .policy import BuyerMandate, Decision
 
 
@@ -75,6 +77,8 @@ class OrderRequest:
     price_drops: int
     rows: list[dict]        # the bundle content, fixed at order time
     decision: Decision
+    settle: str = "payment"         # "payment" or "escrow" (paid only when the data key is published)
+    escrow_window_s: int = 600      # CancelAfter = ledger time + window
 
     def content(self, bundle_hash: str) -> dict:
         return {"payee": self.payee_id, "granted": sorted(self.granted),
@@ -88,6 +92,7 @@ class Engine:
         self.inbox = inbox or Inbox()
         self.policies: dict[str, object] = {}   # seller/person id -> policy with evaluate()
         self.box_keys: dict[str, PrivateKey] = {}
+        self.relay: str | None = None   # submits EscrowFinish for contributors whose keys we do not hold
 
     # ---------- setup ----------
 
@@ -127,6 +132,11 @@ class Engine:
         buyer_pub = PublicKey(bytes.fromhex(self.party(req.buyer_id)["box_pubkey"]))
         sealed = SealedBox(buyer_pub).encrypt(rows_json.encode())
         payee_addr = self.party(req.payee_id)["address"]
+        data_key = None
+        if req.settle == "escrow":
+            # Second lock: the bundle opens only with K, and K is what the escrow needs to pay out.
+            data_key = new_key()
+            sealed = SecretBox(data_key).encrypt(sealed)
 
         conflict_with = None
         with self.store.tx() as c:
@@ -168,9 +178,14 @@ class Engine:
             c.execute("UPDATE mandates SET reserved_drops=reserved_drops+? WHERE buyer_id=?",
                       (req.price_drops, req.buyer_id))
             c.execute("INSERT INTO bundles VALUES (?,?,?)", (oid, bundle_hash, sealed))
-            c.execute("""INSERT INTO payments (order_id,payee_address,amount_drops,invoice_id,status,updated_at)
-                         VALUES (?,?,?,?,?,?)""",
-                      (oid, payee_addr, req.price_drops, order_key.upper(), "pending", time.time()))
+            c.execute("""INSERT INTO payments (order_id,payee_address,amount_drops,invoice_id,status,updated_at,
+                         kind,condition) VALUES (?,?,?,?,?,?,?,?)""",
+                      (oid, payee_addr, req.price_drops, order_key.upper(), "pending", time.time(), req.settle,
+                       condition_hex(data_key) if data_key else None))
+            if data_key:
+                c.execute("INSERT INTO escrow_keys VALUES (?,?)", (oid, data_key.hex()))
+                c.execute("UPDATE payments SET cancel_after=? WHERE order_id=?",
+                          (self.ledger.now() + req.escrow_window_s, oid))
             c.execute("INSERT INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "pay", "pending"))
             self.store.log(req.buyer_id, "order",
                            f"order {oid}: {req.product_id} [{', '.join(req.granted)}] "
@@ -180,12 +195,21 @@ class Engine:
     # ---------- outbox driver ----------
 
     def process(self, order_id: int) -> str:
-        for _ in range(4):
+        for _ in range(5):
             job = self.store.one("SELECT * FROM outbox WHERE order_id=? AND status='pending' ORDER BY id LIMIT 1",
                                  order_id)
             if not job:
                 break
-            done = self._pay(order_id) if job["kind"] == "pay" else self._deliver(order_id)
+            kind = job["kind"]
+            escrow = self.store.one("SELECT kind FROM payments WHERE order_id=?", order_id)["kind"] == "escrow"
+            if kind == "pay":
+                done = self._escrow_create(order_id) if escrow else self._pay(order_id)
+            elif kind == "deliver":
+                done = self._deliver(order_id)
+            elif kind == "finish":
+                done = self._escrow_finish(order_id)
+            else:
+                done = self._escrow_cancel(order_id)
             if not done:
                 break
         return self.store.one("SELECT status FROM orders WHERE id=?", order_id)["status"]
@@ -310,7 +334,13 @@ class Engine:
         with self.store.tx() as c:
             c.execute("INSERT INTO deliveries (order_id,bundle_hash,attempt,acked,ts) VALUES (?,?,?,?,?)",
                       (oid, b["bundle_hash"], attempt, int(acked), time.time()))
-            if acked:
+            if acked and o["status"] == "escrowed":
+                c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='deliver'", (oid,))
+                c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "finish", "pending"))
+                self.store.log("engine", "locked_delivery",
+                               f"order {oid}: locked bundle {b['bundle_hash'][:12]}… delivered to {o['buyer_id']}; "
+                               f"it opens only with the key the escrow needs")
+            elif acked:
                 c.execute("UPDATE orders SET status='delivered' WHERE id=?", (oid,))
                 c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='deliver'", (oid,))
                 self.store.log("engine", "delivered",
@@ -319,10 +349,140 @@ class Engine:
                 c.execute("UPDATE outbox SET attempts=attempts+1 WHERE order_id=? AND kind='deliver'", (oid,))
         return acked
 
+    # ---------- escrow: payment and data key in one ledger transaction ----------
+
+    def _send(self, oid: int, col: str, prep_fn) -> tuple[str, object]:
+        """Sign once, store hash+blob, submit, look up; resubmit the same blob if not found."""
+        p = self.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+        h, blob = p[f"{col}_tx" if col != "create" else "tx_hash"], p[f"{col}_blob" if col != "create" else "tx_blob"]
+        if h is None:
+            prep = prep_fn()
+            hc, bc = ("tx_hash", "tx_blob") if col == "create" else (f"{col}_tx", f"{col}_blob")
+            with self.store.tx() as c:
+                c.execute(f"UPDATE payments SET {hc}=?, {bc}=?, updated_at=? WHERE order_id=?",
+                          (prep.tx_hash, prep.blob, time.time(), oid))
+                if col == "create":
+                    c.execute("UPDATE payments SET offer_sequence=?, status='submitted' WHERE order_id=?",
+                              (prep.sequence, oid))
+            h, blob = prep.tx_hash, prep.blob
+            self._submit(oid, prep)
+        st = self.ledger.wait_validated(h)
+        if not st.found:
+            self._submit(oid, Prepared(h, blob))
+            st = self.ledger.wait_validated(h)
+        return h, st
+
+    def _escrow_create(self, oid: int) -> bool:
+        o = self.store.one("SELECT * FROM orders WHERE id=?", oid)
+        p = self.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+        if p["tx_hash"] is None:
+            d = self._recheck(o, for_delivery=False)
+            if not d.ok:
+                with self.store.tx() as c:
+                    self._release(c, o, "blocked", d.reason)
+                    self.store.log("engine", "blocked", f"order {oid} blocked before escrow: {d.reason}")
+                return False
+        buyer_addr = self.party(o["buyer_id"])["address"]
+        pv = json.loads(o["policy_snapshot"]).get("version", "")
+        memo = f"order:{oid}|bundle:{o['bundle_hash'][:16]}|terms:{pv}"
+        h, st = self._send(oid, "create", lambda: self.ledger.prepare_escrow_create(
+            buyer_addr, p["payee_address"], p["amount_drops"], p["condition"], p["cancel_after"], memo))
+        if not st.validated:
+            return False
+        with self.store.tx() as c:
+            ok = (st.success and st.tx_type == "EscrowCreate" and st.destination == p["payee_address"]
+                  and st.amount_drops == p["amount_drops"] and (st.condition or "").upper() == p["condition"])
+            if not ok:
+                self._release(c, o, "failed", f"escrow not created on validated ledger ({st.result})")
+                c.execute("UPDATE payments SET status='failed' WHERE order_id=?", (oid,))
+                c.execute("INSERT INTO exceptions (order_id,kind,detail,cost_bearer,ts) VALUES (?,?,?,?,?)",
+                          (oid, "escrow_failed", f"ledger result {st.result}", None, time.time()))
+                self.store.log("engine", "refused", f"order {oid}: ledger refused the escrow ({st.result})",
+                               {"tx_hash": h, "url": self.ledger.explorer_url(h)})
+                return False
+            c.execute("UPDATE payments SET status='escrowed', ledger_index=? WHERE order_id=?", (st.ledger_index, oid))
+            c.execute("UPDATE orders SET status='escrowed' WHERE id=?", (oid,))
+            c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='pay'", (oid,))
+            c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "deliver", "pending"))
+            self.store.log("engine", "escrowed",
+                           f"order {oid}: {o['price_drops'] / 1e6:g} XRP locked in escrow for {o['payee_id']}; "
+                           f"pays out only when the data key is published", {"order_id": oid, "tx_hash": h,
+                                                                             "url": self.ledger.explorer_url(h)})
+        return True
+
+    def _escrow_finish(self, oid: int) -> bool:
+        """Contributor side: re-check permission, then publish the key to get paid."""
+        o = self.store.one("SELECT * FROM orders WHERE id=?", oid)
+        p = self.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+        if p["finish_tx"] is None:
+            d = self._recheck(o, for_delivery=True)
+            if not d.ok:
+                with self.store.tx() as c:
+                    c.execute("UPDATE orders SET status='withheld', note=? WHERE id=?", (d.reason, oid))
+                    c.execute("UPDATE outbox SET status='done', last_error=? WHERE order_id=? AND kind='finish'",
+                              (d.reason, oid))
+                    c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)",
+                              (oid, "cancel", "pending"))
+                    self.store.log("engine", "withheld", f"order {oid}: key not published ({d.reason}); "
+                                   f"escrow returns to {o['buyer_id']} after its deadline")
+                return False
+        key = bytes.fromhex(self.store.one("SELECT key_hex FROM escrow_keys WHERE order_id=?", oid)["key_hex"])
+        payee = p["payee_address"]
+        submitter = payee if self.ledger.can_sign(payee) else self.relay
+        buyer_addr = self.party(o["buyer_id"])["address"]
+        h, st = self._send(oid, "finish", lambda: self.ledger.prepare_escrow_finish(
+            submitter, buyer_addr, p["offer_sequence"], p["condition"], fulfillment_hex(key), f"order:{oid}"))
+        if not st.validated:
+            return False
+        with self.store.tx() as c:
+            if not st.success:
+                c.execute("UPDATE outbox SET status='done', last_error=? WHERE order_id=? AND kind='finish'",
+                          (st.result, oid))
+                c.execute("INSERT OR IGNORE INTO outbox (order_id,kind,status) VALUES (?,?,?)", (oid, "cancel", "pending"))
+                self.store.log("engine", "refused", f"order {oid}: escrow finish failed ({st.result})")
+                return False
+            c.execute("UPDATE payments SET status='validated', ledger_index=? WHERE order_id=?", (st.ledger_index, oid))
+            c.execute("UPDATE orders SET status='delivered' WHERE id=?", (oid,))
+            c.execute("UPDATE mandates SET reserved_drops=reserved_drops-?, spent_drops=spent_drops+? "
+                      "WHERE buyer_id=?", (o["price_drops"], o["price_drops"], o["buyer_id"]))
+            c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='finish'", (oid,))
+            self.store.log("engine", "paid", f"order {oid}: key published in EscrowFinish; {o['price_drops'] / 1e6:g} "
+                           f"XRP released to {o['payee_id']} in ledger {st.ledger_index}; {o['buyer_id']} can open "
+                           f"the bundle", {"order_id": oid, "tx_hash": h, "url": self.ledger.explorer_url(h)})
+        return True
+
+    def _escrow_cancel(self, oid: int) -> bool:
+        o = self.store.one("SELECT * FROM orders WHERE id=?", oid)
+        p = self.store.one("SELECT * FROM payments WHERE order_id=?", oid)
+        if p["cancel_tx"] is None and self.ledger.now() < p["cancel_after"]:
+            return False   # not due yet; sweep() retries
+        buyer_addr = self.party(o["buyer_id"])["address"]
+        h, st = self._send(oid, "cancel", lambda: self.ledger.prepare_escrow_cancel(
+            buyer_addr, buyer_addr, p["offer_sequence"]))
+        if not (st.validated and st.success):
+            return False
+        with self.store.tx() as c:
+            c.execute("UPDATE payments SET status='refunded' WHERE order_id=?", (oid,))
+            self._release(c, o, "refunded", "escrow cancelled after its deadline; locked amount returned")
+            c.execute("UPDATE outbox SET status='done' WHERE order_id=? AND kind='cancel'", (oid,))
+            self.store.log("engine", "refunded", f"order {oid}: EscrowCancel returned {o['price_drops'] / 1e6:g} XRP "
+                           f"to {o['buyer_id']}", {"order_id": oid, "tx_hash": h, "url": self.ledger.explorer_url(h)})
+        return True
+
+    def sweep(self) -> list[int]:
+        """Cancel escrows whose deadline has passed without the key being published."""
+        ids = [r["order_id"] for r in self.store.q("SELECT order_id FROM outbox WHERE kind='cancel' AND status='pending'")]
+        return [oid for oid in ids if self._escrow_cancel(oid)]
+
     # ---------- buyer side ----------
 
     def open_bundle(self, buyer_id: str, order_id: int) -> list[dict]:
         bundle_hash, sealed = self.inbox.received[order_id]
+        p = self.store.one("SELECT kind, finish_tx FROM payments WHERE order_id=?", order_id)
+        if p["kind"] == "escrow":
+            # The key is read from the ledger, not from the contributor.
+            st = self.ledger.lookup(p["finish_tx"])
+            sealed = SecretBox(key_from_fulfillment(st.fulfillment)).decrypt(sealed)
         rows = json.loads(SealedBox(self.box_keys[buyer_id]).decrypt(sealed))
         assert sha256_hex(canonical(rows)) == bundle_hash
         return rows

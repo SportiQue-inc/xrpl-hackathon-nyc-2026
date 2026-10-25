@@ -192,7 +192,7 @@ def fill(w, lab_id: str, needs: Needs, cov: Coverage, people: dict, price_per_ce
         rows = [r for wk, its in sorted(granted_cells.items()) for r in pa.vault.extract(its, wk)]
         slot = f"{pid}|" + ",".join(f"w{wk}:{'+'.join(its)}" for wk, its in sorted(granted_cells.items()))
         req = OrderRequest(lab_id, pid, pid, "cohort.fill", slot, needs.purpose, sorted(d.granted),
-                           n_cells * price_per_cell_drops, rows, d)
+                           n_cells * price_per_cell_drops, rows, d, settle="escrow")
         try:
             oid = e.place_order(req)
         except (BudgetExceeded, NeedsHumanApproval) as ex:

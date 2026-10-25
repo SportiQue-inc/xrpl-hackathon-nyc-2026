@@ -12,6 +12,7 @@ class LostResponse(Exception):
 class Prepared:
     tx_hash: str
     blob: str  # signed transaction; safe to store, contains no secret
+    sequence: int | None = None
 
 
 @dataclass
@@ -24,6 +25,11 @@ class TxStatus:
     amount_drops: int | None = None
     invoice_id: str | None = None
     expired: bool = False  # past LastLedgerSequence and not in a validated ledger
+    tx_type: str | None = None
+    result: str | None = None
+    condition: str | None = None
+    fulfillment: str | None = None
+    sequence: int | None = None
 
 
 class Ledger:
@@ -65,6 +71,25 @@ class Ledger:
 
     def explorer_url(self, tx_hash: str) -> str | None:
         return None
+
+    # Escrow (key-reveal): see conditions.py
+    def now(self) -> int:
+        """Ledger time in seconds since the Ripple epoch (for CancelAfter)."""
+        raise NotImplementedError
+
+    def prepare_escrow_create(self, source: str, destination: str, amount_drops: int, condition: str,
+                              cancel_after: int, memo: str) -> Prepared:
+        raise NotImplementedError
+
+    def prepare_escrow_finish(self, submitter: str, owner: str, offer_sequence: int, condition: str,
+                              fulfillment: str, memo: str) -> Prepared:
+        raise NotImplementedError
+
+    def prepare_escrow_cancel(self, submitter: str, owner: str, offer_sequence: int) -> Prepared:
+        raise NotImplementedError
+
+    def can_sign(self, address: str) -> bool:
+        return False
 
     # XRPL-native controls (see xrpl_extras.py)
     def new_keypair(self, label: str) -> str:

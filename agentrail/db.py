@@ -53,7 +53,12 @@ CREATE TABLE IF NOT EXISTS bundles (
 CREATE TABLE IF NOT EXISTS payments (
   order_id INTEGER PRIMARY KEY, payee_address TEXT NOT NULL, amount_drops INTEGER NOT NULL,
   invoice_id TEXT NOT NULL, tx_hash TEXT, tx_blob TEXT, status TEXT NOT NULL,
-  ledger_index INTEGER, updated_at REAL NOT NULL
+  ledger_index INTEGER, updated_at REAL NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'payment', condition TEXT, offer_sequence INTEGER, cancel_after INTEGER,
+  finish_tx TEXT, finish_blob TEXT, cancel_tx TEXT, cancel_blob TEXT
+);
+CREATE TABLE IF NOT EXISTS escrow_keys (
+  order_id INTEGER PRIMARY KEY, key_hex TEXT NOT NULL   -- held by the contributor's agent until it finishes
 );
 CREATE TABLE IF NOT EXISTS deliveries (
   id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL,
