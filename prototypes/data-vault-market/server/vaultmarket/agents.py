@@ -160,7 +160,9 @@ def chat_reply(text: str, context: dict, history: list | None = None) -> dict | 
         "to buyers, never below the owner's minimums and never for blocked purposes, and you can post requests to buy data. "
         "Talk like a helpful broker, in the owner's language, in 1-3 short sentences. Narrow things down with the owner: if they are vague, "
         "ask one focused question (which data, which kind of buyer or purpose, what price) and suggest at most 3 concrete offers that fit. "
-        "Do not repeat a list you already gave; build on the conversation. Use only the facts given; never invent sales, buyers or prices.",
+        "Do not repeat a list you already gave; build on the conversation. Use only the facts given; never invent sales, buyers or prices. "
+        "If the message is unclear, a typo or random keys, do not list offers: say you didn't catch it and ask one short question about what they want (sell, buy, or set a price), with no buttons. "
+        "When you suggest offers, name the buyer and purpose so each choice is different.",
         f"Facts: {json.dumps(context, ensure_ascii=False)}\nRecent conversation: {json.dumps(history or [], ensure_ascii=False)}\nOwner now says: \"{text}\"\n"
         'Return {"reply": "...", "offer_ids": [ids from matching_offers to show as buttons, at most 3, or empty], '
         '"set_min": {"kind": kind, "price": number in the asset} or null, "sell_kind": kind or null, "buy": {"kind": kind, "budget": number} or null}. '

@@ -3,68 +3,87 @@
 // The judge walkthrough runs across pages from the homepage; each page also has a short tour and a "?" help popup.
 const T = (en, ko) => ({en, ko});
 const JUDGE = [
-  {page: "/", el: [".brand"], t: T(["Data Vault Market", "People keep their own records (sleep, steps, location, purchases) in a personal vault. Their AI agent sells one-to-one copies to buyers they allow, and every sale settles on the XRPL Testnet. You are in a shared demo vault with synthetic data, so nothing here needs a login."],
-                                   ["데이터 금고 마켓", "사람들이 수면·걸음·위치·구매 기록을 개인 금고에 보관하고, AI 에이전트가 허락한 구매자에게만 1:1로 사본을 팔아요. 모든 판매는 XRPL Testnet에서 정산돼요. 지금은 합성 데이터의 공용 데모 금고라 로그인이 필요 없어요."])},
+  {page: "/", el: [".brand"], t: T(["Data Vault Market", "People keep their own data in a private vault, and an AI agent sells copies only to buyers they allow. Every sale is paid on the XRPL Testnet. This is a shared demo vault with made-up data, so no login is needed."],
+                                   ["데이터 금고 마켓", "사람들이 자기 데이터를 개인 금고에 두고, AI 에이전트가 허락한 구매자에게만 사본을 팔아요. 모든 판매는 XRPL Testnet에서 결제돼요. 합성 데이터의 공용 데모 금고라 로그인이 필요 없어요."])},
   {page: "/", el: ["#sellnow [data-sell].primary", "#sellnow [data-sell]"], click: true, base: () => tourMaxMine(),
-    t: T(["Sell to a buyer", "Each card is an open buyer request your data already fits: who is buying, for what purpose, your minimum and their budget. Click “Ask agent to sell”: this queues a real sale."],
-         ["구매자에게 팔기", "각 카드는 내 데이터가 맞는 구매 요청이에요: 누가, 어떤 용도로, 내 최저가와 구매자 예산. “Ask agent to sell”을 누르면 실제 판매가 대기열에 들어가요."])},
-  {page: "/", el: ["#ledger"], wait: tourSaleDone,
-    t: T(["Watch the agents negotiate", "This is live. Before any price talk the agents match conditions: enough records, the right fields and period, an allowed purpose. Then they trade offers; GPT talks, code enforces your floor and the buyer's budget. The guide moves on by itself when your deal settles on the ledger."],
-         ["에이전트 협상 보기", "실시간이에요. 가격 전에 조건부터 맞춰요: 레코드 수, 필드, 기간, 허용 용도. 그다음 가격을 주고받아요. 말은 GPT, 규칙은 코드가 지켜요. 거래가 원장에서 정산되면 가이드가 자동으로 넘어가요."])},
+    t: T(["Sell to a buyer", "Each card is a buyer who wants data you have, with their purpose and budget. Click “Ask agent to sell” to start a real sale."],
+         ["구매자에게 팔기", "각 카드는 내 데이터를 원하는 구매자예요. 용도와 예산이 적혀 있어요. “Ask agent to sell”을 눌러 실제 판매를 시작하세요."])},
+  {page: "/", el: () => tourMine() || document.querySelector("#agentQueue"), wait: tourSaleDone,
+    t: T(["Your agent is negotiating", "This is your sale, live. The two agents first check the data fits, then agree on a price. The guide moves on when it's paid, or tells you why it wasn't.",
+          "Before any price talk the agents match conditions: enough records, the right fields and period, an allowed purpose. GPT writes the messages; code enforces your floor price and the buyer's budget."],
+         ["에이전트가 협상 중", "지금 진행 중인 내 판매예요. 두 에이전트가 데이터가 맞는지 확인하고 가격을 정해요. 결제되면 다음으로 넘어가고, 안 되면 이유를 알려줘요.",
+          "가격 전에 레코드 수, 필드, 기간, 허용 용도를 먼저 맞춰요. 말은 GPT가, 최저가와 예산은 코드가 지켜요."])},
   {page: "/", el: [".tx.mine.settled button", ".tx.settled button"], click: true,
-    t: T(["Open your settled deal", "Your deal is the top purple row marked “You sold”. Click it to open its full record: the negotiation, the checks and the ledger transactions."],
-         ["정산된 내 거래 열기", "맨 위 “You sold” 보라색 줄이 방금 거래예요. 눌러서 협상, 검증, 원장 트랜잭션 전체를 보세요."])},
-  {page: "/", el: ["#dlgBody a[href*='xrpl.org']", "#dlgBody"], dialog: true,
-    t: T(["Settled on the XRPL Testnet", "The buyer checked the intake signature and a Merkle proof of a sampled record, then locked the payment in an XRPL escrow whose condition is SHA-256(K), with CancelAfter of one hour. The seller's EscrowFinish reveals K: that releases the money and lets the buyer decrypt the data in the same transaction. Click a link to see it on the Testnet explorer."],
-         ["XRPL Testnet 정산", "구매자가 인테이크 서명과 Merkle 샘플 증명을 확인하고, 조건 SHA-256(K)·CancelAfter 1시간인 에스크로에 돈을 잠가요. 판매자의 EscrowFinish가 K를 공개하면 같은 트랜잭션에서 돈이 풀리고 구매자는 데이터를 복호화해요. 링크를 누르면 Testnet 탐색기에서 보여요."])},
+    t: T(["Open the receipt", "Click a purple “You sold” row to open the deal's receipt."],
+         ["영수증 열기", "보라색 “You sold” 줄을 눌러 거래 영수증을 여세요."])},
+  {page: "/", el: ["#dlgBody .receipt-tx", "#dlgBody a[href*='xrpl.org']", "#dlgBody .settlement-summary"], dialog: true,
+    t: T(["Paid on XRPL", "The payment was locked on XRPL until the seller handed over the data key. Click a link to see the real transaction.",
+          "The buyer checked the intake signature and a Merkle proof of a sampled record, then locked the payment in an escrow whose condition is SHA-256(K), cancelling after one hour. The seller's EscrowFinish reveals K, which releases the money and lets the buyer decrypt the data in the same transaction."],
+         ["XRPL에서 결제", "판매자가 데이터 키를 넘길 때까지 돈이 XRPL에 잠겨 있었어요. 링크를 눌러 실제 트랜잭션을 보세요.",
+          "구매자는 인테이크 서명과 샘플 레코드의 Merkle 증명을 확인한 뒤, 조건 SHA-256(K)·1시간 후 취소인 에스크로에 돈을 잠가요. 판매자의 EscrowFinish가 K를 공개하면 같은 트랜잭션에서 돈이 풀리고 구매자는 복호화해요."])},
   {page: "/", el: ["#close"], click: true, dialog: true,
-    t: T(["Close the deal", "Click Close to go back to the market."], ["닫기", "Close를 눌러 시장으로 돌아가세요."])},
+    t: T(["Close the receipt", "Click Close."], ["닫기", "Close를 누르세요."])},
   {page: "/", el: ["nav a[href='/assets']"], click: true,
-    t: T(["Go to Assets", "Click Assets to see where the money landed."], ["Assets로 이동", "Assets를 눌러 돈이 어디로 들어왔는지 보세요."])},
+    t: T(["Where the money went", "Click Assets."], ["돈이 간 곳", "Assets를 누르세요."])},
   {page: "/assets", el: ["#activity", "#balance"],
-    t: T(["Every payment, with its receipt", "Each escrow create, finish or refund is listed with its ledger result and an explorer link. Amounts show in RLUSD; on Testnet a test USD token issued by this app stands in for RLUSD (footnote at the bottom). A member links their own XRPL wallet so sales pay straight to it."],
-         ["모든 결제와 영수증", "에스크로 생성·해제·환불이 원장 결과와 탐색기 링크와 함께 남아요. 금액은 RLUSD로 표시되고, Testnet에서는 이 앱이 발행한 test USD가 RLUSD를 대신해요(하단 주석). 회원은 자기 XRPL 지갑을 연결해 판매 대금을 바로 받아요."])},
+    t: T(["Every payment has a receipt", "Each payment and refund is listed with a link to the ledger.",
+          "Amounts show in RLUSD. On Testnet a test USD token issued by this app stands in for RLUSD (see the footnote). Members link their own XRPL wallet so sales pay straight to it."],
+         ["모든 결제에 영수증", "결제와 환불마다 원장 링크가 붙어 있어요.",
+          "금액은 RLUSD로 보여요. Testnet에서는 이 앱이 발행한 test USD가 RLUSD를 대신해요(하단 주석). 회원은 자기 XRPL 지갑을 연결해 대금을 바로 받아요."])},
   {page: "/assets", el: ["nav a[href='/vault']"], click: true,
-    t: T(["Go to My DB", "Click My DB to see the data your agent sells."], ["My DB로 이동", "My DB를 눌러 에이전트가 파는 데이터를 보세요."])},
+    t: T(["Your data", "Click My DB."], ["내 데이터", "My DB를 누르세요."])},
   {page: "/vault", el: [".sample-options summary"], click: true,
     t: T(["Add a file", "Open “Try a sample file”."], ["파일 추가", "“Try a sample file”을 여세요."])},
   {page: "/vault", el: ["#samples [data-s='1']", "#samples button"], click: true,
-    t: T(["Upload a raw file", "Click “A run with strap spikes”. Intake classifies it, blocks sensitive data (diagnoses, ID numbers, data about minors), checks values and signs the Merkle root of its records."],
-         ["원본 파일 올리기", "“A run with strap spikes”를 누르세요. 인테이크가 분류하고, 진단명·신분증 번호·미성년자 데이터는 막고, 값을 검사한 뒤 레코드 Merkle 루트에 서명해요."])},
+    t: T(["Upload a messy file", "Click “A run with strap spikes”. The app checks it and blocks anything too sensitive to sell.",
+          "Intake classifies the file, blocks sensitive data (diagnoses, ID numbers, data about minors), checks values and signs the Merkle root of its records."],
+         ["지저분한 파일 올리기", "“A run with strap spikes”를 누르세요. 앱이 검사하고 팔면 안 되는 민감한 데이터는 막아요.",
+          "인테이크가 분류하고, 진단명·신분증 번호·미성년자 데이터를 막고, 값을 검사한 뒤 레코드 Merkle 루트에 서명해요."])},
   {page: "/vault", el: ["#uploads [data-u]"], click: true,
-    t: T(["Needs cleaning", "Heart-rate spikes from a loose strap would fail buyers' quality checks. Click “Clean it” to pay the cleaning agent a small fee on the ledger; it filters the bad records."],
-         ["정리 필요", "스트랩이 헐거워 생긴 심박수 튐은 구매자 품질 검사에서 떨어져요. “Clean it”을 눌러 원장에서 소액을 내면 정리 에이전트가 불량 레코드를 걸러요."])},
+    t: T(["Clean it", "A loose strap left bad heart-rate spikes, so buyers would reject it. Click “Clean it” to pay a small fee and fix it."],
+         ["정리하기", "스트랩이 헐거워 심박수가 튀어서 구매자가 거절할 거예요. “Clean it”을 눌러 소액을 내고 고치세요."])},
   {page: "/vault", el: ["#uploads .card"], wait: () => /cleaned|passed/.test(document.querySelector("#uploads .card .tag")?.textContent || ""),
-    t: T(["Cleaned and listed", "The fee payment is a real ledger transaction (you'll find it in Assets), and the file now lists as cleaned, ready to sell."],
-         ["정리 완료", "수수료 결제는 실제 원장 트랜잭션이고(Assets에서 확인), 파일은 이제 cleaned로 등록돼 판매할 수 있어요."])},
+    t: T(["Cleaned and ready", "The fee was a real ledger payment, and the file is now ready to sell."],
+         ["정리 완료", "수수료는 실제 원장 결제였고, 이제 파일을 팔 수 있어요."])},
   {page: "/vault", el: [".buy-request summary"], click: true,
-    t: T(["Buying works the same way", "Open “Buy data for my DB”."], ["구매도 같은 방식", "“Buy data for my DB”를 여세요."])},
+    t: T(["Buying works too", "Open “Buy data for my DB”."], ["구매도 가능", "“Buy data for my DB”를 여세요."])},
   {page: "/vault", el: ["#buyForm"],
-    t: T(["Post a buy request", "Pick a kind and an offer. Your buying agent finds sellers and runs the same steps: conditions, verification, price, escrow."],
-         ["구매 요청", "종류와 가격을 고르면 구매 에이전트가 판매자를 찾아 조건 → 검증 → 가격 → 에스크로 순서로 협상해요."])},
+    t: T(["Post a buy request", "Pick a kind of data and a price. Your agent finds sellers and pays the same safe way."],
+         ["구매 요청", "데이터 종류와 가격을 고르면 에이전트가 판매자를 찾아 같은 안전한 방식으로 결제해요."])},
   {page: "/vault", el: ["nav a[href='/']"], click: true,
     t: T(["Back to the Market", "Click Market."], ["마켓으로", "Market을 누르세요."])},
   {page: "/", el: ["#agentBtn"], click: true,
     t: T(["Your agent's rules", "Click Settings."], ["에이전트 규칙", "Settings를 누르세요."])},
   {page: "/", el: ["#agentDlg .agent-dlg-body", "#agents"], dialog: true,
-    t: T(["Floor, purposes, approval", "Slide to set the minimum price your agent will accept, tap chips to switch off purposes you never sell to (insurance pricing, ads, resale), and choose whether it sells on its own or asks you first."],
-         ["최저가 · 용도 · 승인", "슬라이더로 최저가를, 칩으로 팔지 않을 용도(보험료 산정, 광고, 재판매)를, 그리고 혼자 팔지 먼저 물어볼지를 정해요."])},
+    t: T(["You set the rules", "Set the lowest price you accept, turn off purposes you never sell to, and choose whether it asks you first."],
+         ["규칙은 내가", "받을 최저가, 절대 팔지 않을 용도, 먼저 물어볼지를 정해요."])},
   {page: "/", el: ["#agentClose"], click: true, dialog: true, t: T(["Close Settings", "Click Close."], ["닫기", "Close를 누르세요."])},
   {page: "/", el: ["#chat"],
-    t: T(["Talk to your agent", "Ask in plain words: “what can I sell?”, “set my sleep floor to 5”, “I need air-quality data”. The agent proposes; nothing happens until you press its button."],
-         ["에이전트와 대화", "“뭘 팔 수 있어?”, “수면 최저가 5로”, “공기질 데이터 필요해”처럼 말해보세요. 에이전트는 제안만 하고, 버튼을 눌러야 실행돼요."])},
+    t: T(["Talk to your agent", "Ask in plain words, like “what can I sell?”. It suggests; nothing happens until you press its button."],
+         ["에이전트와 대화", "“뭘 팔 수 있어?”처럼 말해보세요. 제안만 하고, 버튼을 눌러야 실행돼요."])},
   {page: "/", el: [".help-btn"],
-    t: T(["That's the whole loop", "Press ? on any screen for a short explanation of it. “Judge walkthrough ▶” replays this tour."],
-         ["끝", "어느 화면에서든 ?를 누르면 그 화면 설명이 나와요. “Judge walkthrough ▶”로 이 투어를 다시 볼 수 있어요."])},
+    t: T(["That's it", "Press ? on any screen for help. “Judge walkthrough ▶” replays this tour."],
+         ["끝", "어느 화면에서든 ?를 누르면 도움말이 나와요. “Judge walkthrough ▶”로 다시 볼 수 있어요."])},
 ];
-function tourMaxMine() { return Math.max(0, ...[...document.querySelectorAll(".tx.mine button[data-c]")].map(b => +b.dataset.c)); }
-function tourSaleDone() {   // true once a deal of yours newer than the click has settled; a failed one shows why
+function tourMaxMine() {   // the newest of your sale instructions (R…) before the click, so the guide follows the one you just started
+  return Math.max(0, ...[...document.querySelectorAll("#agentQueue .queue-item time")].map(t => +(t.textContent.match(/R(\d+)/) || [0, 0])[1]));
+}
+let tourIdle = 0;
+function tourMine() {
   const base = +(tourGet("vm_tour_base") || 0);
-  const row = [...document.querySelectorAll(".tx.mine button[data-c]")].find(b => +b.dataset.c > base)?.closest(".tx");
-  if (!row) return false;
-  if (row.classList.contains("settled")) return true;
-  if (row.querySelector(".amt.failure")) return "fail";
-  return false;
+  return [...document.querySelectorAll("#agentQueue .queue-item")].find(q => +(q.querySelector("time")?.textContent.match(/R(\d+)/) || [0, 0])[1] > base);
+}
+function tourSaleDone() {   // the real outcome of your instruction: true when settled, {reason} when not sold, {live} while it runs
+  const item = tourMine();
+  if (!item) return {live: tourLang === "ko" ? "판매 요청을 대기열에 넣는 중…" : "Queuing your sale…"};
+  const tag = item.querySelector(".tag")?.textContent || "", why = item.querySelector("p")?.textContent || "";
+  if (tag === "Settled") return true;
+  if (tag === "Not sold" || tag === "Blocked by your terms") return {reason: why || tag};
+  if (tag === "Waiting for a buyer") {   // no buyer fits right now: that is the outcome, say so after a short look
+    tourIdle = (tourIdle || 0) + 1;
+    if (tourIdle > 25) { tourIdle = 0; return {reason: why || tag}; }
+  } else tourIdle = 0;
+  return {live: `${tag}${why ? " · " + why : ""}`};
 }
 const PAGE = {
   "/": {help: T("The Market. Left: buyer requests your data already fits. Centre: the live market, one negotiation at a time, with recent outcomes. Right: your agent's chat. Settings holds the floor price, blocked purposes and approval mode. Purple rows are your deals.",
@@ -120,9 +139,25 @@ function tourGo(i) {
   tourSet("vm_tour", JSON.stringify({...st, i}));
   if (location.pathname !== steps[i].page) location.href = steps[i].page; else tourShow();
 }
+function tourPlace(el, left, top) {   // position:fixed, corrected for a transformed ancestor (an open dialog) that shifts it
+  Object.assign(el.style, {left: `${left}px`, top: `${top}px`});
+  const r = el.getBoundingClientRect();
+  if (Math.abs(r.left - left) > 1 || Math.abs(r.top - top) > 1) Object.assign(el.style, {left: `${2 * left - r.left}px`, top: `${2 * top - r.top}px`});
+}
+function tourRect(el) {   // the part of el actually on screen: clipped by every scrolling ancestor and the viewport
+  let {left, top, right, bottom} = el.getBoundingClientRect();
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    if (!/(auto|scroll|hidden)/.test(getComputedStyle(p).overflow + getComputedStyle(p).overflowY)) continue;
+    const q = p.getBoundingClientRect();
+    left = Math.max(left, q.left); top = Math.max(top, q.top); right = Math.min(right, q.right); bottom = Math.min(bottom, q.bottom);
+  }
+  left = Math.max(left, 0); top = Math.max(top, 0); right = Math.min(right, innerWidth); bottom = Math.min(bottom, innerHeight);
+  return {left, top, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top)};
+}
 function tourFind(s) {
   const root = s.dialog ? document.querySelector("dialog[open]") : document;
   if (!root) return null;
+  if (typeof s.el === "function") { const e = s.el(); return e && e.getClientRects().length ? e : null; }
   return s.el.map(q => root.querySelector(q)).find(e => e && e.getClientRects().length);
 }
 function tourShow() {
@@ -132,11 +167,11 @@ function tourShow() {
   if (!s) return tourEnd();
   if (location.pathname !== s.page) { location.href = s.page; return; }
   s.prep?.();
-  const [title, body] = tx(s.t);
+  const [title, body, more] = tx(s.t);
   const host = document.querySelector("dialog[open]") || document.body;   // inside an open modal, or it would be inert
   host.insertAdjacentHTML("beforeend", `<div class="coach-box" aria-hidden="true"></div><div class="coach" role="dialog" aria-label="Guide">
     <div class="coach-row"><span class="coach-n">Step ${st.i + 1} / ${steps.length}</span><button type="button" class="coach-lang">${tourLang === "ko" ? "EN" : "한국어"}</button></div>
-    <h3>${esc(title)}</h3><p>${esc(body)}</p>
+    <h3>${esc(title)}</h3><p>${esc(body)}</p>${more ? `<details class="coach-more"><summary>${tourLang === "ko" ? "작동 방식" : "How it works"}</summary><p>${esc(more)}</p></details>` : ""}
     <div class="coach-row"><button type="button" class="coach-skip">${tourLang === "ko" ? "건너뛰기" : "Skip"}</button><span>${st.i ? `<button type="button" class="coach-back">${tourLang === "ko" ? "이전" : "Back"}</button>` : ""}${s.wait ? `<span class="coach-wait">${tourLang === "ko" ? "실제 이벤트를 기다리는 중…" : "Waiting for the real event…"}</span>` : s.click ? `<span class="coach-hint">${tourLang === "ko" ? "강조된 버튼을 누르세요 ↗" : "Click the highlighted element"}</span>` : `<button type="button" class="primary coach-next">${st.i === steps.length - 1 ? (tourLang === "ko" ? "완료" : "Done") : (tourLang === "ko" ? "다음" : "Next")}</button>`}</span></div></div>`);
   const card = host.querySelector(".coach"), box = host.querySelector(".coach-box");
   card.querySelector(".coach-skip").onclick = tourEnd;
@@ -151,15 +186,22 @@ function tourShow() {
       if (++missing === 6 && s.click) card.querySelector(".coach-hint")?.replaceWith(Object.assign(document.createElement("button"), {type: "button", className: "primary", textContent: tourLang === "ko" ? "다음" : "Next", onclick: () => tourGo(st.i + 1)}));
       return;
     }
-    if (!scrolled) { t.scrollIntoView({block: "center"}); scrolled = true; }
-    const r = t.getBoundingClientRect(), pad = 6;
+    let r = tourRect(t);
+    if (!scrolled || r.height < 4) {   // bring the target to the middle of the screen (inside its own scroller too)
+      t.scrollIntoView({block: t.offsetHeight > innerHeight * 0.8 ? "start" : "center", inline: "nearest"}); scrolled = true; r = tourRect(t);
+    }
+    const pad = 6, vw = innerWidth, vh = innerHeight, m = 12;
     box.hidden = false; card.classList.remove("coach-float");
-    Object.assign(box.style, {left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px`});
-    const cw = card.offsetWidth, ch = card.offsetHeight, vw = innerWidth, vh = innerHeight;
-    let top = r.bottom + 14, left = Math.min(Math.max(12, r.left), vw - cw - 12);
-    if (top + ch > vh - 12) top = r.top - ch - 14;
-    if (top < 12) { top = Math.min(Math.max(12, r.top), vh - ch - 12); left = r.right + 14 + cw < vw ? r.right + 14 : Math.max(12, r.left - cw - 14); }
-    Object.assign(card.style, {left: `${left}px`, top: `${top}px`});
+    tourPlace(box, r.left - pad, r.top - pad); Object.assign(box.style, {width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px`});
+    const cw = card.offsetWidth, ch = card.offsetHeight;
+    let left, top;
+    if (vh < 560 || ch > vh - 2 * m) { left = (vw - cw) / 2; top = vh - ch - m; }                     // short screen: dock at the bottom
+    else if (r.right + 14 + cw <= vw - m) { left = r.right + 14; top = r.top + r.height / 2 - ch / 2; }   // beside, right
+    else if (r.left - 14 - cw >= m) { left = r.left - 14 - cw; top = r.top + r.height / 2 - ch / 2; }     // beside, left
+    else if (r.bottom + 14 + ch <= vh - m) { left = r.left + r.width / 2 - cw / 2; top = r.bottom + 14; } // below
+    else if (r.top - 14 - ch >= m) { left = r.left + r.width / 2 - cw / 2; top = r.top - 14 - ch; }       // above
+    else { left = (vw - cw) / 2; top = vh - ch - m; }
+    tourPlace(card, Math.min(Math.max(m, left), vw - cw - m), Math.min(Math.max(m, top), vh - ch - m));
   };
   let waited = 0;
   const tick = () => {
@@ -168,9 +210,18 @@ function tourShow() {
     if (!s.wait) return;
     const done = s.wait(); waited++;
     const w = card.querySelector(".coach-wait"); if (!w) return;
+    if (done && done.live) { w.textContent = done.live; w.classList.add("coach-live"); box.classList.add("coach-pulse"); return; }
     if (done === true) { clearInterval(tourTimer); w.textContent = tourLang === "ko" ? "완료 ✓" : "Done ✓"; setTimeout(() => tourGo(st.i + 1), 900); }
-    else if (done === "fail" || waited === 450) {   // not sold this time, or three minutes passed: let the visitor go on
-      w.replaceWith(Object.assign(document.createElement("button"), {type: "button", className: "primary", textContent: done === "fail" ? (tourLang === "ko" ? "이번엔 거절됨 · 다음" : "Not sold this time · Next") : (tourLang === "ko" ? "다음" : "Next"), onclick: () => tourGo(st.i + 1)}));
+    else if (done && done.reason) {   // not sold: say why, from the recorded reason, and let the judge retry or go on
+      clearInterval(tourTimer);
+      const ko = tourLang === "ko", box = document.createElement("div");
+      box.className = "coach-fail";
+      const b = document.createElement("p"); b.innerHTML = `<b>${ko ? "이번엔 안 팔렸어요" : "Not sold this time"}</b>: `; b.append(done.reason);
+      const h = Object.assign(document.createElement("p"), {className: "small", textContent: ko ? "실제 협상이라 거절도 결과예요. Settings에서 최저가를 낮추거나 다른 요청으로 다시 해보세요." : "This is a real negotiation, so a refusal is a real outcome. Lower your floor in Settings, or try another request."});
+      const row = document.createElement("span");
+      row.append(Object.assign(document.createElement("button"), {type: "button", textContent: ko ? "다른 요청으로 다시" : "Try another request", onclick: () => tourGo(st.i - 1)}),
+                 Object.assign(document.createElement("button"), {type: "button", className: "primary", textContent: ko ? "계속" : "Continue", onclick: () => tourGo(st.i + 1)}));
+      box.append(b, h, row); w.replaceWith(box); place();
     }
   };
   tick(); tourTimer = setInterval(tick, 400);

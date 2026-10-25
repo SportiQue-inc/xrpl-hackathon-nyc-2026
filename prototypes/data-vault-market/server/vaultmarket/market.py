@@ -324,7 +324,8 @@ class Market:
         return self.s.one("SELECT * FROM sale_queue WHERE id=?", (qid,))
 
     def process_sale_queue(self) -> bool:
-        q = self.s.one("SELECT * FROM sale_queue WHERE status IN ('queued','waiting') AND updated<? ORDER BY id LIMIT 1", (time.time()-15,))
+        # newest instruction first: on the shared demo vault a visitor's click shouldn't wait behind everyone else's
+        q = self.s.one("SELECT * FROM sale_queue WHERE status IN ('queued','waiting') AND updated<? ORDER BY (status='queued') DESC, id DESC LIMIT 1", (time.time()-15,))
         if not q:
             return False
         a = self.acct(q["account"])
