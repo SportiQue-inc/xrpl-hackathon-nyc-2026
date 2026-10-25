@@ -134,14 +134,21 @@ class PersonalVaultConnector:
         # Synthetic integrity test cases only: replay another person's series, or fabricate survey scores.
         self.copied_from: str | None = None
         self.fabricate = False
+        import os
+        self._secret = os.urandom(32)          # per-vault key for pseudonym and date shift
+
+    def _mac(self, msg: str) -> str:
+        """Keyed with a secret that never leaves this vault, so nobody who knows the person's id and the
+        study id can recompute the pseudonym or the date shift."""
+        import hashlib
+        import hmac
+        return hmac.new(self._secret, msg.encode(), hashlib.sha256).hexdigest()
 
     def pseudonym(self, study: str) -> str:
-        import hashlib
-        return "S-" + hashlib.sha256(f"{study}|{self.person.id}".encode()).hexdigest()[:8]
+        return "S-" + self._mac(f"pseudonym|{study}")[:8]
 
     def day_shift(self, study: str) -> int:
-        import hashlib
-        return int(hashlib.sha256(f"shift|{study}|{self.person.id}".encode()).hexdigest(), 16) % 90 + 30
+        return int(self._mac(f"shift|{study}"), 16) % 90 + 30
 
     def timeline(self, weeks: list[int]) -> dict:
         """Which items each source holds per week (no values): what the person's agent can offer."""

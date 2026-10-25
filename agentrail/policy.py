@@ -174,10 +174,11 @@ class PersonalConsentPolicy:
             c = self._consent(buyer_id)
         except ConsentStoreUnavailable as e:
             return Decision(HOLD, reason=f"held: {e}")
-        if not for_delivery:
-            kept, why = self.compliance.check(buyer_id, purpose, fields)
-            if why:
-                return Decision(DENY, reason=why)
+        # Compliance runs again right before delivery: a credential lost or a rule tightened after the
+        # order was placed stops the key.
+        kept, why = self.compliance.check(buyer_id, purpose, fields)
+        if why:
+            return Decision(DENY, reason=why)
         if c is None:
             return Decision(DENY, reason="no consent for this institution")
         v = f"consent-v{c['version']}:{c['doc_hash'][:16]}"
@@ -185,6 +186,8 @@ class PersonalConsentPolicy:
             return Decision(DENY, reason="data access consent revoked", policy_version=v)
         if for_delivery and self.licence_check and self.licence_check(buyer_id) is False:
             return Decision(DENY, reason="data licence clawed back on the ledger", policy_version=v)
+        if week is not None and not (c["period_from"] <= week <= c["period_to"]):
+            return Decision(DENY, reason="outside the consented period", policy_version=v)
         if for_delivery:
             # Already paid: pausing stops new orders, not committed deliveries.
             return Decision(ALLOW, granted=list(fields), policy_version=v)

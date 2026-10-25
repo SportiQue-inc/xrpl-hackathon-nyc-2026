@@ -344,6 +344,9 @@ class PersonalAgent:
         with st.tx() as c:
             cur = dict(c.execute("SELECT * FROM consents WHERE person_id=? AND buyer_id=?",
                                  (self.id, buyer_id)).fetchone())
+            if cur["status"] == "revoked":
+                # A revoked consent never comes back by a status flip; only a new signed consent (set_consent).
+                raise ValueError("consent was revoked; a new signed consent is needed")
             items = changes.pop("items", None) or json.loads(cur["items"])
             cur.update(changes)
             return self._write_consent(c, buyer_id, cur["purpose"], items, (cur["period_from"], cur["period_to"]),

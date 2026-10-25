@@ -175,7 +175,11 @@ def approve(w, signers: list[str]) -> dict:
     s = ensure(w)
     if s.status != "draft":
         return {"ok": False, "message": "no draft spec to approve"}
-    addrs = [s.signers.get(x) or w.engine.party(LAB)["address"] for x in signers]
+    unknown = [x for x in signers if x not in s.signers]
+    if unknown:
+        return {"ok": False, "engine_result": "unknown_signer", "signers": signers,
+                "message": f"not on the treasury's signer list: {', '.join(unknown)}"}
+    addrs = [s.signers[x] for x in signers]
     amount = s.needs.budget_drops / XRP
     h = top_up(w, LAB, amount, addrs, treasury=s.treasury)
     if not h:
@@ -379,8 +383,14 @@ def sweep(w) -> dict:
     return {"refunded": w.engine.sweep()}
 
 
+class Gone(Exception):
+    """The participant withdrew and the study destroyed its copy."""
+
+
 def open_bundle(w, oid: int) -> dict:
     o = w.store.one("SELECT * FROM orders WHERE id=?", oid)
+    if o is not None and o["seller_id"] in getattr(ensure(w), "withdrawn", set()):
+        raise Gone(f"order {oid}: the participant withdrew and the study's copy was destroyed")
     p = w.store.one("SELECT finish_tx FROM payments WHERE order_id=?", oid)
     if o is None or o["status"] != "delivered":
         return {"ok": False, "message": "not delivered: the key is not on the ledger"}
@@ -510,8 +520,16 @@ def participant_view(w, pid: str) -> dict:
     }
 
 
-def preview(w, pid: str, rid: int) -> dict:
+def _own_request(w, pid: str, rid: int) -> dict:
+    """A participant can see and answer only their own requests (unknown or someone else's -> 404)."""
     req = ensure(w).requests[rid]
+    if req["person"] != pid:
+        raise KeyError(f"request {rid}")
+    return req
+
+
+def preview(w, pid: str, rid: int) -> dict:
+    req = _own_request(w, pid, rid)
     pa = w.cohort_people[pid]
     card = request_card(w, req)
     ok = [i["item"] for i in card["items"] if i["class"] != "blocked"]
@@ -521,11 +539,11 @@ def preview(w, pid: str, rid: int) -> dict:
             "rows": rows[:14], "row_count": len(rows),
             "withheld_items": [i["item"] for i in card["items"] if i["class"] == "blocked"],
             "not_included": [i for i in pa.vault.ITEMS if i not in ok],
-            "sealed_for": LAB, "operator_can_open": False}
+            "sealed_for": LAB}
 
 
 def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool = True) -> dict:
-    req = ensure(w).requests[rid]
+    req = _own_request(w, pid, rid)
     pa = w.cohort_people[pid]
     asked = {wk: [i for i in its if i in items] for wk, its in req["weeks"].items()}
     req["weeks_approved"] = {wk: its for wk, its in asked.items() if its}
@@ -550,7 +568,7 @@ def participant_approve(w, pid: str, rid: int, items: list[str], hold_last: bool
 
 def participant_decline(w, pid: str, rid: int) -> dict:
     """Withdrawal 1: decline this round. Nothing leaves the device, nothing reaches the ledger."""
-    req = ensure(w).requests[rid]
+    req = _own_request(w, pid, rid)
     pa = w.cohort_people[pid]
     with w.store.tx() as c:
         c.execute("UPDATE approval_requests SET status='decided', decided_items='[]' WHERE person_id=? AND "
@@ -670,7 +688,7 @@ def study_view(w) -> dict:
             paid += o["price_drops"]
         if o["cancel_tx"]:
             refunded += o["price_drops"]
-        contribs.append({"order_id": o["id"], "person": pid,
+        contribs.append({"order_id": o["id"],
                          "pseudonym": w.cohort_people[pid].vault.pseudonym(LAB),
                          "weeks": [int(x.split(":")[0][1:]) for x in rest.split(",")],
                          "amount_xrp": o["price_drops"] / XRP, "status": o["status"],
@@ -690,7 +708,7 @@ def study_view(w) -> dict:
         "approval": s.approval, "responses": resp, "contributions": contribs,
         "licences": {k: {"mpt_id": v["mpt_id"], "clawed_back": bool(v["clawback"])} for k, v in s.licences.items()},
         "settlement": {"paid_xrp": paid / XRP, "refunded_xrp": refunded / XRP,
-                       "people_paid": len({c["person"] for c in contribs if c["status"] == "delivered"}),
+                       "people_paid": len({c["pseudonym"] for c in contribs if c["status"] == "delivered"}),
                        "export_fees_xrp": sum(x["amount_xrp"] for x in s.export_fees)},
         "payout": payout.view(w, LAB),
     }

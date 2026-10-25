@@ -104,6 +104,10 @@ def _call(fn, *a, **k):
             return fn(w, *a, **k)
         except KeyError as e:
             raise HTTPException(404, f"not found: {e}")
+        except study.Gone as e:
+            raise HTTPException(410, str(e))
+        except ValueError as e:
+            raise HTTPException(409, str(e))
 
 
 @app.get("/api/events")

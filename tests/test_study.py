@@ -152,7 +152,8 @@ def test_api_drives_both_pages_on_one_engine():
     assert c.get(f"/api/p/{HERO}/preview", params={"request": rid}).json()["rows"]
     c.post(f"/api/p/{HERO}/requests/{rid}/approve", json={"items": ["fatigue.survey"]})
     seen = c.get("/api/study").json()["contributions"]
-    assert any(x["person"] == HERO and x["weeks"] == [3] for x in seen)     # the console sees it
+    assert any(x["pseudonym"] == p["person"]["study_pseudonym"] and x["weeks"] == [3] for x in seen)
+    assert all("person" not in x for x in seen)                           # the console sees the pseudonym only
     assert c.get("/api/events", params={"after": 0}).json()["last"] > 0
     oid = next(x["order_id"] for x in seen if x["status"] == "delivered")
     assert c.get(f"/api/study/bundle/{oid}").json()["hash_matches"]
@@ -184,3 +185,50 @@ def test_per_person_reading_drops_items_no_source_holds(w):
     claim = lambda system, payload: {"missing": [{"week": 6, "item": "blood_pressure.daily", "reason": "x"}]}
     out = person_gaps(w.store, LAB, w.coverage, HERO, claim, {6: ["sleep.daily"]}, True)
     assert out[0]["verdict"] == "removed" and "sources" in out[0]["code_reason"]
+
+
+def test_a_participant_cannot_answer_someone_elses_request(w):
+    sent(w)
+    rid = study.participant_view(w, HERO)["requests"][0]["id"]
+    other = next(p for p in w.cohort_people if p != HERO)
+    for call in (lambda: study.preview(w, other, rid), lambda: study.participant_decline(w, other, rid),
+                 lambda: study.participant_approve(w, other, rid, ["fatigue.survey"])):
+        with pytest.raises(KeyError):
+            call()
+
+
+def test_revoked_consent_cannot_be_flipped_back(w):
+    sent(w)
+    study.participant_revoke(w, HERO)
+    with pytest.raises(ValueError):
+        study.participant_pause(w, HERO, resume=True)
+    assert w.store.one("SELECT status FROM consents WHERE person_id=? AND buyer_id=?", HERO, LAB)["status"] == "revoked"
+
+
+def test_unknown_signer_name_is_refused(w):
+    r = study.approve(w, ["owner", "intern"])
+    assert r["ok"] is False and r["engine_result"] == "unknown_signer"
+
+
+def test_withdrawn_participants_bundle_is_gone(w):
+    sent(w)
+    rid = study.participant_view(w, HERO)["requests"][0]["id"]
+    v = study.participant_approve(w, HERO, rid, ["fatigue.survey"])
+    oid = next(c["order_id"] for c in v["contributions"] if c["status"] == "delivered")
+    study.participant_revoke(w, HERO)
+    with pytest.raises(study.Gone):
+        study.open_bundle(w, oid)
+
+
+def test_pseudonym_needs_the_vault_secret(w):
+    import hashlib
+    v = w.cohort_people[HERO].vault
+    assert v.pseudonym(LAB) != "S-" + hashlib.sha256(f"{LAB}|{HERO}".encode()).hexdigest()[:8]
+    assert v.pseudonym(LAB) == v.pseudonym(LAB)
+
+
+def test_compliance_runs_again_before_delivery(w):
+    pa = w.cohort_people[HERO]
+    pa.policy.compliance.verified_check = lambda buyer: False      # credential lost after the order
+    d = pa.policy.evaluate(LAB, "sleep_research", ["sleep.daily"], study.CELL_PRICE, 4, for_delivery=True)
+    assert d.status == "deny"

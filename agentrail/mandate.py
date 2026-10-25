@@ -80,7 +80,8 @@ class MandateChain:
 
     def issue_from(self, mandate_row, store=None):
         """Owner signs the current mandate (after a co-signed budget change, for example)."""
-        self.issue(max(self.ceiling_drops, mandate_row["total_drops"]), mandate_row["per_order_limit_drops"],
+        # The issuer's ceiling (L1) is fixed when the chain is set up; a raised budget row cannot lift it.
+        self.issue(self.ceiling_drops, mandate_row["per_order_limit_drops"],
                    mandate_row["total_drops"], json.loads(mandate_row["purposes"]), self.payees)
         if store is not None:
             store.log(self.buyer_id, "mandate", f"owner signed the agent's delegation: up to "
