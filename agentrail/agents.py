@@ -79,7 +79,7 @@ class BuyerAgent:
         self.log = lambda kind, msg, data=None: engine.store.log(party_id, kind, msg, data)
 
     def procure(self, goal: Goal, sellers: list[SellerAgent]) -> dict:
-        self.log("goal", f"goal: {goal.text}")
+        self.log("goal", f"goal: {goal.text} (mandate: {self.engine.available_drops(self.id) / 1e6:g} XRP available)")
         cands: list[Candidate] = []
         for s in sellers:
             for prod in s.catalog():

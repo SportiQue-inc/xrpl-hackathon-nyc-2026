@@ -37,6 +37,9 @@ def run(scene: str, budget: float | None = None):
     with _lock:
         if scene == "a":
             r = scenario.scene_a(w, budget)
+        elif scene == "a-guarded":
+            r = scenario.scene_a_guarded(w)
+            scene = "a"
         elif scene == "b":
             r = scenario.scene_b(w)
         elif scene == "c":
@@ -61,8 +64,10 @@ def state():
         o["scope"] = json.loads(o["scope"])
         o["policy_snapshot"] = json.loads(o["policy_snapshot"])
     accounts = {}
-    for pid in ("org_robodev", "org_sleeplab"):
-        p = w.engine.party(pid)
+    named = {pid: w.engine.party(pid)["address"] for pid in ("org_robodev", "org_sleeplab")}
+    named["org_robodev treasury"] = w.treasury
+    for pid, address in named.items():
+        p = {"address": address}
         try:
             accounts[pid] = {"address": p["address"], **w.ledger.account_settings(p["address"])}
         except Exception as e:  # network hiccup should not break the page

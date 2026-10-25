@@ -95,14 +95,23 @@ class ComplianceRules:
     It can only narrow what consent allows, never widen it."""
     prohibited_purposes: list[str] = field(default_factory=lambda: [
         "insurance_pricing", "employment_screening", "marketing_profiling"])
-    # buyers registered with an ethics review for sensitive items
+    # buyers registered with an ethics review for sensitive items (static fallback)
     ethics_approved_buyers: list[str] = field(default_factory=list)
+    # preferred: look the approval up on the ledger (XRPL Credential issued by an ethics board)
+    credential_check: object = None
+
+    def ethics_approved(self, buyer_id: str) -> bool:
+        if buyer_id in self.ethics_approved_buyers:
+            return True
+        return bool(self.credential_check and self.credential_check(buyer_id))
 
     def check(self, buyer_id: str, purpose: str, fields: list[str]) -> tuple[list[str], str | None]:
         """Returns (fields allowed to proceed, denial reason or None)."""
         if purpose in self.prohibited_purposes:
             return [], f"purpose '{purpose}' is prohibited by the compliance layer"
-        if buyer_id not in self.ethics_approved_buyers:
+        if not any(SENSITIVITY.get(f) == "sensitive" for f in fields):
+            return list(fields), None
+        if not self.ethics_approved(buyer_id):
             kept = [f for f in fields if SENSITIVITY.get(f) != "sensitive"]
             return kept, None
         return list(fields), None
@@ -171,7 +180,7 @@ class PersonalConsentPolicy:
                 granted.append(f)
         notes = []
         if filtered:
-            notes.append(f"{', '.join(filtered)} filtered (sensitive; buyer has no ethics approval)")
+            notes.append(f"{', '.join(filtered)} filtered (sensitive; no ethics credential on ledger)")
         if pending:
             notes.append(f"{', '.join(pending)} wait for the person")
         reason = "; ".join(notes)

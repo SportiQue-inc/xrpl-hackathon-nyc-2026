@@ -24,6 +24,9 @@ class MockLedger(Ledger):
         self.lose_next_response = False   # apply, then raise LostResponse
         self.drop_next_submit = False     # raise LostResponse without applying
         self.submit_calls = 0
+        self.credentials: set[tuple[str, str, str]] = set()
+        self.signer_lists: dict[str, tuple[list[str], int]] = {}
+        self.master_disabled: set[str] = set()
 
     def new_account(self, label: str) -> str:
         addr = "r" + hashlib.sha256(label.encode()).hexdigest()[:24]
@@ -76,7 +79,40 @@ class MockLedger(Ledger):
         return self.balances.get(address, 0)
 
     def account_settings(self, address: str) -> dict:
-        return {"network": "mock", "multisig": False, "master_disabled": False}
+        return {"network": "mock", "multisig": address in self.signer_lists,
+                "master_disabled": address in self.master_disabled}
+
+    def _fake_tx(self, kind: str, **fields) -> str:
+        self.ledger_index += 1
+        h = hashlib.sha256(json.dumps([kind, fields, self.ledger_index], sort_keys=True).encode()).hexdigest().upper()
+        self.txs[h] = {"TransactionType": kind, **fields, "result": "tesSUCCESS", "ledger_index": self.ledger_index,
+                       "Destination": fields.get("Destination"), "Amount": fields.get("Amount", "0"),
+                       "InvoiceID": None}
+        return h
+
+    def new_keypair(self, label: str) -> str:
+        return "r" + hashlib.sha256(("key:" + label).encode()).hexdigest()[:24]
+
+    def issue_credential(self, issuer, subject, cred_type):
+        self.credentials.add((subject, issuer, cred_type))
+        return [self._fake_tx("CredentialCreate", Account=issuer, Subject=subject),
+                self._fake_tx("CredentialAccept", Account=subject, Issuer=issuer)]
+
+    def has_credential(self, subject, issuer, cred_type):
+        return (subject, issuer, cred_type) in self.credentials
+
+    def setup_multisig(self, account, signers, quorum):
+        self.signer_lists[account] = (list(signers), quorum)
+        self.master_disabled.add(account)
+        return [self._fake_tx("SignerListSet", Account=account), self._fake_tx("AccountSet", Account=account)]
+
+    def multisig_payment(self, source, destination, amount_drops, signers, memo=""):
+        listed, quorum = self.signer_lists[source]
+        if len(set(signers) & set(listed)) < quorum:
+            raise RuntimeError("tefBAD_QUORUM: not enough valid signers")
+        self.balances[source] -= amount_drops
+        self.balances[destination] = self.balances.get(destination, 0) + amount_drops
+        return self._fake_tx("Payment", Account=source, Destination=destination, Amount=str(amount_drops))
 
     def payment_count(self) -> int:
-        return sum(1 for t in self.txs.values() if t["result"] == "tesSUCCESS")
+        return sum(1 for t in self.txs.values() if t["result"] == "tesSUCCESS" and t.get("InvoiceID"))

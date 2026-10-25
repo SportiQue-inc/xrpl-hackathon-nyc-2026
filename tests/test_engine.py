@@ -229,3 +229,26 @@ def test_scene_a_selects_b_and_c_within_budget(w):
     assert res["spent_xrp"] == 35 and res["remaining_xrp"] == 15
     b1 = [c for c in res["candidates"] if c["product"] == "B1"][0]
     assert b1["refused_fields"] == ["raw_video"]
+
+
+# XRPL-native controls
+def test_sensitive_items_follow_the_ledger_credential(w):
+    from agentrail.scenario import ETHICS_CREDENTIAL
+    pa = w.people["P017"]
+    pa.set_consent("org_adtech", "sleep_research", STANDARD_ITEMS + ["blood_pressure.daily"], automation="auto_all")
+    d = pa.policy.evaluate("org_adtech", "sleep_research", ["blood_pressure.daily"], XRP, week=1)
+    assert not d.ok
+    w.ledger.issue_credential(w.engine.party("org_ethics")["address"], w.engine.party("org_adtech")["address"],
+                              ETHICS_CREDENTIAL)
+    d = pa.policy.evaluate("org_adtech", "sleep_research", ["blood_pressure.daily"], XRP, week=1)
+    assert d.granted == ["blood_pressure.daily"]
+
+
+def test_agent_cannot_raise_its_own_budget_but_cosigned_top_up_can(w):
+    from agentrail.scenario import scene_a_guarded
+    res = scene_a_guarded(w)
+    assert res["status"] == "purchased" and res["spent_xrp"] == 35
+    kinds = [r["kind"] for r in w.store.q("SELECT kind FROM events WHERE scene='A'")]
+    assert "refused" in kinds and "top_up" in kinds
+    assert mandate(w, "org_robodev")["total_drops"] == 35 * XRP
+    assert w.ledger.account_settings(w.treasury) == {"network": "mock", "multisig": True, "master_disabled": True}

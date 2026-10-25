@@ -42,7 +42,8 @@
         border-bottom: 1px dashed var(--line); }
   .ev .who { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
   .k-blocked, .k-refused, .k-deny, .k-withheld, .k-conflict, .k-stop { color: var(--bad); }
-  .k-ask_person, .k-lost_response, .k-lost_delivery, .k-filter, .k-restart, .k-recover { color: var(--warn); }
+  .k-credential, .k-multisig, .k-top_up { color: var(--accent); }
+  .k-ask_person, .k-ask_human, .k-lost_response, .k-lost_delivery, .k-filter, .k-restart, .k-recover { color: var(--warn); }
   .k-paid, .k-delivered { color: var(--ok); }
   .s-delivered { color: var(--ok); } .s-blocked, .s-withheld, .s-failed { color: var(--bad); }
   code { font-size: 12px; }
@@ -97,7 +98,7 @@
 const xrp = d => (d / 1e6).toLocaleString(undefined, {maximumFractionDigits: 2});
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function act(url) { await fetch(url, {method: 'POST'}); await load(); }
-async function runAll() { for (const u of ['/api/reset', '/api/run/a', '/api/run/b', '/api/run/c']) await act(u); }
+async function runAll() { for (const u of ['/api/reset', '/api/run/a-guarded', '/api/run/b', '/api/run/c']) await act(u); }
 function table(el, cols, rows) {
   document.getElementById(el).innerHTML = '<tr>' + cols.map(c => `<th>${c[0]}</th>`).join('') + '</tr>' +
     (rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td>${c[1](r)}</td>`).join('') + '</tr>').join('')

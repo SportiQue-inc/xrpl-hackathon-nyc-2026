@@ -59,3 +59,20 @@ class Ledger:
 
     def explorer_url(self, tx_hash: str) -> str | None:
         return None
+
+    # XRPL-native controls (see xrpl_extras.py)
+    def new_keypair(self, label: str) -> str:
+        raise NotImplementedError
+
+    def issue_credential(self, issuer: str, subject: str, cred_type: str) -> list[str]:
+        raise NotImplementedError
+
+    def has_credential(self, subject: str, issuer: str, cred_type: str) -> bool:
+        raise NotImplementedError
+
+    def setup_multisig(self, account: str, signers: list[str], quorum: int) -> list[str]:
+        raise NotImplementedError
+
+    def multisig_payment(self, source: str, destination: str, amount_drops: int,
+                         signers: list[str], memo: str = "") -> str:
+        raise NotImplementedError

@@ -19,6 +19,7 @@ from .ledger import make_ledger
 from .policy import BuyerMandate, ComplianceRules, SellerPolicy
 
 XRP = 1_000_000
+ETHICS_CREDENTIAL = "ETHICS_REVIEW_SLEEP"
 
 STANDARD_ITEMS = ["sleep.daily", "activity.daily", "heart_rate.daily"]
 EXTRA_ITEMS = ["fatigue.survey", "blood_pressure.daily"]
@@ -34,6 +35,8 @@ class World:
     lab: InstitutionAgent | None = None
     people: dict = field(default_factory=dict)
     goal: Goal | None = None
+    treasury: str | None = None
+    treasury_signers: list = field(default_factory=list)
 
 
 def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
@@ -75,14 +78,28 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
     w.robot_buyer = BuyerAgent("org_robodev", engine)
     w.goal = Goal(
         text="indoor warehouse navigation data at night with LiDAR + IMU, covering dynamic obstacles "
-             "and narrow aisles, commercial training allowed, budget 50 XRP",
+             "and narrow aisles, commercial training allowed",
         purpose="commercial_training", required_fields=["lidar", "imu"], optional_fields=["raw_video"],
         required_scenarios=["night", "narrow_aisle", "dynamic_obstacle"])
+
+    # Buyer treasury controlled by multi-signing (owner + compliance officer, master key off).
+    # The agent spends only from its own account, capped by the mandate.
+    w.treasury = ledger.new_account("org_robodev_treasury")
+    w.treasury_signers = [ledger.new_keypair("robodev_owner"), ledger.new_keypair("robodev_compliance")]
+    hashes = ledger.setup_multisig(w.treasury, w.treasury_signers, quorum=2)
+    store.log("org_robodev", "multisig", "treasury: SignerList (owner + compliance, quorum 2), master key "
+              "disabled; agent spends only from its capped account", {"tx": hashes})
 
     # ----- Scene B cast -----
     party("org_sleeplab", "Northside Sleep Lab (synthetic)", "organization")
     party("org_adtech", "Ad network (synthetic)", "organization")
-    compliance = ComplianceRules(ethics_approved_buyers=["org_sleeplab"])
+    party("org_ethics", "Ethics review board (synthetic)", "organization")
+    addr = lambda pid: engine.party(pid)["address"]
+    hashes = ledger.issue_credential(addr("org_ethics"), addr("org_sleeplab"), ETHICS_CREDENTIAL)
+    store.log("org_ethics", "credential", f"issued XRPL Credential {ETHICS_CREDENTIAL} to org_sleeplab "
+              "(accepted on ledger)", {"tx": hashes, "url": ledger.explorer_url(hashes[-1])})
+    compliance = ComplianceRules(credential_check=lambda buyer: ledger.has_credential(
+        addr(buyer), addr("org_ethics"), ETHICS_CREDENTIAL))
     for pid, label in [("P017", "P017"), ("P023", "P023"), ("P031", "P031")]:
         party(pid, f"Participant {label}", "person")
         w.people[pid] = PersonalAgent(Person(pid, label), engine, compliance)
@@ -96,6 +113,36 @@ def scene_a(w: World, budget_xrp: float | None = None) -> dict:
     w.store.scene = "A"
     if budget_xrp is not None:
         w.engine.set_mandate(BuyerMandate("org_robodev", int(budget_xrp * XRP), 25 * XRP, ["commercial_training"]))
+    return w.robot_buyer.procure(w.goal, w.sellers)
+
+
+def top_up(w: World, buyer_id: str, amount_xrp: float, signers: list[str]) -> str | None:
+    """Raise an agent's budget. Only a multi-signed treasury payment can do it."""
+    try:
+        h = w.ledger.multisig_payment(w.treasury, w.engine.party(buyer_id)["address"],
+                                      int(amount_xrp * XRP), signers)
+    except Exception as e:
+        w.store.log(buyer_id, "refused", f"top-up of {amount_xrp:g} XRP rejected by the ledger: {e}")
+        return None
+    m = w.store.one("SELECT * FROM mandates WHERE buyer_id=?", buyer_id)
+    w.engine.set_mandate(BuyerMandate(buyer_id, m["total_drops"] + int(amount_xrp * XRP),
+                                      m["per_order_limit_drops"], json.loads(m["purposes"])))
+    w.store.log(buyer_id, "top_up", f"owner + compliance co-signed a {amount_xrp:g} XRP treasury top-up; "
+                f"mandate now {(m['total_drops'] / XRP) + amount_xrp:g} XRP",
+                {"tx_hash": h, "url": w.ledger.explorer_url(h)})
+    return h
+
+
+def scene_a_guarded(w: World) -> dict:
+    """Budget too small -> agent buys nothing and asks; agent alone cannot raise it;
+    owner + compliance co-sign a top-up; agent completes the purchase."""
+    first = scene_a(w, budget_xrp=30)
+    if first["status"] == "purchased":
+        return first
+    gap = 5
+    w.store.log("org_robodev", "ask_human", f"agent requests +{gap} XRP; tries to sign the top-up alone")
+    top_up(w, "org_robodev", gap, [w.engine.party("org_robodev")["address"]])   # agent key: not on the list
+    top_up(w, "org_robodev", gap, w.treasury_signers)                             # human approval
     return w.robot_buyer.procure(w.goal, w.sellers)
 
 
@@ -172,7 +219,7 @@ def summary(w: World) -> dict:
 def main():
     kind = os.environ.get("LEDGER", "mock")
     w = build_world(kind, os.environ.get("AGENTRAIL_DB", ":memory:"))
-    results = {"A": scene_a(w), "B": scene_b(w), "C": scene_c(w)}
+    results = {"A": scene_a_guarded(w), "B": scene_b(w), "C": scene_c(w)}
     for e in w.store.q("SELECT scene, actor, message FROM events ORDER BY id"):
         print(f"[{e['scene'] or '-'}] {e['actor']:<12} {e['message']}")
     print(json.dumps({"scene_c": results["C"], "summary": summary(w)}, indent=1, default=str))
