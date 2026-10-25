@@ -17,7 +17,7 @@ from xrpl.models.transactions import (Clawback, MPTokenAuthorize, MPTokenIssuanc
                                       MPTokenIssuanceCreateFlag as F, Payment)
 from xrpl.transaction import submit_and_wait
 
-from .xrpl_extras import _check
+from .xrpl_extras import _check, submit_capture
 
 LICENCE_FLAGS = F.TF_MPT_REQUIRE_AUTH | F.TF_MPT_CAN_CLAWBACK
 
@@ -59,8 +59,10 @@ class XrplLicenceMixin:
                                       self.client, self.wallets[issuer]), "Clawback")
 
     def transfer_licence(self, holder: str, to: str, mpt_id: str) -> str:
-        """Used only to show the ledger refusing onward transfer. Returns the result code."""
-        r = submit_and_wait(Payment(account=holder, destination=to,
-                                    amount=MPTAmount(mpt_issuance_id=mpt_id, value="1")),
-                            self.client, self.wallets[holder])
-        return r.result.get("meta", {}).get("TransactionResult")
+        """Used only to show the ledger refusing onward transfer. Returns the result code;
+        the failed tx hash is kept in self.last_tx_hash (submit_and_wait raises on tec codes)."""
+        h, code, _ = submit_capture(self.client, Payment(account=holder, destination=to,
+                                                         amount=MPTAmount(mpt_issuance_id=mpt_id, value="1")),
+                                    self.wallets[holder])
+        self.last_tx_hash = h
+        return code

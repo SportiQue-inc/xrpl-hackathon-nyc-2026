@@ -12,7 +12,7 @@ import time
 from xrpl.clients import JsonRpcClient
 from xrpl.core.binarycodec import decode, encode
 from xrpl.ledger import get_latest_validated_ledger_sequence
-from xrpl.models.requests import AccountInfo, Ledger as LedgerReq, SubmitOnly, Tx
+from xrpl.models.requests import AccountInfo, GenericRequest, Ledger as LedgerReq, SubmitOnly, Tx
 from xrpl.models.transactions import EscrowCancel, EscrowCreate, EscrowFinish, Memo, Payment
 from xrpl.transaction import autofill_and_sign
 from xrpl.wallet import Wallet, generate_faucet_wallet
@@ -38,6 +38,7 @@ class XrplLedger(Ledger):
         self._seq: dict[str, int] = {}
         self._seq_lock = threading.Lock()
         self._labels: dict[str, str] = {}
+        self._rules: dict[str, list[tuple[str, str]]] = {}  # destination -> [(issuer, cred type hex)]
         if os.path.exists(wallet_file):
             with open(wallet_file) as f:
                 self._labels = json.load(f)
@@ -67,8 +68,34 @@ class XrplLedger(Ledger):
             self._seq[account] = seq + 1
             return seq
 
+    def _deposit_rules(self, destination: str, refresh: bool = False) -> list[tuple[str, str]]:
+        """Credential DepositPreauth rules on `destination` (cached)."""
+        if refresh or destination not in self._rules:
+            r = self.client.request(GenericRequest(method="account_objects", account=destination,
+                                                   type="deposit_preauth", ledger_index="validated")).result
+            self._rules[destination] = [(c["Credential"]["Issuer"], c["Credential"]["CredentialType"].upper())
+                                        for o in r.get("account_objects", [])
+                                        for c in o.get("AuthorizeCredentials", [])]
+        return self._rules[destination]
+
+    def credential_ids_for(self, source: str, destination: str) -> list[str] | None:
+        """CredentialIDs a tx from `source` must carry to get past `destination`'s DepositAuth.
+        None if the destination has no credential rule or the source holds no matching credential
+        (the ledger then answers tecNO_PERMISSION)."""
+        rules = self._deposit_rules(destination)
+        if not rules:
+            return None
+        r = self.client.request(GenericRequest(method="account_objects", account=source,
+                                               type="credential", ledger_index="validated")).result
+        for o in r.get("account_objects", []):
+            if (o.get("Subject") == source and int(o.get("Flags", 0)) & 0x00010000
+                    and (o.get("Issuer"), o.get("CredentialType", "").upper()) in rules):
+                return [o["index"]]
+        return None
+
     def prepare_payment(self, source, destination, amount_drops, invoice_id, memo):
         tx = Payment(account=source, destination=destination, amount=str(amount_drops),
+                     credential_ids=self.credential_ids_for(source, destination),
                      invoice_id=invoice_id, sequence=self._next_sequence(source),
                      memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))])
         signed = autofill_and_sign(tx, self.client, self.wallets[source])
@@ -91,9 +118,14 @@ class XrplLedger(Ledger):
                                        sequence=self._next_sequence(source),
                                        memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))]), source)
 
-    def prepare_escrow_finish(self, submitter, owner, offer_sequence, condition, fulfillment, memo):
+    def prepare_escrow_finish(self, submitter, owner, offer_sequence, condition, fulfillment, memo,
+                              destination: str | None = None):
+        # DepositAuth gates EscrowFinish (not EscrowCreate) when someone other than the
+        # destination submits it; that submitter must then carry CredentialIDs.
+        creds = (self.credential_ids_for(submitter, destination)
+                 if destination and destination != submitter else None)
         return self._sign(EscrowFinish(account=submitter, owner=owner, offer_sequence=offer_sequence,
-                                       condition=condition, fulfillment=fulfillment,
+                                       condition=condition, fulfillment=fulfillment, credential_ids=creds,
                                        sequence=self._next_sequence(submitter),
                                        memos=[Memo(memo_type=_hex("agentrail/order"), memo_data=_hex(memo))]),
                           submitter)
