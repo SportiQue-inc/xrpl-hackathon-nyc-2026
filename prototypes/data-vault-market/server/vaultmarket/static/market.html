@@ -45,19 +45,19 @@ $('agentBtn').onclick=()=>{if(!canAct())return;renderAgents(true);$('agentDlg').
 function renderAgents(force=false) {
   if (!ACC) return;
   if (!force && $("agentDlg").open) return;   // don't redraw while the owner is editing
-  const a = ACC.account, s = a.sell_agent, b = a.buy_agent, u = META.unit_xrp||.01, fmt = v => Number(v).toFixed(2);
+  const a = ACC.account, s = a.sell_agent, b = a.buy_agent, u = META.unit_xrp||.01, fmt = v => String(+Number(v).toFixed(6)), dp = u < 0.01 ? 6 : 2, top = v => u < 0.01 ? +(v * 3).toFixed(6) : Math.max(5, Math.ceil(v * 3));
   const slider = (id, label, value, max, hint='') => `<div class="slide"><div class="row"><label for="${id}">${esc(label)}</label><b id="${id}-v">${fmt(value)} ${esc(assetLabel())}</b></div><input type="range" id="${id}" min="0" max="${Math.max(max, value)}" step="any" value="${value}" data-orig="${value}">${hint?`<span class="small muted">${hint}</span>`:''}</div>`;
   $("agents").innerHTML = `<section class="set"><h3>When a buyer asks</h3><div class="seg" role="radiogroup"><button type="button" data-mode="auto" class="${s.mode!=='ask'?'on':''}">Sell on its own</button><button type="button" data-mode="ask" class="${s.mode==='ask'?'on':''}">Ask me first</button></div>
     <p class="small muted">Either way, your agent never goes below the minimums and never sells for the blocked purposes.</p></section>
     <section class="set"><h3>How firm on price</h3><div class="slide"><div class="row"><label for="firm">Lowest price vs the usual market price</label><b id="firm-v"></b></div><input type="range" id="firm" min="50" max="200" step="5" value="${Math.round(100*Object.entries(META.kinds).reduce((t,[k,v])=>t+(s.min?.[k]??v.price)/v.price,0)/Object.keys(META.kinds).length/5)*5}"><span class="small muted">Lower sells more often, higher holds out for better deals.</span></div>
-    <details class="per-kind"><summary class="small">Set each data type separately</summary>${Object.entries(META.kinds).map(([k, v]) => { const val=+((s.min?.[k] ?? v.price)*u).toFixed(2); return slider('min-'+k, v.label, val, Math.max(5, Math.ceil(v.price*u*3))); }).join("")}</details></section>
+    <details class="per-kind"><summary class="small">Set each data type separately</summary>${Object.entries(META.kinds).map(([k, v]) => { const val=+((s.min?.[k] ?? v.price)*u).toFixed(dp); return slider('min-'+k, v.label, val, top(v.price*u)); }).join("")}</details></section>
     <section class="set"><h3>Never sell for</h3><div class="chips">${[...new Set(['insurance pricing','advertising','aggregation and resale',...(s.blocks||[])])].map(x=>`<button type="button" class="chip ${(s.blocks||[]).includes(x)?'on':''}" data-block="${esc(x)}">${esc(x)}</button>`).join('')}</div></section>
-    <section class="set"><h3>Buying</h3>${slider('limit','Buys on its own up to',+(b.auto_limit*u).toFixed(2),50,'Above this, your agent asks you first. Records you already own are never bought again.')}</section>
+    <section class="set"><h3>Buying</h3>${slider('limit','Buys on its own up to',+(b.auto_limit*u).toFixed(dp),u < 0.01 ? top(b.auto_limit*u) : 50,'Above this, your agent asks you first. Records you already own are never bought again.')}</section>
     <div class="row"><span class="small muted" id="saved">Model: ${esc(META.model)} · ${esc(assetLabel())} on ${esc(META.ledger)}</span><button class="primary" type="button" id="save">Save</button></div>`;
   $("agents").querySelectorAll('input[type=range]').forEach(r => r.oninput = () => { r.dataset.dirty = '1'; $(r.id+'-v').textContent = `${fmt(r.value)} ${assetLabel()}`; });
   $("agents").querySelectorAll('.chip').forEach(x => x.onclick = () => x.classList.toggle('on'));
   const firm=()=>{$('firm-v').textContent=$('firm').value+'%';};firm();
-  $('firm').oninput=()=>{firm();Object.entries(META.kinds).forEach(([k,v])=>{const r=$('min-'+k);r.value=(v.price*u*$('firm').value/100).toFixed(1);r.dataset.dirty='1';$(r.id+'-v').textContent=`${fmt(r.value)} ${assetLabel()}`;});};
+  $('firm').oninput=()=>{firm();Object.entries(META.kinds).forEach(([k,v])=>{const r=$('min-'+k);r.value=(v.price*u*$('firm').value/100).toFixed(u < 0.01 ? 6 : 1);r.dataset.dirty='1';$(r.id+'-v').textContent=`${fmt(r.value)} ${assetLabel()}`;});};
   $("agents").querySelectorAll('[data-mode]').forEach(x => x.onclick = () => $("agents").querySelectorAll('[data-mode]').forEach(y => y.classList.toggle('on', y===x)));
   $("save").onclick = async () => { try {
     if (!canAct()) return;

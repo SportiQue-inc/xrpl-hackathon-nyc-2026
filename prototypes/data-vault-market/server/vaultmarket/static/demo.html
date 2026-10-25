@@ -10,7 +10,7 @@ let D=null, selected=null, asList=false, busy=false, lastFetch=0, refreshTimer=n
 const receipts=a=>(a.receipts||[]).filter(r=>r.asset===$('asset').value&&r.at>=D.start&&r.at<=D.end);
 const income=a=>receipts(a).reduce((s,r)=>s+Number(r.amount),0);
 const sales=a=>receipts(a).length;
-const money=(value,asset=$('asset').value)=>`${Number(value||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})} ${assetLabel(asset)}`;
+const money=(value,asset=$('asset').value)=>`${Number(value||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:6})} ${assetLabel(asset)}`;
 const clock=t=>IS_REPORT?`Week ${Math.max(1,Math.min(8,Math.ceil((t-D.start)/(7*86400))))}`:new Date(t*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 function syncSelection(){
  document.querySelectorAll('#grid [data-agent]').forEach(b=>{const on=b.dataset.agent===selected;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));});

@@ -97,7 +97,7 @@ $("vDom").setAttribute("aria-pressed", VIEW === "domain"); $("vDem").setAttribut
   if(ACC.bought.some(f=>f.resale&&f.status==='bought')) $('bought').innerHTML+='<button class="primary" id="bundleBuy">Bundle selected purchases for resale</button>';
   $('bundleBuy')?.addEventListener('click',async()=>{try{const files=[...document.querySelectorAll('[data-bundle]:checked')].map(e=>+e.dataset.bundle);await post(`/api/account/${ME}/bundle`,{files});await refresh();}catch(e){showError(e);}});
   $('discoverData').onclick=()=>tellAgent('What can I sell from my DB?','discover');
-  if(!$('buyKind').options.length){$('buyKind').innerHTML=Object.entries(k).map(([id,v])=>`<option value="${id}">${esc(v.label)}</option>`).join('');$('buyPrice').value=(k[$('buyKind').value].price*(META.unit_xrp||.01)).toFixed(2);}
+  if(!$('buyKind').options.length){$('buyKind').innerHTML=Object.entries(k).map(([id,v])=>`<option value="${id}">${esc(v.label)}</option>`).join('');$('buyPrice').value=+(k[$('buyKind').value].price*(META.unit_xrp||.01)).toFixed(6);}
   $('buyForm').onsubmit=async(e)=>{e.preventDefault();const btn=e.target.querySelector('button');if(btn.disabled)return;btn.disabled=true;try{await post(`/api/account/${ME}/chat`,{text:'buy '+k[$('buyKind').value].label,price:Number($('buyPrice').value)/(META.unit_xrp||.01),resale:$('buyResale').checked});await refresh();}catch(err){showError(err);}finally{btn.disabled=false;}};
   await refreshCollections();
   chatBox($("chat"), ACC);$("banner").hidden=true;return true;
