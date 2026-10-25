@@ -311,8 +311,9 @@ def _answer(w, req, hold_last=False) -> list[int]:
         except (BudgetExceeded, NeedsHumanApproval) as e:
             w.store.log(LAB, "stop", f"{pa.id}: {e}")
             continue
-        except OrderConflict as e:          # this person's week was already ordered in an earlier round
-            w.store.log(LAB, "stop", f"{pa.id} week {wk}: already ordered in an earlier round ({e})")
+        except OrderConflict as e:
+            # an earlier round already holds an order for this person, week and items: it stands, nothing new
+            w.store.log(LAB, "already_ordered", f"{pa.id} week {wk}: {e}; kept the earlier order")
             continue
         req["orders"].append({"order_id": oid, "week": wk, "items": its, "hold": last, "full": len(its) * CELL_PRICE})
         oids.append(oid)
