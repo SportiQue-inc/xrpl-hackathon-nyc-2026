@@ -114,6 +114,26 @@ ISSUES = [
 ]
 
 
+def _ethics_evidence(w, pa):
+    """The ethics board withdraws its approval on the ledger: sensitive items stop at the next check,
+    other items keep flowing. The approval is then issued again so the rest of the demo is unchanged."""
+    from .scenario import ETHICS_CREDENTIAL, ETHICS_VALID_S
+    L, lab, board = w.ledger, w.engine.party(LAB)["address"], w.engine.party("org_ethics")["address"]
+    if not hasattr(L, "delete_credential") or not L.has_credential(lab, board, ETHICS_CREDENTIAL):
+        return
+    items = ["sleep.daily", "blood_pressure.daily"]
+    before, _ = pa.policy.compliance.check(LAB, "sleep_research", items)
+    h = L.delete_credential(board, lab, ETHICS_CREDENTIAL)
+    after, _ = pa.policy.compliance.check(LAB, "sleep_research", items)
+    _ev(w, "consent", f"Ethics board withdraws its approval (CredentialDelete): {', '.join(before)} -> "
+        f"{', '.join(after) or 'nothing'}; the sensitive item is held at the next check", tx=h, url=L.explorer_url(h),
+        before=before, after=after)
+    hs = L.issue_credential(board, lab, ETHICS_CREDENTIAL, expiration=L.now() + ETHICS_VALID_S)
+    _ev(w, "consent", f"Approval issued again with a validity period on the ledger (Expiration, "
+        f"{ETHICS_VALID_S // 86400} days); after it, sensitive items stop without anyone acting",
+        tx=hs[0], url=L.explorer_url(hs[0]))
+
+
 def _spending_evidence(w, s, alone):
     from . import mandate
     if alone and not alone.get("ok"):
@@ -225,6 +245,7 @@ def run(w) -> dict:
     w.store.scene = "K"
     pa = w.cohort_people[HERO]
     _spending_evidence(w, s, alone)
+    _ethics_evidence(w, pa)
 
     # ---- consent ----
     d = pa.handle_request(LAB, "commercial_product_dev", ["sleep.daily"], 6, study.CELL_PRICE)

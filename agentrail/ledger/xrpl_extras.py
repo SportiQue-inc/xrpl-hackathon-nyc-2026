@@ -18,6 +18,7 @@ import time
 from xrpl.core.binarycodec import encode
 from xrpl.models.requests import AccountInfo, AccountTx, GenericRequest, SubmitOnly, Tx
 from xrpl.models.transactions import (AccountSet, AccountSetAsfFlag, CredentialAccept, CredentialCreate,
+                                      CredentialDelete,
                                       DepositPreauth, Payment, SignerEntry, SignerListSet)
 from xrpl.models.transactions.deposit_preauth import Credential
 from xrpl.transaction import autofill, autofill_and_sign, multisign, sign
@@ -97,13 +98,15 @@ class XrplExtrasMixin:
 
     # ---------- credentials ----------
 
-    def issue_credential(self, issuer: str, subject: str, cred_type: str) -> list[str]:
+    def issue_credential(self, issuer: str, subject: str, cred_type: str,
+                         expiration: int | None = None) -> list[str]:
+        """expiration: ledger time (seconds since 2000-01-01) after which the ledger treats it as invalid."""
         self.__dict__.pop("_cred_cache", None)
         if self.has_credential(subject, issuer, cred_type):
             return self._past_hashes(subject, ["CredentialCreate", "CredentialAccept"],
                                      lambda tx: tx.get("CredentialType", "").upper() == _hex(cred_type))
         h1 = _check(submit_and_wait(CredentialCreate(account=issuer, subject=subject,
-                                                     credential_type=_hex(cred_type)),
+                                                     credential_type=_hex(cred_type), expiration=expiration),
                                     self.client, self.wallets[issuer]), "CredentialCreate")
         h2 = _check(submit_and_wait(CredentialAccept(account=subject, issuer=issuer,
                                                      credential_type=_hex(cred_type)),
@@ -130,8 +133,16 @@ class XrplExtrasMixin:
             if (o.get("Issuer") == issuer and o.get("Subject") == subject
                     and o.get("CredentialType", "").upper() == _hex(cred_type)
                     and int(o.get("Flags", 0)) & LSF_ACCEPTED):
-                return True
+                # An expired credential stays on the ledger until deleted, but no longer counts.
+                return "Expiration" not in o or int(o["Expiration"]) > self.now()
         return False
+
+    def delete_credential(self, issuer: str, subject: str, cred_type: str) -> str:
+        """The issuer withdraws the credential (CredentialDelete); every later check sees it gone."""
+        self.__dict__.pop("_cred_cache", None)
+        return _check(submit_and_wait(CredentialDelete(account=issuer, subject=subject, issuer=issuer,
+                                                       credential_type=_hex(cred_type)),
+                                      self.client, self.wallets[issuer]), "CredentialDelete")
 
     def credential_id(self, subject: str, issuer: str, cred_type: str) -> str | None:
         """Ledger index of the accepted credential; this is what CredentialIDs carries."""
