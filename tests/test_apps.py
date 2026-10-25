@@ -124,6 +124,13 @@ def test_demo_devices_answer_remote_visitors_only_with_the_access_code(monkeypat
     assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "wrong"}).status_code == 403
     assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "judges-2026"}).status_code == 200
     assert remote.post("/api/dev/login/operator", headers={"X-Sandbox-Code": "judges-2026"}).status_code == 403
+    monkeypatch.setattr(web.world().ledger, "name", "testnet")    # one code plays both co-signers: mock only
+    assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "judges-2026"}).status_code == 403
+    monkeypatch.undo()
+    monkeypatch.setenv("AGENTRAIL_SANDBOX_CODE", "judges-2026")
+    monkeypatch.setenv("AGENTRAIL_ENV", "prod")
+    assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "judges-2026"}).status_code != 200
+    monkeypatch.delenv("AGENTRAIL_ENV")
     monkeypatch.setenv("AGENTRAIL_SANDBOX_CODE", "short")    # too short to count as a code
     assert remote.post(f"/api/dev/login/{sub}", headers={"X-Sandbox-Code": "short"}).status_code == 403
     v = remote.get("/api/public/live").json()

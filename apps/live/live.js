@@ -180,7 +180,7 @@ function actions() {
   const sp = st.study.spec_status;
   return h("div", { class: "card col" },
     h("h2", {}, "Run it"),
-    h("p", { class: "muted small" }, "Signatures use demo keys held by the server for the simulated people and approvers. Everything settles on the ledger shown above."),
+    h("p", { class: "muted small" }, "Signatures use demo keys held by the server for the simulated people and approvers. Sandbox: one visitor can play both co-signers here; in a real deployment each signer holds their own key. Everything settles on the ledger shown above."),
     h("div", { class: "steps" },
       h("button", { class: "btn", disabled: !!st.busy, onclick: findGaps }, "1 · Agent finds gaps"),
       h("button", { class: "btn", disabled: !!st.busy || sp === "none", onclick: coSign }, "2 · Budget co-sign (demo keys)"),

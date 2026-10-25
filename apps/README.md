@@ -77,8 +77,10 @@ Visitors who enter it (or open `/try?code=…`) act through the demo devices; ev
 
 Sandbox limit: the code is one shared demo key. Anyone holding it can sign in as any participant or
 institution role except the operator, including both budget co-signers, so one visitor can play both
-signers of the 2-of-2 approval. That is fine for a shared demo with synthetic people and a mock or Testnet
-ledger. Never set `AGENTRAIL_SANDBOX_CODE` on a deployment that holds real people, real keys or real money.
+signers of the 2-of-2 approval. So the engine accepts the code only on the mock ledger (on
+Testnet only with `AGENTRAIL_SANDBOX_ALLOW_TESTNET=1`, since a code holder could co-sign repeated top-ups) and
+never with `AGENTRAIL_ENV=prod`. Use 16+ random characters, rotate it after the event, and never set
+`FORWARDED_ALLOW_IPS=*` (it would let anyone pose as localhost). Never set `AGENTRAIL_SANDBOX_CODE` on a deployment that holds real people, real keys or real money.
 
 Deploy as a second Railway service from this repo: config file `railway.engine.json`
 (builds `docker/engine.Dockerfile`), variables `AGENTRAIL_SANDBOX_CODE`, `LEDGER` (`mock` or `testnet`) and,

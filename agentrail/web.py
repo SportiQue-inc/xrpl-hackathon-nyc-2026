@@ -761,12 +761,15 @@ def _local(request: Request):
 
 def _local_or_code(request: Request, sub: str):
     """The demo devices answer on localhost, or to a visitor who sends the access code set in
-    AGENTRAIL_SANDBOX_CODE (at least 8 characters). The operator (reset, scene runner) stays local."""
+    AGENTRAIL_SANDBOX_CODE (at least 8 characters). The operator (reset, scene runner) stays local.
+    One code can act as both co-signers, so it only counts on the mock ledger (unless
+    AGENTRAIL_SANDBOX_ALLOW_TESTNET=1) and never in prod."""
     code = os.environ.get("AGENTRAIL_SANDBOX_CODE", "")
     sent = request.headers.get("x-sandbox-code", "")
     if (request.client.host if request.client else "") in LOCAL:
         return
-    if len(code) >= 8 and sub != "operator" and hmac.compare_digest(sent.encode(), code.encode()):
+    sandbox = is_dev() and (world().ledger.name == "mock" or os.environ.get("AGENTRAIL_SANDBOX_ALLOW_TESTNET") == "1")
+    if sandbox and len(code) >= 8 and sub != "operator" and hmac.compare_digest(sent.encode(), code.encode()):
         return
     raise HTTPException(403, "access code required")
 

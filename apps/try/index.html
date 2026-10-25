@@ -39,7 +39,7 @@
     <input id="code" type="password" placeholder="Access code (to run it yourself)" style="flex:1;max-width:320px;font:inherit;border:1px solid var(--border);border-radius:8px;padding:8px 10px">
     <button class="btn">Save</button><span class="small muted" id="codeState"></span>
   </form>
-  <p class="tiny muted">Without a code you can watch the structure and the ledger log. Signatures use demo keys held by the server for the simulated people and approvers. No passkey or wallet needed.</p>
+  <p class="tiny muted">Without a code you can watch the structure and the ledger log. Signatures use demo keys held by the server for the simulated people and approvers. No passkey or wallet needed. Sandbox: the code is one shared demo key, so one visitor can play both budget co-signers here; in a real deployment each signer holds their own key.</p>
 </div>
 <script>
   let pid = null;
