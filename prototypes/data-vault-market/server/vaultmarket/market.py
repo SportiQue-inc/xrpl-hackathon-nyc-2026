@@ -396,6 +396,9 @@ class Market:
         owned = self.owned_fps(w["buyer"], w["kind"])
         # price discovery: the buyer opens under the market price, never above its owner's budget
         q = self.quote(w["kind"])
+        if config.AP4M:   # one AP4M payment per seller, never above 0.10 RLUSD: the buyer's budget per seller is capped there
+            cap_units = math.floor(ap4m_rail.PER_PAYMENT_CAP_MICRO / config.MICRO_PER_UNIT * 10) / 10
+            w = {**w, "max": min(w["max"], cap_units), "offer": min(w["offer"], cap_units)}
         opening = round(min(w["max"], max(0.5, q["price"] * 0.92)), 1)
         w = {**w, "offer": opening, "quote": q}
         cid = self.s.insert("contracts", posting=w["id"], buyer=w["buyer"], kind=w["kind"], seller=seller_id, status="negotiating", reason="Buyer agent is preparing an offer", asset=self.rail.symbol(), unit_micro=config.MICRO_PER_UNIT)
@@ -685,28 +688,22 @@ class Market:
         return True
 
     def _ap4m_leg(self, cid: int, buyer_id: str, leg: dict) -> dict:
-        """Pay one seller on AP4M. A leg above the 0.10 per-payment cap is paid as several Vouchers of at most
-        0.10 that add up to the price exactly; the last one's merchant releases K. Seller with an EVM wallet set
-        (sell_agent.evm) gets each amount forwarded on-chain from the merchant payout wallet."""
-        cap = ap4m_rail.PER_PAYMENT_CAP_MICRO
-        total, chunks = leg["drops"], []
-        while total > 0:
-            chunks.append(min(cap, total)); total -= chunks[-1]
+        """Pay one seller with one AP4M Voucher; its merchant response carries K. Negotiation caps every seller's
+        price at 0.10 RLUSD, and a leg above it is refused here rather than split. A seller with an EVM wallet set
+        (sell_agent.evm) gets the amount forwarded on-chain from the merchant payout wallet."""
+        if leg["drops"] > ap4m_rail.PER_PAYMENT_CAP_MICRO:
+            return {"ok": False, "receipts": [], "K": None, "reason": f"price {leg['drops'] / 1e6} RLUSD is above the AP4M per-payment cap 0.10"}
         evm = (self.acct(leg["seller"]).get("sell_agent") or {}).get("evm")
         evm = evm if isinstance(evm, str) and len(evm) == 42 and evm.startswith("0x") else None
-        receipts = []
-        for i, micro in enumerate(chunks):
-            last = i == len(chunks) - 1
-            r = ap4m_rail.pay(f"vm-c{cid}-{leg['seller']}-{i + 1}of{len(chunks)}", micro, pool="vault",
-                              memo={"contract": cid, "buyer": buyer_id, "seller": leg["seller"], "part": f"{i + 1}/{len(chunks)}"},
-                              content={"k": leg["K"].hex()} if last else None, forward_to=evm)
-            receipts.append(r)
-            if not r.get("ok"):
-                return {"ok": False, "receipts": receipts, "reason": r.get("reason"), "K": None}
-        k_hex = ((receipts[-1].get("content") or {}).get("k")) if receipts else None
+        r = ap4m_rail.pay(f"vm-c{cid}-{leg['seller']}", leg["drops"], pool="vault",
+                          memo={"contract": cid, "buyer": buyer_id, "seller": leg["seller"]},
+                          content={"k": leg["K"].hex()}, forward_to=evm)
+        if not r.get("ok"):
+            return {"ok": False, "receipts": [r], "reason": r.get("reason"), "K": None}
+        k_hex = (r.get("content") or {}).get("k")
         K = bytes.fromhex(k_hex) if k_hex else None
-        ok = K is not None and hashlib.sha256(K).digest() == hashlib.sha256(leg["K"]).digest()
-        return {"ok": ok, "receipts": receipts, "K": K, "reason": None if ok else "the merchant did not return the data key"}
+        ok = K is not None and K == leg["K"]
+        return {"ok": ok, "receipts": [r], "K": K, "reason": None if ok else "the merchant did not return the data key"}
 
     def _record_ap4m(self, cid: int, buyer_id: str, leg: dict, r: dict, trace: dict) -> bool:
         paid = [x for x in r["receipts"] if x.get("ok")]
