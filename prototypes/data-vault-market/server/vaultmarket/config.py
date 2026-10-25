@@ -29,6 +29,10 @@ TICK_SECONDS = float(os.environ.get("VM_TICK_SECONDS", "30"))   # one negotiatio
 # escrow; XRP: the fallback. Amounts are kept in millionths of the asset (drops for XRP).
 ASSET = os.environ.get("VM_ASSET", "USD").upper()
 USD_PER_UNIT = float(os.environ.get("VM_USD_PER_UNIT", "1"))         # 1 price unit = 1 test USD, all display values use the actual test asset
+# How the token is shown to people. The ledger key stays "test USD"; swap the name and footnote here
+# (or in env) when the market's own registered token replaces the stand-in.
+ASSET_LABEL = os.environ.get("VM_ASSET_LABEL", "RLUSD")
+ASSET_FOOTNOTE = os.environ.get("VM_ASSET_FOOTNOTE", "Testnet: test USD stands in for RLUSD.")
 XRP_DROPS_PER_UNIT = int(os.environ.get("VM_DROPS_PER_UNIT", "10000"))  # fallback: 1 price unit = 0.01 XRP
 MICRO_PER_UNIT = int(USD_PER_UNIT * 1_000_000) if ASSET == "USD" else XRP_DROPS_PER_UNIT
 DROPS_PER_XRP_UNIT = MICRO_PER_UNIT    # older name, same meaning: millionths of the asset per price unit

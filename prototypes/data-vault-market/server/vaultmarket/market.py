@@ -508,7 +508,7 @@ class Market:
         if people_eff < need:
             reason = "The buyer already owns some of these records; no repeat payment." if overlap else "The seller did not accept within the buyer budget and owner terms."
         elif total * config.MICRO_PER_UNIT / 1e6 + (0 if self.rail.token else 0.2 * len(verified)) > bal:
-            reason = f"not enough {self.rail.symbol()} for {len(verified)} escrows"
+            reason = f"not enough {self.rail.label()} for {len(verified)} escrows"
         if personal:
             step("One-to-one agreement", "One buyer negotiates with one seller for this record bundle.", len(verified) == 1)
         outcome = {"agreed": len(agreed), "declined": declined, "overlap": overlap, "people": people_eff, "total": total, "ok": not reason, "reason": reason}
@@ -552,7 +552,7 @@ class Market:
         if self.s.one("SELECT id FROM chat WHERE account = ? AND done = 0 AND actions LIKE ?", (aid, f'%"posting": {w["id"]}%')):
             return
         b = self.acct(w["buyer"])
-        self.chat(aid, "agent", f"{b['name']} wants {KINDS[w['kind']]['label'].lower()} for {w['purpose']} at {w['offer'] * config.MICRO_PER_UNIT / 1e6:.6f} {self.rail.symbol()} for this purchase. "
+        self.chat(aid, "agent", f"{b['name']} wants {KINDS[w['kind']]['label'].lower()} for {w['purpose']} at {w['offer'] * config.MICRO_PER_UNIT / 1e6:.6f} {self.rail.label()} for this purchase. "
                                 f"You have {nfiles} listed file(s). Approve this one-to-one sale?",
                   [{"t": "OK, include me", "do": "interest", "posting": w["id"]}, {"t": "Not this one", "do": "noop", "posting": w["id"]}])
 
@@ -590,7 +590,7 @@ class Market:
                 trace["tx"].append({"seller": leg["seller"], "create": r["create"]["hash"], "finish": r["finish"]["hash"], "ok": r["finish"]["ok"]})
                 cond = condition_hex(leg["K"])
                 trace["protocol"].append({"protocol": f"XRPL EscrowCreate ({'token escrow, ' if self.rail.token else ''}PREIMAGE-SHA-256 crypto-condition)", "who": leg["seller"], "ok": r["create"]["ok"], "tx": r["create"]["hash"],
-                                          "detail": f"buyer locks {leg['drops'] / 1e6:.3f} {self.rail.symbol()}{(' (issuer ' + self.rail.issuer[:8] + '…)') if self.rail.token else ''} to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
+                                          "detail": f"buyer locks {leg['drops'] / 1e6:.3f} {self.rail.label()}{(' (issuer ' + self.rail.issuer[:8] + '…)') if self.rail.token else ''} to the seller's {'own linked wallet ' + leg['dst_addr'][:8] + '…' if leg.get('dst_addr') else 'agent wallet'} under Condition {cond[:20]}… = SHA-256(K); CancelAfter 1 h; memo vaultmarket/contract/{cid}; {r['create']['result']}"})
                 trace["protocol"].append({"protocol": "XRPL EscrowFinish (fulfillment reveals K)", "who": leg["seller"], "ok": r["finish"]["ok"], "tx": r["finish"]["hash"],
                                           "detail": f"seller's agent submits the fulfillment (the preimage K); the ledger checks SHA-256(K) against the condition and pays; {r['finish']['result']}"})
                 if not r["finish"]["ok"]:
@@ -628,7 +628,7 @@ class Market:
                 self.s.bump(f"earned:{l['seller']}:{w['kind']}", l["price"])
                 self.s.insert("prices", kind=w["kind"], price=l["price"], contract=cid)
                 if self.acct(l["seller"])["type"] == "person" and self.acct(l["seller"])["sell_agent"].get("mode") == "ask":
-                    self.chat(l["seller"], "agent", f"Sale completed: {KINDS[w['kind']]['label']} to {self.acct(buyer_id)['name']}: +{l['drops'] / 1e6:.6f} {self.rail.symbol()} on the ledger. Contract #{cid}.")
+                    self.chat(l["seller"], "agent", f"Sale completed: {KINDS[w['kind']]['label']} to {self.acct(buyer_id)['name']}: +{l['drops'] / 1e6:.6f} {self.rail.label()} on the ledger. Contract #{cid}.")
             for a in {l["seller"] for l in paid}:
                 self._bal.pop(a, None)
             self._bal.pop(buyer_id, None)

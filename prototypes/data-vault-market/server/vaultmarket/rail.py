@@ -55,7 +55,10 @@ class Rail:
         return self.asset == "USD" and self.name != "mock" and self.issuer is not None
 
     def symbol(self) -> str:
-        return "test USD" if self.asset == "USD" else "XRP"
+        return "test USD" if self.asset == "USD" else "XRP"     # ledger key stored with each contract
+
+    def label(self) -> str:
+        return config.ASSET_LABEL if self.asset == "USD" else "XRP"   # what people read
 
     # ---- the test USD token (stands in for RLUSD) ----
     def _usd(self, micro: int):

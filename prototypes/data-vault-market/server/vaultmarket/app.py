@@ -202,7 +202,7 @@ def _chat_today(aid: str) -> int:
 @app.get("/api/meta")
 def meta():
     return {"ledger": M.rail.name, "model": llm.model_name(), "llm": llm.USAGE, "kinds": KINDS, "k_min": config.K_MIN,
-            "revision": os.environ.get("APP_REVISION"), "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": False, "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
+            "revision": os.environ.get("APP_REVISION"), "unit_xrp": config.MICRO_PER_UNIT / 1e6, "asset": M.rail.symbol(), "asset_rlusd": False, "asset_label": M.rail.label(), "asset_footnote": config.ASSET_FOOTNOTE if M.rail.asset == "USD" else "", "asset_note": M.rail.asset_note, "issuer": M.rail.issuer, "connected": len(M.addr), "accounts": len(M.s.q("SELECT id FROM accounts")),
             "rpm_cap": config.LLM_RPM, "daily_cap": config.LLM_DAILY_CALLS, "engine_url": config.ENGINE_URL}
 
 
@@ -613,7 +613,7 @@ def chat(aid: str, request: Request, body: dict = Body(...)):
 
 
 def _amt(w) -> str:
-    return f"{w['expected']*config.MICRO_PER_UNIT/1000000:.2f} {M.rail.symbol()}"
+    return f"{w['expected']*config.MICRO_PER_UNIT/1000000:.2f} {M.rail.label()}"
 
 
 def _offer_buttons(offers) -> list[dict]:
@@ -657,7 +657,7 @@ def _rules_chat(aid: str, text: str, body: dict, discovery: bool):
     elif p["intent"] == "sell":
         if p.get("price") is not None:
             _set_min(aid, p["kind"], p["price"])
-            M.chat(aid,"agent",f"Your minimum is now {p['price']:g} {M.rail.symbol()} for this data category.")
+            M.chat(aid,"agent",f"Your minimum is now {p['price']:g} {M.rail.label()} for this data category.")
         M.enqueue_sale(aid, p["kind"])
     elif p["intent"] == "buy":
         offer = float(body["price"]) if body.get("price") is not None else float(p["price"])/(config.MICRO_PER_UNIT/1000000) if p["price"] is not None else KINDS[p["kind"]]["price"]
@@ -675,7 +675,7 @@ def _converse(aid: str, text: str, body: dict, discovery: bool):
         offers = _sell_now(aid)[:12]
         demand = [{"kind": d["kind"], "n": d["n"], "best": d["best"]} for d in M.s.q("SELECT kind, COUNT(*) n, MAX(max) best FROM postings WHERE status='open' AND buyer != ? GROUP BY kind", (aid,))]
         history = [{"who": c["role"], "text": c["text"][:300]} for c in M.s.q("SELECT role, text FROM chat WHERE account = ? ORDER BY id DESC LIMIT 8", (aid,))][::-1]
-        ctx = {"asset": M.rail.symbol(), "my_files": [dict(f) for f in files], "deals_sold": sold["n"], "sold_total": sold["t"],
+        ctx = {"asset": M.rail.label(), "my_files": [dict(f) for f in files], "deals_sold": sold["n"], "sold_total": sold["t"],
                "selling_mode": a["sell_agent"].get("mode"), "my_minimums": {k: round(v*u, 2) for k, v in (a["sell_agent"].get("min") or {}).items()},
                "blocked_purposes": a["sell_agent"].get("blocks", []), "auto_buy_limit": round(a["buy_agent"].get("auto_limit", 0)*u, 2),
                "matching_offers": [{"id": w["id"], "kind": w["kind"], "buyer": w["buyer_name"], "purpose": w["purpose"], "you_would_get": round(w["expected"]*u, 2), "buyer_budget": round(w["max"]*u, 2)} for w in offers],
@@ -690,12 +690,12 @@ def _converse(aid: str, text: str, body: dict, discovery: bool):
         acts = _offer_buttons(picks)
         sm = out.get("set_min") or {}
         if sm.get("kind") in KINDS and isinstance(sm.get("price"), (int, float)) and 0 <= sm["price"] < 1e6:
-            acts.append({"t": f"Set {KINDS[sm['kind']]['label'].lower()} minimum to {sm['price']:g} {M.rail.symbol()}", "do": "set_min", "kind": sm["kind"], "price": float(sm["price"])})
+            acts.append({"t": f"Set {KINDS[sm['kind']]['label'].lower()} minimum to {sm['price']:g} {M.rail.label()}", "do": "set_min", "kind": sm["kind"], "price": float(sm["price"])})
         if out.get("sell_kind") in KINDS:
             acts.append({"t": f"Sell my {KINDS[out['sell_kind']]['label'].lower()}", "do": "sell_kind", "kind": out["sell_kind"]})
         buy = out.get("buy") or {}
         if buy.get("kind") in KINDS and isinstance(buy.get("budget"), (int, float)) and 0 < buy["budget"] < 1e6:
-            acts.append({"t": f"Post a request: {KINDS[buy['kind']]['label'].lower()} up to {buy['budget']:g} {M.rail.symbol()}", "do": "post_buy", "kind": buy["kind"], "budget": float(buy["budget"])})
+            acts.append({"t": f"Post a request: {KINDS[buy['kind']]['label'].lower()} up to {buy['budget']:g} {M.rail.label()}", "do": "post_buy", "kind": buy["kind"], "budget": float(buy["budget"])})
         M.chat(aid, "agent", reply[:800], acts or None)
     except Exception:
         try:
@@ -729,10 +729,10 @@ def chat_act(aid: str, cid: int, request: Request, body: dict = Body(...)):
         M.enqueue_sale(aid, act["kind"])
     elif act["do"] == "set_min" and act.get("kind") in KINDS:
         _set_min(aid, act["kind"], act["price"])
-        M.chat(aid, "agent", f"Your minimum for {KINDS[act['kind']]['label'].lower()} is now {act['price']:g} {M.rail.symbol()}.")
+        M.chat(aid, "agent", f"Your minimum for {KINDS[act['kind']]['label'].lower()} is now {act['price']:g} {M.rail.label()}.")
     elif act["do"] == "post_buy" and act.get("kind") in KINDS:
         pid = _post_buy(aid, act["kind"], act["budget"]/(config.MICRO_PER_UNIT/1000000))
-        M.chat(aid, "agent", f"Posted request #{pid} for {KINDS[act['kind']]['label'].lower()}, up to {act['budget']:g} {M.rail.symbol()}. I'll negotiate it next.")
+        M.chat(aid, "agent", f"Posted request #{pid} for {KINDS[act['kind']]['label'].lower()}, up to {act['budget']:g} {M.rail.label()}. I'll negotiate it next.")
     elif act["do"] == "skip_buy":
         M.s.x("UPDATE contracts SET status='rejected',reason='Owner skipped this purchase' WHERE id=? AND buyer=? AND status='awaiting buyer'",(act.get("contract"),aid))
     return {"ok": True}

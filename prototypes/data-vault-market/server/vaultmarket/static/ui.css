@@ -172,3 +172,4 @@ dialog label input { display: block; width: 100%; margin-top: 3px; }
 .top .home-link { margin-left:18px;align-self:center;font-size:12px;color:var(--muted);text-decoration:none;padding:6px 10px;border:1px solid var(--line);border-radius:999px; }.top .home-link:hover { color:var(--ink); }
 .per-kind { display:grid;gap:10px; }.per-kind[open] { padding-top:4px; }.per-kind summary { cursor:pointer;color:var(--muted); }.per-kind > .slide { margin-top:10px; }
 .chips { display:flex;flex-wrap:wrap;gap:8px; }.chip { border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12px;background:transparent; }.chip.on { background:#ff6b6b22;border-color:#ff8080;color:#ff9c9c; }.chip.on::before { content:'✕ '; }
+.asset-foot { text-align:center; margin:18px 16px 24px; }

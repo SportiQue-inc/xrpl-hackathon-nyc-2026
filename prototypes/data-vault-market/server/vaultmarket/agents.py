@@ -147,7 +147,7 @@ def parse_chat(text: str) -> dict:
              "energy_use": r"energy|electric|kwh|meter|전기|에너지|전력"}
     kind = next((k for k, rx in kinds.items() if re.search(rx, text, re.I)), None)
     intent = "sell" if re.search(r"sell|팔|판매", text, re.I) else "buy" if re.search(r"need|buy|want|필요|사|구매|구해", text, re.I) else "other"
-    pattern=r"(?:\$|(?:for|at|price|minimum|budget|최저가?|가격|예산)\s*:?\s*)(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:XRP|test\s*USD|USD|달러|에)"
+    pattern=r"(?:\$|(?:for|at|price|minimum|budget|최저가?|가격|예산)\s*:?\s*)(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:XRP|RLUSD|test\s*USD|USD|달러|에)"
     m=next((m for m in re.finditer(pattern,text,re.I) if not re.match(r"\s*(?:days|nights|records|files|일|개|건)",text[m.end():],re.I)),None)
     rule = {"intent": intent, "kind": kind, "price": float(m.group(1) or m.group(2)) if m else None}
     return rule          # anything unclear goes to the conversational reply, which runs off the request path

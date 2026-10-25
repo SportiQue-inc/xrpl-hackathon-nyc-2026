@@ -660,3 +660,19 @@ def test_buyer_and_seller_match_conditions_before_price(market):
     assert any(p["protocol"] == "Requirements match" for p in trace["protocol"])
     texts = [m["text"] for m in market.s.q("SELECT text FROM messages WHERE contract=? ORDER BY id", (cid,))]
     assert any("I need at least" in t for t in texts) and any(t.startswith("I have") or t.startswith("I only have") for t in texts)
+
+
+def test_amounts_read_as_the_configured_unit_but_the_ledger_key_stays(market, monkeypatch):
+    client, web = _demo_client(market, monkeypatch)
+    meta = client.get('/api/meta').json()
+    if market.rail.asset == 'USD':
+        assert meta['asset'] == 'test USD' and meta['asset_label'] == config.ASSET_LABEL == 'RLUSD'
+        assert meta['asset_footnote'] == 'Testnet: test USD stands in for RLUSD.'
+        monkeypatch.setattr(config, 'ASSET_LABEL', 'VAULT')
+        assert market.rail.label() == 'VAULT' and market.rail.symbol() == 'test USD'
+    else:
+        assert market.rail.label() == 'XRP' and meta['asset_footnote'] == ''
+    static = Path(__file__).resolve().parents[1] / "prototypes/data-vault-market/server/vaultmarket/static"
+    common = (static / "common.js").read_text()
+    assert '${assetLabel(asset)}' in common and 'relabel(c.text)' in common and 'asset-foot' in common
+    assert 'test USD' not in (static / "demo.html").read_text()

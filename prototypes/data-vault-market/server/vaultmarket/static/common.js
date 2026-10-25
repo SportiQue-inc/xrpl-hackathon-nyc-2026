@@ -8,7 +8,9 @@ const api = async (path, opts) => {
 const post = (path, body) => api(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body || {}) });
 let ME = null, META = null, USER = {user: null, public: true};
 const sym = () => META?.asset || "XRP";
-const amount = (v, asset = sym()) => `${Number(v || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})} ${asset}`;
+const assetLabel = (a = sym()) => a === "test USD" ? (META?.asset_label || a) : a;   // ledger key -> the name people read
+const relabel = (t) => META?.asset_label ? String(t ?? "").replace(/\btest USD\b/g, META.asset_label) : t;   // older stored messages
+const amount = (v, asset = sym()) => `${Number(v || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})} ${assetLabel(asset)}`;
 const xrp = (units) => amount(+(units || 0) * (META?.unit_xrp || 0.01));
 const micro = (m, asset = sym()) => amount(+(m || 0) / 1e6, asset);
 const hhmm = (t) => new Date(t * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit"});
@@ -32,7 +34,8 @@ async function topbar(page) {
   $("accountName").textContent = USER.user?.username || "";
   const brand=document.querySelector(".brand");if(brand)brand.after($("accountName"));
   memberBar();
-  $("ledgerTag").textContent = META.asset === "test USD" ? "Testnet · test USD" : `Testnet · ${sym()}`;
+  $("ledgerTag").textContent = `Testnet · ${assetLabel()}`;
+  if (META.asset_footnote && !document.querySelector(".asset-foot")) document.body.insertAdjacentHTML("beforeend", `<p class="asset-foot small muted">${esc(META.asset_footnote)}</p>`);
   $("ledgerTag").title = META.asset_note || "";
   $("ledgerTag").hidden = true;
   $("modelTag").hidden = true;
@@ -53,7 +56,7 @@ function chatBox(el, data) {
   }
   const approvals=data.chat.filter(c=>c.actions&&!c.done);   // shown inline with their buttons; only counted in the header
   const conversation=data.chat;
-  const message=(c)=>`<div class="msg ${c.role==='me'?'me':'agent'}"><div>${c.done&&/lot of at least \d+ people/.test(c.text)?'<span class="small muted">Earlier group request · inactive</span><br>':''}${esc(c.text)}</div>${c.actions?`<div class="acts">${c.actions.map((a,i)=>`<button type="button" data-c="${c.id}" data-i="${i}" ${c.done?'disabled':''}>${esc(a.t)}</button>`).join('')}</div>`:''}</div>`;
+  const message=(c)=>`<div class="msg ${c.role==='me'?'me':'agent'}"><div>${c.done&&/lot of at least \d+ people/.test(c.text)?'<span class="small muted">Earlier group request · inactive</span><br>':''}${esc(relabel(c.text))}</div>${c.actions?`<div class="acts">${c.actions.map((a,i)=>`<button type="button" data-c="${c.id}" data-i="${i}" ${c.done?'disabled':''}>${esc(relabel(a.t))}</button>`).join('')}</div>`:''}</div>`;
   el.innerHTML = `<div class="head"><span>Ask my agent</span>${approvals.length ? `<span class="tag red">${approvals.length} waiting for you</span>` : ""}</div>
     ${open ? `<div class="msgs" id="msgs">${conversation.map(message).join('') || '<p class="muted small">Tell me what you want to do, or ask what you can sell.</p>'}</div>
     <form id="chatForm"><input type="text" id="say" placeholder="e.g. sell my sleep logs, or I need air-quality data" aria-label="Message to my agent"><button class="primary">Send</button></form>` : ""}`;
