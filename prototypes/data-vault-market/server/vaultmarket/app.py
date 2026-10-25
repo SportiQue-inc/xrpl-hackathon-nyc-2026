@@ -425,6 +425,7 @@ def _bundles(aid: str):
         if mine:
             demand.append({**w, "listed": sum(f["status"] == "listed" for f in mine), "private": sum(f["status"] == "private" for f in mine),
                            "interested": bool(M.s.one("SELECT 1 FROM interests WHERE account = ? AND posting = ?", (aid, w["id"])))})
+    demand.sort(key=lambda w: (-(w["offer"] or 0), -(w["max"] or 0)))
     return files, out, demand
 
 
