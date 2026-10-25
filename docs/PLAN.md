@@ -1,56 +1,55 @@
-# Plan to submission (agent-first)
+# Plan to submission
 
-Submission target: **Sat Oct 25, 12:30 EDT** (form closes 13:00). Times below are EDT.
-Owner: **T** = build thread (Claude), **D** = daniel's hands needed.
-Status: [done] · [doing] · [todo].
+Submission target: **Sat Oct 25, 12:30 EDT** (form closes 13:00). Times are EDT.
+Owner: **T** = build thread (Claude), **D** = daniel's hands needed. Status: done · doing · todo.
 
-## Priorities
+## Pitch
 
-1. Three agents (buyer, seller x3, personal) with settings and a decision log that reads
-   as a conversation. LLM (GPT API) writes the sentences; code decides money and permissions.
-2. Real Testnet trades from daniel's Mac (tx hashes, explorer links).
-3. One command that runs scenes A and B end to end.
-4. Dashboard showing the agent conversation, orders and receipts.
-5. Submission: README, video script, form text.
+Procurement agents that work out what data their organization is missing, read other
+companies' catalogs and contracts like a human buyer, and close the deal on XRPL.
+**The LLM proposes, code verifies, the ledger enforces.** The same engine runs a research
+cohort where each person's agent answers research requests from their phone.
 
-Bonuses: keep only what is already in (XRPL Credentials, multi-signing, x402 rail,
-QuickNode via `XRPL_RPC_URL`). No new bonus work.
+Track fit (Agentic Finance asks for escrow, multi-signing, on-chain credentials): all three
+are in the main flow with Testnet evidence, plus x402 (T54) and QuickNode as bonuses.
 
 ## Time blocks
 
-| Block | Time (EDT) | Finish | Done when | Owner |
+| Block | Time | Build | Done when | Owner |
 |---|---|---|---|---|
-| 1 | Fri 22:00 - Sat 01:00 | Agents 3 kinds + settings + fixed-quote comparison and contract step + LLM wrapper with rule fallback + conversation log | `pytest -q` green; scene A shows discovery, fixed quotes, selection reason, terms confirmed; no key -> same result, rule sentences | T |
-| 2 | 01:00 - 03:00 | Testnet run on the Mac | Scene A payments + credential + multisig top-up validated; hashes in README | T (+D: Mac awake, `.env` key) |
-| 3 | 03:00 - 05:00 | One-shot demo command `python -m agentrail.scenario` (A guarded + B) on Testnet, re-runnable | Runs twice in a row on Testnet without manual fixes | T |
-| 4 | 05:00 - 08:00 | Dashboard: conversation view per agent, receipts, explorer links; screenshot check on phone width | Pressing "Run all" shows the whole story on one screen | T |
-| 5 | 08:00 - 11:00 | README final, 3-min video script, submission form text, record video | Video recorded; form text ready to paste | T (script), D (record, submit) |
-| 6 | 11:00 - 12:30 | Buffer, final Testnet run, submit | Form submitted by 12:30 | D |
+| 1 | 22:40 - 00:30 | LLM layer for B2B: gap inference from coverage table + evaluation report (code recomputes each gap from the table), schema matching verified on samples, licence text -> structured terms confirmed by the seller, `proposals` audit table, adversarial-LLM tests, LLM-off comparison, second input with a different report | `pytest` green; two inputs give different specs and sellers; LLM on/off numbers printed | T |
+| 2 | 00:30 - 02:30 | Escrow that ties payment to delivery: bundle locked with key K, `EscrowCreate` with `sha256(K)` condition and `CancelAfter`; seller gets paid only by publishing K in `EscrowFinish`; buyer reads K from the ledger and opens the bundle; deadline passed -> `EscrowCancel` refund | Mock tests for finish and cancel paths; Testnet run on the Mac | T |
+| 3 | 02:30 - 03:30 | Organization KYB: `VERIFIED_ORG` Credential + seller `DepositAuth` + `DepositPreauth` by credential; unverified buyer's payment refused by the ledger | Mock test + Testnet tx | T |
+| 4 | 03:30 - 05:30 | Research cohort, person side: new "research request" app page in this repo (verified-institution badge, LLM summary of purpose, auto-provide / needs approval / blocked items, real XRP amount) calling the engine API; 8-week cohort with missing person-weeks filled by the lab agent; 50 Testnet participant addresses | Page drives scene B end to end | T |
+| 5 | 05:30 - 07:00 | Dashboard: "LLM proposal -> code verdict -> ledger" three columns, coverage heatmap before/after, explorer links | One screen tells scene A | T |
+| 6 | 07:00 - 08:00 | **Integrated Testnet run on the Mac**: all scenes, escrow finish + cancel, KYB refusal, multisig, credential, one x402 run; `scripts/verify_ledger.py`; README tx table | Every README claim has a tx link | T + D (Mac awake) |
+| 7 | 08:00 - 10:00 | Code freeze, video script, rehearsal | Script final | T |
+| 8 | 10:00 - 12:30 | Record video, form text, submit | Submitted | D |
+
+If time runs short, dashboard polish shrinks first; escrow, KYB and the cohort page stay.
 
 ## Items
 
 | Item | Status | Owner |
 |---|---|---|
 | Engine: orders, reservation, outbox, idempotent payment, recovery | done | T |
-| Policies: seller policy, consent, sensitivity, automation levels, compliance layer | done | T |
-| Buyer agent settings: budget, required items, min quality, sensitive-field allowance, auto-approval limit | done | T |
-| Seller agents A-D: fixed price and terms, quote by provision policy | done | T |
-| Personal agent: auto provide / ask / block by consent, sensitive filter | done (sentences: doing) | T |
-| LLM wrapper: `LLM_PROVIDER=openai` (GPT API), rule fallback when no key or on error | done (Mac check: doing) | T |
-| Decision log as agent conversation (who -> whom, why) | done | T |
-| `.env` on the Mac with `OPENAI_API_KEY` | done | D |
-| Testnet scene A/B run, hashes reported | doing (Mac session open, no report yet) | T |
-| x402 rail run on Testnet | todo (only if block 2 finishes early) | T |
-| Dashboard conversation view | done (polish: todo) | T |
-| README / video script / form text | todo | T |
-| Video recording and form submission | todo | D |
+| Policies: seller policy, consent, sensitivity, automation levels, compliance | done | T |
+| Multi-signing treasury (Testnet evidence) | done | T |
+| Ethics Credential gating sensitive items (Testnet evidence) | done | T |
+| LLM wrapper (GPT via `OPENAI_API_KEY`, rule fallback), `.env` on the Mac | done | T, D |
+| Gap inference, schema matching, licence reading, audit, adversarial tests | doing | T |
+| LLM on/off comparison, second input | todo | T |
+| Escrow with key reveal + cancel path | todo | T |
+| KYB Credential + DepositPreauth | todo | T |
+| Research request app page + 8-week cohort + 50 participants | todo | T |
+| Dashboard three-column view + heatmap | todo | T |
+| x402 Testnet run (existing path, evidence only) | todo | T + D |
+| Integrated Testnet run, verify_ledger.py, README tx table | todo | T + D |
+| Video script / form text | todo | T |
+| Video recording, submission | todo | D |
 
-## Dropped (not doing)
+## Dropped
 
-- The earlier single-participant (P017-centered) health demo and its handoff plan. P017,
-  P023, P031 remain only as synthetic participant labels in scene B.
-- Payment-channel style settlement. Each order is one XRPL Payment.
-- Ledger hardware wallet bounty. One line in docs only (production approval signing).
-- Price negotiation between agents (fixed published prices instead).
-- New bonus integrations beyond what is already in the code.
-- Escrow, RLUSD, multi-holder aggregate products: listed as open items, not built.
+- Price negotiation between agents (fixed published prices).
+- Payment-channel style settlement.
+- Ledger hardware wallet bounty (one docs line only).

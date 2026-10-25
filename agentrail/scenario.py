@@ -12,15 +12,40 @@ import re
 import sys
 from dataclasses import dataclass, field
 
-from .agents import BuyerAgent, Goal, InstitutionAgent, PersonalAgent, SellerAgent
+from .agents import BuyerAgent, InstitutionAgent, PersonalAgent, SellerAgent
 from .connectors import Person, Product, RoboticsConnector
 from .db import Store
 from .engine import Engine, OrderRequest
 from .ledger import make_ledger
+from .reasoning import OwnerLimits, Spec
 from .policy import BuyerMandate, ComplianceRules, SellerPolicy
 
 XRP = 1_000_000
 ETHICS_CREDENTIAL = "ETHICS_REVIEW_SLEEP"
+
+# What the buyer's owner types, and what the company already holds and has measured.
+GOAL_TEXT = "Close the gaps our latest evaluation found before commercial deployment. Spend up to 40 XRP."
+ROBOT_SENSORS = ["lidar", "imu"]
+INVENTORY = {
+    "robot_sensors": ROBOT_SENSORS,
+    "coverage": {"daytime": {"episodes": 1200, "target": 400}, "loading_dock": {"episodes": 310, "target": 200},
+                 "narrow_aisle": {"episodes": 380, "target": 400}, "night": {"episodes": 40, "target": 400},
+                 "dynamic_obstacle": {"episodes": 25, "target": 400}, "outdoor": {"episodes": 150, "target": 150}},
+    "evaluation_report": [
+        "Night runs: collision rate 3.1x the daytime rate (12 incidents in 40 runs).",
+        "People and forklifts crossing: 42 avoidance failures; model rarely saw moving obstacles.",
+        "Narrow aisles: within tolerance after last month's data.",
+        "Loading dock and outdoor yard: within tolerance."]}
+# Second input: same goal, different evaluation -> different spec and different sellers.
+INVENTORY_2 = {
+    "robot_sensors": ROBOT_SENSORS,
+    "coverage": {"daytime": {"episodes": 1200, "target": 400}, "loading_dock": {"episodes": 310, "target": 200},
+                 "narrow_aisle": {"episodes": 380, "target": 400}, "night": {"episodes": 420, "target": 400},
+                 "dynamic_obstacle": {"episodes": 390, "target": 400}, "outdoor": {"episodes": 12, "target": 300}},
+    "evaluation_report": [
+        "New outdoor yard route: wheel slip and localisation loss on ramps, 37 failures in 50 runs.",
+        "Night and moving obstacles: within tolerance after the last purchase.",
+        "Indoor aisles and loading dock: within tolerance."]}
 
 STANDARD_ITEMS = ["sleep.daily", "activity.daily", "heart_rate.daily"]
 EXTRA_ITEMS = ["fatigue.survey", "blood_pressure.daily"]
@@ -35,7 +60,8 @@ class World:
     sellers: list = field(default_factory=list)
     lab: InstitutionAgent | None = None
     people: dict = field(default_factory=dict)
-    goal: Goal | None = None
+    goal: Spec | None = None
+    limits: OwnerLimits | None = None
     treasury: str | None = None
     treasury_signers: list = field(default_factory=list)
 
@@ -51,24 +77,42 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
 
     # ----- Scene A cast -----
     party("org_robodev", "Robot developer (buyer)", "organization")
+    # Each seller names fields its own way; the buyer agent has to work out which is which.
     specs = [
-        ("org_alpha", "Alpha Sim", [Product("A1", "org_alpha", "Warehouse runs, camera only", "robotics",
-                                            ["imu", "wheel_odometry", "camera_rgb"],
-                                            {"night": 30, "narrow_aisle": 30, "dynamic_obstacle": 30},
-                                            6 * XRP, {"commercial_training": True})], []),
-        ("org_beta", "Beta Logistics", [Product("B1", "org_beta", "Night warehouse navigation", "robotics",
-                                                ["lidar", "imu", "wheel_odometry", "raw_video"],
-                                                {"night": 40, "narrow_aisle": 30},
-                                                20 * XRP, {"commercial_training": True, "resale": False})],
-         ["raw_video"]),
+        ("org_alpha", "Alpha Sim", [Product(
+            "A1", "org_alpha", "Warehouse runs, depth camera", "robotics", ["depth_cam", "imu_6axis", "camera_rgb"],
+            {"night": 30, "narrow_aisle": 30, "dynamic_obstacle": 30}, 6 * XRP,
+            {"commercial_training": True, "evaluation": True, "redistribution": False},
+            kinds={"depth_cam": "depth", "imu_6axis": "imu"},
+            licence_text="Licensed for commercial training and evaluation. No redistribution.")], []),
+        ("org_beta", "Beta Logistics", [Product(
+            "B1", "org_beta", "Night warehouse navigation", "robotics", ["point_cloud", "imu", "odom", "raw_video"],
+            {"night": 40, "narrow_aisle": 30}, 20 * XRP,
+            {"commercial_training": True, "evaluation": True, "redistribution": False},
+            kinds={"point_cloud": "lidar", "odom": "wheel_odometry"},
+            licence_text="Licensed for commercial model training. No resale or redistribution of the data. "
+                         "Term: 24 months.")], ["raw_video"]),
         ("org_gamma", "Gamma Robotics", [
-            Product("C1", "org_gamma", "Dynamic obstacle encounters", "robotics", ["lidar", "imu"],
-                    {"dynamic_obstacle": 25, "night": 10}, 15 * XRP, {"commercial_training": True}),
-            Product("C2", "org_gamma", "Obstacle set (evaluation only)", "robotics", ["lidar", "imu"],
-                    {"dynamic_obstacle": 40}, 8 * XRP, {"commercial_training": False})], []),
-        ("org_delta", "Delta Fleet", [Product("D1", "org_delta", "Mixed fleet logs", "robotics", ["lidar", "imu"],
-                                              {"dynamic_obstacle": 30, "narrow_aisle": 20}, 10 * XRP,
-                                              {"commercial_training": True}, missing_rate=0.2)], []),
+            Product("C1", "org_gamma", "Dynamic obstacle encounters", "robotics", ["lidar_xyz", "imu_6axis"],
+                    {"dynamic_obstacle": 35, "night": 10}, 15 * XRP,
+                    {"commercial_training": True, "evaluation": True, "redistribution": False},
+                    kinds={"lidar_xyz": "lidar", "imu_6axis": "imu"},
+                    licence_text="Any internal use, including training commercial models. Attribution required."),
+            Product("C2", "org_gamma", "Obstacle benchmark set", "robotics", ["lidar_xyz", "imu_6axis"],
+                    {"dynamic_obstacle": 40}, 8 * XRP,
+                    {"commercial_training": False, "evaluation": True, "redistribution": False},
+                    kinds={"lidar_xyz": "lidar", "imu_6axis": "imu"},
+                    licence_text="For research evaluation and benchmarking only. Not for training commercial "
+                                 "models.")], []),
+        ("org_delta", "Delta Fleet", [Product(
+            "D1", "org_delta", "Mixed fleet logs", "robotics", ["lidar", "imu"],
+            {"dynamic_obstacle": 30, "narrow_aisle": 20}, 10 * XRP,
+            {"commercial_training": True, "evaluation": True, "redistribution": False},
+            licence_text="Commercial use permitted.", missing_rate=0.2),
+            Product("D2", "org_delta", "Outdoor yard and ramp runs", "robotics", ["lidar", "imu"],
+                    {"outdoor": 60}, 12 * XRP,
+                    {"commercial_training": True, "evaluation": True, "redistribution": False},
+                    licence_text="Commercial use permitted. No redistribution.")], []),
     ]
     for pid, name, products, excluded in specs:
         party(pid, name, "organization")
@@ -77,12 +121,9 @@ def build_world(ledger_kind: str = "mock", db_path: str = ":memory:") -> World:
                                                   excluded_fields=excluded), engine))
     engine.set_mandate(BuyerMandate("org_robodev", 50 * XRP, 25 * XRP, ["commercial_training"]))
     w.robot_buyer = BuyerAgent("org_robodev", engine)
-    w.goal = Goal(
-        text="indoor warehouse navigation data at night with LiDAR + IMU, covering dynamic obstacles "
-             "and narrow aisles, commercial training allowed",
-        purpose="commercial_training", required_fields=["lidar", "imu"], optional_fields=["raw_video"],
-        required_scenarios=["night", "narrow_aisle", "dynamic_obstacle"],
-        max_missing_rate=0.05, allow_sensitive_fields=False, auto_approve_limit_drops=40 * XRP)
+    w.limits = OwnerLimits(purposes=["commercial_training"], budget_cap_drops=50 * XRP,
+                           allow_sensitive_fields=False, max_missing_rate_ceiling=0.05,
+                           auto_approve_limit_drops=40 * XRP)
 
     # Buyer treasury controlled by multi-signing (owner + compliance officer, master key off).
     # The agent spends only from its own account, capped by the mandate.
@@ -115,6 +156,8 @@ def scene_a(w: World, budget_xrp: float | None = None) -> dict:
     w.store.scene = "A"
     if budget_xrp is not None:
         w.engine.set_mandate(BuyerMandate("org_robodev", int(budget_xrp * XRP), 25 * XRP, ["commercial_training"]))
+    if w.goal is None:
+        w.goal = w.robot_buyer.plan(GOAL_TEXT, INVENTORY, w.limits)
     return w.robot_buyer.procure(w.goal, w.sellers)
 
 

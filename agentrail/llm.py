@@ -83,6 +83,38 @@ class Voice:
             messages=[{"role": "user", "content": prompt}])
         return "".join(b.text for b in r.content if b.type == "text").strip()
 
+    def _ask_json(self, system: str, prompt: str) -> dict:
+        if self.provider == "openai":
+            r = self._client.chat.completions.create(
+                model=self.model, max_completion_tokens=1500, response_format={"type": "json_object"},
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}])
+            text = r.choices[0].message.content or ""
+        else:
+            r = self._client.messages.create(
+                model=self.model, max_tokens=4000, system=system + " Reply with one JSON object only.",
+                output_config={"effort": "low"}, messages=[{"role": "user", "content": prompt}])
+            text = "".join(b.text for b in r.content if b.type == "text")
+        text = text.strip()
+        if text.startswith("```"):
+            text = text.strip("`").split("\n", 1)[1] if "\n" in text else text
+        start, end = text.find("{"), text.rfind("}")
+        return json.loads(text[start:end + 1])
+
+    def propose(self, system: str, payload: dict) -> tuple[dict | None, str]:
+        """Ask for a JSON proposal. Returns (proposal, 'llm') or (None, 'rules').
+        The caller validates every field; nothing here is trusted."""
+        with self._lock:
+            if not self.active or self.calls >= self.max_calls:
+                return None, "rules"
+            self.calls += 1
+        try:
+            out = self._ask_json(system, json.dumps(payload, ensure_ascii=False))
+        except Exception as e:
+            with self._lock:
+                self._off(e)
+            return None, "rules"
+        return (out, "llm") if isinstance(out, dict) else (None, "rules")
+
     def say(self, speaker: str, to: str | None, facts: dict, fallback: str) -> tuple[str, str]:
         """Return (sentence, source). Source is 'llm' or 'rules'."""
         with self._lock:

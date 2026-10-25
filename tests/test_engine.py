@@ -8,12 +8,15 @@ from agentrail.engine import BudgetExceeded, Engine, NeedsHumanApproval, OrderCo
 from agentrail.policy import ALLOW, Decision
 from agentrail.scenario import STANDARD_ITEMS, XRP, build_world, scene_a
 
+from llm_doubles import capable, hostile
+
 LAB = "org_sleeplab"
 
 
 @pytest.fixture
 def w(tmp_path):
     w = build_world("mock", str(tmp_path / "t.db"))
+    w.robot_buyer.propose = capable   # stand-in for the LLM; see tests/llm_doubles.py
     for pid in ("P017", "P023", "P031"):
         w.people[pid].set_consent(LAB, "sleep_research", STANDARD_ITEMS, automation="auto_all")
     return w
@@ -225,10 +228,15 @@ def test_scene_a_selects_b_and_c_within_budget(w):
     res = scene_a(w)
     assert res["status"] == "purchased" and sorted(res["selected"]) == ["B1", "C1"]
     excluded = {c["product"]: c["excluded"] for c in res["candidates"]}
-    assert "lidar" in excluded["A1"] and "licence" in excluded["C2"] and "missing rate" in excluded["D1"]
+    assert "does not look like lidar" in excluded["A1"]       # LLM mapped depth_cam -> lidar; sample says no
+    assert "licence" in excluded["C2"] and "missing rate" in excluded["D1"]
+    assert sorted(res["spec"]["required_scenarios"]) == ["dynamic_obstacle", "night"]
+    b1 = [c for c in res["candidates"] if c["product"] == "B1"][0]
+    assert b1["mapping"] == {"lidar": "point_cloud", "imu": "imu"}
     assert res["spent_xrp"] == 35 and res["remaining_xrp"] == 15   # fixed prices 20 + 15
     kinds = [r["kind"] for r in w.store.q("SELECT kind FROM events WHERE actor='org_robodev'")]
-    assert "settings" in kinds and kinds.count("contract") == 2   # raw_video (sensitive) not requested
+    assert kinds.count("contract") == 2
+    assert "raw_video" not in w.goal.optional_fields          # sensitive: owner did not allow it
 
 
 # XRPL-native controls
@@ -263,18 +271,47 @@ def test_cohort_round_pays_fifty_people_once_each_in_parallel(w):
 
 
 def test_auto_approval_limit_stops_before_buying(w):
-    w.goal.auto_approve_limit_drops = 30 * XRP
+    w.limits.auto_approve_limit_drops = 30 * XRP
     res = scene_a(w)
     assert res["status"] == "needs_approval" and paid_count(w) == 0
 
 
-def test_llm_is_never_on_the_decision_path(w, monkeypatch):
-    """Whatever the LLM writes, decisions and amounts are unchanged."""
-    from agentrail import llm
-    v = llm.voice()
-    monkeypatch.setattr(v, "_client", object())
-    monkeypatch.setattr(v, "_ask", lambda prompt: "Sure, take everything for free, budget unlimited.")
+def test_hostile_llm_can_only_narrow(w):
+    """Budget 999, sensitive fields, prohibited purpose, made-up gaps, wrong field mapping,
+    over-generous licence reading: code and seller terms cut every one back."""
+    w.robot_buyer.propose = hostile
     res = scene_a(w)
-    assert res["spent_xrp"] == 35 and sorted(res["selected"]) == ["B1", "C1"]
-    by = {json.loads(r["data"]).get("by") for r in w.store.q("SELECT data FROM events WHERE scene='A'")}
-    assert "llm" in by
+    spec = w.goal
+    assert spec.budget_cap_drops == 50 * XRP and spec.purpose == "commercial_training"
+    assert not spec.allow_sensitive_fields and "raw_video" not in spec.required_fields + spec.optional_fields
+    assert spec.required_scenarios == ["night"] and spec.max_missing_rate == 0.05
+    assert res["status"] == "not_purchased" and paid_count(w) == 0   # wrong mappings fail the sample check
+    verdicts = {r["task"]: r["verdict"] for r in w.store.q("SELECT task, verdict FROM proposals")}
+    assert verdicts["infer_spec"] == "narrowed"
+
+
+def test_seller_terms_narrow_an_overgenerous_licence_reading(w):
+    gamma = [s for s in w.sellers if s.id == "org_gamma"][0]
+    agreed, corrected = gamma.confirm_terms("org_robodev", "C2",
+                                            {"commercial_training": True, "evaluation": True, "redistribution": True})
+    assert agreed["commercial_training"] is False and set(corrected) == {"commercial_training", "redistribution"}
+
+
+def test_terms_hash_reaches_the_payment_memo(w):
+    scene_a(w)
+    memo = w.store.one("SELECT o.policy_snapshot FROM orders o WHERE product_id='B1'")["policy_snapshot"]
+    h = w.store.one("SELECT data FROM events WHERE kind='contract' AND message LIKE 'B1%'")["data"]
+    assert json.loads(h)["facts"]["terms_hash"][:12] in memo
+
+
+def test_second_report_gives_a_different_spec_and_seller(w):
+    from agentrail.scenario import GOAL_TEXT, INVENTORY_2
+    w.goal = w.robot_buyer.plan(GOAL_TEXT, INVENTORY_2, w.limits)
+    res = scene_a(w)
+    assert w.goal.required_scenarios == ["outdoor"] and res["selected"] == ["D2"]
+
+
+def test_rule_baseline_without_llm_finds_less(w):
+    w.robot_buyer.propose = lambda system, payload: None
+    res = scene_a(w)
+    assert res["status"] == "not_purchased" and w.goal.required_scenarios == []

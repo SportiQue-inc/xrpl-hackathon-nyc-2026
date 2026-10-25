@@ -18,12 +18,32 @@ class Product:
     licence: dict
     missing_rate: float = 0.0          # used to generate the sample
     duplicate_rate: float = 0.0
+    kinds: dict = field(default_factory=dict)   # private ground truth: seller field -> what it really is
+    licence_text: str = ""                      # what the buyer reads
+
+    def kind(self, f: str) -> str:
+        return self.kinds.get(f, f)
 
     def public(self) -> dict:
         """What a buyer agent sees before paying: description only, no raw rows."""
         return {"id": self.id, "seller": self.seller_id, "title": self.title, "domain": self.domain,
                 "fields": self.fields, "scenarios": self.scenarios,
-                "price_xrp": self.price_drops / 1e6, "licence": self.licence}
+                "price_xrp": self.price_drops / 1e6, "licence_text": self.licence_text}
+
+
+def synth_value(kind: str, rng: random.Random):
+    """Typed synthetic values, so a sample can tell a LiDAR scan from a depth image."""
+    if kind == "lidar":
+        return {"points": rng.randint(20000, 60000), "range_m": round(rng.uniform(15, 40), 1), "frame": "xyz"}
+    if kind == "imu":
+        return [round(rng.uniform(-2, 2), 3) for _ in range(6)]
+    if kind == "wheel_odometry":
+        return {"v_mps": round(rng.uniform(0, 2), 2), "w_radps": round(rng.uniform(-1, 1), 2)}
+    if kind == "depth":
+        return {"width": 640, "height": 480, "range_m": round(rng.uniform(0.3, 6), 2)}
+    if kind == "camera_rgb":
+        return {"width": 1280, "height": 720, "encoding": "jpeg"}
+    return round(rng.uniform(0, 1), 3)
 
 
 class RoboticsConnector:
@@ -39,19 +59,20 @@ class RoboticsConnector:
             for i in range(n if n_per_scenario is None else min(n, n_per_scenario)):
                 row = {"episode": f"{p.id}-{scen}-{i:03d}", "scenario": scen}
                 for f in fields:
-                    if f == "raw_video":
+                    k = p.kind(f)
+                    if k == "raw_video":
                         row[f] = f"video://{p.id}/{scen}/{i}"
                     elif rng.random() < p.missing_rate:
                         row[f] = None
                     else:
-                        row[f] = round(rng.uniform(0, 1), 3)
+                        row[f] = synth_value(k, rng)
                 rows.append(row)
         dup = int(len(rows) * p.duplicate_rate)
         return rows + [dict(r) for r in rows[:dup]]
 
     def sample(self, product_id: str) -> list[dict]:
         p = self.products[product_id]
-        return self._episodes(p, [f for f in p.fields if f != "raw_video"], n_per_scenario=10)
+        return self._episodes(p, [f for f in p.fields if p.kind(f) != "raw_video"], n_per_scenario=10)
 
     def extract(self, product_id: str, fields: list[str]) -> list[dict]:
         return self._episodes(self.products[product_id], fields)

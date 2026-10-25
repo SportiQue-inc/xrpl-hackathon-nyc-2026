@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from .connectors import PersonalVaultConnector, RoboticsConnector
 from .llm import voice
 from .engine import BudgetExceeded, Engine, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
+from .reasoning import OwnerLimits, Spec, infer_spec, match_schema, read_licence, terms_hash
 from .policy import (ALLOW, AUTOMATION_LEVELS, DENY, HOLD, PARTIAL, SENSITIVITY, ComplianceRules,
                      Decision, PersonalConsentPolicy, SENSITIVE_FIELDS, SellerPolicy)
 
@@ -44,6 +45,22 @@ class SellerAgent:
         self.engine = engine
         engine.policies[party_id] = policy
 
+    def confirm_terms(self, buyer_id: str, product_id: str, reading: dict) -> tuple[dict, list[str]]:
+        """The buyer's reading of the licence becomes a contract only as far as the seller's own
+        structured terms agree: each permission is the AND of both, so a misreading can only narrow."""
+        p = self.connector.products[product_id]
+        mine = {k: bool(p.licence.get(k, False)) for k in ("commercial_training", "evaluation", "redistribution")}
+        agreed = {k: bool(reading.get(k)) and mine[k] for k in mine}
+        corrected = [k for k in mine if bool(reading.get(k)) and not mine[k]]
+        agreed.update({k: reading.get(k) for k in ("term_months", "attribution") if k in reading})
+        fb = (f"{product_id}: your reading of our licence is confirmed." if not corrected else
+              f"{product_id}: correction - our licence does not grant {', '.join(corrected)}; "
+              f"the contract uses the narrower terms.")
+        talk(self.engine.store, self.id, buyer_id, "terms", {"product": product_id, "buyer_reading": reading,
+                                                             "seller_terms": mine, "agreed": agreed,
+                                                             "corrected": corrected}, fb)
+        return agreed, corrected
+
     def catalog(self) -> list[dict]:
         return [p.public() for p in self.connector.products.values()]
 
@@ -61,26 +78,11 @@ class SellerAgent:
         talk(self.engine.store, self.id, buyer_id, "quote",
              {"product": product_id, "status": d.status, "granted": d.granted, "refused": d.refused,
               "list_price_xrp": p.price_drops / 1e6, "reason": d.reason},
-             f"{product_id}: {msg}, fixed price {xrp(p.price_drops)}, licence: {licence_text(p.licence)}.")
+             f"{product_id}: {msg}, fixed price {xrp(p.price_drops)}.")
         return d, p.price_drops
 
 
 # ---------------- buyer agent (organization procurement) ----------------
-
-@dataclass
-class Goal:
-    """What the buyer organization tells its agent. Budget and per-order limit live in
-    the mandate (enforced by the engine); the rest is enforced here, in code."""
-    text: str
-    purpose: str
-    required_fields: list[str]
-    optional_fields: list[str]
-    required_scenarios: list[str]
-    max_missing_rate: float = 0.05          # minimum quality, measured on samples
-    max_duplicate_rate: float = 0.05
-    allow_sensitive_fields: bool = False    # e.g. raw video that may show people
-    auto_approve_limit_drops: int | None = None  # above this total, a human approves first
-
 
 @dataclass
 class Candidate:
@@ -89,6 +91,9 @@ class Candidate:
     decision: Decision | None = None
     price_drops: int = 0
     quality: dict = field(default_factory=dict)
+    mapping: dict = field(default_factory=dict)      # canonical field -> seller's field (sample-verified)
+    terms: dict = field(default_factory=dict)        # licence terms both sides agreed to
+    terms_hash: str = ""
     excluded: str | None = None
 
 
@@ -103,92 +108,122 @@ def check_quality(sample: list[dict], fields: list[str]) -> dict:
 
 
 class BuyerAgent:
-    """Discovery -> quality check -> fixed quotes -> selection -> contract terms -> purchase -> report.
-    Every step is logged with its reason. Money moves only through the engine."""
+    """Infers what the organization is missing, reads other companies' catalogs and licences,
+    and buys. The LLM proposes (spec, field mapping, licence reading); code verifies each
+    proposal and can only narrow it; the ledger enforces payment rules."""
 
-    def __init__(self, party_id: str, engine: Engine):
+    def __init__(self, party_id: str, engine: Engine, propose=None):
         self.id = party_id
         self.engine = engine
+        self.propose = propose   # tests inject an adversarial proposer here
 
     def say(self, kind, facts, fallback, to=None, extra=None):
         talk(self.engine.store, self.id, to, kind, facts, fallback, extra)
 
-    def procure(self, goal: Goal, sellers: list[SellerAgent]) -> dict:
-        available = self.engine.available_drops(self.id)
-        self.say("goal", {"goal": goal.text, "available_xrp": available / 1e6,
-                          "max_missing_rate": goal.max_missing_rate,
-                          "sensitive_fields_allowed": goal.allow_sensitive_fields},
-                 f"Goal: {goal.text}. Mandate has {xrp(available)} available; sample missing rate must stay "
-                 f"under {goal.max_missing_rate:.0%}; sensitive fields "
-                 f"{'allowed' if goal.allow_sensitive_fields else 'not requested'}.")
+    def plan(self, goal_text: str, inventory: dict, limits: OwnerLimits) -> Spec:
+        st = self.engine.store
+        self.say("goal", {"goal": goal_text, "inventory": [d["name"] for d in inventory.get("datasets", [])]},
+                 f"Owner's goal: \"{goal_text}\". Reading our own inventory to see what is missing.")
+        spec, notes = infer_spec(st, self.id, goal_text, inventory, limits, self.propose)
+        src = st.one("SELECT source FROM proposals WHERE hash=?", spec.proposal_hash)["source"]
+        gaps = "; ".join(f"{k} ({v})" for k, v in spec.reasons.items()) or "none found"
+        self.say("spec", {"required_fields": spec.required_fields, "required_scenarios": spec.required_scenarios,
+                          "purpose": spec.purpose, "budget_xrp": spec.budget_cap_drops / 1e6,
+                          "max_missing_rate": spec.max_missing_rate, "evidence": spec.reasons, "proposed_by": src},
+                 f"Purchase spec ({'LLM' if src == 'llm' else 'rule baseline'}): gaps {gaps}. Need "
+                 f"{', '.join(spec.required_fields) or '-'} for {spec.purpose}, missing rate under "
+                 f"{spec.max_missing_rate:.0%}, up to {xrp(spec.budget_cap_drops)}.")
+        if notes:
+            self.say("verify", {"task": "infer_spec", "narrowed": notes},
+                     "Code narrowed the spec to the owner's limits: " + "; ".join(notes) + ".")
+        return spec
+
+    def procure(self, goal: Spec, sellers: list[SellerAgent]) -> dict:
+        st = self.engine.store
+        available = min(self.engine.available_drops(self.id), goal.budget_cap_drops)
         wanted = goal.required_fields + goal.optional_fields
-        skipped = [f for f in wanted if f in SENSITIVE_FIELDS and not goal.allow_sensitive_fields]
-        if skipped:
-            wanted = [f for f in wanted if f not in skipped]
-            self.say("settings", {"not_requested": skipped},
-                     f"Not requesting {', '.join(skipped)}: it may show people and my settings do not "
-                     f"allow sensitive fields.")
+        if not goal.required_fields or not goal.required_scenarios:
+            msg = "spec is empty after verification. Nothing bought."
+            self.say("report", {"status": "not_purchased"}, msg)
+            return {"goal": goal.text, "candidates": [], "status": "not_purchased", "reason": msg, "orders": []}
 
         cands: list[Candidate] = []
         for s in sellers:
             for prod in s.catalog():
                 c = Candidate(s, prod)
                 cands.append(c)
-                missing = [f for f in goal.required_fields if f not in prod["fields"]]
-                if missing:
-                    c.excluded = f"missing required field(s): {', '.join(missing)}"
-                elif prod["licence"].get(goal.purpose) is False:
-                    c.excluded = f"licence does not allow {goal.purpose}"
+                if not set(prod["scenarios"]) & set(goal.required_scenarios):
+                    c.excluded = "covers none of the gaps"
+                    continue
+                sample = s.sample(prod["id"])
+                # L2: field mapping proposed, then checked against the sample
+                c.mapping, rejected, _ = match_schema(st, self.id, prod, wanted, sample, self.propose)
+                lost = [f for f in goal.required_fields if f not in c.mapping]
+                if lost:
+                    c.excluded = "; ".join(f"{f}: {rejected.get(f, 'no match')}" for f in lost)
                 else:
-                    c.quality = check_quality(s.sample(prod["id"]), goal.required_fields)
+                    native = [c.mapping[f] for f in goal.required_fields]
+                    c.quality = check_quality(sample, native)
                     if c.quality["missing_rate"] > goal.max_missing_rate:
                         c.excluded = f"sample missing rate {c.quality['missing_rate']:.0%} above limit"
                     elif c.quality["duplicate_rate"] > goal.max_duplicate_rate:
                         c.excluded = f"sample duplicate rate {c.quality['duplicate_rate']:.0%} above limit"
                 if c.excluded:
-                    self.say("evaluate", {"product": prod["id"], "excluded": c.excluded, "quality": c.quality},
+                    self.say("evaluate", {"product": prod["id"], "mapping": c.mapping, "excluded": c.excluded},
                              f"{prod['seller']}/{prod['id']}: excluded - {c.excluded}.", to=s.id)
                     continue
-                d, price = s.quote(self.id, prod["id"], wanted, goal.purpose)
-                lost_required = [f for f in d.refused if f in goal.required_fields]
+                renamed = {k: v for k, v in c.mapping.items() if k != v}
+                self.say("evaluate", {"product": prod["id"], "mapping": c.mapping, "quality": c.quality},
+                         f"{prod['seller']}/{prod['id']}: fields verified on sample"
+                         + (f" ({', '.join(f'{v} = {k}' for k, v in renamed.items())})" if renamed else "")
+                         + f", missing {c.quality['missing_rate']:.1%}.", to=s.id)
+                # L3: licence text read, then confirmed by the seller's own terms
+                reading, _ = read_licence(st, self.id, prod, self.propose)
+                c.terms, corrected = s.confirm_terms(self.id, prod["id"], reading)
+                if not c.terms.get(goal.purpose):
+                    c.excluded = f"licence does not allow {goal.purpose}"
+                    self.say("evaluate", {"product": prod["id"], "terms": c.terms, "excluded": c.excluded},
+                             f"{prod['seller']}/{prod['id']}: excluded - {c.excluded}.", to=s.id)
+                    continue
+                d, price = s.quote(self.id, prod["id"], [c.mapping[f] for f in wanted if f in c.mapping],
+                                   goal.purpose)
+                lost_required = [f for f in d.refused if f in (c.mapping[r] for r in goal.required_fields)]
                 if d.status == DENY or lost_required:
                     c.excluded = d.reason or "seller refused required fields"
                     self.say("evaluate", {"product": prod["id"], "excluded": c.excluded},
                              f"{prod['seller']}/{prod['id']}: excluded - {c.excluded}.", to=s.id)
                     continue
                 c.decision, c.price_drops = d, price
-                covers = [k for k in prod["scenarios"] if k in goal.required_scenarios]
-                note = f"; offered without {', '.join(d.refused)} (optional, acceptable)" if d.refused else ""
-                self.say("evaluate", {"product": prod["id"], "covers": covers, "quality": c.quality,
-                                      "refused_optional": d.refused},
-                         f"{prod['seller']}/{prod['id']}: qualifies, covers {', '.join(covers)}, missing "
-                         f"{c.quality['missing_rate']:.1%} (sample-verified){note}.", to=s.id)
+                c.terms_hash = terms_hash(prod["id"], c.terms, c.mapping)
 
         ok = [c for c in cands if not c.excluded]
         need = set(goal.required_scenarios)
-        best, best_any = None, None
+        combos = []
+
+        def episodes(combo, sc):
+            return sum(c.product["scenarios"].get(sc, 0) for c in combo)
+
         for r in range(1, len(ok) + 1):
             for combo in itertools.combinations(ok, r):
-                covered = set().union(*(set(c.product["scenarios"]) for c in combo))
-                if not need <= covered:
-                    continue
-                cost = sum(c.price_drops for c in combo)
-                if best_any is None or cost < best_any[0]:
-                    best_any = (cost, combo)
-                if cost <= available and (best is None or cost < best[0]):
-                    best = (cost, combo)
-        report = {"goal": goal.text, "candidates": [
+                if all(episodes(combo, sc) >= goal.min_episodes for sc in need):
+                    combos.append((sum(c.price_drops for c in combo), combo))
+        combos.sort(key=lambda t: t[0])
+        best = next(((cost, cb) for cost, cb in combos if cost <= available), None)
+        report = {"goal": goal.text, "spec": {"required_fields": goal.required_fields,
+                                              "required_scenarios": goal.required_scenarios,
+                                              "purpose": goal.purpose, "budget_xrp": goal.budget_cap_drops / 1e6},
+                  "candidates": [
             {"seller": c.product["seller"], "product": c.product["id"], "price_xrp": c.product["price_xrp"],
-             "excluded": c.excluded, "quality": c.quality,
+             "excluded": c.excluded, "quality": c.quality, "mapping": c.mapping, "terms": c.terms,
              "refused_fields": c.decision.refused if c.decision else []} for c in cands]}
         if best is None:
-            if best_any:
-                gap = best_any[0] - available
+            if combos:
+                gap = combos[0][0] - available
                 msg = (f"no combination fits the available {xrp(available)}; cheapest full coverage "
-                       f"costs {xrp(best_any[0])}. Asking a human to approve +{xrp(gap)}. Nothing bought.")
+                       f"costs {xrp(combos[0][0])}. Asking a human to approve +{xrp(gap)}. Nothing bought.")
                 report["gap_xrp"] = gap / 1e6
             else:
-                msg = "no qualifying data covers all required scenarios. Nothing bought."
+                msg = "no verified data covers all required scenarios. Nothing bought."
             self.say("report", {"status": "not_purchased", "reason": msg}, msg)
             return {**report, "status": "not_purchased", "reason": msg, "orders": []}
 
@@ -201,21 +236,22 @@ class BuyerAgent:
                                    "auto_approve_limit_xrp": goal.auto_approve_limit_drops / 1e6}, msg)
             return {**report, "status": "needs_approval", "reason": msg, "orders": []}
 
-        alts = sorted(((sum(c.price_drops for c in cb), [c.product["id"] for c in cb])
-                       for r in range(1, len(ok) + 1) for cb in itertools.combinations(ok, r)
-                       if need <= set().union(*(set(c.product["scenarios"]) for c in cb))), key=lambda t: t[0])
         self.say("select", {"selected": ids, "cost_xrp": cost / 1e6, "covers": goal.required_scenarios,
                             "available_xrp": available / 1e6,
-                            "alternatives": [{"products": a, "cost_xrp": c / 1e6} for c, a in alts[1:4]]},
+                            "alternatives": [{"products": [c.product["id"] for c in cb], "cost_xrp": x / 1e6}
+                                             for x, cb in combos[1:4]]},
                  f"Compared fixed quotes: {' + '.join(ids)} for {xrp(cost)} is the cheapest combination that "
-                 f"covers {', '.join(goal.required_scenarios)} within the {xrp(available)} available.")
+                 f"gives at least {goal.min_episodes} episodes of {', '.join(goal.required_scenarios)} within the "
+                 f"{xrp(available)} available.")
         for c in combo:
+            # The agreed terms hash goes into the order's terms and from there into the payment memo.
+            c.decision.policy_version = f"{c.decision.policy_version}#{c.terms_hash[:12]}"
+            allowed = [k for k in ("commercial_training", "evaluation", "redistribution") if c.terms.get(k)]
             self.say("contract", {"product": c.product["id"], "fields": c.decision.granted, "purpose": goal.purpose,
-                                  "licence": c.product["licence"], "terms": c.decision.policy_version,
-                                  "price_xrp": c.price_drops / 1e6},
-                     f"{c.product['id']}: terms confirmed - {', '.join(c.decision.granted)} for {goal.purpose}, "
-                     f"licence: {licence_text(c.product['licence'])}, terms {c.decision.policy_version}, {xrp(c.price_drops)}. "
-                     f"Placing the order.", to=c.seller.id)
+                                  "terms": c.terms, "terms_hash": c.terms_hash, "price_xrp": c.price_drops / 1e6},
+                     f"{c.product['id']}: contract - {', '.join(c.decision.granted)} for {goal.purpose}; agreed terms "
+                     f"allow {', '.join(allowed) or 'nothing else'}; terms hash {c.terms_hash[:12]} goes in the "
+                     f"payment memo; {xrp(c.price_drops)}.", to=c.seller.id)
         orders = []
         for c in combo:
             rows = c.seller.connector.extract(c.product["id"], c.decision.granted)
@@ -224,13 +260,14 @@ class BuyerAgent:
             oid = self.engine.place_order(req)
             status = self.engine.process(oid)
             orders.append({"order_id": oid, "product": c.product["id"], "status": status})
+        spent = sum(c.price_drops for c, o in zip(combo, orders) if o["status"] == "delivered")
         remaining = self.engine.available_drops(self.id)
-        self.say("report", {"acquired": ids, "spent_xrp": cost / 1e6, "remaining_xrp": remaining / 1e6,
+        done = ", ".join(f"{o['product']} {o['status']}" for o in orders)
+        self.say("report", {"acquired": ids, "spent_xrp": spent / 1e6, "remaining_xrp": remaining / 1e6,
                             "orders": orders},
-                 f"Acquired {len(combo)} datasets, spent {xrp(cost)}, remaining {xrp(remaining)}. "
-                 f"Receipts: payment on a validated ledger, sealed bundle delivered.")
-        return {**report, "status": "purchased", "selected": ids,
-                "spent_xrp": cost / 1e6, "remaining_xrp": remaining / 1e6, "orders": orders}
+                 f"Done: {done}; spent {xrp(spent)}, remaining {xrp(remaining)}.")
+        return {**report, "status": "purchased" if spent == cost else "partial", "selected": ids,
+                "spent_xrp": spent / 1e6, "remaining_xrp": remaining / 1e6, "orders": orders}
 
 
 # ---------------- personal agent (person as data holder) ----------------
