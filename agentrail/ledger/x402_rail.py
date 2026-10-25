@@ -46,7 +46,9 @@ class X402Mixin:
         self.challenges.append({"status": 402, "x402Version": 2, "accepts": [req.to_dict()]})
         payer = XRPLPresignedPaymentPayer(
             XRPLPresignedPaymentPayerOptions(wallet=self.wallets[source], network=NETWORK,
-                                             rpc_url=self.client.url),
+                                             rpc_url=self.client.url,
+                                             # official XRPL exact scheme: InvoiceID only, no memos
+                                             invoice_binding=os.environ.get("X402_INVOICE_BINDING", "both")),
             client=self.client)
         prep = payer.prepare_payment(req)
         tx_hash = Transaction.from_blob(prep.signed_tx_blob).get_hash()
