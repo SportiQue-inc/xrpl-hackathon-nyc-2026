@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Vault Agent</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: navy hero band, then one 960px reading column of sections; demo cards in a 2-col grid */
+:root{--bg:#f5f7fc;--surface:#ffffff;--fg:#0e1733;--muted:#56607a;--line:#dfe4f0;--accent:#1f4fe0;--accent-soft:#e6ecff;--navy:#0b1a4a;--ok:#0f7a4f;
+--display:"Sora",system-ui,sans-serif;--body:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a1022;--surface:#111a33;--fg:#e8ecf7;--muted:#9aa5c2;--line:#25304f;--accent:#7fa2ff;--accent-soft:#1a2752;--navy:#060d26;--ok:#4cc996;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0a1022;--surface:#111a33;--fg:#e8ecf7;--muted:#9aa5c2;--line:#25304f;--accent:#7fa2ff;--accent-soft:#1a2752;--navy:#060d26;--ok:#4cc996;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--body)}
+.wrap{max-width:960px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+a{color:var(--accent)} a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+.hero{background:var(--navy);color:#fff}
+.hero .wrap{padding-block:48px 56px;display:grid;gap:20px}
+.brand{display:flex;align-items:center;gap:14px;font-family:var(--display);font-weight:600;font-size:20px}
+.brand small{display:block;font:500 12px var(--body);opacity:.7;letter-spacing:.06em;text-transform:uppercase}
+.hero h1{font-size:clamp(30px,5vw,48px);font-weight:700;max-width:20ch}
+.hero p{max-width:60ch;margin:0;color:#c9d4f5;font-size:18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:500 13px var(--mono);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:4px 12px;color:#dfe6ff}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:4px}
+.btn{display:inline-block;padding:11px 18px;border-radius:10px;font-weight:600;text-decoration:none;background:#fff;color:#0b1a4a}
+.btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4)}
+section{padding-block:44px;border-bottom:1px solid var(--line)}
+.eyebrow{font:600 12px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+h2{font-size:clamp(24px,3.4vw,32px);margin-bottom:16px}
+.lead{max-width:65ch;color:var(--muted);margin:0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:20px}
+.stat b{display:block;font:700 40px var(--display);color:var(--fg);font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted)}
+.steps{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.steps li{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;min-width:0}
+.steps .n{font:600 13px var(--mono);color:var(--accent)}
+.steps h3{font-size:18px;margin:6px 0 8px}
+.steps p{margin:0;color:var(--muted)}
+.tiers{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tier{font:500 12px var(--mono);padding:2px 8px;border-radius:6px;background:var(--accent-soft);color:var(--fg)}
+.products{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card h3{font-size:22px}
+.card p{margin:0;color:var(--muted)}
+.card .go{margin-top:auto;display:inline-flex;gap:6px;align-items:center;font-weight:600;text-decoration:none;padding:10px 14px;border-radius:10px;background:var(--accent);color:var(--surface);align-self:flex-start}
+.card .sub{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:14px}
+.more{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:16px}
+.mini{display:block;text-decoration:none;color:var(--fg);border:1px dashed var(--line);border-radius:14px;padding:16px 20px}
+.mini:hover{border-color:var(--accent)}
+.mini b{font-family:var(--display)} .mini span{display:block;color:var(--muted);font-size:14px}
+.proof{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:10px}
+.proof li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+.proof .what{min-width:0}
+.proof .what b{display:block}
+.proof code{font:13px var(--mono);color:var(--muted);overflow-wrap:anywhere}
+.pill{font:600 11px var(--body);letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.pill.test{background:var(--accent-soft);color:var(--accent)}
+.pill.main{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.links{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}
+.links a{padding:10px 16px;border:1px solid var(--line);border-radius:10px;text-decoration:none;font-weight:600;background:var(--surface)}
+footer{padding-block:32px;color:var(--muted);font-size:14px}
+</style>
+</head><body>
+
+<header class="hero"><div class="wrap">
+  <div class="brand"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="56" height="56" role="img" aria-label="Vault Agent">
+  
+  <defs>
+    <linearGradient id="va-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1a4a"/>
+      <stop offset="0.55" stop-color="#1640c8"/>
+      <stop offset="1" stop-color="#2f6bff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#va-bg)"/>
+    <circle cx="256" cy="256" r="150" fill="none" stroke="#fff" stroke-width="30"/>
+    <line x1="429.7" y1="327.9" x2="448.2" y2="335.6" stroke="#fff" stroke-width="26" stroke-linecap="round"/>
+    <line x1="327.9" y1="429.7" x2="335.6" y2="448.2" stroke="#fff" stroke-width="26" stroke-linecap="round"/>
+    <line x1="184.1" y1="429.7" x2="176.4" y2="448.2" stroke="#fff" stroke-width="26" stroke-linecap="round"/>
+    <line x1="82.3" y1="327.9" x2="63.8" y2="335.6" stroke="#fff" stroke-width="26" stroke-linecap="round"/>
+    <line x1="82.3" y1="184.1" x2="63.8" y2="176.4" stroke="#fff" stroke-width="26" stroke-linecap="round"/>
+    <line x1="184.1" y1="82.3" x2="176.4" y2="63.8" stroke="#fff" stroke-width="26" stroke-linecap="round"/>
+    <line x1="327.9" y1="82.3" x2="335.6" y2="63.8" stroke="#fff" stroke-width="26" stroke-linecap="round"/>
+    <line x1="429.7" y1="184.1" x2="448.2" y2="176.4" stroke="#fff" stroke-width="26" stroke-linecap="round"/>
+    <circle cx="256" cy="256" r="98" fill="#fff" fill-opacity="0.12"/>
+    <path d="M256.0,180.0 Q266.6,245.4 332.0,256.0 Q266.6,266.6 256.0,332.0 Q245.4,266.6 180.0,256.0 Q245.4,245.4 256.0,180.0 Z" fill="#fff"/>
+    <circle cx="362.1" cy="149.9" r="28" fill="#5ef2d6" stroke="#1640c8" stroke-width="10"/>
+</svg>
+<div>Vault Agent<small>by SportiQue</small></div></div>
+  <h1>Agents that check, agree and pay for data. The owner stays in control.</h1>
+  <p>Vault Agent lets a buyer's AI agent and a data owner's AI agent settle a data deal in seconds instead of months. Payment runs on Mastercard Agent Pay (AP4M) vouchers on XRPL EVM, under a spending cap the owner sets on chain.</p>
+  <div class="chips"><span class="chip">Mastercard AP4M</span><span class="chip">XRPL EVM</span><span class="chip">XRPL mainnet</span><span class="chip">RLUSD</span></div>
+  <div class="cta"><a class="btn" href="#demos">Try the demos</a><a class="btn ghost" href="https://claude.ai/artifact/XwMbQTBe4FVVbkjtTVCxc8">Pitch deck</a></div>
+</div></header>
+
+<main>
+<section><div class="wrap">
+  <div class="eyebrow">The problem</div>
+  <h2>Data deals are slow, and buyers pay blind</h2>
+  <p class="lead">Buying health or research data today means contracts, review boards and invoices passed by hand. Buyers pay before they can see whether the data is any good, and owners lose track of who uses it.</p>
+  <div class="stats">
+    <div class="stat"><b>~80 days</b><span>for a typical data deal to close</span></div>
+    <div class="stat"><b>Up front</b><span>buyers pay before they know the quality</span></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">How it works</div>
+  <h2>Three steps, run by agents</h2>
+  <ol class="steps">
+    <li><div class="n">Step 1</div><h3>The buyer agent asks</h3><p>A researcher's or company's agent sends a request: what data, for what purpose, at what price.</p></li>
+    <li><div class="n">Step 2</div><h3>The owner agent checks</h3><p>It applies the owner's own rules and the data's sensitivity tier. MRI, CT and genomics always need a fresh yes from the person.</p><div class="tiers"><span class="tier">T0 open</span><span class="tier">T1 auto</span><span class="tier">T2 rules</span><span class="tier">T3 ask the person</span></div></li>
+    <li><div class="n">Step 3</div><h3>Agents pay</h3><p>The buyer agent pays with AP4M vouchers, limited by an on-chain spending cap. The owner gets paid on delivery.</p></li>
+  </ol>
+</div></section>
+
+<section id="demos"><div class="wrap">
+  <div class="eyebrow">Live demos</div>
+  <h2>Two products, both live</h2>
+  <div class="products">
+    <div class="card">
+      <h3>Vault Market</h3>
+      <p>A marketplace where buyer agents find datasets, check quality and pay per use with AP4M vouchers. Owners set the rules and the price.</p>
+      <a class="go" href="https://data-vault-market-production.up.railway.app">Open Vault Market →</a>
+    </div>
+    <div class="card">
+      <h3>UniQdata × UniQLab research contracts</h3>
+      <p>A researcher runs a study contract with participants. Agents collect consent, deliver data and pay each participant automatically.</p>
+      <div class="sub"><span>Researcher console</span><span>Participant app</span></div>
+      <a class="go" href="https://agentrail-try-production.up.railway.app/try">Open research demo →</a>
+    </div>
+  </div>
+  <div class="more">
+    <a class="mini" href="https://agentrail-try-production.up.railway.app/apps/decide/"><b>Agent decision screen →</b><span>See how the owner agent decides: auto-approve, check rules, or ask the person.</span></a>
+    <a class="mini" href="https://agentrail-try-production.up.railway.app/institutions"><b>Institution dashboard →</b><span>Requests, payments and the share handled by agents, for a hospital or lab.</span></a>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">Live proof</div>
+  <h2>Every payment is on chain</h2>
+  <div class="stats">
+    <div class="stat"><b>24 / 26</b><span>deliveries paid in a 3-week automatic research contract (0.48 RLUSD, testnet)</span></div>
+    <div class="stat"><b>70 / 80</b><span>requests paid on the institution dashboard</span></div>
+    <div class="stat"><b>91%</b><span>of requests handled by agents</span></div>
+  </div>
+  <ul class="proof">
+    <li><div class="what"><b><a href="https://explorer.testnet.xrplevm.org/tx/0x318db4c2ace3b95496017f46bdfea617b9e32a2d6ddd1f1ddde0e538b7b2c7a9">AP4M VoucherRedeemed</a></b><code>0x318db4c2…b7b2c7a9</code></div><span class="pill test">XRPL EVM testnet</span></li>
+    <li><div class="what"><b><a href="https://explorer.testnet.xrplevm.org/address/0x7BA281DF7cC4A40159Ca957A6a969b9495464160">Payout wallet</a></b><code>0x7BA281DF…95464160</code></div><span class="pill test">XRPL EVM testnet</span></li>
+    <li><div class="what"><b><a href="https://explorer.testnet.xrplevm.org/tx/0x451d3682fa655e0741a67518af6b4c883b4ea8f0421339699e89b1c45f11d044">RC1 research payouts</a></b><code>0x451d3682…5f11d044</code></div><span class="pill test">XRPL EVM testnet</span></li>
+    <li><div class="what"><b><a href="https://livenet.xrpl.org/transactions/93224620E232173F7E2EC5A6F15F5BEE5022B9446015C7155FC3FC5F51BB7DA0">XRPL transaction, source tag 2610250016</a></b><code>93224620…51BB7DA0</code></div><span class="pill main">XRPL mainnet</span></li>
+    <li><div class="what"><b><a href="https://livenet.xrpl.org/transactions/BF93E9B72AE372BCEB27781CA58C4ABE7E51EE9F5D254D02B83C92EC1A22AE53">XRPL transaction, source tag 2610250016</a></b><code>BF93E9B7…1A22AE53</code></div><span class="pill main">XRPL mainnet</span></li>
+  </ul>
+</div></section>
+
+<section><div class="wrap">
+  <div class="eyebrow">Links</div>
+  <h2>Code and pitch</h2>
+  <div class="links">
+    <a href="https://github.com/SportiQue-inc/xrpl-hackathon-nyc-2026">GitHub repository</a>
+    <a href="https://claude.ai/artifact/XwMbQTBe4FVVbkjtTVCxc8">Pitch deck</a>
+  </div>
+</div></section>
+
+<section style="border-bottom:0"><div class="wrap">
+  <div class="eyebrow">About SportiQue</div>
+  <h2>We run UniQdata, a health-data platform</h2>
+  <p class="lead">SportiQue builds UniQdata, where people keep and share their own health data. Our plan: start in Asia, then connect the US, Singapore and the rest of the world, so health data can move between people, researchers and institutions on terms the owner sets.</p>
+</div></section>
+</main>
+<footer><div class="wrap">Vault Agent by SportiQue · XRPL Hackathon NYC 2026 · Testnet amounts are marked as testnet.</div></footer>
+</body></html>
