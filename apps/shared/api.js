@@ -10,7 +10,7 @@ export const STUDY = "org_sleeplab";
 export const RESEARCHER = `researcher@${STUDY}`;
 export const approverSub = (signer) => `approver:${signer}@${STUDY}`;
 
-export function engine(base = "", { token } = {}) {
+export function engine(base = "", { token, sandboxCode } = {}) {
   const root = base.replace(/\/$/, "");
   const tokens = new Map();
 
@@ -28,6 +28,7 @@ export function engine(base = "", { token } = {}) {
   async function call(method, path, body, sub, retried = false) {
     const t = await bearer(sub, retried);
     const headers = {};
+    if (sandboxCode) headers["X-Sandbox-Code"] = sandboxCode;
     if (body) headers["Content-Type"] = "application/json";
     if (t) headers.Authorization = `Bearer ${t}`;
     const res = await fetch(root + path, { method, headers, body: body ? JSON.stringify(body) : undefined });

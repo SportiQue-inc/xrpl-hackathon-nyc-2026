@@ -870,7 +870,7 @@ def before_after_demo(request: Request):
 
 
 if (Path(__file__).parent.parent / "apps").is_dir():
-    app.mount("/apps", StaticFiles(directory=Path(__file__).parent.parent / "apps"), name="apps")
+    app.mount("/apps", StaticFiles(directory=Path(__file__).parent.parent / "apps", html=True), name="apps")
 
 
 @app.get("/")

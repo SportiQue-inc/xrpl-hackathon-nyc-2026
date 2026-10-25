@@ -65,6 +65,11 @@ def test_try_link_preserves_the_judges_access_code():
     assert r.headers["location"] == "/apps/try/index.html?code=judges-2026"
 
 
+def test_try_researcher_link_opens_the_live_page():
+    c = TestClient(web.app)
+    assert c.get("/apps/live/").status_code == 200
+
+
 @pytest.fixture
 def c():
     reset_rate_limits()
