@@ -363,3 +363,18 @@ def test_xrpl_multisign_signatures_are_checked_offline():
     combined = multisign(Transaction.from_xrpl(a["tx_json"]),
                          [Transaction.from_xrpl(x["signed_tx"]) for x in (so, sc)])
     assert len(combined.signers) == 2
+
+
+def test_withdrawal_destroys_the_gates_copies_and_unreleased_keys(c):
+    sent(c)
+    p = login(c, P)
+    rid = c.get(f"/api/p/{HERO}", headers=p).json()["requests"][0]["id"]
+    c.post(f"/api/p/{HERO}/requests/{rid}/approve", json={"items": ["fatigue.survey", "heart_rate.daily"]}, headers=p)
+    w = web._state["w"]
+    held = w.store.one("SELECT o.order_key FROM orders o JOIN payments p ON p.order_id=o.id "
+                       "WHERE o.seller_id=? AND p.condition IS NOT NULL AND p.finish_blob IS NULL", HERO)
+    oids = [r["id"] for r in w.store.q("SELECT id FROM orders WHERE seller_id=? AND buyer_id=?", HERO, LAB)]
+    assert c.post(f"/api/p/{HERO}/revoke", headers=p).status_code == 200
+    left = w.store.one(f"SELECT COUNT(*) n FROM bundles WHERE order_id IN ({','.join('?' * len(oids))})", *oids)["n"]
+    assert left == 0
+    assert w.cohort_people[HERO].keyring.fulfillment(held["order_key"]) is None

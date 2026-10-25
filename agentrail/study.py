@@ -642,12 +642,22 @@ def _destroy_person_level(w, pid: str) -> dict:
     s.withdrawn = getattr(s, "withdrawn", set()) | {pid}
     talk(w.store, pid, LAB, "deletion_request", {"participant": pid},
          f"{pid} withdrew data access: destroy every person-level copy you hold for this participant and confirm.")
-    oids = [r["id"] for r in w.store.q("SELECT id FROM orders WHERE buyer_id=? AND seller_id=?", LAB, pid)]
+    orders = w.store.q("SELECT id, order_key, status FROM orders WHERE buyer_id=? AND seller_id=?", LAB, pid)
+    oids = [r["id"] for r in orders]
     destroyed = []
     for oid in oids:
         got = w.engine.inbox.received.pop(oid, None)
         if got:
             destroyed.append(got[0])
+    # The gate's copies go too: sealed bundles and any escrow key the engine held. The participant's
+    # keyring forgets the keys of rounds never released, so they can never be published.
+    with w.store.tx() as c:
+        c.executemany("DELETE FROM bundles WHERE order_id=?", [(o,) for o in oids])
+        c.executemany("DELETE FROM escrow_keys WHERE order_id=?", [(o,) for o in oids])
+    kr = getattr(w.cohort_people.get(pid), "keyring", None)
+    for o in orders:
+        if kr is not None and o["status"] != "delivered":
+            kr.forget(o["order_key"])
     cells = sum(len(v) for v in w.coverage.cells[pid].values())
     w.coverage.cells[pid] = {wk: set() for wk in WEEKS}
     receipt = {"participant_number": pid, "bundles_destroyed": sorted(destroyed), "own_cells_destroyed": cells,
