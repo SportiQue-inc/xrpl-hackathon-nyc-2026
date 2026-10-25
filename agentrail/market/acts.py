@@ -147,7 +147,8 @@ def act1(seed: int = 11, ledger=None, store=None, prof: dict | None = None, roun
     provider.report_types = {"caffeine_metabolism": ["CYP1A2"], "lactose_tolerance": ["MCM6"]}
     _build_rows(accounts)
     from ..uniqdata_live import feed_market, market_clients
-    uq = feed_market(accounts, market_clients())     # each person's own UniQdata account, when connected
+    uq = feed_market(accounts, market_clients(), keep={MANUAL})  # each person's own UniQdata account, when connected;
+    # the manual approver keeps generated rows so the demo still shows approvals waiting for a person
     ex = Exchange(accounts + [provider], ledger=ledger, store=store, seed=seed)
     rng = random.Random(seed + 1)
     for a in accounts:
@@ -263,7 +264,7 @@ def act2(seed: int = 11, ledger=None, store=None, prof: dict | None = None) -> d
     people = participants(prof, act=2, seed=seed)
     _build_rows(people)
     from ..uniqdata_live import feed_market, market_clients
-    uq = feed_market(people, market_clients())
+    uq = feed_market(people, market_clients(), keep={MANUAL})
     insts = []
     for inst in prof["institutions"]:
         insts.append(Account(inst["id"], inst["name"], "org", attrs=institution_record(inst)))

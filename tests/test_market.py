@@ -150,3 +150,12 @@ def test_deid_and_imaging():
     assert imaging.deidentify({**d, "BurnedInAnnotation": "YES"}, "P-1") is None
     assert deid.date_shift_days("P-1") == deid.date_shift_days("P-1")
     assert b["StudyDate"] != synth("imaging.mri", "P-1", 3)["StudyDate"]
+
+
+def test_manual_approver_keeps_generated_rows_with_uniqdata():
+    from agentrail.market.acts import MANUAL
+    from agentrail.uniqdata_live import feed_market
+
+    class A:
+        id, datasets = MANUAL, []
+    assert feed_market([A()], {MANUAL: object()}, keep={MANUAL}) == {}
