@@ -5,7 +5,7 @@
 // redeemed on-chain by the merchant), then the agent reports the redemption, settles, and writes a run record.
 // A fourth, scripted request (week 6: outside the consented weeks and priced above the per-call cap) must be
 // refused with no payment; the record lists every rule it broke. A package that fails its hash check after
-// payment is recorded as a refund claim and stops every later payment in the run.
+// payment is recorded as a refund claim (written to the run record at once) and stops every later payment in the run.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -16,7 +16,7 @@ import { payoutAddress, resolveEnv, setting } from './lib/env.mjs';
 import { voucherRedeemedEvents } from './lib/ledger-events.mjs';
 import { verifySealed } from './lib/pkg.mjs';
 import { buildConsent, buildPolicy, decide } from './lib/policy.mjs';
-import { fromWei, toWei } from './lib/units.mjs';
+import { fromWei } from './lib/units.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ERC20_ABI = ['function balanceOf(address) view returns (uint256)'];
@@ -95,7 +95,13 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
     settlement: null,
     payout_balance: null,
     explorer_links: [],
+    finished_at: null,
   };
+  // The run record is written as soon as there is something a later failure must not lose (a refund claim), and
+  // again at the end; `finished_at` stays null in an interim record.
+  mkdirSync(outDir, { recursive: true });
+  const outFile = join(outDir, `run-${runId}.json`);
+  const persist = () => writeFileSync(outFile, JSON.stringify(record, null, 2) + '\n');
 
   const payout = dryRun ? DRY_PAYOUT : payoutAddress(env);
   // The developer guide requires the payout wallet to differ from the Agent (and funding) wallet.
@@ -126,6 +132,7 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
   log(`[channel] ${channelId}`);
 
   let spentWei = 0n;
+  let refundClaimedWei = 0n;
   let dryCumulative = 0n;
   let halted = null;   // set after a package fails verification: no further payment in this run
   const requests = [
@@ -160,6 +167,7 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
 
     let sealed;
     let redeemTx;
+    let paidWei = verdict.priceWei;   // live: replaced by the amount the VoucherRedeemed event confirms
     if (dryRun) {
       dryCumulative += verdict.priceWei;
       const voucher = { channelId, cumulativeAmount: dryCumulative.toString() };
@@ -172,13 +180,12 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
       call.voucher = { cumulative_amount_rlusd: fromWei(dryCumulative), signature: 'fake (DRY_RUN)' };
       call.record_redemption = { status: 'skipped (DRY_RUN)' };
     } else {
-      // The per-call cap is the hard ceiling handed to the SDK; buyResource refuses a challenge above it.
-      const remaining = policy.budgetWei - spentWei;
-      const maximumAmount = (policy.perCallCapWei < remaining ? policy.perCallCapWei : remaining).toString();
+      // The price the policy approved is the ceiling handed to the SDK: buyResource refuses an x402 challenge
+      // above it, so the merchant cannot collect more than the offer that passed the cap and budget checks.
       const purchase = await live.buyResource({
         context: live.context, provider: live.provider, wallet: live.wallet,
         stateDirectory: join(HERE, 'state', 'agent'),
-        resourceUrl: offer.resource_url, channelId, maximumAmount,
+        resourceUrl: offer.resource_url, channelId, maximumAmount: verdict.priceWei.toString(),
         operation: `${offer.package_id}-${operationRun}`.slice(0, 64),
       });
       sealed = purchase.resource;
@@ -190,6 +197,7 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
       call.voucher_redeemed_event = event
         ? { ...event, amount_rlusd: fromWei(event.amount), cumulative_rlusd: fromWei(event.cumulativeAmount), previousCumulativeAmount: undefined, cumulativeAmount: undefined, amount: undefined }
         : null;
+      if (event) paidWei = event.amount;   // what the ledger redeemed, which is what a refund claim must name
       const reported = await fetch(`${live.apiUrl}/public/participant/record-redemption`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${live.token}` },
@@ -199,7 +207,8 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
       log(`[pay] record-redemption HTTP ${reported.status}`);
     }
     call.paid = true;
-    spentWei += verdict.priceWei;
+    call.paid_rlusd = fromWei(paidWei);
+    spentWei += paidWei;
     call.voucher_redeemed_tx = redeemTx;
     call.voucher_redeemed_link = dryRun ? null : txLink(redeemTx);
     if (!dryRun) record.explorer_links.push(txLink(redeemTx));
@@ -215,19 +224,22 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
       // Paid already (x402 hands the package over only after payment), so the record keeps a refund claim
       // against this merchant and the agent pays nothing more in this run. The AP4M payment is not reversed here.
       call.refund_claim = {
-        amount_rlusd: fromWei(verdict.priceWei), claim_id: call.claim_id ?? null, voucher_redeemed_tx: redeemTx,
+        amount_rlusd: fromWei(paidWei), claim_id: call.claim_id ?? null, voucher_redeemed_tx: redeemTx,
         reason: `package ${offer.package_id} failed verification: sha256 claimed ${check.expected}, computed ${check.actual}`,
         note: 'recorded off-chain in this run record; the payment already made is not reversed',
       };
       record.refund_claims.push({ week, ...call.refund_claim });
+      refundClaimedWei += paidWei;
+      record.total_refund_claimed_rlusd = fromWei(refundClaimedWei);
       halted = { week, reason: `package ${offer.package_id} failed verification; no further payments to this merchant in this run` };
       record.halted = halted;
-      log(`[package] ${offer.package_id} REJECTED: sha256 mismatch (claimed ${check.expected}, computed ${check.actual}); refund claim recorded, no further payments this run`);
+      persist();   // the claim must survive a failure later in the run (another request, settle)
+      log(`[package] ${offer.package_id} REJECTED: sha256 mismatch (claimed ${check.expected}, computed ${check.actual}); refund claim recorded in ${outFile}, no further payments this run`);
     }
   }
 
   record.total_paid_rlusd = fromWei(spentWei);
-  record.total_refund_claimed_rlusd = fromWei(record.refund_claims.reduce((sum, r) => sum + toWei(r.amount_rlusd), 0n));
+  record.total_refund_claimed_rlusd = fromWei(refundClaimedWei);
   if (spentWei > 0n) {
     if (dryRun) {
       record.settlement = { payout_tx: fakeTxHash('payout', channelId, spentWei), receipt_url: null, note: 'fake (DRY_RUN)' };
@@ -264,10 +276,7 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
   if (!dryRun) record.explorer_links.push(record.payout_balance.link);
   record.explorer_links = record.explorer_links.filter(Boolean);
   record.finished_at = new Date().toISOString();
-
-  mkdirSync(outDir, { recursive: true });
-  const outFile = join(outDir, `run-${runId}.json`);
-  writeFileSync(outFile, JSON.stringify(record, null, 2) + '\n');
+  persist();
   log(`[summary] paid ${record.calls.filter((c) => c.paid).length} of ${record.calls.length} calls, total ${record.total_paid_rlusd} RLUSD; payout balance ${record.payout_balance.before_rlusd} -> ${record.payout_balance.after_rlusd} RLUSD`
     + (record.refund_claims.length ? `; ${record.refund_claims.length} refund claim(s) for ${record.total_refund_claimed_rlusd} RLUSD, run halted after week ${record.halted.week}` : ''));
   log(`[summary] run record ${outFile}`);

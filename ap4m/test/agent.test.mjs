@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
@@ -69,6 +69,13 @@ test('consent covers the task only: week 6 inside the cap and the budget is stil
   assert.equal(decide(offer({ week: 5 }), policy, taskConsent(), 0n).pay, true);
 });
 
+test('an offer without a valid price still names the other rules it breaks', () => {
+  const v = decide(offer({ price_rlusd: 'free', week: 6 }), policy, taskConsent(), 0n);
+  assert.equal(v.pay, false);
+  assert.equal(v.priceWei, null);
+  assert.deepEqual(v.reasons, ['offer has no valid price', 'week 6 is outside consented weeks 3,4,5']);
+});
+
 test('refuses unknown payee: nothing is paid when the payee is not allowlisted', async () => {
   const { record } = await run({ PAYEE_ALLOWLIST: '0x000000000000000000000000000000000000beef' });
   assert.equal(record.calls.filter((c) => c.paid).length, 0);
@@ -117,6 +124,26 @@ test('tampered package hash is rejected, claimed back, and stops every later pay
   assert.equal(verifySealed(sealed).ok, true);
   sealed.package.week = 4;
   assert.equal(verifySealed(sealed).ok, false);
+});
+
+test('a refund claim is on disk before the run can fail later', async () => {
+  // week 3's package is tampered; the request for week 4 then fails outright, so the run never reaches its final write
+  const fetchImpl = async (url, init) => {
+    if (String(url).endsWith('/export/P-017/4')) throw new Error('merchant unreachable');
+    const response = await fetch(url, init);
+    if (!String(url).includes('/dry/resource/sleep-01-p-017-w3') || response.status !== 200) return response;
+    const body = await response.json();
+    body.resource.package.days[0].resting_heart_rate_bpm += 1;
+    return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  await assert.rejects(run({}, { fetchImpl, runId: 'interim' }), /merchant unreachable/);
+  const interim = JSON.parse(readFileSync(join(outDir, 'run-interim.json'), 'utf8'));
+  assert.equal(interim.finished_at, null);
+  assert.equal(interim.halted.week, 3);
+  assert.equal(interim.refund_claims.length, 1);
+  assert.equal(interim.refund_claims[0].amount_rlusd, '0.05');
+  assert.equal(interim.total_refund_claimed_rlusd, '0.05');
+  assert.equal(interim.calls[0].paid_rlusd, '0.05');
 });
 
 test('purpose outside consent is refused', () => {

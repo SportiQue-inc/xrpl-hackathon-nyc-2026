@@ -8,9 +8,19 @@ budget 0.08 (= 4 member-weeks of two items). Three synthetic members join with t
 own choices. Nothing here touches XRPL Testnet, AP4M, UniQdata or an LLM: those are the limits, listed at the end.
 """
 import json, os, pathlib, time
-os.environ.setdefault("LLM_PROVIDER", "none"); os.environ["LLM_RECORD"] = "0"
+# Whatever the shell has set, this run must not reach a deployed store, keystore, wallet file, UniQdata roster or a
+# live LLM: those variables are dropped before `web` is imported, and both stores are forced in-memory.
+for _name in ("AGENTRAIL_DB", "AGENTRAIL_CONTRACTS_DB", "AGENTRAIL_KEYSTORE", "AGENTRAIL_CONTRACTS_WALLETS",
+              "RAILWAY_VOLUME_MOUNT_PATH", "UNIQDATA_ROSTER", "LLM_SAY"):
+    os.environ.pop(_name, None)
+os.environ["AGENTRAIL_DB"] = ":memory:"
+os.environ["AGENTRAIL_CONTRACTS_DB"] = ":memory:"
+os.environ["LLM_PROVIDER"] = "none"
+os.environ["LLM_RECORD"] = "0"
 os.environ.setdefault("LLM_CACHE", "tests/no_llm_cache.json")
-os.environ["LEDGER"] = "mock"; os.environ["AGENTRAIL_CONTRACTS_PAY"] = "ledger"; os.environ["AGENTRAIL_CONTRACTS_AUTORUN"] = "0"
+os.environ["LEDGER"] = "mock"
+os.environ["AGENTRAIL_CONTRACTS_PAY"] = "ledger"
+os.environ["AGENTRAIL_CONTRACTS_AUTORUN"] = "0"
 os.environ["AGENTRAIL_ANCHOR_S"] = "0"
 from fastapi.testclient import TestClient
 from agentrail import web

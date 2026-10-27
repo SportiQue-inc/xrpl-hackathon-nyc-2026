@@ -22,18 +22,20 @@ export function buildConsent({ pseudonym, study, duo, items, weeks }) {
  * @returns {{ pay: boolean, reason: string, reasons: string[], priceWei: bigint | null }}
  *   Every rule is checked and every rule that fails is listed in `reasons` (joined in `reason`), so a refusal
  *   shows each limit on its own: a request can be outside the consent and over the cap at the same time.
+ *   An offer without a valid price skips only the two checks that need one (cap, budget); `priceWei` is then null.
  */
 export function decide(offer, policy, consent, spentWei) {
-  let priceWei;
-  try { priceWei = toWei(offer?.price_rlusd); } catch { return refuse(['offer has no valid price'], null); }
+  offer = offer ?? {};
   const reasons = [];
+  let priceWei = null;
+  try { priceWei = toWei(offer.price_rlusd); } catch { reasons.push('offer has no valid price'); }
   if (!offer.pay_to || !policy.payeeAllowlist.includes(String(offer.pay_to).toLowerCase())) {
     reasons.push(`payee ${offer.pay_to ?? '(none)'} is not in the allowlist`);
   }
-  if (priceWei > policy.perCallCapWei) {
+  if (priceWei !== null && priceWei > policy.perCallCapWei) {
     reasons.push(`price ${fromWei(priceWei)} RLUSD exceeds per-call cap ${fromWei(policy.perCallCapWei)} RLUSD`);
   }
-  if (spentWei + priceWei > policy.budgetWei) {
+  if (priceWei !== null && spentWei + priceWei > policy.budgetWei) {
     reasons.push(`price ${fromWei(priceWei)} RLUSD would bring the total to ${fromWei(spentWei + priceWei)} RLUSD, over the delegated budget ${fromWei(policy.budgetWei)} RLUSD`);
   }
   const purpose = offer.purpose ?? {};

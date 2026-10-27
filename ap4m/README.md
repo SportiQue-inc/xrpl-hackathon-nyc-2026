@@ -26,12 +26,15 @@ All data is synthetic.
 3. To pay, the agent uses the SDK: `signIn` → `requestChannel` (cap = budget, or reuse `CHANNEL_ID`) →
    `buyResource` (signs the EIP-712 Voucher; the merchant redeems it on-chain, which emits `VoucherRedeemed`) →
    `POST /public/participant/record-redemption` → `settle` (payout tx, settlement tx, receipt URL).
-   The SDK gets the per-call cap as `maximumAmount`, so it also refuses any 402 challenge above the cap.
+   The SDK gets the approved offer price as `maximumAmount`, so it refuses any x402 challenge above the price the
+   policy accepted; the amount recorded as paid is the one the `VoucherRedeemed` event confirms.
 4. The package is a study-only pseudonym, study-relative days in place of calendar dates, and only the
    requested items, plus its sha256. The agent recomputes the hash and rejects a package that does not match.
    x402 hands the package over only after payment, so that call is already paid: the record keeps a refund
    claim against the merchant (`refund_claim`, `refund_claims`, `total_refund_claimed_rlusd`) and the agent
-   pays nothing more in that run (`halted`). The AP4M payment itself is not reversed by this code.
+   pays nothing more in that run (`halted`). The run record is written the moment the claim is made (with
+   `finished_at: null`), so a failure later in the run cannot lose it. The AP4M payment itself is not reversed
+   by this code.
 5. Scripted refusal: a fourth request (week 6, 0.50 RLUSD) is outside the consented weeks and above the cap
    (and over the remaining budget). The agent refuses it and pays nothing; the decision line names all three.
 6. The agent writes `out/run-<timestamp>.json`: every decision and reason, `VoucherRedeemed` tx hashes,
