@@ -97,8 +97,8 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
     explorer_links: [],
     finished_at: null,
   };
-  // The run record is written as soon as there is something a later failure must not lose (a refund claim), and
-  // again at the end; `finished_at` stays null in an interim record.
+  // The run record is written after every paid call (so a payment, and any refund claim on it, is on disk before
+  // the next request or settle can fail) and again at the end; `finished_at` stays null in an interim record.
   mkdirSync(outDir, { recursive: true });
   const outFile = join(outDir, `run-${runId}.json`);
   const persist = () => writeFileSync(outFile, JSON.stringify(record, null, 2) + '\n');
@@ -198,13 +198,20 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
         ? { ...event, amount_rlusd: fromWei(event.amount), cumulative_rlusd: fromWei(event.cumulativeAmount), previousCumulativeAmount: undefined, cumulativeAmount: undefined, amount: undefined }
         : null;
       if (event) paidWei = event.amount;   // what the ledger redeemed, which is what a refund claim must name
-      const reported = await fetch(`${live.apiUrl}/public/participant/record-redemption`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${live.token}` },
-        body: JSON.stringify({ tx_hash: redeemTx }),
-      });
-      call.record_redemption = { status: reported.status, body: await readJson(reported) };
-      log(`[pay] record-redemption HTTP ${reported.status}`);
+      // The payment is already made and the package is in hand: a failed report to the service is recorded,
+      // not thrown, so the package check and the run record below still happen.
+      try {
+        const reported = await fetch(`${live.apiUrl}/public/participant/record-redemption`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${live.token}` },
+          body: JSON.stringify({ tx_hash: redeemTx }),
+        });
+        call.record_redemption = { status: reported.status, body: await readJson(reported) };
+        log(`[pay] record-redemption HTTP ${reported.status}`);
+      } catch (error) {
+        call.record_redemption = { status: 'error', error: String(error?.message ?? error), note: 'redemption is on chain; report it again with POST /public/participant/record-redemption' };
+        log(`[pay] record-redemption FAILED: ${call.record_redemption.error} (payment stands; continuing)`);
+      }
     }
     call.paid = true;
     call.paid_rlusd = fromWei(paidWei);
@@ -233,9 +240,9 @@ export async function runAgent({ dryRun, env, merchantUrl, outDir = join(HERE, '
       record.total_refund_claimed_rlusd = fromWei(refundClaimedWei);
       halted = { week, reason: `package ${offer.package_id} failed verification; no further payments to this merchant in this run` };
       record.halted = halted;
-      persist();   // the claim must survive a failure later in the run (another request, settle)
       log(`[package] ${offer.package_id} REJECTED: sha256 mismatch (claimed ${check.expected}, computed ${check.actual}); refund claim recorded in ${outFile}, no further payments this run`);
     }
+    persist();   // this payment, and any claim on it, must survive a failure later in the run (another request, settle)
   }
 
   record.total_paid_rlusd = fromWei(spentWei);

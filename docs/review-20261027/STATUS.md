@@ -99,15 +99,15 @@
 
 | 파일 | 변경 |
 |---|---|
-| `ap4m/lib/policy.mjs` | `decide()`가 모든 규칙을 검사하고 `reasons[]`를 돌려준다(`reason`은 `; `로 합친 문자열, 기존 정규식 호환). 가격이 무효여도 상한·예산 검사만 건너뛰고 나머지 규칙은 계속 검사한다(리뷰 반영) |
-| `ap4m/agent.mjs` | 동의 = 과제 주차; 변조 뒤 `refund_claim`·`halted`·`refund_claims`·`total_refund_claimed_rlusd`; 이후 호출 거절; 요약 로그. 리뷰 반영: live 경로의 `maximumAmount`를 상한이 아니라 정책이 승인한 제안가로 넘기고, 지급액·환불청구액은 `VoucherRedeemed` 이벤트의 `amount`로 기록(`paid_rlusd`); 환불 합계는 wei로 누적; 환불청구가 생기는 즉시 run record를 기록(`finished_at: null`)하고 종료 시 덮어쓴다 |
-| `ap4m/test/agent.test.mjs` | 6주차 거절이 세 규칙을 모두 명시하는지, 상한 안 6주차가 동의로 거절되는지(신규), 변조 뒤 중단·환불청구(수정), 무효 가격 + 동의 밖 주차가 두 사유를 모두 내는지(신규), 환불청구 뒤 다음 요청이 실패해도 interim record에 청구가 남는지(신규) |
+| `ap4m/lib/policy.mjs` | `decide()`가 모든 규칙을 검사하고 `reasons[]`를 돌려준다(`reason`은 `; `로 합친 문자열, 기존 정규식 호환). 가격이 무효여도 상한·예산 검사만 건너뛰고 나머지 규칙은 계속 검사하며, `items`가 배열이 아니면 throw 대신 거절한다(리뷰 반영) |
+| `ap4m/agent.mjs` | 동의 = 과제 주차; 변조 뒤 `refund_claim`·`halted`·`refund_claims`·`total_refund_claimed_rlusd`; 이후 호출 거절; 요약 로그. 리뷰 반영: live 경로의 `maximumAmount`를 상한이 아니라 정책이 승인한 제안가로 넘기고, 지급액·환불청구액은 `VoucherRedeemed` 이벤트의 `amount`로 기록(`paid_rlusd`); 환불 합계는 wei로 누적; 지급된 호출마다 run record를 기록(`finished_at: null`)하고 종료 시 덮어쓴다; `record-redemption` 보고의 전송 실패는 throw 대신 호출에 기록하고 패키지 검증·기록을 계속한다 |
+| `ap4m/test/agent.test.mjs` | 6주차 거절이 세 규칙을 모두 명시하는지, 상한 안 6주차가 동의로 거절되는지(신규), 변조 뒤 중단·환불청구(수정), 무효 가격 + 동의 밖 주차가 두 사유를 모두 내는지(신규), 환불청구 뒤 다음 요청이 실패해도 interim record에 청구가 남는지(신규), 배열이 아닌 `items`가 거절로 끝나는지(신규) |
 | `docs/review-20261027/demo/run_demo.py` | 리뷰 반영: `AGENTRAIL_DB`·`AGENTRAIL_CONTRACTS_DB`를 `:memory:`로 강제하고 keystore·wallet·volume·UniQdata roster·`LLM_SAY` 변수를 제거, `LLM_PROVIDER=none`을 무조건 대입(셸 설정이 있어도 배포 저장소·실 LLM에 닿지 않음) |
 | `ap4m/README.md` | 위 동작 설명 4곳 |
-| `requirements.txt` | `python-multipart>=0.0.27` 1줄(리뷰 반영: 0.0.27 미만의 multipart 헤더 DoS 권고 회피; venv 실측 0.0.32) |
+| `requirements.txt` | `python-multipart>=0.0.30` 1줄(리뷰 반영: 0.0.27 미만 multipart 헤더 DoS, 0.0.30 미만 form-urlencoded 2차 시간 파싱 권고 회피; venv 실측 0.0.32) |
 
 실행 결과:
-- `cd ap4m && npm test`: 수정 전 16/16 → 수정 후 17/17 → 리뷰 반영 후 **19/19** 통과.
+- `cd ap4m && npm test`: 수정 전 16/16 → 수정 후 17/17 → 리뷰 반영 후 **20/20** 통과.
 - `DRY_RUN=1 ./run-live.sh`: 3 PAY / 1 REFUSE, 거절 사유 세 개 열거, 합계 0.15(기록 `ap4m/out/`, gitignored).
 - `python -m pytest -q`(전체, mock): 수정 전 432 passed / 30 failed / 2 skipped(6분 24초) → `python-multipart` 설치 후 `tests/test_vault_market.py` 65/65. 수정 후 전체 재실행: **462 passed / 2 skipped**(6분 18초, 실패 0).
 - 프로브 `probe_contracts.py`(P1–P8), `probe_market2.py`, `probe_vault.py`, `probe_ap4m.mjs`: 결과는 §3·§6에 전사. 스크립트는 세션 scratchpad에만 있다.

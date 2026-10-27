@@ -146,6 +146,14 @@ test('a refund claim is on disk before the run can fail later', async () => {
   assert.equal(interim.calls[0].paid_rlusd, '0.05');
 });
 
+test('malformed items in an offer are a refusal, not a crash', () => {
+  for (const items of ['abc', { a: 1 }, null]) {
+    const v = decide(offer({ items }), policy, taskConsent(), 0n);
+    assert.equal(v.pay, false);
+    assert.deepEqual(v.reasons, ['items (none) are not consented']);
+  }
+});
+
 test('purpose outside consent is refused', () => {
   assert.equal(decide(offer({ purpose: { study: 'SLEEP-01', duo: 'GRU' } }), policy, taskConsent(), 0n).pay, false);
   assert.equal(decide(offer({ items: ['resting_heart_rate_bpm', 'location'] }), policy, taskConsent(), 0n).pay, false);

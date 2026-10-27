@@ -32,9 +32,10 @@ All data is synthetic.
    requested items, plus its sha256. The agent recomputes the hash and rejects a package that does not match.
    x402 hands the package over only after payment, so that call is already paid: the record keeps a refund
    claim against the merchant (`refund_claim`, `refund_claims`, `total_refund_claimed_rlusd`) and the agent
-   pays nothing more in that run (`halted`). The run record is written the moment the claim is made (with
-   `finished_at: null`), so a failure later in the run cannot lose it. The AP4M payment itself is not reversed
-   by this code.
+   pays nothing more in that run (`halted`). The run record is written after every paid call (with
+   `finished_at: null` until the end), so a failure later in the run cannot lose a payment or its claim; a failed
+   `record-redemption` report is recorded on the call, not thrown. The AP4M payment itself is not reversed by
+   this code.
 5. Scripted refusal: a fourth request (week 6, 0.50 RLUSD) is outside the consented weeks and above the cap
    (and over the remaining budget). The agent refuses it and pays nothing; the decision line names all three.
 6. The agent writes `out/run-<timestamp>.json`: every decision and reason, `VoucherRedeemed` tx hashes,

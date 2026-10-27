@@ -43,8 +43,9 @@ export function decide(offer, policy, consent, spentWei) {
   if (purpose.duo !== consent.duo) reasons.push(`purpose ${purpose.duo} does not match consented use ${consent.duo}`);
   if (offer.pseudonym !== consent.pseudonym) reasons.push(`pseudonym ${offer.pseudonym} is not covered by consent`);
   if (!consent.weeks.includes(offer.week)) reasons.push(`week ${offer.week} is outside consented weeks ${consent.weeks.join(',')}`);
-  const extra = (offer.items ?? []).filter((item) => !consent.items.includes(item));
-  if (!offer.items?.length || extra.length) reasons.push(`items ${extra.join(',') || '(none)'} are not consented`);
+  const items = Array.isArray(offer.items) ? offer.items : [];   // anything else is a malformed offer: refused, never a throw
+  const extra = items.filter((item) => !consent.items.includes(item));
+  if (!items.length || extra.length) reasons.push(`items ${extra.join(',') || '(none)'} are not consented`);
   if (reasons.length) return refuse(reasons, priceWei);
   return {
     pay: true,
