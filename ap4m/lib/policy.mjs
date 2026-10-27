@@ -19,34 +19,39 @@ export function buildConsent({ pseudonym, study, duo, items, weeks }) {
  * @param policy    from buildPolicy
  * @param consent   from buildConsent
  * @param spentWei  RLUSD already paid in this task, in wei
- * @returns {{ pay: boolean, reason: string, priceWei: bigint | null }}
+ * @returns {{ pay: boolean, reason: string, reasons: string[], priceWei: bigint | null }}
+ *   Every rule is checked and every rule that fails is listed in `reasons` (joined in `reason`), so a refusal
+ *   shows each limit on its own: a request can be outside the consent and over the cap at the same time.
  */
 export function decide(offer, policy, consent, spentWei) {
   let priceWei;
-  try { priceWei = toWei(offer?.price_rlusd); } catch { return refuse('offer has no valid price', null); }
+  try { priceWei = toWei(offer?.price_rlusd); } catch { return refuse(['offer has no valid price'], null); }
+  const reasons = [];
   if (!offer.pay_to || !policy.payeeAllowlist.includes(String(offer.pay_to).toLowerCase())) {
-    return refuse(`payee ${offer.pay_to ?? '(none)'} is not in the allowlist`, priceWei);
+    reasons.push(`payee ${offer.pay_to ?? '(none)'} is not in the allowlist`);
   }
   if (priceWei > policy.perCallCapWei) {
-    return refuse(`price ${fromWei(priceWei)} RLUSD exceeds per-call cap ${fromWei(policy.perCallCapWei)} RLUSD`, priceWei);
+    reasons.push(`price ${fromWei(priceWei)} RLUSD exceeds per-call cap ${fromWei(policy.perCallCapWei)} RLUSD`);
   }
   if (spentWei + priceWei > policy.budgetWei) {
-    return refuse(`price ${fromWei(priceWei)} RLUSD would bring the total to ${fromWei(spentWei + priceWei)} RLUSD, over the delegated budget ${fromWei(policy.budgetWei)} RLUSD`, priceWei);
+    reasons.push(`price ${fromWei(priceWei)} RLUSD would bring the total to ${fromWei(spentWei + priceWei)} RLUSD, over the delegated budget ${fromWei(policy.budgetWei)} RLUSD`);
   }
   const purpose = offer.purpose ?? {};
-  if (purpose.study !== consent.study) return refuse(`study ${purpose.study} does not match consent ${consent.study}`, priceWei);
-  if (purpose.duo !== consent.duo) return refuse(`purpose ${purpose.duo} does not match consented use ${consent.duo}`, priceWei);
-  if (offer.pseudonym !== consent.pseudonym) return refuse(`pseudonym ${offer.pseudonym} is not covered by consent`, priceWei);
-  if (!consent.weeks.includes(offer.week)) return refuse(`week ${offer.week} is outside consented weeks ${consent.weeks.join(',')}`, priceWei);
+  if (purpose.study !== consent.study) reasons.push(`study ${purpose.study} does not match consent ${consent.study}`);
+  if (purpose.duo !== consent.duo) reasons.push(`purpose ${purpose.duo} does not match consented use ${consent.duo}`);
+  if (offer.pseudonym !== consent.pseudonym) reasons.push(`pseudonym ${offer.pseudonym} is not covered by consent`);
+  if (!consent.weeks.includes(offer.week)) reasons.push(`week ${offer.week} is outside consented weeks ${consent.weeks.join(',')}`);
   const extra = (offer.items ?? []).filter((item) => !consent.items.includes(item));
-  if (!offer.items?.length || extra.length) return refuse(`items ${extra.join(',') || '(none)'} are not consented`, priceWei);
+  if (!offer.items?.length || extra.length) reasons.push(`items ${extra.join(',') || '(none)'} are not consented`);
+  if (reasons.length) return refuse(reasons, priceWei);
   return {
     pay: true,
     reason: `price ${fromWei(priceWei)} <= cap ${fromWei(policy.perCallCapWei)}, total ${fromWei(spentWei + priceWei)} <= budget ${fromWei(policy.budgetWei)}, payee allowlisted, purpose ${purpose.duo} matches consent`,
+    reasons: [],
     priceWei,
   };
 }
 
-function refuse(reason, priceWei) {
-  return { pay: false, reason, priceWei };
+function refuse(reasons, priceWei) {
+  return { pay: false, reason: reasons.join('; '), reasons, priceWei };
 }

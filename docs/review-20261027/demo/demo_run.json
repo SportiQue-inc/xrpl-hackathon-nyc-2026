@@ -1,0 +1,365 @@
+{
+ "started_at": "2026-10-27T08:09:10Z",
+ "ledger": "mock",
+ "llm": "none",
+ "ap4m_rail": "not connected",
+ "uniqdata": "not connected",
+ "1_need_posted": {
+  "contract": "RC1-fa076b",
+  "terms_hash": "cdb7ef3fc5e5b05664b5795ab9f0f71b2d5303928aee8ebf770b201bb896cf4c",
+  "institution_id": "org_probe_sleep_lab_fa076b",
+  "mandate": {
+   "budget_drops": 80000,
+   "per_order_limit_drops": 20000,
+   "purposes": [
+    "sleep_research"
+   ]
+  },
+  "ethics_credential": {
+   "tx": "4E09DA0B93A43309606A354CDBE32301E2108F733A1108519B6FCC5D45F08C75",
+   "url": null
+  },
+  "public_listing_has_invite_code": false
+ },
+ "2_members": {
+  "M1": {
+   "pid": "RC1-23255e29",
+   "automation": "auto_all",
+   "items": [
+    "fatigue.survey",
+    "sleep.daily"
+   ],
+   "consent_hash": "c69c10a2f7baeced9b180ed959a8f9eca18272c1db6c80f2571dd692d1fdd9ed"
+  },
+  "M2": {
+   "pid": "RC1-fa778914",
+   "automation": "auto_all",
+   "items": [
+    "sleep.daily"
+   ],
+   "consent_hash": "5d37a5a52081d7a257edee810a0dcc1012f46dd9b62e76f44e48ae94146b28ae"
+  },
+  "M3": {
+   "pid": "RC1-209928c4",
+   "automation": "confirm_each",
+   "items": [
+    "fatigue.survey",
+    "sleep.daily"
+   ],
+   "consent_hash": "31394cd3a76c433d9e208a8c9cb0b79fdd84c3e31ebc9ad24701ec5e52def0f6"
+  }
+ },
+ "3_round1": {
+  "summary": {
+   "delivered": 2,
+   "needs_approval": 1
+  },
+  "results": {
+   "RC1-209928c4": {
+    "person": "RC1-209928c4",
+    "status": "needs_approval",
+    "reason": "sleep.daily, fatigue.survey wait for the person"
+   },
+   "RC1-23255e29": {
+    "person": "RC1-23255e29",
+    "status": "delivered",
+    "order_id": 1,
+    "amount_drops": 20000,
+    "slot": "RC1-23255e29|week1",
+    "granted": [
+     "fatigue.survey",
+     "sleep.daily"
+    ],
+    "payment": "paid",
+    "escrow_finish_tx": "CFC4DFC5E9C37D05525BB6A0731A94E34FC3500BA8920E58E45FB34EB1B5E1D0"
+   },
+   "RC1-fa778914": {
+    "person": "RC1-fa778914",
+    "status": "delivered",
+    "order_id": 2,
+    "amount_drops": 10000,
+    "slot": "RC1-fa778914|week1",
+    "granted": [
+     "sleep.daily"
+    ],
+    "payment": "paid",
+    "escrow_finish_tx": "1A5A3FC3134134E17EA5B9EDFAFA270D9DA153DE2B9C0358557075F29E9B0C73"
+   }
+  }
+ },
+ "4_M2_scope_question": [
+  {
+   "request_id": 2,
+   "week": null,
+   "kind": "scope",
+   "items": [
+    "fatigue.survey"
+   ],
+   "price_per_item_drops": 10000
+  }
+ ],
+ "5_M3_approval": {
+  "pending": {
+   "request_id": 1,
+   "week": 1,
+   "kind": "round",
+   "items": [
+    "fatigue.survey",
+    "sleep.daily"
+   ],
+   "price_per_item_drops": 10000
+  },
+  "wrong_signature_http": 403,
+  "borrowed_key_http": 403,
+  "own_key_http": 200,
+  "order_after_approval": {
+   "status": "delivered",
+   "order_id": 3,
+   "amount_drops": 20000,
+   "slot": "RC1-209928c4|week1",
+   "granted": [
+    "fatigue.survey",
+    "sleep.daily"
+   ],
+   "payment": "paid",
+   "escrow_finish_tx": "1F43975053DA658C9EFEEBADEC22EC90C32541E653C41A22EE6B21C1D43267C7"
+  }
+ },
+ "6_round2": {
+  "summary": {
+   "delivered": 2,
+   "needs_approval": 1
+  },
+  "results": {
+   "RC1-209928c4": {
+    "person": "RC1-209928c4",
+    "status": "needs_approval",
+    "reason": "sleep.daily, fatigue.survey wait for the person"
+   },
+   "RC1-23255e29": {
+    "person": "RC1-23255e29",
+    "status": "delivered",
+    "order_id": 4,
+    "amount_drops": 20000,
+    "slot": "RC1-23255e29|week2",
+    "granted": [
+     "fatigue.survey",
+     "sleep.daily"
+    ],
+    "payment": "paid",
+    "escrow_finish_tx": "C5C56E7C90C26F04A0B6ACBFA2848FD5372C0B6C14C7260D616FC759734AC32C"
+   },
+   "RC1-fa778914": {
+    "person": "RC1-fa778914",
+    "status": "delivered",
+    "order_id": 5,
+    "amount_drops": 10000,
+    "slot": "RC1-fa778914|week2",
+    "granted": [
+     "sleep.daily"
+    ],
+    "payment": "paid",
+    "escrow_finish_tx": "23AC65A5E52EC961191FB37464AFFE2DF43BE7741599B0C125289597FFF1E100"
+   }
+  }
+ },
+ "6_M3_approval_after_budget_gone": {
+  "approved": [
+   "fatigue.survey",
+   "sleep.daily"
+  ],
+  "order": {
+   "status": "budget",
+   "reason": "needs 20000 drops, 0 available"
+  }
+ },
+ "7_delivery": {
+  "console": {
+   "members": 3,
+   "spent_drops": 80000,
+   "budget_drops": 80000,
+   "rounds": [
+    {
+     "week": 1,
+     "at": 1793088550.429664,
+     "summary": {
+      "delivered": 2,
+      "needs_approval": 1
+     }
+    },
+    {
+     "week": 2,
+     "at": 1793088550.456716,
+     "summary": {
+      "delivered": 2,
+      "needs_approval": 1
+     }
+    }
+   ],
+   "orders": [
+    {
+     "status": "delivered",
+     "order_id": 1,
+     "amount_drops": 20000,
+     "slot": "RC1-23255e29|week1",
+     "granted": [
+      "fatigue.survey",
+      "sleep.daily"
+     ],
+     "payment": "paid",
+     "escrow_finish_tx": "CFC4DFC5E9C37D05525BB6A0731A94E34FC3500BA8920E58E45FB34EB1B5E1D0"
+    },
+    {
+     "status": "delivered",
+     "order_id": 2,
+     "amount_drops": 10000,
+     "slot": "RC1-fa778914|week1",
+     "granted": [
+      "sleep.daily"
+     ],
+     "payment": "paid",
+     "escrow_finish_tx": "1A5A3FC3134134E17EA5B9EDFAFA270D9DA153DE2B9C0358557075F29E9B0C73"
+    },
+    {
+     "status": "delivered",
+     "order_id": 3,
+     "amount_drops": 20000,
+     "slot": "RC1-209928c4|week1",
+     "granted": [
+      "fatigue.survey",
+      "sleep.daily"
+     ],
+     "payment": "paid",
+     "escrow_finish_tx": "1F43975053DA658C9EFEEBADEC22EC90C32541E653C41A22EE6B21C1D43267C7"
+    },
+    {
+     "status": "delivered",
+     "order_id": 4,
+     "amount_drops": 20000,
+     "slot": "RC1-23255e29|week2",
+     "granted": [
+      "fatigue.survey",
+      "sleep.daily"
+     ],
+     "payment": "paid",
+     "escrow_finish_tx": "C5C56E7C90C26F04A0B6ACBFA2848FD5372C0B6C14C7260D616FC759734AC32C"
+    },
+    {
+     "status": "delivered",
+     "order_id": 5,
+     "amount_drops": 10000,
+     "slot": "RC1-fa778914|week2",
+     "granted": [
+      "sleep.daily"
+     ],
+     "payment": "paid",
+     "escrow_finish_tx": "23AC65A5E52EC961191FB37464AFFE2DF43BE7741599B0C125289597FFF1E100"
+    }
+   ],
+   "payments": {
+    "rail": "ledger",
+    "paid_count": 5,
+    "paid_drops": 80000,
+    "unpaid_count": 0,
+    "unpaid_drops": 0
+   }
+  },
+  "institution_opened_bundles": [
+   {
+    "order_id": 1,
+    "slot": "RC1-23255e29|week1",
+    "rows": 7,
+    "items_in_row": [
+     "fatigue.survey",
+     "sleep.daily"
+    ],
+    "hash_matches_order": true
+   },
+   {
+    "order_id": 2,
+    "slot": "RC1-fa778914|week1",
+    "rows": 7,
+    "items_in_row": [
+     "sleep.daily"
+    ],
+    "hash_matches_order": true
+   },
+   {
+    "order_id": 3,
+    "slot": "RC1-209928c4|week1",
+    "rows": 7,
+    "items_in_row": [
+     "fatigue.survey",
+     "sleep.daily"
+    ],
+    "hash_matches_order": true
+   },
+   {
+    "order_id": 4,
+    "slot": "RC1-23255e29|week2",
+    "rows": 7,
+    "items_in_row": [
+     "fatigue.survey",
+     "sleep.daily"
+    ],
+    "hash_matches_order": true
+   },
+   {
+    "order_id": 5,
+    "slot": "RC1-fa778914|week2",
+    "rows": 7,
+    "items_in_row": [
+     "sleep.daily"
+    ],
+    "hash_matches_order": true
+   }
+  ],
+  "member_views": {
+   "M1": {
+    "active_institutions": 1,
+    "settled_drops": 40000,
+    "held_drops": 0
+   },
+   "M2": {
+    "active_institutions": 1,
+    "settled_drops": 20000,
+    "held_drops": 0
+   },
+   "M3": {
+    "active_institutions": 1,
+    "settled_drops": 20000,
+    "held_drops": 0
+   }
+  }
+ },
+ "8_withdraw_round3": {
+  "M2_status": "withdrawn",
+  "round3_members": [
+   "RC1-209928c4",
+   "RC1-23255e29"
+  ],
+  "M2_asked_in_round3": false,
+  "round3": {
+   "RC1-209928c4": {
+    "person": "RC1-209928c4",
+    "status": "needs_approval",
+    "reason": "sleep.daily, fatigue.survey wait for the person"
+   },
+   "RC1-23255e29": {
+    "person": "RC1-23255e29",
+    "status": "budget",
+    "reason": "needs 20000 drops, 0 available"
+   }
+  }
+ },
+ "limits": [
+  "Ledger: mock. EscrowCreate/EscrowFinish here are in-memory records, not XRPL Testnet transactions (the lane runs the same code with LEDGER=testnet; not exercised in this run).",
+  "Payment rail: ledger (mock escrow). The AP4M rail was not connected: no RLUSD moved, no VoucherRedeemed, no receipt URL.",
+  "Data: generated test readings labelled generated_test; no UniQdata account was connected, so nothing was written to or read from UniQdata and no settlement record was reported to it.",
+  "LLM: off. Every sentence and every decision came from the rule-based code paths; no proposal was made or checked.",
+  "Candidate comparison: the research-contract lane has none. The institution asks every member at the posted price; the only choices are each member's own consent and the institution's budget. Price negotiation and seller ranking exist only in the market simulation (agentrail/market) and the vault market prototype.",
+  "The researcher has no API or page to download a delivered bundle in this lane; step 7 opened it in-process with the engine's institution vault to show the data is readable by the payer.",
+  "Approvals are Ed25519 signatures from a software key in this script, the same contract the browser join page uses with WebCrypto; no passkey/Touch ID was involved."
+ ],
+ "finished_at": "2026-10-27T08:09:10Z"
+}
