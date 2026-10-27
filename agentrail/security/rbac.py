@@ -119,6 +119,7 @@ POLICY: dict[tuple[str, str], Rule] = {
     ("POST", "/api/contracts/{cid}/join/start"): Rule(public=True),
     ("POST", "/api/contracts/{cid}/join/complete"): Rule(public=True),
     ("GET", "/api/contracts/{cid}/console"): Rule((R, O), "contract"),
+    ("GET", "/api/contracts/{cid}/orders/{oid}/bundle"): Rule((R,), "contract"),   # the operator never opens bundles
     ("POST", "/api/contracts/{cid}/rounds"): Rule((R,), "contract"),
     ("POST", "/api/contracts/{cid}/close"): Rule((R,), "contract"),
     ("POST", "/api/contracts/{cid}/payments/retry"): Rule((R,), "contract"),

@@ -62,14 +62,25 @@ async function show() {
     } }, "Run week");
     const members = el("table", {}, el("tr", {}, el("th", {}, "Member"), el("th", {}, "Items"), el("th", {}, "Their choice"), el("th", {}, "Status")),
       ...c.member_list.map((m) => el("tr", {}, el("td", {}, m.pid), el("td", {}, m.items.length), el("td", {}, m.automation), el("td", {}, m.status))));
-    const orders = el("table", {}, el("tr", {}, el("th", {}, "Order"), el("th", {}, "Week"), el("th", {}, "Amount"), el("th", {}, "Status"), el("th", {}, "Payment"), el("th", {}, "Receipt / tx")),
+    // A delivered week is opened by the institution's vault with the key read from the ledger; the rows are
+    // under the institution's pseudonym and date shift, and the hash must match the order.
+    const opened = el("div");
+    const openLink = (o) => o.status !== "delivered" ? "" : el("a", { href: `/api/contracts/${cid}/orders/${o.order_id}/bundle`, onclick: async (e) => {
+      e.preventDefault();
+      try {
+        const b = await api("GET", `/api/contracts/${cid}/orders/${o.order_id}/bundle`, undefined, await auth());
+        opened.replaceChildren(el("h3", {}, `Order ${b.order_id} · week ${b.slot.split("week")[1]} · ${b.rows.length} rows · bundle ${b.bundle_hash.slice(0, 16)}…`),
+          el("pre", {}, JSON.stringify(b.rows, null, 1)));
+      } catch (x) { opened.replaceChildren(el("p", { class: "err" }, x.message)); }
+    } }, "Open");
+    const orders = el("table", {}, el("tr", {}, el("th", {}, "Order"), el("th", {}, "Week"), el("th", {}, "Amount"), el("th", {}, "Status"), el("th", {}, "Payment"), el("th", {}, "Receipt / tx"), el("th", {}, "Bundle")),
       ...c.orders.slice(-60).reverse().map((o) => el("tr", {}, el("td", {}, o.order_id), el("td", {}, o.slot.split("week")[1]),
-        el("td", {}, amount(o.amount_drops)), el("td", {}, o.status), el("td", {}, payState(o.payment)), el("td", {}, payLink(o)))));
+        el("td", {}, amount(o.amount_drops)), el("td", {}, o.status), el("td", {}, payState(o.payment)), el("td", {}, payLink(o)), el("td", {}, openLink(o)))));
     const p = c.payments;
     const auto = c.terms.round_every_s;
     box.replaceChildren(el("h2", {}, c.terms.title), el("p", { class: "sub" }, `${c.terms.institution} · ${c.members} member${c.members === 1 ? "" : "s"} · paid ${amount(p.paid_drops)} in ${p.paid_count} payments${p.unpaid_count ? ` · ${p.unpaid_count} delivered, payment pending` : ""} · budget ${amount(c.budget_drops)} · ${p.rail === "ap4m" ? "AP4M on XRPL EVM Testnet" : c.ledger}`),
       auto ? el("p", { class: "note" }, `The institution's agent runs the next week on its own every ${auto} s; each member's agent answers from their consent and each delivered week is paid at once. This page refreshes itself.`) : "",
-      el("div", { class: "row" }, week, run), msg, el("h3", {}, "Members"), members, el("h3", {}, "Orders"), orders);
+      el("div", { class: "row" }, week, run), msg, el("h3", {}, "Members"), members, el("h3", {}, "Orders"), orders, opened);
     clearTimeout(window._refresh);
     if (auto && c.status === "open") window._refresh = setTimeout(show, 10000);
   } catch (e) { box.replaceChildren(el("p", { class: "err" }, e.message)); }

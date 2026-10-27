@@ -45,13 +45,24 @@ async function mine() {
   const c = v.contracts.find((x) => x.contract === cid);
   const box = $("#mine");
   box.hidden = false;
-  const asks = c.pending_approvals.map((a) => el("div", { class: "row" }, `Week ${a.week ?? "-"}: ${a.items.map((i) => ITEM_LABELS[i] || i).join(", ")}`,
-    el("button", { class: "ar-btn sm primary", onclick: async (e) => {
-      e.target.disabled = true;
-      const text = await actionText(pid, cid, `approve:${a.request_id}:${[...a.items].sort().join(",")}`, c.consent_hash);
-      await api("POST", `/api/p/${pid}/contracts/${cid}/requests/${a.request_id}/approve`, { items: a.items, signature: await sign(k, text) }, h).catch((x) => alert(x.message));
-      mine();
-    } }, "Approve this week")));
+  // A week question (kind "round") confirms one week. A scope question (kind "scope", no week) asks to widen
+  // your consent to items you did not agree to: allow them, or decline (approve with no items; the server
+  // then closes the question without widening consent).
+  const answer = async (e, a, picked) => {
+    e.target.disabled = true;
+    const text = await actionText(pid, cid, `approve:${a.request_id}:${[...picked].sort().join(",")}`, c.consent_hash);
+    await api("POST", `/api/p/${pid}/contracts/${cid}/requests/${a.request_id}/approve`, { items: picked, signature: await sign(k, text) }, h).catch((x) => alert(x.message));
+    mine();
+  };
+  const asks = c.pending_approvals.map((a) => {
+    const items = a.items.map((i) => ITEM_LABELS[i] || i).join(", ");
+    if (a.kind === "scope" || a.week == null)
+      return el("div", { class: "row" }, `New items asked, outside what you agreed to: ${items}`,
+        el("button", { class: "ar-btn sm primary", onclick: (e) => answer(e, a, a.items) }, "Allow these items"),
+        el("button", { class: "ar-btn sm", onclick: (e) => answer(e, a, []) }, "Decline"));
+    return el("div", { class: "row" }, `Week ${a.week}: ${items}`,
+      el("button", { class: "ar-btn sm primary", onclick: (e) => answer(e, a, a.items) }, "Approve this week"));
+  });
   const leave = el("button", { class: "ar-btn danger", onclick: async () => {
     if (!confirm("Withdraw? Your agent stops answering: weeks not yet delivered are not paid (an open escrow returns to the institution). Payments made stay yours.")) return;
     const text = await actionText(pid, cid, "withdraw", c.consent_hash);

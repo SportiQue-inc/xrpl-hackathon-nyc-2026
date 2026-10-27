@@ -1,4 +1,6 @@
 """A research contract posted over HTTP, joined by people with their own keys, traded by their agents."""
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -26,8 +28,8 @@ def token(c, dev: Device) -> dict:
     return {"Authorization": "Bearer " + r.json()["access_token"]}
 
 
-def post(c, terms=TERMS):
-    researcher = Device("researcher-key")
+def post(c, terms=TERMS, key_name="researcher-key"):
+    researcher = Device(key_name)
     r = c.post("/api/contracts", json={"terms": terms, "researcher_key": researcher.public_hex})
     assert r.status_code == 200, r.text
     out = r.json()
@@ -35,10 +37,11 @@ def post(c, terms=TERMS):
     return out["contract"]["id"], out["invite_code"], researcher
 
 
-def join(c, cid, code, automation, name):
+def join(c, cid, code, automation, name, items=None):
     d = Device(name)
     s = c.post(f"/api/contracts/{cid}/join/start",
-               json={"invite_code": code, "public_key": d.public_hex, "automation": automation}).json()
+               json={"invite_code": code, "public_key": d.public_hex, "automation": automation,
+                     **({"items": items} if items else {})}).json()
     d.sub = s["pid"]
     r = c.post(f"/api/contracts/{cid}/join/complete", json={"pid": s["pid"], "signature": d.sign_consent(s["consent_hash"])})
     assert r.status_code == 200, r.text
@@ -330,3 +333,69 @@ def test_posting_and_joining_do_not_wait_behind_a_round_that_is_paying(c, rail, 
     release.set()
     t.join(10)
     assert len(paid) == 1
+
+
+def test_delivered_rows_carry_the_institutions_pseudonym_and_shifted_days(c):
+    """D5: what leaves a member's vault for a contract is under that institution's pseudonym with its date
+    shift, as in the study lane; never the member's id and the original study day."""
+    cid, code, researcher = post(c)
+    a, _ = join(c, cid, code, "auto_all", "a")
+    r = c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=token(c, researcher)).json()
+    oid = r["results"][0]["order_id"]
+    lane = web.lane()
+    iid = lane.terms(cid)["institution_id"]
+    rows = lane.engine.open_payload(iid, oid)["rows"]
+    assert rows
+    vault = lane._person(a.sub).vault
+    assert {row["person"] for row in rows} == {vault.pseudonym(iid)} and vault.pseudonym(iid) != a.sub
+    assert all(row["day"] > 7 for row in rows)          # week 1 is days 1-7 before the institution's date shift
+    assert vault.pseudonym(iid) != vault.pseudonym("another_institution")
+
+
+def test_a_member_declines_a_scope_question_with_a_signature_and_consent_stays_as_signed(c):
+    """D6: the institution asks for items outside what the member agreed to; the member's agent opens a scope
+    question (no week). The page signs approve:<rid>: with no items to decline it; the question closes and
+    the consent is not widened."""
+    cid, code, researcher = post(c)
+    m, hm = join(c, cid, code, "auto_all", "m", items=["sleep.daily"])
+    c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=token(c, researcher))
+    mine = c.get(f"/api/p/{m.sub}/contracts", headers=hm).json()["contracts"][0]
+    ask = mine["pending_approvals"][0]
+    assert ask["kind"] == "scope" and ask["week"] is None and "fatigue.survey" in ask["items"]
+    lane = web.lane()
+    iid = lane.terms(cid)["institution_id"]
+    path = f"/api/p/{m.sub}/contracts/{cid}/requests/{ask['request_id']}/approve"
+    sig = m.sign(lane.action_message(m.sub, cid, f"approve:{ask['request_id']}:"))
+    out = c.post(path, json={"items": [], "signature": sig}, headers=hm)
+    assert out.status_code == 200, out.text
+    assert out.json() == {"approved": []}
+    after = c.get(f"/api/p/{m.sub}/contracts", headers=hm).json()["contracts"][0]
+    assert after["pending_approvals"] == []
+    consent = lane.store.one("SELECT items FROM consents WHERE person_id=? AND buyer_id=?", m.sub, iid)
+    assert json.loads(consent["items"]) == ["sleep.daily"]
+    assert c.post(path, json={"items": [], "signature": sig}, headers=hm).status_code == 404   # answered once
+
+
+def test_the_researcher_receives_a_delivered_week_and_nobody_else_does(c):
+    """D9: GET /api/contracts/{cid}/orders/{oid}/bundle opens a delivered week for that contract's researcher
+    only; a member or another contract's researcher gets 403, and a bundle that does not hash to its order 409."""
+    cid, code, researcher = post(c)
+    a, ha = join(c, cid, code, "auto_all", "a")
+    rh = token(c, researcher)
+    first = c.post(f"/api/contracts/{cid}/rounds", json={"week": 1}, headers=rh).json()["results"][0]
+    oid = first["order_id"]
+    path = f"/api/contracts/{cid}/orders/{oid}/bundle"
+    b = c.get(path, headers=rh)
+    assert b.status_code == 200, b.text
+    b = b.json()
+    assert b["order_id"] == oid and b["slot"].endswith("week1") and sorted(b["granted"]) == sorted(first["granted"])
+    assert b["rows"] and all(row["person"] != a.sub for row in b["rows"]) and len(b["bundle_hash"]) == 64
+    assert c.get(path, headers=ha).status_code == 403                                   # a member
+    cid2, _, other = post(c, key_name="other-researcher-key")
+    oh = token(c, other)
+    assert c.get(path, headers=oh).status_code == 403                                   # another contract's researcher
+    assert c.get(f"/api/contracts/{cid2}/orders/{oid}/bundle", headers=oh).status_code == 404   # not that contract's order
+    lane = web.lane()
+    _, sealed = lane.engine.inbox.received[oid]
+    lane.engine.inbox.received[oid] = ("0" * 64, sealed)
+    assert c.get(path, headers=rh).status_code == 409                                   # does not hash to the order

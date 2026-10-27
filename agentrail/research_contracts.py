@@ -30,7 +30,7 @@ from . import units
 from .agents import PersonalAgent, consent_document
 from .connectors import Person, PersonalVaultConnector
 from .db import Store
-from .engine import BudgetExceeded, Engine, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
+from .engine import BudgetExceeded, BundleMismatch, Engine, NeedsHumanApproval, OrderRequest, canonical, sha256_hex
 from .policy import AUTOMATION_LEVELS, PURPOSE_DUO, SENSITIVITY, BuyerMandate, ComplianceRules
 from .security.auth import Identity
 from .security.devices import InstitutionVault, ParticipantKeyring, consent_message, verify_ed25519
@@ -482,8 +482,9 @@ class Lane:
         if not d.ok:
             return {"status": d.status, "reason": d.reason}
         req = OrderRequest(t["institution_id"], pid, pid, "personal.weekly", f"{pid}|week{week}", t["purpose"],
-                           d.granted, t["price_per_item_drops"] * len(d.granted), pa.vault.extract(d.granted, week), d,
-                           settle="escrow")
+                           d.granted, t["price_per_item_drops"] * len(d.granted),
+                           # rows leave under this institution's pseudonym and date shift, as in the study lane
+                           pa.vault.extract(d.granted, week, study=t["institution_id"]), d, settle="escrow")
         try:
             oid = self.engine.place_order(req)
         except (BudgetExceeded, NeedsHumanApproval) as e:
@@ -716,6 +717,27 @@ class Lane:
                 "escrow_create": {"tx": o["tx_hash"], "url": url(o["tx_hash"])},
                 "escrow_finish": {"tx": o["finish_tx"], "url": url(o["finish_tx"])},
                 "escrow_cancel": {"tx": o["cancel_tx"], "url": url(o["cancel_tx"])}}
+
+    def open_bundle(self, cid: str, oid: int) -> dict:
+        """The researcher receives one delivered week: the institution's vault opens the sealed bundle with
+        the key read from the ledger and the engine checks it against the hash the order carries. An order
+        that is not delivered, a bundle no longer in the inbox, or a hash mismatch opens nothing (409)."""
+        t = self.terms(cid)
+        o = self.store.one("SELECT status, scope, bundle_hash FROM orders WHERE id=? AND buyer_id=?",
+                           oid, t["institution_id"])
+        if o is None:
+            raise KeyError(f"order {oid} in {cid}")
+        if o["status"] != "delivered":
+            raise ValueError(f"order {oid} is {o['status']}, not delivered: there is nothing to open yet")
+        try:
+            payload = self.engine.open_payload(t["institution_id"], oid)
+        except BundleMismatch as e:                 # recorded against the seller by the engine
+            raise ValueError(str(e))
+        except KeyError:
+            raise ValueError(f"order {oid}: the sealed bundle is no longer in the institution's inbox")
+        scope = json.loads(o["scope"])
+        return {"order_id": oid, "slot": scope["slot"], "granted": scope["granted"], "rows": payload["rows"],
+                "bundle_hash": o["bundle_hash"]}
 
     def console(self, cid: str) -> dict:
         """The researcher's view: members by contract number only, every order with its ledger links."""

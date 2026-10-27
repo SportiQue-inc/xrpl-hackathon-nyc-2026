@@ -1038,6 +1038,12 @@ def contracts_retry_payments(cid: str):
     return _lcall(lambda L: {"paid": L.retry_payments(cid), "payments": L.console(cid)["payments"]})
 
 
+@app.get("/api/contracts/{cid}/orders/{oid}/bundle")
+def contracts_bundle(cid: str, oid: int):
+    """The researcher of this contract receives a delivered week (rows under the institution's pseudonym)."""
+    return _lcall(lambda L: L.open_bundle(cid, oid))
+
+
 @app.get("/api/p/{pid}/contracts")
 def member_contracts(pid: str):
     return _lcall(lambda L: L.member_view(pid))
