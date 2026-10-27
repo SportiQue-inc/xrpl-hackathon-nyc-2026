@@ -88,11 +88,11 @@
 | D2 | **변조 패키지 뒤에도 계속 지급.** 3주차 패키지 해시 불일치를 봐도 4·5주차를 지급, 환불 청구 기록 없음 | `ap4m/agent.mjs` 구 196–204행 | 3주차만 변조하는 fetch로 dry run → `paid 3, total 0.15, refund_claim null`(수정 전 프로브) | **수정**: 불일치 시 `refund_claim` 기록, `record.halted`, 이후 호출 `refuse "halted after week 3"`(`agent.mjs:130, 151-154, 217-225, 230`). 수정 후: paid 1, total 0.05, refund 0.05. 테스트 `agent.test.mjs:87`. 결제 자체는 되돌리지 않는다(x402 구조) |
 | D3 | **거절 사유가 첫 번째 규칙만 남는다.** scripted 6주차(0.50)는 상한·예산·동의 주차 세 규칙을 다 어기는데 기록엔 "exceeds per-call cap"만 남아 "한 가지 제한만 검증"으로 읽힌다 | `ap4m/lib/policy.mjs` 구 24–48행 | `run-live.sh` dry run의 w6 decision line | **수정**: 모든 규칙을 검사해 `reasons[]`로 열거(`policy.mjs:26-57`). dry run: "exceeds per-call cap…; over the delegated budget…; week 6 is outside consented weeks 3,4,5" |
 | D4 | **README대로 설치하면 테스트 30건 실패.** `requirements.txt`에 `python-multipart`가 없어 `tests/test_vault_market.py` 30건이 `RuntimeError: Form data requires "python-multipart"` | `requirements.txt`; 볼트 서버는 자기 `requirements.txt`에만 추가 | `python -m pytest -q` 전체: 432 passed / 30 failed / 2 skipped | **수정**: 루트 `requirements.txt`에 1줄 추가. 재실행 65/65 통과 |
-| D5 | 연구 계약 레인의 추출에 study 인자가 없어 **연구별 가명·날짜 이동이 적용되지 않는다**(행에 `person=pid`, 원래 study day). 연구 데모 레인은 `study=LAB`를 넘긴다 | `research_contracts.py:485` vs `study.py:323`, `connectors.py:165-181` | 데모 7단계 열람 행의 `person` 값이 pid | 미수정(동작 차단 아님, pid는 가입마다 난수). 백로그 |
-| D6 | scope 질문을 **거절할 수단이 없다**(승인 API만 있고 `approve(items=[])`를 보내는 UI 없음) → 열린 질문이 남는다. 참여자 페이지는 scope 질문(동의 범위 확장)을 'Week -: … / Approve this week'로 표시해 주차 확인처럼 보인다 | `web.py:1051-1053`, `apps/contracts/join.js:48-53` | P1의 `A_scope_ask_open`; 브라우저 확인(§3.10) | 미수정. UX |
+| D5 | 연구 계약 레인의 추출에 study 인자가 없어 **연구별 가명·날짜 이동이 적용되지 않는다**(행에 `person=pid`, 원래 study day). 연구 데모 레인은 `study=LAB`를 넘긴다 | `research_contracts.py:485` vs `study.py:323`, `connectors.py:165-181` | 데모 7단계 열람 행의 `person` 값이 pid | **수정(61ddb5b)**: `_send_week()`가 `pa.vault.extract(d.granted, week, study=t["institution_id"])`로 호출 → 행의 `person`은 기관별 가명 `S-…`, `day`는 기관별 이동값. `settlement_records`·`console`·`member_view` 출력 형태 불변. 테스트 `test_research_contracts.py::test_delivered_rows_carry_the_institutions_pseudonym_and_shifted_days` |
+| D6 | scope 질문을 **거절할 수단이 없다**(승인 API만 있고 `approve(items=[])`를 보내는 UI 없음) → 열린 질문이 남는다. 참여자 페이지는 scope 질문(동의 범위 확장)을 'Week -: … / Approve this week'로 표시해 주차 확인처럼 보인다 | `web.py:1051-1053`, `apps/contracts/join.js:48-53` | P1의 `A_scope_ask_open`; 브라우저 확인(§3.10) | **수정(61ddb5b)**: `join.js`가 scope 질문(kind `scope`, week 없음)을 "New items asked, outside what you agreed to: …"로 구분 표시하고 Allow / Decline 버튼을 둔다. Decline은 `approve:{rid}:` 서명(`action_message` 형식과 일치) + `items: []`를 기존 approve route로 보내고, 서버는 질문을 닫되 동의를 넓히지 않는다. 정책이 다음 라운드에 같은 항목을 다시 물을 수 있는 것은 기존 동작이며 바꾸지 않았다. 테스트 `test_research_contracts.py::test_a_member_declines_a_scope_question_with_a_signature_and_consent_stays_as_signed` |
 | D7 | `approve()`가 레인 락 안에서 AP4M 결제를 한다(#97이 `run_round`만 락 밖으로 옮김) | `research_contracts.py:608-623` `_send_week(... )` 기본 `pay=True` | 코드 읽기 | 미수정. 성능 |
 | D8 | 볼트 마켓 프롬프트는 "다른 판매자와 경쟁, 가장 싼 쪽을 산다"고 하지만 코드는 **게시당 판매자 1명**만 묻는다. 문서·프롬프트와 동작 불일치 | `vaultmarket/agents.py:101` vs `market.py:467, 519-526` | 코드 읽기 | 미수정. 설명 수정 대상 |
-| D9 | 연구 계약 레인에 **연구자가 전달물을 받는 API/페이지가 없다**(엔진 내부 `open_payload`만) | `web.py:977-1056`에 해당 route 없음 | 데모 7단계 | 미수정. 기능 gap(F) |
+| D9 | 연구 계약 레인에 **연구자가 전달물을 받는 API/페이지가 없다**(엔진 내부 `open_payload`만) | `web.py:977-1056`에 해당 route 없음 | 데모 7단계 | **수정(61ddb5b)**: `GET /api/contracts/{cid}/orders/{oid}/bundle`(rbac `Rule((R,), "contract")` — 그 계약의 연구자만, operator 제외) → `Lane.open_bundle()`이 `engine.open_payload(iid, oid)`로 열어 `{order_id, slot, granted, rows, bundle_hash}`를 돌려준다. 미전달·인박스 부재·해시 불일치 409, 타 계약 주문 404. `post.js` 주문 표에 "Open" 링크. 테스트 `test_research_contracts.py::test_the_researcher_receives_a_delivered_week_and_nobody_else_does`(연구자 200, 멤버·타 연구자 403, 변조 409) |
 | D10 | Core 연동 4건 | `CORE_BRIDGE_FINDINGS.md` | 〃 | 경계상 미수정 |
 
 ## 7. 수정 파일과 영향 테스트
@@ -111,9 +111,21 @@
 - `python -m pytest -q`(전체, mock): 수정 전 432 passed / 30 failed / 2 skipped(6분 24초) → `python-multipart` 설치 후 `tests/test_vault_market.py` 65/65. 수정 후 전체 재실행: **462 passed / 2 skipped**(6분 18초, 실패 0).
 - 프로브 `probe_contracts.py`(P1–P8), `probe_market2.py`, `probe_vault.py`, `probe_ap4m.mjs`: 결과는 §3·§6에 전사. 스크립트는 세션 scratchpad에만 있다.
 
+### 후속 수정 2026-10-27 — D5·D6·D9 (커밋 61ddb5b)
+
+| 파일 | 변경 |
+|---|---|
+| `agentrail/research_contracts.py` | `_send_week()`에 `study=t["institution_id"]`; `Lane.open_bundle(cid, oid)` 추가 |
+| `agentrail/web.py`, `agentrail/security/rbac.py` | `GET /api/contracts/{cid}/orders/{oid}/bundle` route와 접근 규칙(그 계약의 researcher만) |
+| `apps/contracts/join.js` | scope 질문 라벨 구분, Allow / Decline 버튼(Decline = `items: []` 서명 전송) |
+| `apps/contracts/post.js` | 주문 표 "Bundle" 열의 Open 링크(연구자 토큰으로 열어 행을 표시) |
+| `tests/test_research_contracts.py` | D5·D6·D9 회귀 테스트 3건; helper `post(key_name=)`·`join(items=)` |
+
+`PYTHONPATH=. .venv/bin/python -m pytest -q`(전체, mock): 수정 전 462 passed / 2 skipped → 수정 후 **465 passed / 2 skipped**. 브라우저 확인은 하지 않았다(페이지 변경은 서빙 테스트와 금지어 검사만 통과).
+
 ## 8. 남은 제한
 
 - 이 점검은 mock 원장·LLM off·레일 미연결에서의 동작 증거다. 테스트넷·AP4M live·UniQdata 연동·패스키는 코드 존재만 확인했고 운영 증거가 아니다.
 - "에이전트다움"(목표 해석·상대 탐색·협상)은 시장 시뮬레이션/볼트 마켓에만 있으며, 사용자가 실제로 여는 연구 계약 레인에는 없다. 이것은 결함이 아니라 설계 범위이지만 IR에서 섞어 말하면 안 된다.
-- D5·D6·D7·D8·D9·D10은 백로그로 넘긴다(리팩토링 세션 `output/full-audit-20261027/BACKLOG.md`).
+- D5·D6·D9는 61ddb5b에서 수정했다(§6·§7). D7·D8·D10은 백로그로 넘긴다(리팩토링 세션 `output/full-audit-20261027/BACKLOG.md`).
 - 2026-10-25 영수증·실행 기록은 당시 상태의 증거이며, 현재 레일/서비스가 같은 동작을 한다는 증거로 바꾸지 않았다.
