@@ -18,14 +18,26 @@ All data is synthetic.
    - payee is in the allowlist (default: `MERCHANT_PAYOUT`)
    - price <= per-call cap (`PER_CALL_CAP_RLUSD`, default 0.10)
    - running total <= delegated budget (`BUDGET_RLUSD`, default 0.20)
-   - purpose and items match the participant's consent (study SLEEP-01, DUO HMB, P-017, consented items only)
+   - purpose, items and week match the participant's consent (study SLEEP-01, DUO HMB, P-017, the consented
+     items, weeks 3-5 only: the consent covers exactly the task)
+
+   Every rule is checked and a refusal lists every rule that failed (`reasons`), so one request can be refused
+   for being outside the consent and over the cap at the same time, and each limit can be read on its own.
 3. To pay, the agent uses the SDK: `signIn` → `requestChannel` (cap = budget, or reuse `CHANNEL_ID`) →
    `buyResource` (signs the EIP-712 Voucher; the merchant redeems it on-chain, which emits `VoucherRedeemed`) →
    `POST /public/participant/record-redemption` → `settle` (payout tx, settlement tx, receipt URL).
-   The SDK gets the per-call cap as `maximumAmount`, so it also refuses any 402 challenge above the cap.
+   The SDK gets the approved offer price as `maximumAmount`, so it refuses any x402 challenge above the price the
+   policy accepted; the amount recorded as paid is the one the `VoucherRedeemed` event confirms.
 4. The package is a study-only pseudonym, study-relative days in place of calendar dates, and only the
    requested items, plus its sha256. The agent recomputes the hash and rejects a package that does not match.
-5. Scripted refusal: a fourth request (week 6, 0.50 RLUSD) is above the cap. The agent refuses it and pays nothing.
+   x402 hands the package over only after payment, so that call is already paid: the record keeps a refund
+   claim against the merchant (`refund_claim`, `refund_claims`, `total_refund_claimed_rlusd`) and the agent
+   pays nothing more in that run (`halted`). The run record is written after every paid call (with
+   `finished_at: null` until the end), so a failure later in the run cannot lose a payment or its claim; a failed
+   `record-redemption` report is recorded on the call, not thrown. The AP4M payment itself is not reversed by
+   this code.
+5. Scripted refusal: a fourth request (week 6, 0.50 RLUSD) is outside the consented weeks and above the cap
+   (and over the remaining budget). The agent refuses it and pays nothing; the decision line names all three.
 6. The agent writes `out/run-<timestamp>.json`: every decision and reason, `VoucherRedeemed` tx hashes,
    claim IDs, the record-redemption response, the settlement result and receipt URL, the payout wallet's RLUSD
    balance before and after (read on chain with `balanceOf` on the x402 token), and explorer links.
@@ -57,8 +69,10 @@ npm install               # live only: ethers 6.17.0 and the vendored AP4M SDK (
 ./run-live.sh             # live run on XRPL EVM Testnet
 ```
 
-`npm test` covers: pays within cap, refuses over cap, refuses unknown payee, refuses after budget exhausted,
-rejects a tampered package hash, refuses an off-consent purpose or item.
+`npm test` covers: pays within cap, refuses the scripted week 6 naming every broken rule (cap, budget, consented
+weeks), refuses a week outside the consent even inside the cap, refuses unknown payee, refuses after budget
+exhausted, rejects a tampered package hash and halts later payments with a refund claim, refuses an off-consent
+purpose or item.
 
 ## Setup daniel must do before a live run
 
@@ -89,7 +103,8 @@ transaction hashes, and the on-chain payout balance change before claiming AP4M 
 1. (0:00) Show the task and policy: `agent.mjs` top, cap 0.10, budget 0.20, allowlist = our payout wallet,
    consent = SLEEP-01 / HMB.
 2. (0:30) `./run-live.sh`. Point at the four decision lines as they print: three PAY with the reason, one REFUSE
-   ("price 0.5 RLUSD exceeds per-call cap 0.1 RLUSD"), no payment for it.
+   naming each broken rule (over the cap, over the remaining budget, week 6 outside consented weeks 3,4,5), no
+   payment for it.
 3. (1:30) Open the `VoucherRedeemed` tx link from the summary in the XRPL EVM Testnet explorer.
 4. (2:00) Show the settlement payout tx and the payout balance line, `before -> after` (+0.15 RLUSD).
 5. (2:30) Open `out/run-<timestamp>.json`: package sha256 per week, receipt URL, explorer links. Optionally
